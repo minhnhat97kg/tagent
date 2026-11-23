@@ -133,6 +133,9 @@ func (m Model) dashboardView() string {
 		help = m.keyHints("h/l agents", "enter view", "a add", "B board config", "Tab focus", "? help")
 		if m.agentsOpen {
 			help = m.keyHints("h/l workflows", "enter detail", "m model", "a add", "Tab focus", "? help")
+			if m.agentDetail {
+				help = m.keyHints("esc back", "m model", "e edit", "j/k agent", "? help")
+			}
 		}
 	}
 	if m.taskFocus {

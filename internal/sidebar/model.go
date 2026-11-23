@@ -1707,7 +1707,14 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		if m.agentFocus == 4 && !m.boardMode {
 			switch key := msg.String(); key {
-			case "esc":
+			case "esc", "backspace":
+				if m.agentsOpen && m.agentDetail { // back from an agent's detail to the list
+					m.agentDetail = false
+					return m, nil
+				}
+				if key == "backspace" {
+					return m, nil
+				}
 				m.agentFocus, m.taskFocus, m.workflowFocus = 2, true, false
 				return m, nil
 			case "t", "h", "l", "[", "]": // swap Workflows <-> Agents (same keys as the other cards' tabs)

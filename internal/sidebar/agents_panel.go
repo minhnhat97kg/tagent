@@ -87,6 +87,13 @@ func (m Model) agentStripLines(width int) []string {
 	for _, a := range m.agents {
 		nameW, harnessW, modelW = max(nameW, lipgloss.Width(a.Name)), max(harnessW, lipgloss.Width(a.Harness)), max(modelW, lipgloss.Width(short(a)))
 	}
+	// The local/global column only when the whole row fits; a cut "…" says nothing.
+	scope := func(a agents.Agent) string {
+		if 2+nameW+2+harnessW+2+modelW+2+len("global") > width {
+			return ""
+		}
+		return "  " + m.boardStyle(m.theme.TextDim).Render(agentScope(a))
+	}
 	var lines []string
 	for i, a := range m.agents {
 		mark := "  "
@@ -100,7 +107,7 @@ func (m Model) agentStripLines(width int) []string {
 			run = "  " + m.boardStyle(m.theme.StatusRunning).Render(fmt.Sprintf("● %d", a.Running))
 		}
 		name := m.boardStyle(m.theme.TextPrimary).Bold(true).Render(a.Name) + strings.Repeat(" ", nameW-lipgloss.Width(a.Name))
-		lines = append(lines, boardFit(mark+name+"  "+dim.Render(a.Harness+strings.Repeat(" ", harnessW-lipgloss.Width(a.Harness))+"  "+model)+"  "+m.boardStyle(m.theme.TextDim).Render(agentScope(a))+run, width))
+		lines = append(lines, boardFit(mark+name+"  "+dim.Render(a.Harness+strings.Repeat(" ", harnessW-lipgloss.Width(a.Harness))+"  "+model)+scope(a)+run, width))
 	}
 	return lines
 }
