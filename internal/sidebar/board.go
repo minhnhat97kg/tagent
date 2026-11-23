@@ -763,65 +763,6 @@ func accordion(total int, rest, want []int, focus int) []int {
 	return h
 }
 
-// fitHeights fills exactly total rows with the cards of one column, so no gap
-// is ever left above the footer. Every card starts at its min height, grows
-// toward its need in column order (fixed content is not clipped just because a
-// lower card wants the rows) and the spare rows left are split by weight, with
-// Tasks and Workflows (weight > 0) taking them first. A column too short for
-// the minimums shrinks the unfocused cards first, always the tallest one, down
-// to a row.
-func fitHeights(total int, low, need, weight []int, focus int) []int {
-	h := make([]int, len(low))
-	for i := range h {
-		h[i] = max(1, low[i])
-	}
-	left := total - sum(h)
-	if left < 0 {
-		for pass := 0; pass < 2 && left < 0; pass++ { // unfocused cards, then the focused one
-			for left < 0 {
-				pick := -1
-				for i := range h {
-					if (i != focus) == (pass == 1) || h[i] <= 1 {
-						continue
-					}
-					if pick < 0 || h[i] > h[pick] {
-						pick = i
-					}
-				}
-				if pick < 0 {
-					break
-				}
-				h[pick]--
-				left++
-			}
-		}
-		return h
-	}
-	for i := range h {
-		grow := min(left, max(0, need[i]-h[i]))
-		h[i] += grow
-		left -= grow
-	}
-	if left > 0 { // spare rows: Tasks and Workflows first, in proportion to weight
-		var slots []int
-		for i, w := range weight {
-			for k := 0; k < w; k++ {
-				slots = append(slots, i)
-			}
-		}
-		if len(slots) == 0 { // a column of fixed cards only: they still fill it
-			for i := range h {
-				slots = append(slots, i)
-			}
-		}
-		for k := 0; left > 0; k++ {
-			h[slots[k%len(slots)]]++
-			left--
-		}
-	}
-	return h
-}
-
 func sum(v []int) (n int) {
 	for _, x := range v {
 		n += x

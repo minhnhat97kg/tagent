@@ -243,48 +243,6 @@ func TestCardHeightsGrowTasksAndWorkflowsFirst(t *testing.T) {
 	}
 }
 
-func TestFitHeightsFillsTheColumn(t *testing.T) {
-	low := []int{minAgentsH, minUsageH, minTasksH, minWfH}
-	need := []int{8, 10, 12, 5}
-	weight := []int{0, 0, 3, 2}
-	check := func(got []int, want int) []int {
-		t.Helper()
-		if sum(got) != want {
-			t.Fatalf("filled %d of %d rows: %v", sum(got), want, got)
-		}
-		return got
-	}
-	// Tall: the content needs are met top to bottom, all spare rows go to
-	// Tasks and Workflows.
-	tall := check(fitHeights(60, low, need, weight, 0), 60)
-	if tall[0] != 8 || tall[1] != 10 || tall[2] <= 12 || tall[3] <= minWfH || tall[2]+tall[3] != 60-18 {
-		t.Fatalf("tall column: %v", tall)
-	}
-	// A column with just the fixed cards grows both of them.
-	if got := check(fitHeights(40, low[:2], need[:2], weight[:2], 0), 40); got[0] <= 8 || got[1] <= 10 {
-		t.Fatalf("fixed column: %v", got)
-	}
-	// Want rows run out: the top card keeps its content, the lower ones wait.
-	if got := check(fitHeights(36, low, []int{8, 20, 6, 8}, weight, 0), 36); got[0] != 8 || got[1] != 14 {
-		t.Fatalf("short of want: %v", got)
-	}
-	// Too short for the minimums: never a gap, the tallest unfocused card
-	// shrinks first and the focused one shrinks last.
-	short := check(fitHeights(18, low, need, weight, 0), 18)
-	if short[0] != minAgentsH || short[2] < 3 || short[3] < 3 {
-		t.Fatalf("short column: %v", short)
-	}
-	focused := check(fitHeights(12, low, need, weight, 3), 12)
-	if focused[3] != minWfH {
-		t.Fatalf("focused card shrank before the others: %v", focused)
-	}
-	for _, h := range focused {
-		if h < 1 {
-			t.Fatalf("card vanished: %v", focused)
-		}
-	}
-}
-
 func TestNoAgentDefinitionsCardAndFourStops(t *testing.T) {
 	m := dashSample()
 	for _, size := range [][2]int{{50, 60}, {100, 40}} {

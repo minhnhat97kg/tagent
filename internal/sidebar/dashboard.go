@@ -378,7 +378,7 @@ const (
 // order. Every card is always present and the cards together fill the body
 // (h-2 rows) exactly: each keeps a minimum height, Tasks and Workflows take
 // the spare rows, and a short column shrinks the cards instead of leaving a
-// gap under the last one (fitHeights).
+// gap under the last one (split).
 func (m Model) dashGeometry() dashGeom {
 	w, h := m.width, m.height
 	if w <= 0 {
@@ -400,68 +400,33 @@ func (m Model) dashGeometry() dashGeom {
 	if compH > 0 && bh-compH < map[bool]int{true: 15, false: 24}[g.wide] {
 		compH = 0
 	}
-	// Need is the content height (+2 borders); low is what the card keeps even
-	// when the column is short. Weight splits the spare rows: Tasks and
-	// Workflows grow first (weight 0 cards only grow when the column has
-	// nothing else to fill, e.g. Agents/Usage on the wide left column).
-	trim := func(l []string) int {
-		for len(l) > 0 && strings.TrimSpace(l[len(l)-1]) == "" {
-			l = l[:len(l)-1]
-		}
-		return len(l)
-	}
-	wfLines, _, _ := m.stripPanel(width - 4)
-	if g.wide {
-		wfLines, _, _ = m.stripPanel(width - left - 4)
-	}
-	tw := width - 4
-	if g.wide {
-		tw = width - left - 4
-	}
-	lanes, _ := m.laneLayout(tw)
-	type spec struct {
-		r      *rect
-		focus  int
-		need   int
-		low    int
-		weight int
-	}
-	agentsS := spec{&g.agents, 0, trim(m.agentRows(left-4, 1000)) + 2, minAgentsH, 0}
-	usageS := spec{&g.usage, 3, usageH, minUsageH, 0}
-	tasksS := spec{&g.tasks, 2, len(lanes) + 2, minTasksH, 3}
-	wfS := spec{&g.wf, 4, min(len(wfLines)+2, minWfH), minWfH, 0} // the bottom card stays small: ~6 rows
-	column := func(x, w, y, total int, specs ...spec) {
-		low, need, weight := make([]int, len(specs)), make([]int, len(specs)), make([]int, len(specs))
-		fi := 0
-		for i, s := range specs {
-			low[i], need[i], weight[i] = s.low, max(3, s.need), s.weight
-			if s.focus == m.agentFocus {
-				fi = i
-			}
-		}
-		for i, hh := range fitHeights(total, low, need, weight, fi) {
-			*specs[i].r = rect{x, y, w, hh}
-			y += hh
-		}
-	}
 	// Card sizes follow the viewport, not the content: Usage and the bottom
 	// Workflows card are fixed small, Agents takes a set share (all spare rows
 	// in the left column when wide), Tasks takes the rest. Lists scroll inside.
-	const rest = 1 << 10
-	usageS.need = max(minUsageH, usageH)
-	wfS.need = minWfH
+	// The focused card is the last to lose rows in a short column.
+	last := func(c constraint, focus int) constraint { return c.Last(m.agentFocus == focus) }
+	agentsC := func(c constraint) constraint { return last(c.AtLeast(minAgentsH), 0) }
+	usageC := func(n int) constraint { return last(Fixed(n).AtLeast(minUsageH), 3) }
+	tasksC := last(Fill(1).AtLeast(minTasksH), 2)
+	wfC := last(Fixed(minWfH), 4)
+	set := func(rs []rect, dst ...*rect) {
+		for i, d := range dst {
+			*d = rs[i]
+		}
+	}
+	body := rect{0, 1, width, bh}
 	if g.wide {
-		agentsS.need = rest
-		tasksS.need = rest
-		column(0, left, 1, bh-compH, agentsS, usageS)
+		cols := hsplit(body, Fixed(left), Fill(1))
+		lc, rc := cols[0], cols[1]
+		lc.h -= compH
+		set(vsplit(lc, agentsC(Fill(1)), usageC(minUsageH)), &g.agents, &g.usage)
 		if compH > 0 {
 			g.comp = rect{0, 1 + bh - compH, left, compH}
 		}
-		column(left, width-left, 1, bh, tasksS, wfS)
+		set(vsplit(rc, tasksC, wfC), &g.tasks, &g.wf)
 	} else {
-		agentsS.need = max(minAgentsH, (bh-compH)*28/100)
-		tasksS.need = rest
-		column(0, width, 1, bh-compH, agentsS, usageS, tasksS, wfS)
+		body.h -= compH
+		set(vsplit(body, agentsC(Percent(28)), usageC(max(minUsageH, usageH)), tasksC, wfC), &g.agents, &g.usage, &g.tasks, &g.wf)
 		if compH > 0 {
 			g.comp = rect{0, 1 + bh - compH, width, compH}
 		}
