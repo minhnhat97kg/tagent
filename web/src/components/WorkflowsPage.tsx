@@ -1,48 +1,99 @@
 import { useEffect, useRef, useState } from 'react'
-import { ArrowDown, ArrowLeft, Bot, CheckCircle2, CircleDot, Play, Plus, Save, Terminal, Trash2, Workflow as WorkflowIcon } from 'lucide-react'
+import { ArrowDown, ArrowLeft, ArrowRight, Bot, Loader2, Repeat, CheckCircle2, CircleDot, Play, Plus, Save, Terminal, Trash2, Workflow as WorkflowIcon } from 'lucide-react'
 import { api, send } from '@/api'
 import { usePoll } from '@/hooks/usePoll'
 import { enc } from '@/hooks/useRoute'
 import { Button } from '@/components/ui/button'
-import { statusColor } from '@/components/BoardDrawer'
+import { shortId, statusColor, title } from '@/components/BoardDrawer'
+import type { Run, Task } from '@/types'
 
 type Job = { ID: string; Status: string; Agent: string; Model: string; Prompt: string; Run: string; Outputs: string[]; OnFailure: string; MaxLoops: number }
 type Input = { Description: string; Default: string; Required: boolean }
 type Flow = { key: string; name: string; global: boolean; yaml: string; description: string; error: string; jobs: Job[]; inputs: Record<string, Input>; total: number; running: number; lastUsed: string }
 type Preview = { Name: string; Description: string; Jobs: Job[] }
 
-export function WorkflowsPage({ dir }: { dir: string }) {
-  return <WorkflowEditor key={dir} dir={dir} />
+export function WorkflowsPage({ dir, initial = '', ticket, runs }: { dir: string; initial?: string; ticket?: Task; runs?: Run[] }) {
+  return <WorkflowEditor key={dir} dir={dir} initial={initial} ticket={ticket} runs={runs} />
 }
 
-// FlowChart draws the recipe as it would run: ticket → each step in order → done, with failure routes.
-function FlowChart({ jobs }: { jobs: Job[] }) {
-  const arrow = <ArrowDown className="mx-auto my-1 size-4 text-muted-foreground" />
-  return <div className="flex flex-col items-stretch">
-    <div className="mx-auto flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs text-muted-foreground"><CircleDot className="size-3.5" />New ticket</div>
-    {jobs.map(j => <div key={j.ID}>
-      {arrow}
-      <details className="group rounded-lg border bg-card shadow-sm" style={{ borderLeft: `3px solid ${statusColor(j.Status)}` }}>
-        <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2">
-          {j.Run ? <Terminal className="size-4 shrink-0 text-sky-600" /> : <Bot className="size-4 shrink-0 text-indigo-600" />}
-          <span className="font-medium">{j.ID}</span>
-          <span className="rounded px-1.5 text-[11px]" style={{ color: statusColor(j.Status), background: 'var(--muted)' }}>{j.Status}</span>
-          <span className="ml-auto truncate text-xs text-muted-foreground">{j.Run ? 'command' : j.Agent}{j.Model ? ` · ${j.Model}` : ''}</span>
-        </summary>
-        <div className="space-y-1 border-t px-3 py-2 text-xs">
-          <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-words font-mono">{j.Run || j.Prompt || 'Uses the role prompt'}</pre>
-          {!!j.Outputs?.length && <p className="text-muted-foreground">Outputs: {j.Outputs.join(', ')}</p>}
-        </div>
-      </details>
-      {(j.OnFailure || j.Run || j.MaxLoops > 0) && <p className="mt-1 text-right text-[11px] text-muted-foreground">
-        {j.MaxLoops > 0 && `max ${j.MaxLoops} loops · `}fail → {j.OnFailure || 'blocked'}</p>}
-    </div>)}
-    {arrow}
-    <div className="mx-auto flex items-center gap-1.5 rounded-full border border-emerald-500/40 px-3 py-1 text-xs text-emerald-600"><CheckCircle2 className="size-3.5" />done</div>
+type Box = { top: number; bottom: number }
+// FlowChart draws the recipe as it runs: ticket → each step → done. Failure routes back to an earlier
+// step are drawn as edges on the right; with a ticket it also shows how many times each step ran.
+function FlowChart({ jobs, ticket, runs }: { jobs: Job[]; ticket?: Task; runs?: Run[] }) {
+  const wrap = useRef<HTMLDivElement>(null)
+  const cards = useRef<Record<string, HTMLElement | null>>({})
+  const [boxes, setBoxes] = useState<Record<string, Box>>({})
+  const [width, setWidth] = useState(0)
+  useEffect(() => {
+    const el = wrap.current
+    if (!el) return
+    const measure = () => {
+      const base = el.getBoundingClientRect().top
+      setWidth(el.clientWidth)
+      setBoxes(Object.fromEntries(Object.entries(cards.current).filter(([, c]) => c).map(([id, c]) => { const r = c!.getBoundingClientRect(); return [id, { top: r.top - base, bottom: r.bottom - base }] })))
+    }
+    const ro = new ResizeObserver(measure)
+    ro.observe(el); Object.values(cards.current).forEach(c => c && ro.observe(c))
+    return () => ro.disconnect()
+  }, [jobs])
+  const index = Object.fromEntries(jobs.map((j, i) => [j.ID, i]))
+  const edges = jobs.flatMap((j, i) => j.OnFailure in index && index[j.OnFailure] !== i ? [{ from: j, to: jobs[index[j.OnFailure]] }] : [])
+  const gutter = edges.length ? 28 + 14 * edges.length : 0
+  const entered = (st: string) => runs?.filter(r => r.to === st).length ?? 0
+  const at = ticket ? (ticket.status === 'done' ? jobs.length : jobs.findIndex(j => j.Status === ticket.status)) : -1
+  const arrow = (label = '') => <div className="relative my-1 flex justify-center"><ArrowDown className="size-4 text-muted-foreground" />{label && <span className="absolute left-1/2 top-0 ml-3 text-[10.5px] text-emerald-600">{label}</span>}</div>
+  return <div ref={wrap} className="relative flex flex-col items-stretch" style={{ paddingRight: gutter }}>
+    <div className="mx-auto flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs text-muted-foreground"><CircleDot className="size-3.5" />{ticket ? `${shortId(ticket.id)} ${title(ticket)}`.slice(0, 48) : 'New ticket'}</div>
+    {jobs.map((j, i) => {
+      const n = entered(j.Status), current = i === at, done = at >= 0 && i < at
+      return <div key={j.ID}>
+        {arrow(i > 0 && jobs[i - 1].Run ? 'pass' : '')}
+        <details ref={el => { cards.current[j.ID] = el }} className={`group rounded-lg border bg-card shadow-sm ${current ? 'ring-2 ring-foreground/70' : ''} ${ticket && !current && !done && !n ? 'opacity-60' : ''}`} style={{ borderLeft: `3px solid ${statusColor(j.Status)}` }}>
+          <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2">
+            {done ? <CheckCircle2 className="size-4 shrink-0 text-emerald-600" /> : current ? <Loader2 className="size-4 shrink-0 animate-spin text-foreground" /> : j.Run ? <Terminal className="size-4 shrink-0 text-sky-600" /> : <Bot className="size-4 shrink-0 text-indigo-600" />}
+            <span className="font-medium">{j.ID}</span>
+            <span className="rounded px-1.5 text-[11px]" style={{ color: statusColor(j.Status), background: 'var(--muted)' }}>{j.Status}</span>
+            {n > 1 && <span className="inline-flex items-center gap-0.5 rounded bg-amber-500/15 px-1.5 text-[11px] text-amber-700 dark:text-amber-400" title={`Entered ${n} times`}><Repeat className="size-3" />{n}×</span>}
+            <span className="ml-auto truncate text-xs text-muted-foreground">{j.Run ? 'command' : j.Agent}{j.Model ? ` · ${j.Model}` : ''}{j.MaxLoops > 0 ? ` · max ${j.MaxLoops}` : ''}</span>
+          </summary>
+          <div className="space-y-1 border-t px-3 py-2 text-xs">
+            <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-words font-mono">{j.Run || j.Prompt || 'Uses the role prompt'}</pre>
+            {!!j.Outputs?.length && <p className="text-muted-foreground">Outputs: {j.Outputs.join(', ')}</p>}
+          </div>
+        </details>
+        {!(j.OnFailure in index) && (j.OnFailure || j.Run) && <p className="mt-1 text-right text-[11px] text-muted-foreground">fail → {j.OnFailure || 'blocked'}</p>}
+      </div>
+    })}
+    {arrow(jobs.length && jobs[jobs.length - 1].Run ? 'pass' : '')}
+    <div className={`mx-auto flex items-center gap-1.5 rounded-full border border-emerald-500/40 px-3 py-1 text-xs text-emerald-600 ${ticket?.status === 'done' ? 'bg-emerald-500/10 font-medium' : ''}`}><CheckCircle2 className="size-3.5" />done</div>
+    {width > 0 && <svg className="pointer-events-none absolute inset-0 overflow-visible" width={width} height="100%" aria-hidden>
+      <defs><marker id="flow-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#f59e0b" /></marker></defs>
+      {edges.map((e, k) => {
+        const s = boxes[e.from.ID], t = boxes[e.to.ID]
+        if (!s || !t) return null
+        const x0 = width - gutter, x = x0 + 16 + 14 * k, y0 = s.top + 18, y1 = t.top + 18
+        return <g key={e.from.ID}>
+          <path d={`M${x0},${y0} H${x - 6} Q${x},${y0} ${x},${y0 + (y1 < y0 ? -6 : 6)} V${y1 + (y1 < y0 ? 6 : -6)} Q${x},${y1} ${x - 6},${y1} H${x0 + 2}`} fill="none" stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="4 3" markerEnd="url(#flow-arrow)" />
+          <text x={x + 7} y={(y0 + y1) / 2} fontSize="10.5" fill="#d97706" transform={`rotate(90 ${x + 7} ${(y0 + y1) / 2})`} textAnchor="middle">{e.from.Run ? 'fail' : 'changes'}{e.from.MaxLoops ? ` · max ${e.from.MaxLoops}` : ''}</text>
+        </g>
+      })}
+    </svg>}
   </div>
 }
 
-function WorkflowEditor({ dir }: { dir: string }) {
+// RunLog lists the ticket's status moves, oldest first.
+function RunLog({ runs }: { runs: Run[] }) {
+  return <ol className="mt-4 space-y-1 border-t pt-3 text-[11.5px]">
+    <li className="mb-1 font-medium text-muted-foreground">History</li>
+    {runs.map((r, i) => <li key={i} className="flex items-center gap-1.5">
+      <time className="w-24 shrink-0 tabular-nums text-muted-foreground">{new Date(r.time).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</time>
+      <span style={{ color: statusColor(r.from) }}>{r.from || '·'}</span><ArrowRight className="size-3 text-muted-foreground" /><span className="font-medium" style={{ color: statusColor(r.to) }}>{r.to}</span>
+      <span className="ml-auto truncate text-muted-foreground">{r.actor}</span>
+    </li>)}
+  </ol>
+}
+
+function WorkflowEditor({ dir, initial, ticket, runs }: { dir: string; initial: string; ticket?: Task; runs?: Run[] }) {
   const path = '/api/workflows?dir=' + enc(dir)
   const poll = usePoll(() => api<Flow[]>(path), 2000, dir)
   const [selected, select] = useState<Flow>()
@@ -80,6 +131,9 @@ function WorkflowEditor({ dir }: { dir: string }) {
   }
   function start(f: Flow) { setRun(f); setError(''); setValues(Object.fromEntries(Object.entries(f.inputs ?? {}).map(([key, value]) => [key, value.Default]))) }
   const flows = poll.data ?? []
+  // Opened from a ticket's "View run": select its workflow once the list arrives.
+  const [pending, setPending] = useState(initial)
+  if (pending && poll.data) { setPending(''); const f = flows.find(x => x.name === pending || x.key === pending); if (f) open(f) }
   const fieldClass = 'w-full rounded border bg-background p-2'
 
   return <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg border bg-card">
@@ -117,8 +171,9 @@ function WorkflowEditor({ dir }: { dir: string }) {
                 className="min-h-0 flex-1 resize-none bg-transparent p-3 font-mono text-[12px] leading-5 outline-none" />
             </div>
             <div className="min-h-0 overflow-auto p-3">
-              <div className="mb-2 text-[11px] font-medium text-muted-foreground">Flow{validation && ' · last valid version'}</div>
-              <FlowChart jobs={preview?.Jobs ?? selected.jobs ?? []} />
+              <div className="mb-2 text-[11px] font-medium text-muted-foreground">{ticket ? `Run of ${shortId(ticket.id)} · ${ticket.status}` : 'Flow'}{validation && ' · last valid version'}</div>
+              <FlowChart jobs={preview?.Jobs ?? selected.jobs ?? []} ticket={ticket} runs={runs} />
+              {!!runs?.length && <RunLog runs={runs} />}
             </div>
           </div>
         </div>}

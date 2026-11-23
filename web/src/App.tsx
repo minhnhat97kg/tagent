@@ -90,14 +90,15 @@ export default function App() {
   const proj = projPoll.data
   const chatRoute = route === "/chat"
   const boardRoute = route === '/board'
-  const home = !sel && !chatRoute && !boardRoute && route !== '/workflows'
+  const flowRoute = /^\/workflows(?:\/([^/]+)(?:\/([^/]+))?)?$/.exec(route)
+  const home = !sel && !chatRoute && !boardRoute && !flowRoute
   const board = <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border bg-card"><Board dir={dir} proj={proj} reload={projPoll.reload} /></section>
   const tasks = <TasksPanel proj={proj} dir={dir} reload={projPoll.reload} className="min-h-40 flex-1" />
 
 
   let main
   if (boardRoute) main = board
-  else if (route === '/workflows') main = <WorkflowsPage key={dir} dir={dir} />
+  else if (flowRoute) { const name = decodeURIComponent(flowRoute[1] ?? ''), id = decodeURIComponent(flowRoute[2] ?? ''); main = <WorkflowsPage key={dir + route} dir={dir} initial={name} ticket={proj?.tasks?.find(t => t.id === id)} runs={proj?.runs?.[id]} /> }
   else if (chatRoute) main = <ChatPanel key={dir} dir={dir} onTasks={projPoll.reload} className="h-full" />
   else if (agent) main = <AgentView key={agent.pane} agent={agent} />
   else if (sel) main = state ? <div className="p-6 text-muted-foreground">Agent not found. <a href="#/" className="text-foreground underline">Home</a></div> : null

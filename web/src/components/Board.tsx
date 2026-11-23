@@ -15,7 +15,7 @@ export function TaskDrawer({ proj, dir, reload, id, onClose, origin, initialRepl
   const roles = Array.from(new Set([...(proj?.roles ?? []), ...(proj?.tasks ?? []).map(role)])).filter(Boolean)
   return <Dialog open={!!selected} onOpenChange={open => { if (!open) onClose() }}>
     <DialogContent className="board-drawer translate-x-0 translate-y-0 sm:max-w-none" onOpenAutoFocus={e => { e.preventDefault(); (e.currentTarget as HTMLElement).focus() }} onCloseAutoFocus={e => { e.preventDefault(); if (origin.current?.isConnected) origin.current.focus() }}>
-      {selected && <BoardDrawer key={selected.id + initialReply} initialReply={initialReply} workflows={proj?.workflows ?? []} task={selected} statuses={statuses.map(s => s.id)} roles={roles} role={role(selected)} reason={proj?.blockedReasons?.[selected.id]} dir={dir} reload={reload} />}
+      {selected && <BoardDrawer key={selected.id + initialReply} initialReply={initialReply} workflows={proj?.workflows ?? []} task={selected} statuses={statuses.map(s => s.id)} roles={roles} role={role(selected)} reason={proj?.blockedReasons?.[selected.id]} dir={dir} reload={reload} close={onClose} />}
     </DialogContent>
   </Dialog>
 }
