@@ -14,6 +14,7 @@ func parseClaude(line []byte, sessionID string) (record, bool) {
 		IsMeta      bool   `json:"isMeta"`
 		IsSidechain bool   `json:"isSidechain"`
 		Message     struct {
+			Model   string          `json:"model"`
 			Content json.RawMessage `json:"content"`
 		} `json:"message"`
 	}
@@ -23,7 +24,7 @@ func parseClaude(line []byte, sessionID string) (record, bool) {
 	}
 	var items []Item
 	if (l.Type == "user" || l.Type == "assistant") && !l.IsMeta && !l.IsSidechain {
-		items = toItems(l.Type, blocks(l.Message.Content))
+		items = withModel(toItems(l.Type, blocks(l.Message.Content)), l.Message.Model)
 	}
 	return newRecord(l.UUID, l.ParentUUID, l.Timestamp, items), true
 }

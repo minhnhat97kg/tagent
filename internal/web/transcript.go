@@ -24,6 +24,7 @@ type transcriptJSON struct {
 	Unreadable  bool              `json:"unreadable,omitempty"`
 	Queued      []string          `json:"queued"`
 	Screen      string            `json:"screen,omitempty"`
+	Ask         *transcript.Ask   `json:"ask,omitempty"`
 }
 
 // transcript returns an agent's conversation (active branch) after ?after=<cursor>.
@@ -46,7 +47,16 @@ func (s *server) transcript(w http.ResponseWriter, r *http.Request) {
 	default:
 		out.Items, out.Cursor, out.Reset, out.More = page.Items, page.Cursor, page.Reset, page.More
 	}
-	if status == string(tmux.StatusWaiting) {
+	if out.Harness == "claude" && status != string(tmux.StatusRunning) {
+		// A pending AskUserQuestion is not in the transcript until answered; read it off the screen.
+		if screen, err := tmux.CaptureTail(pane, 40); err == nil {
+			if out.Ask = transcript.ParseAsk(screen); out.Ask != nil {
+				out.Status = string(tmux.StatusWaiting)
+			}
+		}
+		s.chatSize(pane, out.Ask)
+	}
+	if status == string(tmux.StatusWaiting) && out.Ask == nil {
 		// The approval itself is answered in Terminal; Chat only shows what is being asked.
 		screen, _ := tmux.CaptureTail(pane, 40)
 		lines := strings.Split(strings.TrimRight(screen, "\n"), "\n")
@@ -86,4 +96,22 @@ func (s *server) send(w http.ResponseWriter, r *http.Request) {
 	}
 	tmux.TypeLine(p.Pane, p.Data)
 	writeJSON(w, map[string]bool{"queued": false})
+}
+
+// chatSize gives a pane room while one of its questions is clipped: in Chat the Terminal is hidden, so
+// a pane in a shared tmux window can be a few rows tall and Claude then hides options. It only acts
+// when nobody owns the pane's size, and hands it back as soon as the question is gone.
+func (s *server) chatSize(pane string, ask *transcript.Ask) {
+	const viewer = "chat"
+	if ask != nil && ask.Clipped {
+		if _, held := s.chatClaims.Load(pane); !held && s.sizeOwners.resize(pane, viewer, terminalSize{Cols: 100, Rows: 40}, false, true) == nil && s.sizeOwners.owns(pane, viewer) {
+			s.chatClaims.Store(pane, true)
+		}
+		return
+	}
+	if ask == nil {
+		if _, held := s.chatClaims.LoadAndDelete(pane); held {
+			_ = s.sizeOwners.release(pane, viewer)
+		}
+	}
 }

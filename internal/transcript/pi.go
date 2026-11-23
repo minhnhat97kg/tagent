@@ -12,6 +12,7 @@ func parsePi(line []byte, _ string) (record, bool) {
 		Timestamp string `json:"timestamp"`
 		Message   struct {
 			Role       string          `json:"role"`
+			Model      string          `json:"model"`
 			Content    json.RawMessage `json:"content"`
 			ToolCallID string          `json:"toolCallId"`
 			ToolName   string          `json:"toolName"`
@@ -24,7 +25,7 @@ func parsePi(line []byte, _ string) (record, bool) {
 	switch {
 	case l.Type != "message":
 	case l.Message.Role == "user" || l.Message.Role == "assistant":
-		items = toItems(l.Message.Role, blocks(l.Message.Content))
+		items = withModel(toItems(l.Message.Role, blocks(l.Message.Content)), l.Message.Model)
 	case l.Message.Role == "toolResult":
 		items = []Item{{Role: "tool", Tool: &Tool{Name: l.Message.ToolName, CallID: l.Message.ToolCallID, Output: clip(resultText(l.Message.Content), maxOutput)}}}
 	}

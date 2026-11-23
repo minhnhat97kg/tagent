@@ -89,3 +89,43 @@ test("an unsupported or unreadable transcript tells the parent", async () => {
   await waitFor(() => expect(onUnavailable).toHaveBeenCalled())
   expect(await screen.findByText(/not available for this agent/)).toBeTruthy()
 })
+
+test("shows an AskUserQuestion with its options and answers by the option number", async () => {
+  const input = JSON.stringify({ questions: [{ question: "Which chat?", options: [{ label: "Both" }, { label: "Agent", description: "AgentChat" }] }] })
+  mocks.api.mockReset().mockResolvedValue(feed({ status: "waiting", screen: "raw screen", items: [
+    { id: "q.0", role: "tool", tool: { name: "AskUserQuestion", label: "AskUserQuestion", callId: "q1", input } },
+  ] }))
+  mount()
+  expect(await screen.findByText("Which chat?")).toBeTruthy()
+  expect(screen.queryByText("raw screen")).toBeNull()
+  await userEvent.click(screen.getByRole("button", { name: /2\s*Agent/ }))
+  expect(mocks.post).toHaveBeenCalledWith("/api/pane/input", { pane: "%1", data: "2" })
+})
+
+test("a pending question read off the screen is a card whose option is clickable", async () => {
+  mocks.api.mockReset().mockResolvedValue(feed({ status: "waiting", items: [], ask: { header: "Pick", question: "Pick again", other: true, options: [{ n: 1, label: "Red", description: "Choose Red" }, { n: 2, label: "Green" }] } }))
+  mount()
+  expect(await screen.findByText("Pick again")).toBeTruthy()
+  expect(screen.queryByText(/Approval needed/)).toBeNull()
+  await userEvent.click(screen.getByRole("button", { name: /2\s*Green/ }))
+  expect(mocks.post).toHaveBeenCalledWith("/api/pane/input", { pane: "%1", data: "2" })
+  expect(screen.getByRole("button", { name: /Type another answer in Terminal/ })).toBeTruthy()
+})
+
+test("offers the harness's slash commands and completes one", async () => {
+  const input = mount()
+  await screen.findByText("Done.")
+  await userEvent.type(input, "/comp")
+  expect(screen.getByRole("listbox", { name: "Commands" })).toBeTruthy()
+  await userEvent.keyboard("{Enter}")
+  expect(input.value).toBe("/compact")
+  expect(mocks.post).not.toHaveBeenCalled()
+})
+
+test("shows the model and switches it with /model", async () => {
+  mocks.api.mockReset().mockResolvedValue(feed({ items: [{ id: "a.0", role: "assistant", text: "Hi", model: "claude-opus-5-5" }] }))
+  mount()
+  await userEvent.click(await screen.findByRole("button", { name: "Model: claude-opus-5-5" }))
+  await userEvent.click(await screen.findByRole("menuitem", { name: "haiku" }))
+  expect(mocks.post).toHaveBeenCalledWith("/api/pane/send", { pane: "%1", data: "/model haiku" })
+})

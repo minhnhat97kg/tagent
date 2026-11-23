@@ -1,7 +1,7 @@
 // Chat view data: the harness transcript as the server sends it, tool calls merged with their results.
 
 export interface Tool { name?: string; label?: string; callId?: string; input?: string; output?: string }
-export interface Item { id: string; role: "user" | "assistant" | "tool" | "thinking"; text?: string; tool?: Tool; time?: string }
+export interface Item { id: string; role: "user" | "assistant" | "tool" | "thinking"; text?: string; tool?: Tool; time?: string; model?: string }
 export interface Feed {
   harness: string
   status: string
@@ -13,7 +13,11 @@ export interface Feed {
   unreadable?: boolean
   queued: string[]
   screen?: string
+  ask?: Ask
 }
+
+// A pending AskUserQuestion read off the agent's screen (the transcript has it only once answered).
+export interface Ask { header?: string; question: string; options: { n: number; label: string; description?: string }[]; multi?: boolean; other?: boolean }
 
 export type Row = { kind: "msg"; item: Item } | { kind: "tool"; call: Item; output?: string }
 
@@ -70,4 +74,10 @@ export function getMode(pane: string, chatSupported: boolean): DisplayMode {
 
 export function setMode(pane: string, mode: DisplayMode) {
   try { localStorage.setItem(key(pane), mode) } catch { /* not remembered */ }
+}
+
+// The model that wrote the newest assistant item.
+export function currentModel(items: Item[]): string | undefined {
+  for (let i = items.length - 1; i >= 0; i--) if (items[i]!.model) return items[i]!.model
+  return undefined
 }

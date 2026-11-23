@@ -1,10 +1,13 @@
 import { useLayoutEffect, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react"
-import { Brain, ExternalLink, FileText, Loader2, Pencil, Search, Send, Terminal, Wrench } from "lucide-react"
-import { api } from "@/api"
+import { ArrowUp, Brain, Check, ChevronDown, Cpu, ExternalLink, FileText, MessageCircleQuestion, Loader2, Pencil, Search, Terminal, Wrench } from "lucide-react"
+import { api, post } from "@/api"
 import { Md } from "@/components/BoardDrawer"
 import { Button } from "@/components/ui/button"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Bubble, Composer, Fold, Typing, chatColumn, composerInput, sendButton } from "@/components/ChatParts"
 import { paneInput } from "@/lib/paneInput"
-import { runningTool, toRows, type Feed, type Item, type Row } from "@/lib/transcript"
+import { currentModel, runningTool, toRows, type Feed, type Item, type Row } from "@/lib/transcript"
+import { commandMatches, harnessModels } from "@/lib/harnessCommands"
 
 const MAX_ITEMS = 1000
 const POLL_MS = 1500
@@ -16,6 +19,8 @@ export function AgentChat({ pane, onOpenTerminal, onUnavailable }: { pane: strin
   const [draft, setDraft] = useState("")
   const [sending, setSending] = useState(false)
   const [error, setError] = useState("")
+  const [pick, setPick] = useState(0)
+  const [picked, setPicked] = useState<number>()
   const cursor = useRef("")
   const unavailable = useRef(onUnavailable)
   useEffect(() => { unavailable.current = onUnavailable })
@@ -58,6 +63,10 @@ export function AgentChat({ pane, onOpenTerminal, onUnavailable }: { pane: strin
     if (el && atBottom.current) el.scrollTop = el.scrollHeight
   }, [items, feed?.status])
 
+  // The question is gone from the screen once it is answered: forget the choice so the next one is clickable.
+  const asking = !!feed?.ask
+  useEffect(() => { if (!asking) setPicked(undefined) }, [asking])
+
   const rows = toRows(items)
   const tool = runningTool(rows)
 
@@ -79,49 +88,100 @@ export function AgentChat({ pane, onOpenTerminal, onUnavailable }: { pane: strin
   }
 
   // Enter sends on desktop; Shift+Enter and IME composition keep their normal meaning.
+  const commands = commandMatches(feed?.harness, draft)
   function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
+    if (commands.length && !e.nativeEvent.isComposing) {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault()
+        setPick(p => (p + (e.key === "ArrowDown" ? 1 : commands.length - 1)) % commands.length)
+        return
+      }
+      if (e.key === "Tab" || (e.key === "Enter" && !e.shiftKey)) { e.preventDefault(); setDraft(commands[pick % commands.length]![0]); return }
+    }
     if (!touch && e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault()
       void send()
     }
   }
 
-  const waiting = feed?.status === "waiting"
+  // Answering a question is the user's choice from the chat; approvals still go to Terminal.
+  async function answer(n: number) {
+    setError("")
+    setPicked(n)
+    // Straight to the server: the key must not depend on the (hidden) Terminal's socket.
+    try { await post("/api/pane/input", { pane, data: String(n) }) } catch (e) { setError((e as Error).message); setPicked(undefined) }
+  }
+  const last = rows.at(-1)
+  // A question already in the transcript but unanswered shows as a card; the screen copy would duplicate it.
+  const pendingRow = last?.kind === "tool" && isQuestion(last) && last.output === undefined
+  const waiting = feed?.status === "waiting" && !pendingRow && !feed.ask
+  const model = currentModel(items)
+  // Switch by the harness's own /model command; the agent's new model shows with its next reply.
+  async function chooseModel(alias?: string) {
+    setError("")
+    try {
+      await paneInput(pane, "send", alias ? `/model ${alias}` : "/model")
+      if (!alias) onOpenTerminal()
+    } catch (e) { setError((e as Error).message) }
+  }
+  const status = statusLabel(feed?.status, tool)
   return <div className="flex min-h-0 flex-1 flex-col">
-    <div ref={scroller} role="log" aria-label="Conversation" className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3"
-      onScroll={e => { const el = e.currentTarget; atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48 }}>
-      {feed?.unsupported && <p className="text-sm text-muted-foreground">Chat is not available for this agent. Use Terminal.</p>}
-      {feed?.unreadable && <p className="text-sm text-muted-foreground">The transcript is not readable yet. Use Terminal.</p>}
-      {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
-      {rows.map(r => r.kind === "msg" ? <Message key={r.item.id} item={r.item} /> : <ToolCard key={r.call.id} row={r} />)}
-      {waiting && <div className="rounded-lg border border-l-4 border-l-amber-500 bg-card p-2 text-xs">
-        <p className="mb-1 font-medium">Approval needed. Answer it in Terminal.</p>
-        <pre className="max-h-48 overflow-auto whitespace-pre-wrap">{feed?.screen}</pre>
-        <Button size="sm" variant="outline" className="mt-2 max-md:min-h-11" onClick={onOpenTerminal}><ExternalLink />Open in Terminal</Button>
-      </div>}
-    </div>
-    <p role="status" className="flex items-center gap-1.5 px-3 pt-1 text-xs text-muted-foreground">
-      {feed?.status === "running" && <Loader2 className="size-3 animate-spin" />}
-      {statusLabel(feed?.status, tool)}
-    </p>
-    {!!feed?.queued.length && <div className="px-3 pt-1 text-xs text-muted-foreground">
-      <p>Queued until the agent is idle ({feed.queued.length}):</p>
-      <ul>{feed.queued.map((q, i) => <li key={i} className="truncate">{q}</li>)}</ul>
+    {model && <div className="flex shrink-0 items-center justify-end border-b px-3 py-1">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button size="xs" variant="ghost" aria-label={`Model: ${model}`} className="font-mono text-muted-foreground"><Cpu />{model}<ChevronDown /></Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {(harnessModels[feed?.harness ?? ""] ?? []).map(m => <DropdownMenuItem key={m} onSelect={() => void chooseModel(m)}>{m}</DropdownMenuItem>)}
+          <DropdownMenuItem onSelect={() => void chooseModel()}>Pick in Terminal…</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>}
-    <form className="flex items-end gap-2 border-t p-2" onSubmit={e => { e.preventDefault(); void send() }}>
+    <div ref={scroller} role="log" aria-label="Conversation" className="min-h-0 flex-1 overflow-y-auto"
+      onScroll={e => { const el = e.currentTarget; atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48 }}>
+      <div className={`${chatColumn} space-y-3 px-3 py-4`}>
+        {feed?.unsupported && <p className="text-sm text-muted-foreground">Chat is not available for this agent. Use Terminal.</p>}
+        {feed?.unreadable && <p className="text-sm text-muted-foreground">The transcript is not readable yet. Use Terminal.</p>}
+        {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
+        {rows.map(r => r.kind === "msg" ? <Message key={r.item.id} item={r.item} /> : (isQuestion(r) ? <AskCard key={r.call.id} ask={toAsk(r)!} answer={r.output === undefined ? undefined : cleanAnswer(r.output)} onPick={answer} picked={r.output === undefined ? picked : undefined} onOpenTerminal={onOpenTerminal} /> : <ToolCard key={r.call.id} row={r} />))}
+        {feed?.ask && !pendingRow && <AskCard ask={feed.ask} onPick={answer} picked={picked} onOpenTerminal={onOpenTerminal} />}
+        {waiting && <div className="ml-8 rounded-xl border border-amber-500/40 bg-amber-500/5 p-3 text-xs">
+          <p className="mb-1.5 font-medium text-amber-700 dark:text-amber-400">Approval needed. Answer it in Terminal.</p>
+          <pre className="max-h-48 overflow-auto rounded-md bg-background p-2 whitespace-pre-wrap">{feed?.screen}</pre>
+          <Button size="sm" variant="outline" className="mt-2 max-md:min-h-11" onClick={onOpenTerminal}><ExternalLink />Open in Terminal</Button>
+        </div>}
+        {feed?.status === "running" ? <Typing label={status} /> : status && <p role="status" className="ml-8 text-xs text-muted-foreground">{status}</p>}
+      </div>
+    </div>
+    <Composer onSubmit={() => void send()} hint={touch ? undefined : "Enter to send · Shift+Enter for a new line · / for commands"}
+      above={<>{!!commands.length && <ul id="agent-commands" role="listbox" aria-label="Commands" className="absolute inset-x-3 bottom-full z-10 mb-1 max-h-64 overflow-y-auto rounded-xl border bg-popover p-1 shadow-lg">
+        {commands.map(([c, d], i) => <li key={c} role="option" aria-selected={i === pick % commands.length}>
+          <button type="button" className={`flex w-full items-baseline gap-3 rounded-lg px-2.5 py-1.5 text-left text-xs ${i === pick % commands.length ? "bg-accent" : "hover:bg-accent/60"}`}
+            onClick={() => setDraft(c)}><span className="font-mono">{c}</span><span className="truncate text-muted-foreground">{d}</span></button>
+        </li>)}
+      </ul>}{!!feed?.queued.length && <div className="mb-1.5 rounded-lg border bg-muted/40 px-3 py-1.5 text-xs text-muted-foreground">
+        <p>Queued until the agent is idle ({feed.queued.length}):</p>
+        <ul className="mt-0.5 space-y-0.5 text-foreground">{feed.queued.map((q, i) => <li key={i} className="truncate">{q}</li>)}</ul>
+      </div>}</>}>
       <textarea aria-label="Message agent" rows={1} value={draft} placeholder="Message this agent"
-        onChange={e => setDraft(e.target.value)} onKeyDown={onKeyDown}
-        className="max-h-40 min-h-11 flex-1 resize-none rounded-md border bg-background px-3 py-2 text-sm" />
-      <Button type="submit" size="icon" aria-label="Send" className="max-md:size-11" disabled={!draft.trim() || sending}><Send /></Button>
-    </form>
+        aria-autocomplete="list" aria-controls="agent-commands"
+        onChange={e => { setDraft(e.target.value); setPick(0) }} onKeyDown={onKeyDown} className={composerInput} />
+      <Button type="submit" size="icon" aria-label="Send" className={sendButton} disabled={!draft.trim() || sending}><ArrowUp /></Button>
+    </Composer>
   </div>
+}
+
+// Claude words the result "Your questions have been answered: ... You can now continue"; keep the part that matters.
+function cleanAnswer(out: string) {
+  const m = /answered:\s*(.*?)\.?\s*You can now continue/s.exec(out)
+  return m?.[1]?.trim() || out
 }
 
 function statusLabel(status: string | undefined, tool: string | undefined) {
   switch (status) {
     case "running": return tool ? `Working · ${tool}` : "Working"
     case "background": return "Working in background"
-    case "waiting": return "Waiting for approval"
+    case "waiting": return "Waiting for you"
     case "idle": case "done": return "Idle"
     case "error": return "Error"
     default: return status ?? ""
@@ -129,14 +189,10 @@ function statusLabel(status: string | undefined, tool: string | undefined) {
 }
 
 function Message({ item }: { item: Item }) {
-  if (item.role === "thinking") return <details className="rounded-md border px-2 py-1 text-xs text-muted-foreground">
-    <summary className="cursor-pointer"><Brain className="inline size-3" /> Reasoning</summary>
-    <p className="mt-1 whitespace-pre-wrap">{item.text}</p>
-  </details>
-  const mine = item.role === "user"
-  return <div className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${mine ? "ml-auto bg-primary text-primary-foreground" : "border bg-card"}`}>
-    <Md text={item.text ?? ""} />
-  </div>
+  if (item.role === "thinking") return <Fold icon={<Brain className="size-3.5 shrink-0" />} title="Reasoning">
+    <p className="whitespace-pre-wrap text-muted-foreground">{item.text}</p>
+  </Fold>
+  return <Bubble who={item.role === "user" ? "user" : "assistant"}><Md text={item.text ?? ""} /></Bubble>
 }
 
 function toolIcon(name = ""): ReactNode {
@@ -149,18 +205,58 @@ function toolIcon(name = ""): ReactNode {
   }
 }
 
+type ToolRow = Extract<Row, { kind: "tool" }>
+interface Ask { question: string; header?: string; multiSelect?: boolean; options?: { label: string; description?: string }[] }
+
+function questions(row: ToolRow): Ask[] | undefined {
+  if (row.call.tool?.name !== "AskUserQuestion") return undefined
+  try { return (JSON.parse(row.call.tool.input ?? "") as { questions?: Ask[] }).questions } catch { return undefined }
+}
+const isQuestion = (row: ToolRow) => !!questions(row)?.length
+
+// AskCard: a question the agent asks, with its options as large buttons. Pending single-choice questions
+// are answered with the option's number key; multi-select and free text are answered in Terminal.
+interface AskView { header?: string; question: string; options: { n: number; label: string; description?: string }[]; multi?: boolean; other?: boolean }
+function AskCard({ ask, answer, onPick, onOpenTerminal, picked }: { ask: AskView; answer?: string; onPick?: (n: number) => void; onOpenTerminal?: () => void; picked?: number }) {
+  const open = answer === undefined
+  const canPick = open && !!onPick && !ask.multi
+  return <section aria-label={`Question: ${ask.question}`} className={`ml-8 overflow-hidden rounded-2xl border shadow-sm ${open ? "border-sky-500/50 bg-card ring-2 ring-sky-500/15" : "bg-card"}`}>
+    <header className="flex items-start gap-2.5 px-3.5 pb-2 pt-3">
+      <span className={`mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full ${open ? "bg-sky-500/15 text-sky-600" : "bg-muted text-muted-foreground"}`}><MessageCircleQuestion className="size-4" /></span>
+      <div className="min-w-0">
+        {ask.header && <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{ask.header}</p>}
+        <p className="text-[14px] font-medium leading-snug">{ask.question}</p>
+        {open && ask.multi && <p className="mt-0.5 text-xs text-muted-foreground">Pick several in Terminal.</p>}
+      </div>
+    </header>
+    <ol className="space-y-1.5 px-3 pb-3">{ask.options.map(o => {
+      const chosen = picked === o.n
+      const body = <>
+        <span className={`flex size-6 shrink-0 items-center justify-center rounded-full border text-xs font-medium tabular-nums ${chosen ? "border-sky-600 bg-sky-600 text-white" : "bg-muted/60 text-muted-foreground"}`}>{chosen ? <Loader2 className="size-3.5 animate-spin" /> : o.n}</span>
+        <span className="min-w-0"><span className="block text-[13.5px] font-medium">{o.label}</span>{o.description && <span className="block text-xs leading-snug text-muted-foreground">{o.description}</span>}</span>
+      </>
+      return <li key={o.n}>{canPick
+        ? <button type="button" disabled={picked !== undefined} onClick={() => onPick!(o.n)}
+            className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors max-md:min-h-12 ${chosen ? "border-sky-600 bg-sky-500/10" : "bg-background hover:border-sky-500/60 hover:bg-sky-500/5 active:bg-sky-500/10"} disabled:cursor-default`}>{body}</button>
+        : <div className="flex items-center gap-3 rounded-xl border bg-muted/30 px-3 py-2">{body}</div>}</li>
+    })}</ol>
+    {open ? (ask.other || ask.multi) && <footer className="border-t bg-muted/30 px-3 py-2"><Button size="sm" variant="ghost" className="max-md:min-h-11" onClick={onOpenTerminal}><ExternalLink />{ask.multi ? "Answer in Terminal" : "Type another answer in Terminal"}</Button></footer>
+      : <footer className="flex items-start gap-2 border-t bg-muted/30 px-3.5 py-2 text-xs text-muted-foreground"><Check className="mt-0.5 size-3.5 shrink-0 text-emerald-600" /><span className="whitespace-pre-wrap">{answer || "(no answer)"}</span></footer>}
+  </section>
+}
+
+function toAsk(row: ToolRow): AskView | undefined {
+  const q = questions(row)?.[0]
+  if (!q) return undefined
+  return { header: q.header, question: q.question, multi: q.multiSelect, options: (q.options ?? []).map((o, i) => ({ n: i + 1, label: o.label, description: o.description })) }
+}
+
 // ToolCard: one line; tap to see the input and the output.
-function ToolCard({ row }: { row: Extract<Row, { kind: "tool" }> }) {
+function ToolCard({ row }: { row: ToolRow }) {
   const tool = row.call.tool ?? {}
-  return <details className="rounded-md border bg-card text-xs">
-    <summary className="flex cursor-pointer list-none items-center gap-2 px-2 py-1.5">
-      {toolIcon(tool.name)}
-      <span className="min-w-0 truncate font-mono">{tool.label}</span>
-      {row.output === undefined && <Loader2 className="ml-auto size-3 shrink-0 animate-spin" aria-label="running" />}
-    </summary>
-    <div className="space-y-1 border-t p-2">
-      {tool.input && tool.input !== "{}" && <pre className="max-h-40 overflow-auto whitespace-pre-wrap font-mono">{tool.input}</pre>}
-      {row.output !== undefined && <pre className="max-h-64 overflow-auto whitespace-pre-wrap font-mono">{row.output || "(no output)"}</pre>}
-    </div>
-  </details>
+  return <Fold icon={toolIcon(tool.name)} title={tool.label}
+    end={row.output === undefined ? <Loader2 className="size-3 animate-spin" aria-label="running" /> : <Check className="size-3 text-emerald-600" />}>
+    {tool.input && tool.input !== "{}" && <pre className="max-h-40">{tool.input}</pre>}
+    {row.output !== undefined && <pre className="border-t pt-1.5">{row.output || "(no output)"}</pre>}
+  </Fold>
 }

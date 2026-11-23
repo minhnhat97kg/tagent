@@ -48,6 +48,8 @@ type Item struct {
 	Text string `json:"text,omitempty"`
 	Tool *Tool  `json:"tool,omitempty"`
 	Time string `json:"time,omitempty"`
+	// Model is the model that wrote an assistant item, when the harness records it.
+	Model string `json:"model,omitempty"`
 }
 
 // Page is a slice of the active branch. Cursor is the last item the caller now has.
@@ -363,4 +365,16 @@ func clip(s string, n int) string {
 		s = s[:len(s)-1]
 	}
 	return s
+}
+
+// withModel stamps the model on the assistant items of one record.
+func withModel(items []Item, model string) []Item {
+	if model != "" {
+		for i := range items {
+			if items[i].Role != "user" {
+				items[i].Model = model
+			}
+		}
+	}
+	return items
 }

@@ -115,6 +115,7 @@ type server struct {
 	boardDirs  sync.Map
 	pinned     sync.Map
 	sizeOwners terminalOwners
+	chatClaims sync.Map // panes whose size Chat borrowed for a clipped question
 	deps       apiDeps
 }
 

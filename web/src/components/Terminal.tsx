@@ -135,7 +135,14 @@ export function Terminal({ pane, onConnection, keyboardInputRef, onKeyboardChang
       if (Math.abs(learned - rowRatio) > 0.01) { rowRatio = learned; fit() }
     }))
     const fit = () => {
-      if (!cols || !wrap.clientWidth) return
+      if (!cols) return
+      if (!wrap.clientWidth) {
+        // Hidden (Chat mode): there is nothing to measure, but the agent still draws its menus at the pane
+        // size, so vote for a roomy one instead of leaving the 40x10 default.
+        clearTimeout(resizeTimer)
+        resizeTimer = setTimeout(() => { if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'resize', cols: 100, rows: 40 })) }, 150)
+        return
+      }
       const padding = getComputedStyle(el)
       const w = wrap.clientWidth - parseFloat(padding.paddingLeft) - parseFloat(padding.paddingRight)
       const measure = document.createElement("span")
