@@ -63,7 +63,6 @@ export interface Project {
   workers?: Record<string, { role: string; pane: string; live: boolean }>
   blockedReasons?: Record<string, string>
   workflows?: Workflow[]
-  runs?: Record<string, Run[]>
   dir: string
   tasks: Task[] | null
   roles: string[] | null
@@ -71,5 +70,40 @@ export interface Project {
 
 
 export interface Overview { dir: string; project: string; attention: { needed: boolean; text: string; items?: {kind: string; text: string; pane: string | null; count: number}[] }; providers: {name: string; usedPercent: number | null; weeklyPercent: number | null; stale: boolean}[]; tokens: {today: number; total7d: number; sparkline: string; days: {date: string; tokens: number}[]} }
-export interface Run { from: string; to: string; time: string; actor: string }
 export interface Workflow { name: string; description: string; global: boolean; file: string; error: string; jobs: { id: string; status: string; agent: string; run: string }[] }
+
+// RunEntry is one entry into a step of a ticket's workflow run. The dispatch
+// details and end are absent on old entries and on the current one.
+export interface RunEntry {
+  seq: number
+  step: string
+  loop: number
+  role?: string
+  harness?: string
+  model?: string
+  pane?: string
+  pane_name?: string
+  prompt?: string
+  start: string
+  end?: string
+  duration: number
+  result: string
+  comment?: string
+  comment_id?: string
+  reason?: string
+  outputs?: Record<string, string> | null
+  exit_code?: number
+  attachments?: { name: string; file: string }[] | null
+}
+
+export interface RunView {
+  ticket: string
+  title: string
+  workflow: string
+  inputs?: Record<string, string> | null
+  status: string
+  started: string
+  total: number
+  entries: RunEntry[] | null
+  flow: { job: string; status: string; count: number; current: boolean }[]
+}

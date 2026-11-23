@@ -244,7 +244,17 @@ live: editing affects existing tickets; missing or broken recipes report errors.
 ID and optionally waits (done exits 0, blocked exits 1).
 `task add --workflow NAME --input goal=value "Title"` leaves the ticket in todo.
 
-The web Workflows page edits YAML with line numbers, syntax colours and soft wrap. A validation error is marked on its line; click the error bar to jump there. Clicking a flow card jumps to that job in the YAML, and moving the cursor into a job highlights its card. Global workflows are read-only there.
+The web Workflows page edits YAML with line numbers, syntax colours and soft wrap. A validation error is marked on its line; click the error bar to jump there. Clicking a flow card jumps to that job in the YAML, and moving the cursor into a job highlights its card. Global workflows are read-only there. The page edits recipes only; it does not show a ticket's run.
+
+### Run view
+
+The task drawer's **View run** opens `#/runs/<ticket>` (old `#/workflows/<wf>/<ticket>` links land there too). It shows that ticket's run only:
+
+- header: title, workflow name, inputs used, overall status, total time, and **Edit workflow** to the editor;
+- a compact flow strip of the steps with entry counts and the current one;
+- one row per entry into a step, in run order: step and loop (`build #2 after review: changes`), role · harness · model, pane link to the agent view while that pane is alive, start/end/duration, result (pass, fail, changes requested, blocked, retry, moved or current), the handoff comment, published outputs, and the CI exit code with its `ci.log`.
+
+Each row folds out the prompt that was actually sent. Prompt, pane, outputs and handoff are recorded per entry from the events log, so loops keep their own values. Runs recorded before that was stored show status moves, times, results and CI exits only; the page says so.
 
 Jobs form one needs chain; parallel jobs are not supported. Each job has `run`
 or `agent` with optional `prompt`, optional `status` (defaults to job ID),

@@ -38,6 +38,15 @@ type Event struct {
 	CommentID string    `json:"comment_id,omitempty"`
 	Message   string    `json:"message,omitempty"`
 	Names     []string  `json:"names,omitempty"`
+	// Details of a dispatch: recorded on its own dispatch event, not on the
+	// status or comment event that triggered it.
+	Role     string            `json:"role,omitempty"`
+	Harness  string            `json:"harness,omitempty"`
+	Model    string            `json:"model,omitempty"`
+	Pane     string            `json:"pane,omitempty"`
+	PaneName string            `json:"pane_name,omitempty"`
+	Prompt   string            `json:"prompt,omitempty"` // CapText'd
+	Outputs  map[string]string `json:"outputs,omitempty"`
 }
 
 func BoardDir(scope string) string { return boardDir(scope) }

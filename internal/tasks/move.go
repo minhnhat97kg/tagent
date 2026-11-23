@@ -125,6 +125,15 @@ func move(scope, id, to, body string, seq int64, safety bool, opts ...MutationOp
 		if len(events) == 0 && (len(opts) == 0 || opts[0].Outputs == nil) {
 			return nil
 		}
+		// Keep per-entry outputs: t.Outputs is overwritten by the next loop.
+		if !stale && len(opts) > 0 && opts[0].Outputs != nil {
+			for i := len(events) - 1; i >= 0; i-- {
+				if events[i].Kind == "status" || events[i].Kind == "comment" {
+					events[i].Outputs = opts[0].Outputs
+					break
+				}
+			}
+		}
 		t.Updated = time.Now()
 		if err := write(scope, t); err != nil {
 			return err

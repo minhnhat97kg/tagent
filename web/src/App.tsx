@@ -12,6 +12,7 @@ import { NewAgentDialog } from "@/components/NewAgentDialog"
 import { ProjectSelect } from "@/components/ProjectSelect"
 import { AgentsPanel } from "@/components/panels/AgentsPanel"
 import { WorkflowsPage } from "@/components/WorkflowsPage"
+import { RunPage } from "@/components/RunPage"
 import { AgentsPage } from "@/components/AgentsPage"
 import { OverviewPanel } from "@/components/panels/OverviewPanel"
 import { TasksPanel } from "@/components/panels/TasksPanel"
@@ -89,16 +90,19 @@ export default function App() {
 
   const proj = projPoll.data
   const boardRoute = route === '/board'
-  const flowRoute = /^\/workflows(?:\/([^/]+)(?:\/([^/]+))?)?$/.exec(route)
+  const flowRoute = /^\/workflows(?:\/([^/]+))?$/.exec(route)
+  // Old ticket links (/workflows/<wf>/<ticket>) open the run page, not the editor.
+  const runRoute = /^\/runs\/([^/]+)$/.exec(route) ?? /^\/workflows\/[^/]+\/([^/]+)$/.exec(route)
   const agentsRoute = route === "/agents"
-  const home = !sel && !boardRoute && !flowRoute && !agentsRoute
+  const home = !sel && !boardRoute && !flowRoute && !runRoute && !agentsRoute
   const board = <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border bg-card"><Board dir={dir} proj={proj} reload={projPoll.reload} /></section>
   const tasks = <TasksPanel proj={proj} dir={dir} reload={projPoll.reload} className="min-h-40 flex-1" />
 
 
   let main
   if (boardRoute) main = board
-  else if (flowRoute) { const name = decodeURIComponent(flowRoute[1] ?? ''), id = decodeURIComponent(flowRoute[2] ?? ''); main = <WorkflowsPage key={dir + route} dir={dir} initial={name} ticket={proj?.tasks?.find(t => t.id === id)} runs={proj?.runs?.[id]} /> }
+  else if (runRoute) main = <RunPage key={dir + runRoute[1]} dir={dir} id={decodeURIComponent(runRoute[1]!)} />
+  else if (flowRoute) main = <WorkflowsPage key={dir + route} dir={dir} initial={decodeURIComponent(flowRoute[1] ?? '')} />
   else if (agentsRoute) main = <AgentsPage key={dir} dir={dir} />
   else if (agent) main = <AgentView key={agent.pane} agent={agent} project={proj} />
   else if (sel) main = state ? <div className="p-6 text-muted-foreground">Agent not found. <a href="#/" className="text-foreground underline">Home</a></div> : null

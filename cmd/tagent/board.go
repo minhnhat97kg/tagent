@@ -101,6 +101,10 @@ func dispatchBoardAction(a board.Action) error {
 		}
 	}
 	if a.Run != "" {
+		// The command is what the user sees for this entry; no pane is involved.
+		if a.Event.Task != "" {
+			_ = tasks.RecordDispatch(scope, a.Event.Task, tasks.Event{To: a.Event.To, Role: "ci", Prompt: tasks.CapText(a.Run, 8000)})
+		}
 		go func() {
 			if err := runStatus(a); err != nil {
 				if a.OnError != nil {
@@ -178,6 +182,15 @@ func dispatchBoardAction(a board.Action) error {
 			fmt.Fprintln(os.Stderr, "board:", warn)
 		}
 		tmux.SetPaneOption(pane, tmux.BoardTarget, key)
+	}
+	// Record what was actually sent; the run view reads these fields. Best effort:
+	// the audit line below still records delivery.
+	if a.Event.Task != "" {
+		harness := tmux.GetPaneOptionValue(pane, tmux.PaneAgent)
+		if harness == "" && harnesses[a.Role] {
+			harness = a.Role
+		}
+		_ = tasks.RecordDispatch(scope, a.Event.Task, tasks.Event{To: a.Event.To, Role: a.Agent, Harness: harness, Model: a.Model, Pane: pane, PaneName: tmux.GetPaneOptionValue(pane, tmux.PaneName), Prompt: tasks.CapText(a.Prompt, 8000)})
 	}
 	// cmdSend handles active/approval states. Unknown startup states must queue too.
 	status := tmux.GetPaneOptionValue(pane, tmux.PaneStatusOpt)

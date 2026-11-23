@@ -70,6 +70,7 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("POST /api/agents", s.newAgent)
 	mux.HandleFunc("POST /api/tasks", s.taskOp)
 	mux.HandleFunc("GET /api/tasks/{id}/attachments", s.attachments)
+	mux.HandleFunc("GET /api/tasks/{id}/run", s.run)
 	mux.HandleFunc("POST /api/tasks/{id}/attachments", s.attachments)
 	mux.HandleFunc("GET /api/config", s.settings)
 	mux.HandleFunc("POST /api/config", s.settings)
@@ -452,17 +453,6 @@ func (s *server) project(w http.ResponseWriter, r *http.Request) {
 	workers := map[string]map[string]any{}
 	history, _ := tasks.ReadEvents(tasks.Scope(dir), 0)
 	reasons := map[string]string{}
-	// Status moves of workflow tickets, so the web can show how a run went (loops included).
-	runs := map[string][]map[string]any{}
-	wf := map[string]bool{}
-	for _, ticket := range t {
-		wf[ticket.ID] = ticket.Workflow != ""
-	}
-	for _, e := range history {
-		if e.Kind == "status" && wf[e.Task] {
-			runs[e.Task] = append(runs[e.Task], map[string]any{"from": e.From, "to": e.To, "time": e.Time, "actor": e.Actor})
-		}
-	}
 	panes := tmux.QuerySessions()
 	for _, ticket := range t {
 		flow, err := tasks.ConfigForTask(dir, cfg, ticket)
@@ -523,7 +513,7 @@ func (s *server) project(w http.ResponseWriter, r *http.Request) {
 		}
 		flows = append(flows, map[string]any{"name": wf.Name, "description": wf.Description, "global": wf.Global, "file": wf.File, "jobs": jobs, "error": e})
 	}
-	writeJSON(w, map[string]any{"dir": dir, "tasks": t, "roles": defs, "statuses": statuses, "workers": workers, "blockedReasons": reasons, "workflows": flows, "runs": runs})
+	writeJSON(w, map[string]any{"dir": dir, "tasks": t, "roles": defs, "statuses": statuses, "workers": workers, "blockedReasons": reasons, "workflows": flows})
 }
 
 func (s *server) taskOp(w http.ResponseWriter, r *http.Request) {
