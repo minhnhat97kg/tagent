@@ -1,5 +1,5 @@
 import { useLayoutEffect, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react"
-import { ArrowRight, ArrowUp, Brain, Check, ChevronDown, Cpu, ExternalLink, FileText, MessageCircleQuestion, Loader2, Pencil, Search, Terminal, Wrench } from "lucide-react"
+import { ArrowRight, ArrowUp, Brain, ImagePlus, X, Check, ChevronDown, Cpu, ExternalLink, FileText, MessageCircleQuestion, Loader2, Pencil, Search, Terminal, Wrench } from "lucide-react"
 import { api, post } from "@/api"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -7,6 +7,7 @@ import { Bubble, Composer, Fold, Markup, chatColumn, composerInput, sendButton }
 import { paneInput } from "@/lib/paneInput"
 import { currentModel, runningTool, toRows, type Feed, type Item, type Row } from "@/lib/transcript"
 import { commandMatches, harnessModels } from "@/lib/harnessCommands"
+import { splitImages, uploadImage, type Upload } from "@/lib/uploads"
 
 const MAX_ITEMS = 1000
 const POLL_MS = 1500
@@ -20,6 +21,9 @@ export function AgentChat({ pane, onOpenTerminal, onUnavailable }: { pane: strin
   const [error, setError] = useState("")
   const [pick, setPick] = useState(0)
   const [picked, setPicked] = useState<number>()
+  const [images, setImages] = useState<Upload[]>([])
+  const [uploading, setUploading] = useState(0)
+  const fileInput = useRef<HTMLInputElement>(null)
   const cursor = useRef("")
   const kick = useRef(() => {}) // poll again soon, e.g. right after a key was sent
   const unavailable = useRef(onUnavailable)
@@ -72,19 +76,31 @@ export function AgentChat({ pane, onOpenTerminal, onUnavailable }: { pane: strin
   const tool = runningTool(rows)
 
   async function send() {
-    const text = draft.trim()
-    if (!text || sending) return
+    // Attached images go in as their file paths, one per line, which is how an agent opens them.
+    const text = [draft.trim(), ...images.map(i => i.path)].filter(Boolean).join("\n")
+    if (!text || sending || uploading) return
     setSending(true)
     setError("")
     try {
       const r = (await paneInput(pane, "send", text)) as { queued: boolean }
       setDraft("")
+      setImages([])
       atBottom.current = true
       if (r.queued) setFeed(f => f && { ...f, queued: [...f.queued, text] })
     } catch (e) {
       setError((e as Error).message)
     } finally {
       setSending(false)
+    }
+  }
+
+  async function attach(files: File[]) {
+    const pics = files.filter(f => f.type.startsWith("image/"))
+    if (!pics.length) return
+    setError("")
+    setUploading(n => n + pics.length)
+    for (const f of pics) {
+      try { const u = await uploadImage(f); setImages(prev => [...prev, u]) } catch (e) { setError((e as Error).message) } finally { setUploading(n => n - 1) }
     }
   }
 
@@ -178,14 +194,25 @@ export function AgentChat({ pane, onOpenTerminal, onUnavailable }: { pane: strin
           <button type="button" className={`flex w-full items-baseline gap-3 rounded-lg px-2.5 py-1.5 text-left text-xs ${i === pick % commands.length ? "bg-accent" : "hover:bg-accent/60"}`}
             onClick={() => setDraft(c)}><span className="font-mono">{c}</span><span className="truncate text-muted-foreground">{d}</span></button>
         </li>)}
-      </ul>}{!!feed?.queued.length && <div className="mb-1.5 rounded-lg border bg-muted/40 px-3 py-1.5 text-xs text-muted-foreground">
+      </ul>}{(!!images.length || uploading > 0) && <div className="mb-1 flex flex-wrap gap-1.5">
+        {images.map(i => <span key={i.name} className="relative size-14 overflow-hidden rounded-lg border bg-muted">
+          <img src={i.url} alt="Attached" className="size-full object-cover" />
+          <button type="button" aria-label="Remove image" className="absolute right-0.5 top-0.5 flex size-5 items-center justify-center rounded-full bg-background/90 shadow max-md:size-6" onClick={() => setImages(prev => prev.filter(x => x !== i))}><X className="size-3" /></button>
+        </span>)}
+        {uploading > 0 && <span role="status" aria-label="Uploading" className="flex size-14 items-center justify-center rounded-lg border bg-muted/50"><Loader2 className="size-4 animate-spin text-muted-foreground" /></span>}
+      </div>}{!!feed?.queued.length && <div className="mb-1.5 rounded-lg border bg-muted/40 px-3 py-1.5 text-xs text-muted-foreground">
         <p>Queued until the agent is idle ({feed.queued.length}):</p>
         <ul className="mt-0.5 space-y-0.5 text-foreground">{feed.queued.map((q, i) => <li key={i} className="truncate">{q}</li>)}</ul>
       </div>}</>}>
+      <input ref={fileInput} type="file" accept="image/*" multiple hidden aria-label="Attach images" onChange={e => { void attach(Array.from(e.target.files ?? [])); e.target.value = "" }} />
+      <Button type="button" variant="ghost" size="icon" aria-label="Attach image" title="Attach image" className="size-7 shrink-0 self-end rounded-full text-muted-foreground max-md:size-9" onClick={() => fileInput.current?.click()}><ImagePlus /></Button>
       <textarea aria-label="Message agent" rows={1} value={draft} placeholder="Message this agent"
+        onPaste={e => { const pics = Array.from(e.clipboardData.files).filter(f => f.type.startsWith("image/")); if (pics.length) { e.preventDefault(); void attach(pics) } }}
+        onDrop={e => { const pics = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith("image/")); if (pics.length) { e.preventDefault(); void attach(pics) } }}
+        onDragOver={e => { if (e.dataTransfer.types.includes("Files")) e.preventDefault() }}
         aria-autocomplete="list" aria-controls="agent-commands"
         onChange={e => { setDraft(e.target.value); setPick(0) }} onKeyDown={onKeyDown} className={composerInput} />
-      <Button type="submit" size="icon" aria-label="Send" className={sendButton} disabled={!draft.trim() || sending}><ArrowUp /></Button>
+      <Button type="submit" size="icon" aria-label="Send" className={sendButton} disabled={(!draft.trim() && !images.length) || sending || uploading > 0}><ArrowUp /></Button>
     </Composer>
   </div>
 }
@@ -212,7 +239,13 @@ function Message({ item }: { item: Item }) {
   if (item.role === "thinking") return <Fold icon={<Brain className="size-3.5 shrink-0" />} title="Reasoning">
     <p className="whitespace-pre-wrap text-muted-foreground">{item.text}</p>
   </Fold>
-  return <Bubble who={item.role === "user" ? "user" : "assistant"}>{item.role === "user" ? <span className="whitespace-pre-wrap">{item.text}</span> : <Markup text={item.text ?? ""} />}</Bubble>
+  if (item.role !== "user") return <Bubble who="assistant"><Markup text={item.text ?? ""} /></Bubble>
+  // Uploaded images travel as file paths; show them as thumbnails.
+  const { text, images } = splitImages(item.text ?? "")
+  return <Bubble who="user">
+    {!!images.length && <span className="mb-1 flex flex-wrap gap-1.5">{images.map(u => <a key={u} href={u} target="_blank" rel="noreferrer"><img src={u} alt="Attached" className="max-h-40 max-w-full rounded-lg border object-cover" /></a>)}</span>}
+    {text && <span className="whitespace-pre-wrap">{text}</span>}
+  </Bubble>
 }
 
 function toolIcon(name = ""): ReactNode {

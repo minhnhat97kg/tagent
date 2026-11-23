@@ -47,15 +47,14 @@ export function Typing({ label }: { label: string }) {
 
 // Composer: one rounded box holding the textarea and the send button.
 export function Composer({ onSubmit, hint, above, children }: { onSubmit: () => void; hint?: string; above?: ReactNode; children: ReactNode }) {
-  return <form className={cn(chatColumn, "relative px-3 pb-2 pt-1")} onSubmit={(e: FormEvent) => { e.preventDefault(); onSubmit() }}>
+  return <form className={cn(chatColumn, "relative px-3 pb-1.5 pt-0.5")} onSubmit={(e: FormEvent) => { e.preventDefault(); onSubmit() }}>
     {above}
-    <div className="flex items-end gap-2 rounded-2xl border bg-background px-3 py-1.5 shadow-sm transition-colors focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/20">{children}</div>
-    {hint && <p className="mt-1 px-1 text-[11px] text-muted-foreground max-md:hidden">{hint}</p>}
+    <div title={hint} className="flex items-center gap-1 rounded-xl border bg-background py-0.5 pl-1.5 pr-1 transition-colors focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/20">{children}</div>
   </form>
 }
 
-export const composerInput = "max-h-40 min-h-9 flex-1 resize-none bg-transparent py-2 text-sm outline-none [field-sizing:content] placeholder:text-muted-foreground disabled:opacity-60"
-export const sendButton = "mb-0.5 size-8 shrink-0 rounded-full max-md:size-10"
+export const composerInput = "max-h-40 min-h-8 flex-1 resize-none self-center bg-transparent px-1 py-1.5 text-sm leading-5 outline-none [field-sizing:content] placeholder:text-muted-foreground disabled:opacity-60"
+export const sendButton = "size-7 shrink-0 self-end rounded-full max-md:size-9"
 
 // Markdown: GitHub-flavoured (tables, task lists, strikethrough); raw HTML is dropped. Links open in a new tab.
 export function Markup({ text }: { text: string }) {

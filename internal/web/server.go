@@ -56,6 +56,8 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("GET /api/pane/ws", s.paneWS)
 	mux.HandleFunc("POST /api/pane/input", s.input)
 	mux.HandleFunc("POST /api/pane/send", s.send)
+	mux.HandleFunc("POST /api/uploads", s.upload)
+	mux.HandleFunc("GET /api/uploads/{name}", s.serveUpload)
 	mux.HandleFunc("GET /api/agents/{pane}/transcript", s.transcript)
 	mux.HandleFunc("GET /api/workflows", s.workflows)
 	mux.HandleFunc("POST /api/workflows", s.workflows)

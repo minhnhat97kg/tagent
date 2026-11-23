@@ -176,3 +176,17 @@ test("folds consecutive tool calls into one line and keeps the status in the bar
   expect(screen.getByText("1 queued")).toBeTruthy()
   expect((await screen.findAllByRole("table")).length).toBe(1)
 })
+
+test("an attached image uploads, shows a thumbnail, and its path is sent with the message", async () => {
+  const path = "/Users/x/.local/state/tagent/uploads/0123456789abcdef01234567.png"
+  mocks.api.mockReset().mockImplementation(async (p: string) => p.startsWith("/api/uploads") ? { path, url: "/api/uploads/0123456789abcdef01234567.png", name: "0123456789abcdef01234567.png" } : feed({ items: [{ id: "a.1", role: "assistant", text: "Done." }], cursor: "a.1" }))
+  mocks.post.mockReset().mockResolvedValue({ queued: false })
+  mount()
+  await screen.findByText("Done.")
+  const file = new File(["x"], "shot.png", { type: "image/png" })
+  await userEvent.upload(screen.getByLabelText("Attach images"), file)
+  expect(await screen.findByAltText("Attached")).toBeTruthy()
+  await userEvent.click(screen.getByRole("button", { name: "Send" }))
+  await waitFor(() => expect(mocks.post).toHaveBeenCalled())
+  expect(mocks.post.mock.calls.at(-1)![1]).toMatchObject({ data: path })
+})
