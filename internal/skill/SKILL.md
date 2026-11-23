@@ -33,6 +33,8 @@ Tickets are the only work state. `.tasks/board.yaml` defines statuses with roles
 or shell `run:` checks. Entering a role dispatches `<role>#<ticket>`; re-entry
 reuses its context and includes only new non-system comments. New panes receive
 the description, handoff and outputs. Busy/approval/unknown panes queue until idle.
+A role's harness, model and effort come from its `board.yaml` entry; a model or effort
+change applies to panes started afterwards, not to running ones.
 The scraper dispatches (`@agent_scrape` on); `board run` runs in the foreground.
 Roles map to harness/agent definitions and optional models; models affect new
 panes only. Assignees and ticket `needs` are informational, not prerequisites.

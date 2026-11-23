@@ -48,6 +48,9 @@ func (m Model) handleTaskForm(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if m.taskForm == "workflow-new" {
 		return m.handleWorkflowName(key)
 	}
+	if m.taskForm == "agent-model" || m.taskForm == "agent-new" {
+		return m.handleAgentForm(key)
+	}
 	if m.taskForm == "new-agent" {
 		switch key.String() {
 		case "esc":
@@ -170,6 +173,10 @@ func (m Model) taskFormView() string {
 			prefix = "› "
 		}
 		body += prefix + "board flow (board.yaml)"
+	case "agent-model":
+		title, hint = "Model for "+m.selectedAgentName(), "Enter save · Esc cancel · applies to new panes"
+	case "agent-new":
+		title, hint = "New agent", "Name · Enter create & edit · Esc cancel"
 	case "workflow-new":
 		title = "New workflow"
 		hint = "Name · Enter create & edit · Esc cancel"

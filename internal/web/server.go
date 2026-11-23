@@ -24,12 +24,13 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"tagent/internal/board"
-	"tagent/internal/workflow"
 
+	"tagent/internal/agents"
+	"tagent/internal/board"
 	"tagent/internal/scrape"
 	"tagent/internal/tasks"
 	"tagent/internal/tmux"
+	"tagent/internal/workflow"
 )
 
 //go:embed all:dist
@@ -58,6 +59,9 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("GET /api/workflows", s.workflows)
 	mux.HandleFunc("POST /api/workflows", s.workflows)
 	mux.HandleFunc("DELETE /api/workflows", s.workflows)
+	mux.HandleFunc("GET /api/roles", s.roles)
+	mux.HandleFunc("POST /api/roles", s.roles)
+	mux.HandleFunc("DELETE /api/roles", s.roles)
 	mux.HandleFunc("POST /api/pane/answer", s.answer)
 	mux.HandleFunc("POST /api/pane/kill", s.kill)
 	mux.HandleFunc("POST /api/pane/action", s.agentAction)
@@ -402,8 +406,10 @@ func (s *server) project(w http.ResponseWriter, r *http.Request) {
 	}
 	harness, _ := tmux.GetOption(tmux.AgentOption)
 	defs := []string{}
-	for _, d := range tasks.LocalDefinitions(dir, harness) {
-		defs = append(defs, d.Name)
+	for _, a := range agents.List(dir, harness, nil) {
+		if a.Source != "global" {
+			defs = append(defs, a.Name)
+		}
 	}
 	sort.Strings(defs)
 	cfg, err := tasks.LoadBoardConfig(dir)

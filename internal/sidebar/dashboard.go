@@ -1,6 +1,7 @@
 package sidebar
 
 import (
+	"cmp"
 	"fmt"
 	"os"
 	"os/exec"
@@ -10,6 +11,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
+	"tagent/internal/agents"
 	"tagent/internal/metrics"
 	"tagent/internal/quota"
 	"tagent/internal/roles"
@@ -405,10 +407,15 @@ func (m Model) agentPanels(width, height int) string {
 
 func (m Model) focusedDefinitions() []roles.Definition {
 	harness, _ := tmux.GetOption(tmux.AgentOption)
-	defs := roles.ListGlobal(harness)
 	selected, _ := paneIDAt(m.rows, m.cursor)
-	if dir := m.focusDir(selected); dir != "" {
-		defs = append(defs, tasks.LocalDefinitions(dir, harness)...)
+	dir := m.focusDir(selected)
+	if dir == "" {
+		return roles.ListGlobal(harness)
+	}
+	var defs []roles.Definition
+	for _, a := range agents.List(dir, harness, nil) {
+		// Board-only roles have no instruction file; the dashboard opens board.yaml for those.
+		defs = append(defs, roles.Definition{Name: a.Name, Path: cmp.Or(a.Path, tasks.BoardConfigPath(dir)), Instructions: a.Instructions, Harness: a.Harness})
 	}
 	return defs
 }

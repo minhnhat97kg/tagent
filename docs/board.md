@@ -238,6 +238,23 @@ Dispatch remains at-most-once; there is no automatic replay.
 Task replacement and event append are best effort across files, not a crash-atomic
 transaction or WAL. One-lock batches prevent interleaving concurrent mutations.
 
+### Agents
+
+One list of agent roles, in the TUI board and on the web (`#/agents`). Each row shows
+the harness and model, whether the role is repo, global or board-only, the live panes
+running it, and the statuses and workflow steps that use it.
+
+- TUI: `t` in the board opens the Agents panel. `enter` shows detail, `e` edits the
+  instructions in `$EDITOR`, `m` changes the model, `a` adds an agent, `x` deletes one (`y` confirms), `t` closes the panel.
+- Web: harness, model, effort and instructions (with preview) save together. Global
+  agents are read-only; **Copy to repo** makes an editable copy.
+
+Harness, model and effort are written to the role's `board.yaml` entry, and comments
+and other keys in that file are kept. Instructions go to the agent's file:
+`.claude/agents/<name>.md` (the whole file, frontmatter included) or
+`.codex/agents/<name>.toml` (only `developer_instructions` changes). Pi roles have no
+file. Model and effort apply to new panes only. Running panes keep theirs.
+
 ## Workflows
 
 Local `.tasks/workflows/*.yml` recipes override names in

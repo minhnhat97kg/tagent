@@ -23,6 +23,7 @@ var helpSections = []shortcutSection{
 	{"Tasks", ticketShortcuts([2]string{"Tab / b", "focus next panel / open board"})},
 	{"Chat", [][2]string{{"Enter", "send / approve / create"}, {"Ctrl+N / /clear", "new chat; discard active history"}, {"Ctrl+Y", "acknowledge uncertain action and clear after inspection"}, {"ask", "which agents are running? (read-only answer)"}, {"/agents /board", "read-only app summaries"}, {"/new /run <workflow>", "launch details / propose workflow"}, {"@name / @%pane / @role", "complete and route prompt; approval required"}, {"Alt+Enter / Ctrl+J", "insert newline"}, {"PgUp / PgDown", "scroll transcript"}, {"snapshot", "latest local data, not history"}, {"Tab", "change focus"}, {"Esc", "dismiss completion / close; history retained"}, {"e", "edit command / draft"}, {"r", "start draft"}}},
 	{"Board · Tickets", ticketShortcuts([2]string{"Tab / esc", "focus workflows / back"})},
+	{"Board · Agents", [][2]string{{"Tab", "focus tickets"}, {"j k ↑ ↓", "select agent"}, {"enter", "show detail"}, {"m", "model (new panes only)"}, {"e", "edit instructions in $EDITOR"}, {"a", "new agent"}, {"x", "delete agent (y/n confirm)"}, {"t", "open / close agents panel"}, {"esc q b", "back to dashboard"}}},
 	{"Board · Workflows", [][2]string{{"Tab", "focus tickets"}, {"j k ↑ ↓", "select workflow"}, {"enter w", "view selected workflow"}, {"a", "new workflow name, then $EDITOR"}, {"e", "edit selected workflow"}, {"x", "delete workflow (y/n confirm)"}, {"esc q b", "back to dashboard"}}},
 	{"Board · Workflow view", [][2]string{{"[ ]", "browse workflows"}, {"e c", "edit displayed workflow / board config"}, {"esc w q", "close workflow view"}, {"ctrl+c", "quit"}}},
 	{"Board · Task detail", [][2]string{{"j k ↑ ↓", "scroll task detail"}, {"pgup pgdn", "scroll page"}, {"g G", "top / bottom"}, {"esc", "close detail drawer"}, {"enter i", "toggle detail drawer"}, {"e", "edit task"}, {"c / C", "blocked: @role reply resumes; C: comment"}, {"a / A", "view attachments / attach file"}}},
@@ -39,6 +40,8 @@ func (m Model) helpSection() shortcutSection {
 		title = "Board · Task detail"
 	case m.boardMode && m.boardFlow:
 		title = "Board · Workflow view"
+	case m.boardMode && m.agentsOpen && (m.workflowFocus || m.taskForm == "agent-new" || m.taskForm == "agent-model"):
+		title = "Board · Agents"
 	case m.boardMode && (m.workflowFocus || m.taskForm == "workflow-new"):
 		title = "Board · Workflows"
 	case m.boardMode:

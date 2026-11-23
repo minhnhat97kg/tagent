@@ -562,13 +562,13 @@ func (m Model) boardView() string {
 	} else if m.boardDrawer {
 		body = m.boardPanel("Task · esc close", m.boardDetail(m.width-4, h-2), m.width, h, true)
 	} else if m.width >= 120 {
-		wfLines := m.workflowLines(m.width - 4)
+		title, wfLines, cursor := m.stripPanel(m.width - 4)
 		wh := min(len(wfLines)+2, max(3, h/3))
 		wfStart := 0
 		if m.workflowFocus {
-			wfStart = max(0, m.workflowCursor-max(1, wh-2)+1)
+			wfStart = max(0, cursor-max(1, wh-2)+1)
 		}
-		body = m.boardColumnView(h-wh) + "\n" + m.boardPanel(fmt.Sprintf("Workflows %d · a add · e edit", len(m.boardWorkflows)), wfLines[min(wfStart, len(wfLines)):], m.width, wh, m.workflowFocus)
+		body = m.boardColumnView(h-wh) + "\n" + m.boardPanel(title, wfLines[min(wfStart, len(wfLines)):], m.width, wh, m.workflowFocus)
 	} else {
 		lw := m.width
 		if m.boardWide() {
@@ -592,16 +592,16 @@ func (m Model) boardView() string {
 			lines = []string{m.boardStyle(m.theme.TextDim).Render("No tickets · a add")}
 		}
 		// Workflows sit under the ticket list: one line each, at most a third of the height.
-		wfLines := m.workflowLines(lw - 4)
+		title, wfLines, cursor := m.stripPanel(lw - 4)
 		wh := min(len(wfLines)+2, max(3, h/3))
 		lh := h - wh
 		start := min(len(lines), max(0, selected+2-(lh-2)))
 		wfStart := 0
 		if m.workflowFocus {
-			wfStart = max(0, m.workflowCursor-max(1, wh-2)+1)
+			wfStart = max(0, cursor-max(1, wh-2)+1)
 		}
 		list := m.boardPanel(fmt.Sprintf("Board %d", len(order)), lines[start:], lw, lh, !m.workflowFocus) + "\n" +
-			m.boardPanel(fmt.Sprintf("Workflows %d · a add · e edit", len(m.boardWorkflows)), wfLines[min(wfStart, len(wfLines)):], lw, wh, m.workflowFocus)
+			m.boardPanel(title, wfLines[min(wfStart, len(wfLines)):], lw, wh, m.workflowFocus)
 		panels := []string{list}
 		if m.boardWide() {
 			panels = append(panels, m.boardPanel("Task", m.boardDetail(m.width-lw-4, h-2), m.width-lw, h, false))
@@ -611,6 +611,10 @@ func (m Model) boardView() string {
 	hint := m.ticketHints()
 	if m.workflowDelete != "" {
 		hint = "Delete workflow " + m.workflowDelete + "? y / n"
+	} else if m.agentDelete != "" {
+		hint = "Delete agent " + m.agentDelete + "? y / n"
+	} else if m.workflowFocus && m.agentsOpen && !m.boardFlow && !m.boardDrawer {
+		hint = m.keyHints("enter detail", "m model", "e edit", "a add", "x delete", "t close", "Tab tickets", "? help")
 	} else if m.workflowFocus && !m.boardFlow && !m.boardDrawer {
 		hint = m.keyHints("enter view", "a add", "e edit", "Tab tickets", "? help")
 	}
@@ -744,6 +748,9 @@ func (m Model) triggerSummary() string {
 
 // Returns handled=false only for the existing Tasks actions, routed to their forms.
 func (m Model) boardKey(key string) (Model, tea.Cmd, bool) {
+	if key == "o" {
+		return m, nil, false // the global expand key and button still work from the board
+	}
 	if m.boardMode && (m.boardDrawer || m.boardWide()) && len(m.notes) > 0 && (key == "a" || key == "A") && !m.workflowFocus && m.workflowDelete == "" {
 		m.taskForm = "attachments"
 		if key == "A" {
@@ -822,6 +829,14 @@ func (m Model) boardKey(key string) (Model, tea.Cmd, bool) {
 		m.inlineIntake = false
 		m, cmd := m.openIntake()
 		return m, cmd, true
+	case "t":
+		m.boardMode = true
+		m.agentsOpen = !m.agentsOpen
+		m.workflowFocus, m.agentDetail, m.agentCursor = m.agentsOpen, false, 0
+		if m.agentsOpen {
+			m = m.loadAgents()
+		}
+		return m, nil, true
 	case "w":
 		m.boardMode = true
 		m.boardFlow, m.boardDrawer = true, false
