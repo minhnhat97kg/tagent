@@ -441,17 +441,23 @@ func (m Model) dashGeometry() dashGeom {
 			y += hh
 		}
 	}
+	// Card sizes follow the viewport, not the content: Usage and the bottom
+	// Workflows card are fixed small, Agents takes a set share (all spare rows
+	// in the left column when wide), Tasks takes the rest. Lists scroll inside.
+	const rest = 1 << 10
+	usageS.need = max(minUsageH, usageH)
+	wfS.need = minWfH
 	if g.wide {
+		agentsS.need = rest
+		tasksS.need = rest
 		column(0, left, 1, bh-compH, agentsS, usageS)
 		if compH > 0 {
 			g.comp = rect{0, 1 + bh - compH, left, compH}
 		}
 		column(left, width-left, 1, bh, tasksS, wfS)
 	} else {
-		// Stacked: Tasks can list hundreds of rows; cap it so Agents and
-		// Workflows keep their share and spare rows go to Workflows first.
-		tasksS.need = min(tasksS.need, max(minTasksH, (bh-compH)*25/100))
-		agentsS.weight, tasksS.weight = 2, 2
+		agentsS.need = max(minAgentsH, (bh-compH)*28/100)
+		tasksS.need = rest
 		column(0, width, 1, bh-compH, agentsS, usageS, tasksS, wfS)
 		if compH > 0 {
 			g.comp = rect{0, 1 + bh - compH, width, compH}
