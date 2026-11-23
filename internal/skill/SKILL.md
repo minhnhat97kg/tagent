@@ -36,7 +36,8 @@ todo, in progress, blocked, done. A ticket without a workflow starts
 `default_workflow` when it leaves todo (`s`, `task start ID`, or a move).
 Entering a role dispatches `<role>#<ticket>`; re-entry reuses its context and
 includes only new non-system comments. New panes receive the description, handoff
-and outputs. Busy/approval/unknown panes queue until idle.
+and outputs. A comment that @mentions a role: a fresh pane gets the brief and the mention;
+a reused pane gets only the comments since its cursor. Busy/approval/unknown panes queue until idle.
 A role's harness, model and effort come from its `board.yaml` entry (never from a
 harness directory); a model or effort change applies to panes started afterwards,
 not to running ones. Instructions are plain markdown in `.tasks/agents/<role>.md`

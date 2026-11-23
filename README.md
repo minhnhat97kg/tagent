@@ -145,7 +145,7 @@ Run `tagent help` to see the commands and the agents defined in the current repo
 | `tagent diff <name> [--stat]` · `merge <name> [--discard]` · `discard <name>` | Review / merge / drop the changes of an agent running in a worktree |
 | `tagent fanout -n 3 [--role r] [--wait] "<prompt>"` · `compare <prefix>` | Best-of-N: the same task to N agents in N worktrees, compare, keep the best |
 | `tagent task [ls]` · `task add --to <name> "<text>"` · `task start <id> <pane>` · `task set <id> <todo\|doing\|blocked\|done>` · `task assign <id> <name[,name]>` · `task rm <id>` | Create, dispatch, and track tasks on the repo board |
-| `tagent chat [--dir DIR] [--agent claude\|pi] [--clear] <id>` | One assistant pane per ticket, reused until cleared. The first message is the ticket context; `tagent task` in that pane refuses other tickets |
+| `tagent chat [--dir DIR] [--agent claude\|pi] [--clear] <id>` | One assistant pane per ticket, reused until cleared. The first message is a ticket brief (summary, step, `tagent task show` for details); `tagent task` in that pane refuses other tickets |
 | `tagent stats [ls\|clear]` | Show or delete local Claude, Codex, OpenCode and Pi usage history |
 | `tagent save` · `restore [--dry-run]` | Save / bring back your agents after a restart (Claude resumes its session); auto-saved every 30s |
 | `tagent tokens` | Tokens used per Claude agent + total |
@@ -210,7 +210,7 @@ harness notifications, check status when the user asks.
 Each agent in the web dashboard has **Terminal** and **Chat** views (Chat renders the conversation from the transcript; claude and pi agents). See [agent chat](docs/agent-chat.md).
 
 A ticket's panel has its own **Chat** tab (web and TUI): one agent dedicated to
-that ticket, started with the ticket's context. A human can save a chat message
+that ticket, started with the ticket's brief. A human can save a chat message
 to the ticket as a comment, so what the conversation settled stays on the board.
 The tab is disabled with the reason when its pane runs a harness Chat cannot
 read.

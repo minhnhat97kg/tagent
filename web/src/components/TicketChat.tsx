@@ -30,7 +30,7 @@ export function TicketChat({ info, error, starting, onStart, onReload, onSave, p
     <span className="flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground"><MessageSquarePlus className="size-5" /></span>
     <div className="space-y-1">
       <p className="text-sm font-medium">No chat for this ticket yet</p>
-      <p className="max-w-sm text-xs text-muted-foreground">A claude or pi agent starts with the ticket's description, status, comments and workflow step, and answers here. Messages wait in its queue while it is busy.</p>
+      <p className="max-w-sm text-xs text-muted-foreground">A claude or pi agent starts with a brief (summary, status and workflow step), reads more with tagent task show, and answers here. Messages wait in its queue while it is busy.</p>
     </div>
     {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
     <Button size="sm" disabled={starting} onClick={onStart}>{starting ? <Loader2 className="animate-spin" /> : <MessageSquarePlus />}{starting ? "Starting…" : "Start chat"}</Button>

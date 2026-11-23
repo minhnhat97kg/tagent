@@ -109,8 +109,11 @@ Narrow panes retain the list with lane headers. `H/L` still moves the ticket's
 status within its flow. Enter opens the detail drawer; Escape closes it. At 100
  columns or more it is a right pane beside the tickets, narrower panes show it
  full width. The drawer has four tabs: **Details** (description, attachments, note, agent runs),
- **Chat** (the ticket's own agent conversation), **Activity** (comments and the
+ **Chat** (the ticket's own agent conversation), **Activity** (the comment box on top, comments and the
  folded dispatch noise) and **Run** (the ticket's run, same data as the web).
+ On Activity, `c` opens the comment box: typing `@` suggests roles from `board.yaml`
+ and the board's agents (`tab` completes), `enter` posts. A role that was mentioned
+ and has a pane working on the ticket shows as `role replying…` until its reply lands.
  `Tab`/`l` and `Shift-Tab`/`h` cycle the tabs; `1`, `2`, `3`, `4` jump to
  Details, Chat, Activity, Run. Opening the drawer always starts on Details.
 

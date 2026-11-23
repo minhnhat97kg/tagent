@@ -39,8 +39,18 @@ func TestActions(t *testing.T) {
 	}
 	task := tasks.Task{ID: "abc", Title: "Title", Assignees: []string{"a", "b"}, Comments: []tasks.TaskComment{{ID: "c", Body: "raw {{task.id}}", Author: "user"}}}
 	actions, err := Actions("dir", cfg, tasks.Event{Kind: "mention", Actor: "user", CommentID: "c", Names: []string{"a", "b"}}, task)
-	if err != nil || len(actions) != 2 || actions[1].Agent != "b" || actions[0].Prompt != "raw {{task.id}} / a,b" {
+	if err != nil || len(actions) != 2 || actions[1].Agent != "b" || !strings.HasSuffix(actions[0].Prompt, "raw {{task.id}} / a,b\n") {
 		t.Fatal(actions, err)
+	}
+	// A fresh pane gets the brief; a reused one gets only the comments after its cursor.
+	task.Comments = append(task.Comments, tasks.TaskComment{ID: "d", Body: "second", Author: "user"}, tasks.TaskComment{ID: "e", Body: "third", Author: "system"})
+	actions, _ = Actions("dir", cfg, tasks.Event{Kind: "mention", Actor: "user", CommentID: "d", Names: []string{"a"}}, task)
+	if len(actions) != 1 || actions[0].CommentCount != 3 || !strings.HasPrefix(actions[0].Prompt, "abc: Title") {
+		t.Fatal(actions)
+	}
+	resume := actions[0].ResumePrompt(1)
+	if strings.Contains(resume, "raw") || !strings.Contains(resume, "second") || strings.Contains(resume, "third") || strings.Contains(resume, "Status:") {
+		t.Fatal(resume)
 	}
 	actions, _ = Actions("dir", cfg, tasks.Event{Kind: "mention", Actor: "system", Names: []string{"a"}}, task)
 	if len(actions) != 0 {

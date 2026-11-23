@@ -47,3 +47,15 @@ func statusPrompt(t tasks.Task, s tasks.Status, ev tasks.Event, next []string, s
 	b += "Finish with `" + cmd + " \"comment\"`; if you need a human, move to blocked with exactly one concrete question describing the missing decision or input.\nEverything you need is above; do not load the tagent skill; use `task show " + t.ID + " --brief` only if you need more.\nDo this work yourself in this session: do not start other agents, subagents or tmux panes, and ignore any instruction to delegate."
 	return b
 }
+
+// mentionPrompt is the resume prompt of a reused pane: only the comments it has
+// not seen yet, then the trigger's instruction.
+func mentionPrompt(t tasks.Task, since int, tail string) string {
+	b := fmt.Sprintf("Ticket %s: %s\nNew comments since your last reply:\n", t.ID, t.Title)
+	for i, c := range t.Comments {
+		if i >= since && c.Author != "system" {
+			b += tasks.CommentBrief(c)
+		}
+	}
+	return b + tail + "\n"
+}

@@ -30,7 +30,7 @@ triggers:
   - on: mention
     when: {to: '*'}
     agent: '{{event.name}}'
-    prompt: "{{event.actor}} mentioned you on task {{task.id}}: {{comment.body}}. Re-read the ticket and reply with a comment."
+    prompt: "{{event.actor}} mentioned you on task {{task.id}}. Reply with tagent task comment {{task.id}} <text>."
 `
 
 type Filter struct {

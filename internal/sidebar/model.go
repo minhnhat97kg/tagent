@@ -631,6 +631,8 @@ type Model struct {
 	agentDetail    bool
 	taskForm       string
 	taskInput      string
+	commentBox     bool // the Activity tab's inline composer is open; its text is taskInput
+	commentPick    int  // highlighted @role suggestion
 	taskStep       int
 	promptPane     string // target of the "send prompt" form (i)
 
@@ -1674,6 +1676,9 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if msg.String() == "?" && !m.popup.IsRepoOpen() && !m.removeConfirmOpen && !m.filterEditing {
 		m.helpOpen, m.helpAll, m.helpScroll = true, false, 0
 		return m, nil
+	}
+	if m.commentBox {
+		return m.handleCommentBox(msg)
 	}
 	if m.taskForm != "" {
 		return m.handleTaskForm(msg)
