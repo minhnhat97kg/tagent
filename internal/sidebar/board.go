@@ -711,72 +711,11 @@ func (m Model) boardPanel(title, pos string, lines []string, width, height int, 
 	return strings.Join(append(out, bottom), "\n")
 }
 
-// Card heights: every card has a fixed height at rest and a larger one when
-// focused. Only terminal size and focus decide them, never ticket counts.
-const flexH = 1 << 20
-
-// accordion splits total rows among cards: all at their rest height, the focused
-// one grown to want, the leftover to the first flex card (else the focused one).
-// Short terminals shrink the unfocused cards (last first) down to 3 rows.
-func accordion(total int, rest, want []int, focus int) []int {
-	n := len(rest)
-	h := slices.Clone(rest)
-	over := slices.Max([]int{0, sum(h) - total})
-	for pass := 0; pass < 2 && over > 0; pass++ {
-		for i := n - 1; i >= 0 && over > 0; i-- {
-			if (i != focus) == (pass == 0) {
-				cut := min(over, max(0, h[i]-3))
-				h[i] -= cut
-				over -= cut
-			}
-		}
-	}
-	rem := total - sum(h)
-	short := rem <= 0
-	if rem > 0 {
-		grow := min(rem, want[focus]-h[focus])
-		h[focus] += grow
-		rem -= grow
-	}
-	// Portrait mode: a focused card still short of its height borrows from the
-	// others, down to 3 rows each (not when a flex card already took the leftover).
-	if need := want[focus] - h[focus]; need > 0 && (short || want[focus] < flexH) {
-		for i := n - 1; i >= 0 && need > 0; i-- {
-			if i != focus {
-				cut := min(need, max(0, h[i]-3))
-				h[i] -= cut
-				h[focus] += cut
-				need -= cut
-			}
-		}
-	}
-	if rem > 0 {
-		to := focus
-		for i := range want {
-			if want[i] >= flexH {
-				to = i
-				break
-			}
-		}
-		h[to] += rem
-	}
-	return h
-}
-
-func sum(v []int) (n int) {
-	for _, x := range v {
-		n += x
-	}
-	return
-}
-
 // boardSplit is the board screen's Tasks and Workflows card heights.
 func (m Model) boardSplit(h int) (tasksH, wfH int) {
-	focus := 0
-	if m.workflowFocus {
-		focus = 1
-	}
-	hs := accordion(h, []int{6, 3}, []int{flexH, 8}, focus)
+	// Only terminal size and focus decide card heights, never ticket counts:
+	// Workflows rests at 3 rows and grows to 8 when focused; tickets take the rest.
+	hs := split(h, Fill(1).AtLeast(6), Fixed(3+5*b2i(m.workflowFocus)).AtLeast(3))
 	return hs[0], hs[1]
 }
 
