@@ -1,4 +1,4 @@
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { KanbanSquare, MessageSquare, OctagonAlert, Search } from "lucide-react"
 import { Avatar, BoardDrawer, shortId, statusColor, title } from "./BoardDrawer"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
@@ -7,14 +7,22 @@ import type { Project, Task } from "@/types"
 import { Workflows } from "./Workflows"
 import "./board.css"
 
+function useMedia(q: string) {
+  const [on, setOn] = useState(() => matchMedia(q).matches)
+  useEffect(() => { const m = matchMedia(q); const f = () => setOn(m.matches); m.addEventListener("change", f); return () => m.removeEventListener("change", f) }, [q])
+  return on
+}
+
 // TaskDrawer is the Jira-like right panel shared by the board and the tasks list.
 export function TaskDrawer({ proj, dir, reload, id, onClose, origin, initialReply = '' }: { initialReply?: string; proj?: Project; dir: string; reload: () => void; id?: string; onClose: () => void; origin: React.RefObject<HTMLElement | null> }) {
   const statuses = proj?.statuses ?? []
   const selected = proj?.tasks?.find(t => t.id === id)
   const role = (t: Task) => proj?.workers?.[t.id]?.role || statuses.find(s => s.id === t.status)?.role || t.assignees?.[0] || ""
   const roles = Array.from(new Set([...(proj?.roles ?? []), ...(proj?.tasks ?? []).map(role)])).filter(Boolean)
-  return <Dialog open={!!selected} onOpenChange={open => { if (!open) onClose() }}>
-    <DialogContent className="board-drawer translate-x-0 translate-y-0 sm:max-w-none" onOpenAutoFocus={e => { e.preventDefault(); (e.currentTarget as HTMLElement).focus() }} onCloseAutoFocus={e => { e.preventDefault(); if (origin.current?.isConnected) origin.current.focus() }}>
+  // Desktop: docked beside the board, non-modal (no overlay, the board stays clickable). Phones keep the full-screen modal.
+  const docked = useMedia("(min-width: 768px)")
+  return <Dialog modal={!docked} open={!!selected} onOpenChange={open => { if (!open) onClose() }}>
+    <DialogContent className="board-drawer translate-x-0 translate-y-0 sm:max-w-none" onInteractOutside={e => { if (docked) e.preventDefault() }} onOpenAutoFocus={e => { e.preventDefault(); (e.currentTarget as HTMLElement).focus() }} onCloseAutoFocus={e => { e.preventDefault(); if (origin.current?.isConnected) origin.current.focus() }}>
       {selected && <BoardDrawer key={selected.id + initialReply} initialReply={initialReply} workflows={proj?.workflows ?? []} task={selected} statuses={statuses.map(s => s.id)} roles={roles} role={role(selected)} reason={proj?.blockedReasons?.[selected.id]} dir={dir} reload={reload} close={onClose} />}
     </DialogContent>
   </Dialog>
@@ -36,7 +44,7 @@ export function Board({ dir, proj, reload }: { dir: string; proj?: Project; relo
   const all = proj?.tasks ?? []
   const tasks = all.filter(t => (!blocked || t.status === "blocked") && (!role || taskRole(t) === role || t.assignees?.includes(role)) && (!query || `${t.id} ${t.title} ${t.text}`.toLowerCase().includes(query.toLowerCase())))
   const move = (id: string, status: string) => act(post("/api/tasks", { Dir: dir, Op: "set", ID: id, Status: status }).then(reload))
-  return <section className="task-board">
+  return <section className={`task-board ${selectedID ? "has-drawer" : ""}`}>
     <header className="board-tools">
       <h2><span className="board-icon"><KanbanSquare /></span>Board</h2>
       <label className="board-search"><Search /><input aria-label="Search tasks" placeholder="Search" value={query} onChange={e => setQuery(e.target.value)} /></label>
