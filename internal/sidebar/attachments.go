@@ -6,6 +6,8 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"tagent/internal/tasks"
 	"unicode"
@@ -20,7 +22,7 @@ func openTaskAttachment(scope, dir, id, ref, pane string) tea.Cmd {
 	data, err := io.ReadAll(io.LimitReader(f, 10<<20))
 	f.Close()
 	if err == nil && (!utf8.Valid(data) || strings.ContainsRune(string(data), 0)) {
-		err = fmt.Errorf("%s is binary; use web Download", a.Name)
+		return openWithSystem(scope, dir, id, ref, a.Name)
 	}
 	if err != nil {
 		return func() tea.Msg { return actionResult("", err) }
@@ -57,4 +59,46 @@ func openTaskAttachment(scope, dir, id, ref, pane string) tea.Cmd {
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Env = append(os.Environ(), "LESSSECURE=1", "LESSOPEN=", "LESSCLOSE=")
 	return tea.ExecProcess(cmd, func(e error) tea.Msg { os.Remove(tmp.Name()); return actionResult("Viewer closed", e) })
+}
+
+// systemOpenable lists the binary types handed to the OS viewer. Anything that can run code or active content
+// (scripts, .app, .command, html, svg) is left out on purpose.
+var systemOpenable = map[string]bool{".png": true, ".jpg": true, ".jpeg": true, ".gif": true, ".webp": true, ".bmp": true, ".pdf": true, ".mp4": true, ".mov": true, ".webm": true, ".mp3": true, ".wav": true}
+
+// openWithSystem copies a binary attachment to a temp file (extension kept) and opens it with the OS viewer
+// (open / xdg-open). It only works on the machine that runs tmux, not over SSH.
+// ponytail: the temp copy is left for the OS to clean up, since the viewer reads it asynchronously.
+func openWithSystem(scope, dir, id, ref, name string) tea.Cmd {
+	return func() tea.Msg {
+		ext := strings.ToLower(filepath.Ext(name))
+		if !systemOpenable[ext] {
+			return actionResult("", fmt.Errorf("%s is binary; use web Download", name))
+		}
+		f, _, err := tasks.OpenTicketAttachment(scope, dir, id, ref)
+		if err != nil {
+			return actionResult("", err)
+		}
+		defer f.Close()
+		tmp, err := os.CreateTemp("", "tagent-open-*"+ext)
+		if err != nil {
+			return actionResult("", err)
+		}
+		_, err = io.Copy(tmp, io.LimitReader(f, 100<<20))
+		tmp.Close()
+		if err != nil {
+			os.Remove(tmp.Name())
+			return actionResult("", err)
+		}
+		opener := "xdg-open"
+		if runtime.GOOS == "darwin" {
+			opener = "open"
+		}
+		cmd := exec.Command(opener, tmp.Name())
+		if err := cmd.Start(); err != nil {
+			os.Remove(tmp.Name())
+			return actionResult("", fmt.Errorf("cannot open %s: %v; use web Download", name, err))
+		}
+		go cmd.Wait()
+		return actionResult("Opened "+name, nil)
+	}
 }

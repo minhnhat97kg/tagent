@@ -45,7 +45,7 @@ func TestBoardListTwoLineRows(t *testing.T) {
 	for _, size := range [][2]int{{119, 40}, {45, 40}} {
 		m.width, m.height = size[0], size[1]
 		view := ansi.Strip(m.View())
-		for _, want := range []string{"○ First card", "◐ Fourth card", "✖ Fifth card", "✔ Third card", "todo · builder", "12-01", "Board 5"} {
+		for _, want := range []string{"○ First card", "◐ Fourth card", "✕ Fifth card", "✓ Third card", "todo · builder", "12-01", "Board 5"} {
 			if !strings.Contains(view, want) {
 				t.Errorf("%v: view lacks %q:\n%s", size, want, view)
 			}
@@ -417,7 +417,7 @@ statuses:
 	m.boardConfig = cfg
 	m, _ = boardPress(m, "w")
 	view := ansi.Strip(m.View())
-	for _, want := range []string{"Workflow", "○ todo", "(2)", "→ plan", "◐ plan     planner · pi gpt", "→ test, blocked", "ci: go test", "pass → done · fail → plan", "waiting for you", "✔ done", "esc close"} {
+	for _, want := range []string{"Workflow", "○ todo", "(2)", "→ plan", "◐ plan     planner · pi gpt", "→ test, blocked", "ci: go test", "pass → done · fail → plan", "waiting for you", "✓ done", "esc close"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("workflow view lacks %q:\n%s", want, view)
 		}

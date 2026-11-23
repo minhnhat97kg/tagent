@@ -99,5 +99,5 @@ func (m Model) helpView() string {
 }
 
 func ticketShortcuts(nav [2]string) [][2]string {
-	return append([][2]string{{"h l", "select board column (wide pane)"}, {"j k ↑ ↓", "select ticket"}, {"s", "start: workflow picker"}, {"enter i", "ticket detail"}, {"e", "edit in $EDITOR"}, {"c / C", "blocked: @role reply resumes; C: comment"}, {"H L", "previous / next status"}, {"x", "delete (confirm)"}, {"w", "workflow view"}, {"?", "help"}}, nav)
+	return append([][2]string{{"h l", "select board column (wide pane)"}, {"j k ↑ ↓", "select ticket"}, {"n", "new ticket ($EDITOR)"}, {"s", "start: workflow picker"}, {"enter i", "ticket detail"}, {"e", "edit in $EDITOR"}, {"c / C", "blocked: @role reply resumes; C: comment"}, {"H L", "previous / next status"}, {"x", "delete (confirm)"}, {"w", "workflow view"}, {"?", "help"}}, nav)
 }

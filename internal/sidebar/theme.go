@@ -392,6 +392,7 @@ func DefaultIcons() Icons {
 		Error:      "✕",
 		Unknown:    "?",
 
+		// Nerd Font glyphs (a real icon, never an emoji).
 		Mode:      "\uf013", // nf-fa-cog
 		Message:   "\uf075", // nf-fa-comment
 		GitBranch: "\uf126", // nf-fa-code_fork

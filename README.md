@@ -124,9 +124,8 @@ ticket detail (`a` opens the list). See [attachment limits and previews](docs/bo
 | `o` | sidebar / zoomed dashboard | zoom / unzoom the same view, keeping selection |
 | `,` | sidebar / dashboard | open settings |
 | `/` `r` `p` `v` `x` | sidebar | filter · repo filter · pin · select · delete worktree |
-| `tab` | sidebar / dashboard | cycle agents, definitions, tasks, and inline Chat |
+| `tab` | sidebar / dashboard | cycle agents, definitions, and tasks |
 | `j` `k` | focused list | select an agent or task; selected task details stay visible |
-| `n` | Tasks / board | intake; draft `w` changes workflow |
 | `s` / `x` | focused task | workflow start picker / confirm task deletion |
 | `[` `]` | sidebar / dashboard | change chart range: 24 hours, 7 days, 30 days |
 
@@ -206,11 +205,10 @@ harness notifications, check status when the user asks.
   approval and when a ticket reaches `done` or `blocked` (with assignees).
   Intermediate workflow steps and finished agent turns stay on the desktop.
 
-Browser dashboard: the Agents panel's `#/chat` link opens the project's conversation without sending a model request. Web chat uses native Ollama tools only (no MCP); `@agent_chat_model` defaults to `bonsai-2:9b` (`off` disables it), and `@agent_chat_endpoint` defaults to `http://127.0.0.1:11434`. Use a tool-capable local model. All mutations need approval. Web and TUI use the same native application tools. `@agent_intake_llm` still drives the CLI `task -i` intake and the Telegram text bridge, which accept prose only: a shell-command or tool reply from either fails and is never executed. See [web receptionist](docs/board.md#web-receptionist).
 
 Each agent in the web dashboard has **Terminal** and **Chat** views (Chat renders the conversation from the transcript; claude and pi agents). See [agent chat](docs/agent-chat.md).
 
-Press `?` in the sidebar or dashboard for contextual help. In Chat, `?` is literal input: Tab away first to open help. Focus Chat with Tab or a click, Enter to send, and Esc to close. Ask “which agents are running?” for a read-only answer, describe new work to clarify/draft a ticket, or use `/agents`, `/board`, `/new`, `/run <workflow>`. Type `@` to complete a running name, pane, or role and route a prompt; ambiguous roles require an exact pane. All changes, including routed sends, require explicit approval. After an answer, type and Enter for another turn. Web and TUI share persisted conversation history. Use **New chat** on web, **Ctrl+N** in TUI Chat, or `/clear` to discard active history (not filesystem backups); this does not undo actions. Clear is disabled during approval execution; interrupted approvals require inspection and explicit acknowledgement before clearing (web confirmation or TUI Ctrl+Y). Web Enter sends and Shift+Enter inserts a newline. Context is the latest local ticket/agent/workflow snapshot, not an authoritative historical search; unavailable data is reported rather than guessed. Architectural judgement is escalated to the lead.
+Press `?` in the sidebar or dashboard for contextual help.
 
 ### Tickets and status handoffs
 
@@ -432,6 +430,6 @@ This project is licensed under the [MIT License](LICENSE). See [NOTICE](NOTICE) 
 
 README structure adapted from [readme-md-generator](https://github.com/kefranabg/readme-md-generator).
 
-Tasks panel and board share ticket controls: `n` intake, `s` workflow start picker,
+Tasks panel and board share ticket controls: `s` workflow start picker,
 `enter` detail, `e` edit, `C` comment, `H`/`L` status, `x` delete with confirmation,
 `w` workflow, `?` help. Dashboard `Tab` changes focus; `b` opens the board.

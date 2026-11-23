@@ -1,11 +1,12 @@
 import "@xterm/xterm/css/xterm.css"
 import { Terminal as XTerm } from "@xterm/xterm"
+import { WebglAddon } from "@xterm/addon-webgl"
 import { useEffect, useRef, useState, type RefObject } from "react"
 import { paneInput, registerPaneSocket } from "@/lib/paneInput"
 import { toast } from "sonner"
 import { enc } from "@/hooks/useRoute"
 import { bindTerminalTap } from '@/lib/touchViewport'
-import { bindTerminalSwipe, sgrWheel, snapshotBytes } from '@/lib/terminalScroll'
+import { bindTerminalSwipe, snapshotBytes } from '@/lib/terminalScroll'
 import { terminalFontSize, type TerminalControl, type TerminalOwnership } from '@/lib/terminalFit'
 
 interface Frame {
@@ -78,32 +79,18 @@ export function Terminal({ pane, onConnection, keyboardInputRef, onKeyboardChang
       theme: termTheme(),
     })
     term.open(el)
+    // GPU renderer: the default DOM renderer is slow on big panes. Fall back to DOM if WebGL is missing or the context is lost.
+    try {
+      const gl = new WebglAddon()
+      gl.onContextLoss(() => gl.dispose())
+      term.loadAddon(gl)
+    } catch { /* DOM renderer stays */ }
     const themeWatch = new MutationObserver(() => { term.options.theme = termTheme() })
     themeWatch.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] })
     term.attachCustomKeyEventHandler(e => !(e.key === "F6" && e.ctrlKey && e.shiftKey))
-    // Full-screen apps (alternate screen) scroll themselves: forward the wheel as SGR mouse events when the app
-    // reads the mouse, never let xterm turn it into arrow keys. The normal screen scrolls xterm's own history.
-    let appMouse = false
-    let wheelPixels = 0
-    // Batch wheel/swipe into one send per animation frame: fewer round trips, steadier app redraws.
-    let wheelFrame = 0
-    const forwardWheel = (pixels: number) => {
-      wheelPixels += pixels
-      if (wheelFrame) return
-      wheelFrame = requestAnimationFrame(() => {
-        wheelFrame = 0
-        const step = Math.max(8, cellPixels)
-        const steps = Math.trunc(wheelPixels / step)
-        if (!steps) return
-        wheelPixels -= steps * step
-        void paneInput(pane, "input", sgrWheel(steps < 0, Math.min(10, Math.abs(steps)), Math.ceil(term.cols / 2), Math.ceil(term.rows / 2))).catch(() => {})
-      })
-    }
-    term.attachCustomWheelEventHandler(e => {
-      if (term.buffer.active.type !== 'alternate') return true
-      if (appMouse) { e.preventDefault(); forwardWheel(e.deltaMode === 1 ? e.deltaY * cellPixels : e.deltaY) }
-      return false
-    })
+    // Wheel and swipe only scroll this browser's copy of the history; nothing is sent to the pane, so tmux and the
+    // app never end up scrolled by the web. The alternate screen has no history here, so xterm must not turn the wheel into arrow keys.
+    term.attachCustomWheelEventHandler(() => term.buffer.active.type !== 'alternate')
 
     let cols = 0
     let rows = 0
@@ -115,7 +102,7 @@ export function Terminal({ pane, onConnection, keyboardInputRef, onKeyboardChang
     let rowRatio = 0 // real drawn row height per font px (xterm uses char height x lineHeight, rounded), learned after render
     let swipePixels = 0
     const unbindSwipe = touch ? bindTerminalSwipe(wrap, pixels => {
-      if (term.buffer.active.type === 'alternate') { swipePixels = 0; if (appMouse) forwardWheel(pixels); return }
+      if (term.buffer.active.type === 'alternate') { swipePixels = 0; return }
       swipePixels += pixels
       const lines = Math.trunc(swipePixels / cellPixels)
       if (lines) { term.scrollLines(lines); swipePixels -= lines * cellPixels }
@@ -128,10 +115,10 @@ export function Terminal({ pane, onConnection, keyboardInputRef, onKeyboardChang
     // Measure a drawn row once the renderer has applied the font; if the estimate was off, fit again so the
     // last rows (the agent's input line) never fall below the pane.
     const learnRows = () => requestAnimationFrame(() => requestAnimationFrame(() => {
-      const row = el.querySelector<HTMLElement>(".xterm-rows > div")
+      const screen = el.querySelector<HTMLElement>(".xterm-screen") // same height under the DOM and WebGL renderers
       const font = term.options.fontSize!
-      if (!row || !row.offsetHeight || !font) return
-      const learned = row.offsetHeight / font
+      if (!screen || !screen.offsetHeight || !font || !term.rows) return
+      const learned = screen.offsetHeight / term.rows / font
       if (Math.abs(learned - rowRatio) > 0.01) { rowRatio = learned; fit() }
     }))
     const fit = () => {
@@ -210,7 +197,6 @@ export function Terminal({ pane, onConnection, keyboardInputRef, onKeyboardChang
       ws.onmessage = e => {
         if (e.data instanceof ArrayBuffer) { term.write(new Uint8Array(e.data)); return }
         const f: Frame & { type: string; ok?: boolean; owner?: boolean; message?: string; automatic?: boolean } = JSON.parse(e.data)
-        if (typeof f.mouse === "boolean") appMouse = f.mouse
         if (f.type === 'error') { toast.error(f.message ?? 'Terminal sizing failed'); return }
         if (f.type === 'ownership') {
           automatic = !!f.automatic

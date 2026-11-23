@@ -285,11 +285,6 @@ func cmdTask(args []string, stdout, stderr io.Writer) int {
 		}
 		tmux.TypeLine(paneID, "Task "+task.ID+": "+strings.ReplaceAll(task.Text, "\n", " ")+". Set its status to done only after verifying the result.")
 	case "add":
-		for _, arg := range args[1:] {
-			if arg == "-i" {
-				return cmdTaskIntake(args[1:], os.Stdin, stdout, stderr)
-			}
-		}
 		rest := args[1:]
 		var names []string
 		opt := tasks.MutationOptions{Actor: tasks.CallerActor()}

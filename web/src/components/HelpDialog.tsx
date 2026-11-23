@@ -29,8 +29,7 @@ export function HelpDialog({ open, onOpenChange }: { open: boolean; onOpenChange
             ))}
           </tbody>
         </table>
-        <section className="space-y-2 text-sm"><h3 className="font-semibold">Receptionist chat</h3><p>Enter sends; Shift+Enter inserts a newline. Type @ for names, panes and roles; arrows select, Tab/Enter completes, Escape dismisses.</p><p className="font-mono text-xs">/agents · /new · /board · /run &lt;workflow&gt; · /clear</p><p>Changes always need approval. New chat drops active history, not backups, and cannot undo actions.</p></section>
-      </DialogContent>
+              </DialogContent>
     </Dialog>
   )
 }

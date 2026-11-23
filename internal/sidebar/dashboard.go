@@ -84,7 +84,7 @@ func (m Model) dashboardView() string {
 	if h == 1 {
 		return fitLine("tagent", w)
 	}
-	inner := max(1, w-3)
+	g := m.dashGeometry()
 	repo := m.notesScope
 	if i := strings.LastIndexByte(repo, '-'); i > 0 {
 		repo = repo[:i]
@@ -92,32 +92,40 @@ func (m Model) dashboardView() string {
 	if repo == "" {
 		repo = "current repo"
 	}
-	overview := m.overviewLines(inner - 2)
-	width := max(6, w-1)
-	top := m.dashboardPanel("▥ Overview · "+repo, overview, width, len(overview)+2, false)
-	avatarRows, avatar := m.companionPanel(width)
-	if avatarRows > 0 {
-		top = m.dashboardPanel("◈ Companion", avatar, width, avatarRows, false) + "\n" + top
+	bar := m.topBar(repo, max(6, w-1))
+
+	agents := m.dashboardPanel(fmt.Sprintf("Agents · %d", paneRowCount(m.rows)), m.agentRows(g.agents.w-4, g.agents.h-2), g.agents.w, g.agents.h, m.agentFocus == 0)
+	usage := m.dashboardPanel("▥ Usage · "+m.rangeText(), g.usageLines, g.usage.w, g.usage.h, false)
+	var left []string
+	left = append(left, agents, usage)
+	if g.comp.h > 0 {
+		_, avatar := m.companionPanel(g.comp.w)
+		left = append(left, m.dashboardPanel("◈ Companion", avatar, g.comp.w, g.comp.h, false))
 	}
-	g := m.dashGeometry(avatarRows)
+	if g.roles.h > 0 {
+		lines, _ := m.roleLines(g.roles.w-4, g.roles.h-2)
+		left = append(left, m.dashboardPanel("Roles", lines, g.roles.w, g.roles.h, m.agentFocus == 1))
+	}
 	taskTitle := fmt.Sprintf("☷ Tasks · %d", len(m.notes))
 	if m.taskTitle {
 		taskTitle += " · Enter board"
 	}
-	var body string
-	if w >= 90 {
-		agents := m.agentPanels(g.left, g.bodyHeight)
-		taskRows := m.taskLines(width-g.left-4, g.second-2)
-		right := m.dashboardPanel(taskTitle, taskRows[1:], width-g.left, g.second, m.taskFocus)
-		body = lipgloss.JoinHorizontal(lipgloss.Top, agents, right)
-	} else {
-		agents := m.agentPanels(width, g.first)
-		taskRows := m.taskLines(width-4, g.second-2)
-		body = agents + "\n" + m.dashboardPanel(taskTitle, taskRows[1:], width, g.second, m.taskFocus)
+	tasksCard := m.dashboardPanel(taskTitle, m.taskLines(g.tasks.w-4, g.tasks.h-2)[1:], g.tasks.w, g.tasks.h, m.taskFocus)
+	if g.preview.h > 0 {
+		title, lines := m.ticketPreview(g.preview.w - 4)
+		tasksCard += "\n" + m.dashboardPanel(title, lines, g.preview.w, g.preview.h, false)
 	}
-	help := " ? help · Tab focus · ↑↓ select · Enter open · l log · i prompt"
+	var body string
+	if g.wide {
+		body = lipgloss.JoinHorizontal(lipgloss.Top, strings.Join(left, "\n"), tasksCard)
+	} else {
+		// Stacked: Agents, Usage, Tasks, then Companion/Roles when rows remain.
+		parts := []string{left[0], left[1], tasksCard}
+		body = strings.Join(append(parts, left[2:]...), "\n")
+	}
+	help := " Tab focus · ↑↓ select · Enter open · l log · i prompt"
 	if m.agentFocus == 1 {
-		help = " ↑↓ agent · e edit instruction"
+		help = " ↑↓ role · e edit instruction"
 	}
 	if m.taskFocus {
 		help = m.ticketHints()
@@ -128,8 +136,8 @@ func (m Model) dashboardView() string {
 	if m.taskNotice != "" {
 		help = " " + m.taskNotice
 	}
-	footer := lipgloss.NewStyle().Foreground(m.theme.Accent).Bold(true).Render(fitLine(help, width))
-	result := strings.Split(top+"\n"+body+"\n"+footer, "\n")
+	footer := lipgloss.NewStyle().Foreground(m.theme.Accent).Bold(true).Render(fitLine(help, max(6, w-1)))
+	result := strings.Split(bar+"\n"+body+"\n"+footer, "\n")
 	if len(result) > h {
 		result = append(result[:h-1], footer)
 	}
@@ -137,7 +145,31 @@ func (m Model) dashboardView() string {
 		result = append(result, "")
 	}
 	return strings.Join(result, "\n")
+}
 
+// topBar is the one-line header: "tagent · repo" left, key hints right.
+func (m Model) topBar(repo string, width int) string {
+	left := lipgloss.NewStyle().Foreground(m.theme.TextPrimary).Bold(true).Render("tagent") +
+		lipgloss.NewStyle().Foreground(m.theme.TextMuted).Render(" · "+repo)
+	right := "? help · , settings"
+	if width < 40+lipgloss.Width(right) {
+		return fitLine(left, width)
+	}
+	pad := max(1, width-lipgloss.Width(left)-lipgloss.Width(right))
+	return left + strings.Repeat(" ", pad) + lipgloss.NewStyle().Foreground(m.theme.TextMuted).Render(right)
+}
+
+// rangeText is "1d [7d] 30d" as plain text (the Usage card's header hint).
+func (m Model) rangeText() string {
+	var parts []string
+	for _, d := range []int{1, 7, 30} {
+		if d == m.chartDaysOrDefault() {
+			parts = append(parts, fmt.Sprintf("[%dd]", d))
+		} else {
+			parts = append(parts, fmt.Sprintf("%dd", d))
+		}
+	}
+	return strings.Join(parts, " ")
 }
 
 // meterLine renders "5h ▰▰▱▱▱ 42%" like the web Meter: green <70, amber >=70, red >=90, muted when unknown.
@@ -160,12 +192,15 @@ func (m Model) meter(label string, used *float64) string {
 	return muted.Render(label+" ") + bar + lipgloss.NewStyle().Foreground(m.theme.TextPrimary).Render(fmt.Sprintf(" %.0f%%", v))
 }
 
-func (m Model) providerMeters(name string, p quota.Provider) string {
-	s := lipgloss.NewStyle().Foreground(m.theme.TextPrimary).Bold(true).Render(name) + " " + m.meter("5h", p.Five.Used) + "  " + m.meter("7d", p.Week.Used)
+// providerMeters is the web Usage rows: "Claude 5h ▰▰▱▱▱ 42%" over "       7d ▰▱▱▱▱ 12%".
+func (m Model) providerMeters(name string, p quota.Provider) []string {
+	pad := fmt.Sprintf("%-6s", name)
+	l1 := lipgloss.NewStyle().Foreground(m.theme.TextPrimary).Bold(true).Render(pad) + " " + m.meter("5h", p.Five.Used)
+	l2 := strings.Repeat(" ", 6) + " " + m.meter("7d", p.Week.Used)
 	if p.Stale {
-		s += lipgloss.NewStyle().Foreground(m.theme.TextMuted).Render(" stale")
+		l2 += lipgloss.NewStyle().Foreground(m.theme.TextMuted).Render(" stale")
 	}
-	return s
+	return []string{l1, l2}
 }
 
 func (m Model) chartDaysOrDefault() int {
@@ -173,21 +208,6 @@ func (m Model) chartDaysOrDefault() int {
 		return 7
 	}
 	return m.chartDays
-}
-
-// rangeSelector is "1d [7d] 30d" with the active range emphasised.
-func (m Model) rangeSelector() string {
-	on := lipgloss.NewStyle().Foreground(m.theme.TextPrimary).Bold(true)
-	off := lipgloss.NewStyle().Foreground(m.theme.TextMuted)
-	var parts []string
-	for _, d := range []int{1, 7, 30} {
-		if d == m.chartDaysOrDefault() {
-			parts = append(parts, on.Render(fmt.Sprintf("[%dd]", d)))
-		} else {
-			parts = append(parts, off.Render(fmt.Sprintf("%dd", d)))
-		}
-	}
-	return strings.Join(parts, " ")
 }
 
 // chartLine is the sparkline row: the last day (today) is bright, earlier days muted.
@@ -360,40 +380,40 @@ func (m Model) taskRow(idx int, status string, width int) string {
 func statusGlyph(s string) string {
 	switch s {
 	case "done":
-		return "✔"
+		return "✓"
 	case "doing":
 		return "◐"
 	case "blocked":
-		return "✖"
+		return "✕"
 	}
 	return "○"
 }
+
+// taskUsage is "tokens 12.3k" (≥ when some runs lack usage, — when none).
+func (m Model) taskUsage(id string) string {
+	n, missing := metrics.TaskTokens(m.metricState, id)
+	if missing == 0 {
+		for _, r := range m.metricState.Runs {
+			if r.TaskID == id {
+				return "tokens " + compactTokens(n)
+			}
+		}
+	} else if n > 0 {
+		return "tokens ≥" + compactTokens(n)
+	}
+	return "tokens —"
+}
+
 func (m Model) taskDetail(width int) []string {
 	if len(m.notes) == 0 || m.taskCursor >= len(m.notes) {
 		return []string{m.sectionTitle("≡ Detail", width, false), "  select a task"}
 	}
 	t := m.notes[m.taskCursor]
-	n, missing := metrics.TaskTokens(m.metricState, t.ID)
-	usage := "tokens —"
-	if missing == 0 {
-		found := false
-		for _, r := range m.metricState.Runs {
-			if r.TaskID == t.ID {
-				found = true
-				break
-			}
-		}
-		if found {
-			usage = "tokens " + compactTokens(n)
-		}
-	} else if n > 0 {
-		usage = "tokens ≥" + compactTokens(n)
-	}
 	assignee := "unassigned"
 	if len(t.Assignees) > 0 {
 		assignee = strings.Join(t.Assignees, ", ")
 	}
-	return []string{m.sectionTitle("≡ Detail", width, false), fitLine(" "+t.Text, width), fitLine(" "+t.Status+" · "+assignee+" · "+usage, width), fitLine(" "+t.ID, width)}
+	return []string{m.sectionTitle("≡ Detail", width, false), fitLine(" "+t.Text, width), fitLine(" "+t.Status+" · "+assignee+" · "+m.taskUsage(t.ID), width), fitLine(" "+t.ID, width)}
 }
 
 func (m Model) sectionTitle(label string, width int, focused bool) string {
@@ -438,16 +458,35 @@ func (m Model) dashboardPanel(title string, lines []string, width, height int, f
 	return top + "\n" + box
 }
 
-func (m Model) agentPanels(width, height int) string {
+// agentRows is the Agents card body: running agents (definitions live in Roles).
+func (m Model) agentRows(width, height int) []string {
 	running := m
 	running.rows = nil
+	for _, row := range m.rows {
+		if !row.IsRepoAgent && !row.IsHeader { // window headers ("1 split") are noise here
+			running.rows = append(running.rows, row)
+		}
+	}
+	return running.agentLines(width, height+1)[1:]
+}
+
+func (m Model) roleCount() int {
+	n := 0
+	for _, row := range m.rows {
+		if row.IsRepoAgent && row.RepoAgentName != "" {
+			n++
+		}
+	}
+	return n
+}
+
+// roleLines is the Roles card body (agent definitions) scrolled so the
+// selected one stays visible; start is the index of the first line shown.
+func (m Model) roleLines(width, visible int) ([]string, int) {
 	var defs []string
 	group := ""
 	for _, row := range m.rows {
 		if !row.IsRepoAgent {
-			if !row.IsHeader { // window headers ("1 split") are noise here
-				running.rows = append(running.rows, row)
-			}
 			continue
 		}
 		if row.RepoAgentName == "" {
@@ -462,18 +501,14 @@ func (m Model) agentPanels(width, height int) string {
 			mark = "▶ "
 		}
 		left := mark + row.RepoAgentName
-		pad := max(1, width-4-lipgloss.Width(left)-lipgloss.Width(tag))
+		pad := max(1, width-lipgloss.Width(left)-lipgloss.Width(tag))
 		defs = append(defs, left+strings.Repeat(" ", pad)+tag)
 	}
-	small := max(4, height/3)
-	// Scroll the definitions so the selected one stays visible.
-	if visible := small - 2; m.agentFocus == 1 && len(defs) > visible {
-		start := min(max(0, m.definitionCursor-visible+1), len(defs)-visible)
-		defs = defs[start:]
+	start := 0
+	if m.agentFocus == 1 && visible > 0 && len(defs) > visible {
+		start = min(max(0, m.definitionCursor-visible+1), len(defs)-visible)
 	}
-	runHeight := max(4, height-small)
-	rows := running.agentLines(width-4, runHeight-2)
-	return m.dashboardPanel("◉ Running agents", rows[1:], width, runHeight, m.agentFocus == 0) + "\n" + m.dashboardPanel("◇ Agents", defs, width, small, m.agentFocus == 1)
+	return defs[start:], start
 }
 
 func (m Model) focusedDefinitions() []roles.Definition {
@@ -501,12 +536,22 @@ func (m Model) companionPanel(width int) (int, []string) {
 	return len(avatar) + 2, avatar
 }
 
-type dashGeom struct{ top, bodyHeight, left, first, second int }
+type rect struct{ x, y, w, h int }
 
-// dashGeometry is the dashboard layout shared by the view and mouse
-// hit-testing: top = rows above the body, left = agents column width (wide),
-// first/second = panel heights when stacked (narrow); wide tasks take the whole right column.
-func (m Model) dashGeometry(avatarRows int) dashGeom {
+// dashGeom is every card's rectangle (h == 0: not shown), shared by the view
+// and mouse hit-testing. y counts from the top bar (row 0).
+type dashGeom struct {
+	wide                                       bool
+	agents, usage, comp, roles, tasks, preview rect
+	usageLines                                 []string
+}
+
+const previewHeight = 6
+
+// dashGeometry mirrors the web home: wide = left column (Agents over Usage,
+// then Companion/Roles when rows remain) beside Tasks (+ ticket preview);
+// narrow = Agents, Usage, Tasks stacked, Companion/Roles after when rows remain.
+func (m Model) dashGeometry() dashGeom {
 	w, h := m.width, m.height
 	if w <= 0 {
 		w = fallbackWidth
@@ -515,40 +560,129 @@ func (m Model) dashGeometry(avatarRows int) dashGeom {
 		h = 20
 	}
 	width := max(6, w-1)
-	g := dashGeom{top: avatarRows + len(m.overviewLines(max(1, w-5))) + 2, bodyHeight: max(6, h-len(m.overviewLines(max(1, w-5)))-3-avatarRows), left: width / 2}
-	if w >= 90 {
-		g.second = g.bodyHeight
-		return g
+	bh := max(6, h-2) // minus top bar and footer
+	g := dashGeom{wide: w >= 90}
+	left := width
+	if g.wide {
+		left = min(44, max(38, width*40/100))
 	}
-	g.second = max(6, g.bodyHeight/2) // the list scrolls
-	g.first = max(8, g.bodyHeight-g.second)
+	g.usageLines = m.usageLines(left-4, bh)
+	usageH := len(g.usageLines) + 2
+	rolesH := 0
+	if n := m.roleCount(); n > 0 || m.agentFocus == 1 {
+		rolesH = max(3, min(n, 4)+2)
+	}
+	compH, _ := m.companionPanel(left)
+	const minAgents, minTasks = 5, 6
+	if g.wide {
+		if compH > 0 && bh-usageH-rolesH-compH < 8 {
+			compH = 0
+		}
+		if rolesH > 0 && m.agentFocus != 1 && bh-usageH-rolesH < 6 {
+			rolesH = 0
+		}
+		agentsH := max(minAgents, bh-usageH-rolesH-compH)
+		y := 1
+		stack := func(r *rect, hh int) {
+			if hh > 0 {
+				*r = rect{0, y, left, hh}
+				y += hh
+			}
+		}
+		stack(&g.agents, agentsH)
+		stack(&g.usage, usageH)
+		stack(&g.comp, compH)
+		stack(&g.roles, rolesH)
+		g.tasks = rect{left, 1, width - left, bh}
+	} else {
+		extras := 0
+		if compH > 0 && bh-usageH-compH >= minAgents+minTasks+8 {
+			extras += compH
+		} else {
+			compH = 0
+		}
+		if rolesH > 0 && bh-usageH-extras-rolesH >= minAgents+minTasks+4 {
+			extras += rolesH
+		} else {
+			rolesH = 0
+		}
+		rem := bh - usageH - extras
+		agentsH := max(minAgents, rem*2/5)
+		tasksH := max(minTasks, rem-agentsH)
+		y := 1
+		g.agents = rect{0, y, width, agentsH}
+		y += agentsH
+		g.usage = rect{0, y, width, usageH}
+		y += usageH
+		g.tasks = rect{0, y, width, tasksH}
+		y += tasksH
+		if compH > 0 {
+			g.comp = rect{0, y, width, compH}
+			y += compH
+		}
+		if rolesH > 0 {
+			g.roles = rect{0, y, width, rolesH}
+		}
+	}
+	// Quick preview of the selected ticket when the list leaves 8+ spare rows.
+	if len(m.notes) > 0 && g.tasks.h-(len(m.notes)+2) >= 8 {
+		g.preview = rect{g.tasks.x, g.tasks.y + g.tasks.h - previewHeight, g.tasks.w, previewHeight}
+		g.tasks.h -= previewHeight
+	}
 	return g
 }
 
-// overviewLines is the Overview panel: what needs the user first, then the
-// state of agents, tasks and the repo, then recent usage.
-func (m Model) overviewLines(width int) []string {
+// ticketPreview is the card under the task list: "#id · status", then title,
+// assignee/due/tokens, the last comment and a key hint.
+func (m Model) ticketPreview(width int) (string, []string) {
+	t := m.notes[min(m.taskCursor, len(m.notes)-1)]
+	muted := lipgloss.NewStyle().Foreground(m.theme.TextMuted)
+	assignee := "unassigned"
+	if len(t.Assignees) > 0 {
+		assignee = strings.Join(t.Assignees, ", ")
+	}
+	meta := assignee
+	if t.Due != "" {
+		meta += " · due " + t.Due
+	}
+	meta += " · " + m.taskUsage(t.ID)
+	comment := "no comments"
+	if n := len(t.Comments); n > 0 {
+		c := t.Comments[n-1]
+		comment = c.Author + ": " + strings.Join(strings.Fields(c.Body), " ")
+	}
+	return "#" + t.ID + " · " + t.Status, []string{
+		lipgloss.NewStyle().Foreground(m.theme.TextPrimary).Bold(true).Render(fitLine(strings.Join(strings.Fields(boardTitle(t)), " "), width)),
+		muted.Render(fitLine(meta, width)),
+		muted.Render(fitLine(comment, width)),
+		muted.Render(fitLine("enter detail · e edit · n new", width)),
+	}
+}
+
+// usageLines is the Usage card body: what needs the user, then provider
+// quotas (when the pane is tall enough) and tokens with the sparkline.
+func (m Model) usageLines(width, bodyHeight int) []string {
 	dim := lipgloss.NewStyle().Foreground(m.theme.TextMuted)
 	attention, now := metrics.OverviewFacts(m.scopePanes(""), m.notes, m.metricState)
 	var out []string
 	if attention.Needed {
 		out = append(out, lipgloss.NewStyle().Foreground(m.theme.StatusConfirm).Bold(true).Render(fitLine(m.icons.Warning+" "+attention.Text, width)))
 	} else {
-		out = append(out, dim.Render("✓ "+attention.Text))
+		out = append(out, dim.Render(fitLine("✓ "+attention.Text, width)))
 	}
 	if len(now) > 0 {
 		out = append(out, lipgloss.NewStyle().Foreground(m.theme.StatusRunning).Render(fitLine("Now  "+strings.Join(now, " · "), width)))
 	}
-	if m.height >= 30 { // short panes keep the space for agents and tasks
+	if bodyHeight >= 22 { // short panes keep the space for agents and tasks
 		q := quota.Get()
-		out = append(out, fitLine(m.providerMeters("Claude", q.Claude)+"   "+m.providerMeters("Codex", q.Codex), width))
+		out = append(out, m.providerMeters("Claude", q.Claude)...)
+		out = append(out, m.providerMeters("Codex", q.Codex)...)
 	}
-	// Tokens: today and the window the charts show.
 	today := metrics.TokenWindow(m.metricState, time.Now(), 7).Today
-	tokens := lipgloss.NewStyle().Foreground(m.theme.TextMuted).Render("Tokens today ") + lipgloss.NewStyle().Foreground(m.theme.TextPrimary).Bold(true).Render(compactTokens(today))
-	if sel := m.rangeSelector(); width >= 28 {
-		tokens += strings.Repeat(" ", max(2, width-lipgloss.Width(tokens)-lipgloss.Width(sel))) + sel
-	}
-	out = append(out, fitLine(tokens, width), m.chartLine(width))
+	out = append(out, dim.Render("Tokens today ")+lipgloss.NewStyle().Foreground(m.theme.TextPrimary).Bold(true).Render(compactTokens(today)), m.chartLine(width))
 	return out
+}
+
+func (r rect) contains(x, y int) bool {
+	return r.h > 0 && x >= r.x && x < r.x+r.w && y >= r.y && y < r.y+r.h
 }

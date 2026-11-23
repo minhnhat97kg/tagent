@@ -157,9 +157,9 @@ func (m Model) boardWide() bool { return m.width >= 100 }
 func (m Model) boardGlyph(status string) (string, lipgloss.Color) {
 	switch {
 	case status == "blocked":
-		return "✖", m.theme.StatusError
+		return "✕", m.theme.StatusError
 	case m.boardConfig.Lane(status) == "done":
-		return "✔", m.theme.StatusDone
+		return "✓", m.theme.StatusDone
 	case m.boardConfig.Lane(status) == "todo":
 		return "○", m.theme.TextMuted
 	}
@@ -845,6 +845,8 @@ func (m Model) boardKey(key string) (Model, tea.Cmd, bool) {
 			return m, editTaskText(m.notesScope, m.notes[m.taskCursor], m.tmuxPane, true), true
 		}
 		return m, editBoardConfig(m.boardDir, m.tmuxPane), true
+	case "n":
+		return m, editTaskText(m.notesScope, tasks.Task{}, m.tmuxPane, false), true
 	case "s":
 		if len(m.notes) > 0 {
 			m.taskForm, m.taskStep = "start", 0

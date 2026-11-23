@@ -17,8 +17,8 @@ the comment and file queue.
 
 In TUI ticket details, `a` opens the attachment selector (j/k, Enter, Escape),
 and `A` prompts for a local file path. Text opens in `$PAGER` (default `less`),
-with control characters removed and a 10 MiB snapshot limit. Binary files have
-a web-download fallback. Pager commands are split into arguments, not evaluated
+with control characters removed and a 10 MiB snapshot limit. Images, PDF, audio and video open with the OS viewer (`open`/`xdg-open`, local machine only);
+other binary files have a web-download fallback. Pager commands are split into arguments, not evaluated
 as shell scripts; less runs without raw-control options.
 
 Only recorded ticket files can be read. Stored files and all their ancestors
@@ -74,50 +74,15 @@ invalid or unreadable configuration prints `board:` errors to stderr and exits 1
 Bad flags or extra arguments exit 2. This checks parser acceptance, not agent
 availability or executable/trigger success.
 
-## Local quick commands
-
-For humans, board `n` and `tagent do "request"` use the local intake model to
-classify requests: operations produce `CMD: tagent <args>`, work ideas use
-questions/tickets, and design/review/judgement produces `ESCALATE: reason`.
-The prompt includes up to 30 current tickets and workflow names/descriptions.
-Commands are never automatic: popup Enter runs, e edits the command line (Enter
-accepts the edit, then Enter approves), Esc cancels; CLI y runs, e edits, n aborts.
-Output stays in the popup or terminal. Escalation suggests asking the lead (Claude)
-and sends the original request to the clipboard with OSC 52 (terminal/tmux support required).
-
-Allowed operations: list; task ls/show/move/set/comment/assign/due; workflow
-list/run; reload; queue; ctx read/add; stats; kill (agent panes only). Commands
-run the current binary directly, never a shell. Arguments support simple double
-quotes. Shell metacharacters `; | & ` plus backticks, `$ ( ) > <`, newlines and
-unbalanced quotes are refused, even inside quoted arguments. Other subcommands,
-including task rm, merge, discard, install and config set, are refused before execution.
-Workflow recipes remain trusted executable configuration: review the command before approval.
-
-## Intake
-
-Humans can press `n` on the board or run `tagent task add -i [--workflow NAME] ["idea"]`.
-A local model asks at most three questions before proposing a ticket; nothing is created before approval.
-TUI intake uses the Chat receptionist (`@agent_chat_model` and `@agent_chat_endpoint`), sharing its conversation and approval state. `@agent_intake_llm` remains for CLI stdin/stdout commands (60-second timeout).
-
 ## Board columns vs workflows
 
 `board.yaml` columns define the default flow. A workflow overrides that flow for one ticket, attached with `s`/start. Choose board flow for routine work; choose a workflow when a ticket needs a special sequence of roles or checks.
-Default: `ollama run --nowordwrap --think=false bonsai-2:9b`. Errors fall back to plain add with a notice.
-Set intake LLM off for plain creation. Draft keys: Enter create, r create+start, e editor, w cycle workflow, Esc cancel.
-CLI: y create, r create+start, e editor, w NAME (or w none) change workflow, n abort.
-Malformed replies are shown for correction in `$EDITOR` (default vi).
-Workflow `description:` is an optional top-level string explaining when to choose the recipe;
-intake sends every workflow as `name: description`. Without a workflow, r just creates.
-One missing required workflow input receives the approved draft text. For multiple missing
-inputs CLI prompts; TUI creates a plain todo ticket with a notice naming inputs and `workflow run`.
-Starting a workflow moves the newly created ticket to its first job; it never creates a second ticket.
-
 ## Board UI
 
 `?` opens help for the focused panel or view only (tickets, Workflows, workflow
-view, task detail, or intake). Its title identifies the context. Press `a` in help
+view, or task detail). Its title identifies the context. Press `a` in help
 for all shortcuts, `j`/`k` to scroll, and `Esc` to close; reopening returns to
-contextual help. Help also follows agent, definition, task, Chat and standalone focus. Chat replaces the terminal dashboard Git panel: Tab or click to focus, Enter to send, and Esc to cancel. Command execution requires explicit approval.
+contextual help. Help also follows agent, definition, task and standalone focus.
 
 `Tab` switches focus between tickets and the bottom Workflows panel. In Workflows,
 `j`/`k` selects a recipe, `Enter` (or `w`) opens its workflow view, `a` asks for a
@@ -324,29 +289,7 @@ ticket title/ID and assignees, with long display text truncated. Delivery is
 best-effort after releasing the board lock, with a three-second timeout and no
 retries or replay; concurrent transitions may arrive out of order.
 
-## Web receptionist
-
-The Agents panel's `#/chat` link opens the selected project's durable conversation and focuses its composer. It never calls the model, clears history, or creates a ticket. Pending proposals remain indicated while closed. **Create & start** is a separate approval action.
-
-Web and TUI Chat use the same native Ollama application tools and shared conversation. Set `@agent_chat_model` (default `bonsai-2:9b`, `off` disables Chat) and optionally `@agent_chat_endpoint` (default `http://127.0.0.1:11434`). Use a trusted endpoint and a tool-capable model: history and project summaries are sent there. Read-only tool results continue natively, bounded to eight calls and three minutes. There is no shell tool, MCP, or prose fallback. Legacy paths keep `@agent_intake_llm`: CLI `task -i` intake and the Telegram text bridge (`cmd/tagent/telegram.go`). Both accept prose and task drafts only; a `CMD:` or other shell-command reply is rejected as a failed request, never executed. Telegram is not a receptionist tool surface.
-
-Read-only tools: `list_agents`, `inspect_agent`, `list_tickets`, `board_summary`, `usage_summary`, `open_view` (relative chat/board/agent links only). Mutations: `start_agent` (harness, role, project directory within the selected task scope, optional worktree), `send_prompt`, `answer_approval`, `kill_agent`, `handoff`, `resize`, `create_ticket`, `move_ticket`, `comment_ticket`, `start_ticket`, `run_workflow`. Every mutation requires an explicit approval; output cannot grant approval. Handoff transfers a pane into another existing agent pane's tmux destination, not a harness migration. Resize uses explicit width/height. Sends use the normal queued CLI path. Agent identity and pending approvals are rechecked before execution; partial batches stop on failure and are never automatically retried.
-
-Commands: `/agents`, `/board`, `/new` (asks for launch details), `/run <workflow>`, `/clear`. Missing workflow inputs require clarification. Type `@` for running names, exact pane IDs and roles; arrows select, Tab/Enter completes, Escape dismisses. Mentions route the entire remaining prompt; multiple recipients form one approval batch. Ambiguous roles/names require an exact pane; no implicit spawning or broadcast. Emails and code are not mentions.
-
-Web Enter sends, Shift+Enter inserts a newline; composition input does not send. TUI Alt+Enter or Ctrl+J inserts a newline. New chat (web), Ctrl+N (TUI), or `/clear` drops active disk history, not backups; it cannot undo actions. Reset invalidates in-flight replies, but is refused during execution. Uncertain interrupted actions require inspection and explicit acknowledgement (web confirmation or TUI Ctrl+Y).
-
-A clarification on either surface can be answered on the other. Chat keeps local
-input/editor buffers separate; approval claims reject stale or competing proposals.
-Interrupted model requests become retryable failures; interrupted mutation claims
-report an uncertain outcome requiring inspection, and are never automatically rerun.
-
-History is bounded and stored privately beneath the project's shared context directory
-in `conversation/state.json`. It survives panel restarts and may contain sensitive
-user text. Old answers are quoted as untrusted context, not current facts.
-Corrupt state reports an error rather than silently replacing history.
-
-Tasks panel and board share ticket controls: `n` intake, `s` workflow start picker,
+Tasks panel and board share ticket controls: `s` workflow start picker,
 `enter` detail, `e` edit, `C` comment, `H`/`L` status, `x` delete with confirmation,
 `w` workflow, `?` help. Dashboard `Tab` changes focus; `b` opens the board.
 

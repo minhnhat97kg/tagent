@@ -4,7 +4,7 @@ import remarkGfm from "remark-gfm"
 import { Bot, ChevronRight, CircleAlert } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-// Shared look of the agent chat and the receptionist chat.
+// Shared look of the agent chat.
 
 export const chatColumn = "mx-auto w-full max-w-3xl"
 

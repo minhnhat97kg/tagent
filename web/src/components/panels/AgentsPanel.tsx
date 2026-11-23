@@ -1,5 +1,5 @@
 import { act, post } from "@/api"
-import { Bot, MessageSquare } from "lucide-react"
+import { Bot } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Panel } from "@/components/Panel"
 import { StatusDot } from "@/components/StatusDot"
@@ -12,7 +12,7 @@ import type { Agent } from "@/types"
 const projOf = (a: Agent) => a.project || baseName(a.path)
 
 // AgentsPanel lists agents in the order useKeys walks them (grouped by project).
-export function AgentsPanel({ ordered, selPane, chatActive, className }: { ordered: Agent[]; selPane?: string; chatActive?: boolean; className?: string }) {
+export function AgentsPanel({ ordered, selPane, className }: { ordered: Agent[]; selPane?: string; className?: string }) {
   const [open, setOpen] = useState<string | null>(null)
   const multi = new Set(ordered.map(projOf)).size > 1
 
@@ -23,10 +23,6 @@ export function AgentsPanel({ ordered, selPane, chatActive, className }: { order
       title="Agents"
       bodyClass="py-1"
     >
-      <a href="#/chat" className={cn("flex h-8 items-center gap-2 px-2.5 text-[12.5px] hover:bg-accent", chatActive && "bg-accent")}>
-        <MessageSquare className="size-3 text-sky-600" />
-        <span className="font-medium">Receptionist</span>
-      </a>
       {!ordered.length && <p className="px-2.5 py-2 text-xs text-muted-foreground">No agents. Press + New agent.</p>}
       {ordered.map((a, i) => {
         const waitingDialog = a.status === "waiting" && !!a.dialog

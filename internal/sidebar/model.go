@@ -1477,35 +1477,24 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		return m, nil // Dashboard hit targets are not valid while an overlay replaces it.
 	}
 	if m.dashboard && msg.Button == tea.MouseButtonLeft && msg.Action == tea.MouseActionPress {
-		rows, _ := m.companionPanel(max(6, m.width-1))
-		g := m.dashGeometry(rows)
-		taskY, taskX := g.top, g.left
-		if m.width < 90 {
-			taskY, taskX = g.top+g.first, 0
-		}
-		if msg.X >= taskX && msg.Y == taskY {
+		g := m.dashGeometry()
+		if g.tasks.contains(msg.X, g.tasks.y) {
 			m.agentFocus, m.taskFocus, m.taskTitle = 2, true, true
 			return m, nil
 		}
-		// Agent definitions panel: the lower part of the agents column
-		// (same split as agentPanels).
-		ah := g.bodyHeight
-		if m.width < 90 {
-			ah = g.first
-		}
-		small := max(4, ah/3)
-		defsY := g.top + max(4, ah-small)
-		if (m.width < 90 || msg.X < g.left) && msg.Y > defsY && msg.Y < defsY+small-1 {
-			if idx := msg.Y - defsY - 1; idx < len(m.focusedDefinitions()) {
+		// Roles card: one definition per row under the header.
+		if g.roles.h > 0 && g.roles.contains(msg.X, msg.Y) && msg.Y > g.roles.y && msg.Y < g.roles.y+g.roles.h-1 {
+			_, start := m.roleLines(g.roles.w-4, g.roles.h-2)
+			if idx := start + msg.Y - g.roles.y - 1; idx < m.roleCount() {
 				m.agentFocus, m.taskFocus, m.definitionCursor = 1, false, idx
 				return m, nil
 			}
 		}
-		if msg.X >= taskX && msg.Y >= taskY+1 && msg.Y < taskY+g.second-1 {
+		if g.tasks.contains(msg.X, msg.Y) && msg.Y > g.tasks.y && msg.Y < g.tasks.y+g.tasks.h-1 {
 			order := m.boardOrder()
 			pos := slices.Index(order, m.taskCursor)
-			// One row per ticket; the same window as taskLines (height g.second-2).
-			idx := max(0, pos-max(1, g.second-2-3)) + (msg.Y - taskY - 1)
+			// One row per ticket; the same window as taskLines (height g.tasks.h-2).
+			idx := max(0, pos-max(1, g.tasks.h-2-3)) + (msg.Y - g.tasks.y - 1)
 			if idx >= 0 && idx < len(order) {
 				m.taskCursor = order[idx]
 				m.taskTitle = false
@@ -1525,13 +1514,7 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	}
 	if m.dashboard && (msg.Button == tea.MouseButtonWheelDown || msg.Button == tea.MouseButtonWheelUp) {
 		// The wheel scrolls the task list when the pointer is over it.
-		rows, _ := m.companionPanel(max(6, m.width-1))
-		g := m.dashGeometry(rows)
-		taskY, taskX := g.top, g.left
-		if m.width < 90 {
-			taskY, taskX = g.top+g.first, 0
-		}
-		if msg.X >= taskX && msg.Y >= taskY && msg.Y < taskY+g.second {
+		if g := m.dashGeometry(); g.tasks.contains(msg.X, msg.Y) {
 			if msg.Button == tea.MouseButtonWheelDown && m.taskCursor+1 < len(m.notes) {
 				m.taskCursor++
 			} else if msg.Button == tea.MouseButtonWheelUp && m.taskCursor > 0 {

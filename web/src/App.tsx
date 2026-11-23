@@ -11,7 +11,6 @@ import { HelpDialog } from "@/components/HelpDialog"
 import { NewAgentDialog } from "@/components/NewAgentDialog"
 import { ProjectSelect } from "@/components/ProjectSelect"
 import { AgentsPanel } from "@/components/panels/AgentsPanel"
-import { ChatPanel } from "@/components/panels/ChatPanel"
 import { WorkflowsPage } from "@/components/WorkflowsPage"
 import { OverviewPanel } from "@/components/panels/OverviewPanel"
 import { TasksPanel } from "@/components/panels/TasksPanel"
@@ -27,7 +26,7 @@ import { useAppState } from "@/state"
 import type { Agent, Overview, Project } from "@/types"
 
 // App is a fixed shell: top bar, a left rail (usage, agents, roles, tasks) and one main view.
-// Home shows the board (chat in the rail); /agent/<pane> shows that agent's terminal.
+// Home shows the board; /agent/<pane> shows that agent's terminal.
 export default function App() {
   useLayoutEffect(() => bindVisualViewport(document.documentElement), [])
   const route = useRoute()
@@ -88,10 +87,9 @@ export default function App() {
   }
 
   const proj = projPoll.data
-  const chatRoute = route === "/chat"
   const boardRoute = route === '/board'
   const flowRoute = /^\/workflows(?:\/([^/]+)(?:\/([^/]+))?)?$/.exec(route)
-  const home = !sel && !chatRoute && !boardRoute && !flowRoute
+  const home = !sel && !boardRoute && !flowRoute
   const board = <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border bg-card"><Board dir={dir} proj={proj} reload={projPoll.reload} /></section>
   const tasks = <TasksPanel proj={proj} dir={dir} reload={projPoll.reload} className="min-h-40 flex-1" />
 
@@ -99,14 +97,13 @@ export default function App() {
   let main
   if (boardRoute) main = board
   else if (flowRoute) { const name = decodeURIComponent(flowRoute[1] ?? ''), id = decodeURIComponent(flowRoute[2] ?? ''); main = <WorkflowsPage key={dir + route} dir={dir} initial={name} ticket={proj?.tasks?.find(t => t.id === id)} runs={proj?.runs?.[id]} /> }
-  else if (chatRoute) main = <ChatPanel key={dir} dir={dir} onTasks={projPoll.reload} className="h-full" />
   else if (agent) main = <AgentView key={agent.pane} agent={agent} project={proj} />
   else if (sel) main = state ? <div className="p-6 text-muted-foreground">Agent not found. <a href="#/" className="text-foreground underline">Home</a></div> : null
   else main = <>
     {/* Phone home: the rail's lists stacked; the board is in the header. */}
     <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto md:hidden">
       <OverviewPanel days={usageDays} onDays={setUsageDays} overview={overview} className="shrink-0" />
-      <AgentsPanel ordered={ordered} chatActive={chatRoute} className="shrink-0" />
+      <AgentsPanel ordered={ordered} className="shrink-0" />
       {tasks}
     </div>
     <div className="hidden min-h-0 min-w-0 flex-1 md:flex">
@@ -135,7 +132,7 @@ export default function App() {
         <div className="flex min-h-0 flex-1 gap-2 p-2">
           {<aside className="hidden w-72 shrink-0 flex-col gap-2 md:flex">
             <OverviewPanel days={usageDays} onDays={setUsageDays} overview={overview} className="shrink-0" />
-            <AgentsPanel ordered={ordered} selPane={agent?.pane} chatActive={chatRoute} className={home ? "min-h-24 flex-1" : "max-h-[35%] shrink-0"} />
+            <AgentsPanel ordered={ordered} selPane={agent?.pane} className={home ? "min-h-24 flex-1" : "max-h-[35%] shrink-0"} />
             {!home && tasks}
           </aside>}
           <main className="flex min-h-0 min-w-0 flex-1 flex-col">{main}</main>

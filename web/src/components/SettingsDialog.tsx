@@ -13,7 +13,9 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
   const poll = usePoll<Setting[]>(() => (open ? api<Setting[]>("/api/config") : Promise.resolve([])), 5000, String(open))
   const save = (s: Setting, body: { Value?: string; Reset?: boolean }) => {
     if (!body.Reset && body.Value === s.value) return
-    post("/api/config", { Key: s.key, ...body }).then(() => { poll.reload(); toast.success(`${s.label} saved${s.reload ? " (reloaded keys)" : ""}`) }, e => toast.error((e as Error).message))
+    post("/api/config", { Key: s.key, ...body }).then(() => {
+      poll.reload(); toast.success(`${s.label} saved${s.reload ? " (reloaded keys)" : ""}`)
+    }, e => toast.error((e as Error).message))
   }
   const groups = [...new Set((poll.data ?? []).map(s => s.group))]
   const control = (s: Setting) => {

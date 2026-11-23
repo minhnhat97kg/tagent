@@ -93,8 +93,6 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return cmdWorkflow(args[1:], stdout, stderr)
 	case "board":
 		return cmdBoard(rest, stdout, stderr)
-	case "do":
-		return cmdDo(rest, os.Stdin, stdout, stderr)
 	case "task":
 		return cmdTask(rest, stdout, stderr)
 	case "web":

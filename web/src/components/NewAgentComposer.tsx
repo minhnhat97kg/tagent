@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Bot, GitBranch, MessageSquare, Play } from "lucide-react"
+import { Bot, GitBranch, Play } from "lucide-react"
 import { toast } from "sonner"
 import { api, post } from "@/api"
 import { usePoll } from '@/hooks/usePoll'
@@ -11,9 +11,6 @@ import { enc, nav } from "@/hooks/useRoute"
 import { baseName } from "@/lib/status"
 import { cn } from "@/lib/utils"
 import { useAppState } from "@/state"
-
-// The receptionist is not a tmux pane: it answers questions and drafts tickets in the Chat view.
-export const RECEPTIONIST = "receptionist"
 
 // NewAgentComposer picks a harness and a project, then opens the new agent's terminal: the prompt is typed there.
 export function NewAgentComposer({ onDone, dir: current }: { onDone?: () => void; dir?: string }) {
@@ -27,10 +24,8 @@ export function NewAgentComposer({ onDone, dir: current }: { onDone?: () => void
   const [role, setRole] = useState('')
   const [worktree, setWorktree] = useState(false)
   const [busy, setBusy] = useState(false)
-  const chat = harness === RECEPTIONIST
 
   async function start() {
-    if (chat) { onDone?.(); nav("/chat"); return }
     setBusy(true)
     try {
       const r = await post<{ pane: string }>("/api/agents", { Agent: harness, Model: model, Cwd: cwd, Role: role, Name: "", Prompt: "", Worktree: worktree })
@@ -55,22 +50,19 @@ export function NewAgentComposer({ onDone, dir: current }: { onDone?: () => void
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {harnesses.map(h => tile(h, h, <Bot className="size-3.5 text-emerald-600" />, "terminal agent"))}
-        {tile(RECEPTIONIST, "Receptionist", <MessageSquare className="size-3.5 text-sky-600" />, "ask · draft tickets")}
       </div>
-      <section><h3 className="mb-2 text-xs text-muted-foreground">Roles</h3><div className="flex flex-wrap gap-2">{(roles.data?.roles ?? []).map(r => <button key={r} type="button" aria-pressed={role === r} className={cn('flex items-center gap-2 rounded-lg border p-3', role === r && 'ring-1 ring-primary')} onClick={() => { setRole(r); if (chat) setHarness(harnesses[0] ?? 'claude') }}><Avatar role={r} />{r}</button>)}</div>{!roles.data?.roles?.length && <p className="text-xs text-muted-foreground">No project roles.</p>}</section>
+      <section><h3 className="mb-2 text-xs text-muted-foreground">Roles</h3><div className="flex flex-wrap gap-2">{(roles.data?.roles ?? []).map(r => <button key={r} type="button" aria-pressed={role === r} className={cn('flex items-center gap-2 rounded-lg border p-3', role === r && 'ring-1 ring-primary')} onClick={() => setRole(r)}><Avatar role={r} />{r}</button>)}</div>{!roles.data?.roles?.length && <p className="text-xs text-muted-foreground">No project roles.</p>}</section>
       <div className="flex flex-wrap items-center gap-2 border-t pt-3">
         {projects.length > 0 && <select aria-label="Project" value={cwd} onChange={e => setCwd(e.target.value)} className="h-8 max-w-52 rounded-md border bg-background px-2 text-[12.5px]">
           {projects.map(p => <option key={p} value={p}>{baseName(p)}</option>)}
         </select>}
-        {!chat && <>
-          <Input value={model} onChange={e => setModel(e.target.value)} placeholder="model (optional)" aria-label="Model" className="h-8 w-40 text-[12.5px]" />
-          <label className="flex items-center gap-1.5 text-[12.5px] text-muted-foreground"><Switch checked={worktree} onCheckedChange={setWorktree} /><GitBranch className="size-3.5" />Worktree</label>
-        </>}
+        <Input value={model} onChange={e => setModel(e.target.value)} placeholder="model (optional)" aria-label="Model" className="h-8 w-40 text-[12.5px]" />
+        <label className="flex items-center gap-1.5 text-[12.5px] text-muted-foreground"><Switch checked={worktree} onCheckedChange={setWorktree} /><GitBranch className="size-3.5" />Worktree</label>
         <button type="button" disabled={busy} onClick={() => void start()} className="ml-auto flex h-8 items-center gap-1.5 rounded-md bg-primary px-3 text-[12.5px] font-medium text-primary-foreground hover:opacity-85 disabled:opacity-50">
-          <Play className="size-3.5 fill-current" />{chat ? "Open chat" : "Open terminal"}
+          <Play className="size-3.5 fill-current" />Open terminal
         </button>
       </div>
-      <p className="-mt-2 text-[11.5px] text-muted-foreground">{chat ? "" : "The agent starts in its own terminal; type your request there."}</p>
+      <p className="-mt-2 text-[11.5px] text-muted-foreground">The agent starts in its own terminal; type your request there.</p>
     </div>
   )
 }
