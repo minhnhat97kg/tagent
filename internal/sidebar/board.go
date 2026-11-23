@@ -682,6 +682,23 @@ func accordion(total int, rest, want []int, focus int) []int {
 	return h
 }
 
+// fitHeights gives each card its need; when they do not fit, unfocused cards
+// shrink first (last first), then the focused one, never below 3.
+func fitHeights(total int, need []int, focus int) []int {
+	h := slices.Clone(need)
+	over := sum(h) - total
+	for pass := 0; pass < 2; pass++ {
+		for i := len(h) - 1; i >= 0 && over > 0; i-- {
+			if (i != focus) == (pass == 0) {
+				cut := min(over, max(0, h[i]-3))
+				h[i] -= cut
+				over -= cut
+			}
+		}
+	}
+	return h
+}
+
 func sum(v []int) (n int) {
 	for _, x := range v {
 		n += x
@@ -992,6 +1009,10 @@ func (m Model) boardKey(key string) (Model, tea.Cmd, bool) {
 			return m, tea.Quit, true
 		case "esc", "w", "q":
 			m.boardFlow = false
+			if m.flowFromDash { // back to the dashboard's Workflows card
+				m.flowFromDash, m.boardMode = false, false
+				m.agentFocus, m.taskFocus, m.workflowFocus = 4, false, true
+			}
 		}
 		return m, nil, true
 	}

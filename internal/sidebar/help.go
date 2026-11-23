@@ -14,13 +14,12 @@ type shortcutSection struct {
 
 // helpSections is the complete reference, available with a from contextual help.
 var helpSections = []shortcutSection{
-	{"Everywhere", [][2]string{{"?", "help"}, {",", "settings"}, {"q", "quit"}, {"Tab S-Tab", "next / previous card: Agents, Usage, Definitions, Tasks, Workflows"}, {"[ ]", "chart range (1 / 7 / 30 days)"}, {"o", "expand / collapse (prefix + A)"}, {"b", "board (kanban columns + workflows)"}}},
+	{"Everywhere", [][2]string{{"?", "help"}, {",", "settings"}, {"q", "quit"}, {"Tab S-Tab", "next / previous card: Agents, Usage, Tasks, Workflows"}, {"[ ]", "chart range (1 / 7 / 30 days)"}, {"o", "expand / collapse (prefix + A)"}, {"b", "board (kanban columns + workflows)"}}},
 	{"Agents", [][2]string{
 		{"N", "new agent"}, {"j k ↑ ↓", "select agent"}, {"n", "next agent needing you"}, {"enter", "on ! row: answers; again: jump to pane"}, {"1-4", "answer open approval"}, {"space", "quick action on first alert"}, {"1-9", "jump to window"}, {"/", "filter"}, {"r", "switch repo"}, {"p", "pin"}, {"f", "handoff sizing to this terminal"}, {"v x", "select / delete worktrees"}, {"S", "clear subagents"}, {"u", "undo"}, {"l", "agent log"}, {"i", "send prompt"},
 	}},
 	{"Board columns vs workflows", [][2]string{{"board.yaml", "columns define the default flow"}, {"s / start", "attach a workflow to override one ticket's flow"}, {"choose", "board for routine work; workflow for a special sequence"}}},
 	{"Usage", [][2]string{{"h l [ ]", "chart range (1 / 7 / 30 days)"}, {"Tab", "next panel"}}},
-	{"Agent definitions", [][2]string{{"j k", "move"}, {"e enter", "edit instruction file"}, {"Tab", "next panel"}}},
 	{"Tasks", ticketShortcuts([2]string{"Tab / b", "focus next panel / open board"})},
 	{"Board · Tickets", ticketShortcuts([2]string{"Tab / esc", "focus workflows / back"})},
 	{"Board · Agents", [][2]string{{"Tab", "focus tickets"}, {"j k ↑ ↓", "select agent"}, {"enter", "show detail"}, {"m", "model (new panes only)"}, {"e", "edit instructions in $EDITOR"}, {"a", "new agent"}, {"x", "delete agent (y/n confirm)"}, {"t", "swap Workflows / Agents tab (and back)"}, {"esc q b", "back to dashboard"}}},
@@ -49,8 +48,6 @@ func (m Model) helpSection() shortcutSection {
 		title = "Board · Workflows"
 	case m.dashboard && m.agentFocus == 3:
 		title = "Usage"
-	case m.dashboard && m.agentFocus == 1:
-		title = "Agent definitions"
 	case m.taskFocus || m.dashboard && m.agentFocus == 2:
 		title = "Tasks"
 	case m.standalone:

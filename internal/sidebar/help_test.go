@@ -14,7 +14,6 @@ func TestContextualHelpSections(t *testing.T) {
 		own, other string
 	}{
 		{"Agents", Model{}, "next agent needing you", "start: workflow picker"},
-		{"Agent definitions", Model{dashboard: true, agentFocus: 1}, "edit instruction file", "next agent needing you"},
 		{"Tasks", Model{dashboard: true, agentFocus: 2, taskFocus: true}, "start: workflow picker", "select workflow"},
 		{"Board · Tickets", Model{boardMode: true}, "previous / next status", "new workflow name"},
 		{"Board · Workflows", Model{boardMode: true, workflowFocus: true}, "new workflow name", "previous / next status"},

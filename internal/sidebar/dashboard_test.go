@@ -47,9 +47,7 @@ func TestDashboardFitsBothWidthsAndKeepsTaskSelection(t *testing.T) {
 	if m.agentFocus != 3 {
 		t.Fatal("tab did not focus usage")
 	}
-	updated, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyTab}) // usage → definitions
-	m = updated.(Model)
-	updated, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyTab}) // definitions → tasks
+	updated, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyTab}) // usage → tasks
 	m = updated.(Model)
 	if !m.taskFocus {
 		t.Fatal("tab did not focus tasks")

@@ -620,20 +620,19 @@ type repoFilterSavedMsg struct{ Success bool }
 
 // Model is the sidebar's TUI state.
 type Model struct {
-	agentFocus       int
-	definitionCursor int
-	workflowFocus    bool
-	workflowCursor   int
-	workflowDelete   string
-	agentsOpen       bool
-	agents           []agents.Agent
-	agentCursor      int
-	agentDelete      string
-	agentDetail      bool
-	taskForm         string
-	taskInput        string
-	taskStep         int
-	promptPane       string // target of the "send prompt" form (i)
+	agentFocus     int
+	workflowFocus  bool
+	workflowCursor int
+	workflowDelete string
+	agentsOpen     bool
+	agents         []agents.Agent
+	agentCursor    int
+	agentDelete    string
+	agentDetail    bool
+	taskForm       string
+	taskInput      string
+	taskStep       int
+	promptPane     string // target of the "send prompt" form (i)
 
 	taskNotice string
 
@@ -676,6 +675,7 @@ type Model struct {
 	metricTick     int
 	taskFocus      bool
 	boardMode      bool
+	flowFromDash   bool // the workflow view was opened from the dashboard card
 	boardDrawer    bool
 	boardWorkflows []workflow.Workflow // listed under the board
 	boardFlow      bool                // workflow view: the configured statuses and who acts in each
@@ -1526,15 +1526,6 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 			return focusCard(0), nil
 		case g.usage.contains(msg.X, msg.Y):
 			return focusCard(3), nil
-		case g.roles.contains(msg.X, msg.Y):
-			wasFocused := m.agentFocus == 1
-			m = focusCard(1)
-			if _, start := m.roleLines(g.roles.w-4, g.roles.h-2); wasFocused && msg.Y > g.roles.y && msg.Y < g.roles.y+g.roles.h-1 {
-				if idx := start + msg.Y - g.roles.y - 1; idx < m.roleCount() {
-					m.definitionCursor = idx
-				}
-			}
-			return m, nil
 		case g.tasks.contains(msg.X, msg.Y):
 			wasFocused := m.agentFocus == 2
 			m = focusCard(2)
@@ -1551,7 +1542,7 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 			m = focusCard(4)
 			if msg.Y == g.wf.y {
 				name, w := m.cardName(paneNum(4), "")
-				_, spans := m.tabStrip([]string{"Workflows", "Agents"}, 0, 3+w)
+				_, spans := m.tabStrip([]string{"Workflows", "Agents"}, b2i(m.agentsOpen), 3+w)
 				for i, sp := range spans {
 					if x := msg.X - g.wf.x; x >= sp.x0 && x < sp.x1 {
 						_ = name
@@ -1593,9 +1584,6 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 			} else {
 				m.workflowCursor = max(0, min(len(m.boardWorkflows)-1, m.workflowCursor+step))
 			}
-			return m, nil
-		} else if g.roles.contains(msg.X, msg.Y) {
-			m.definitionCursor = max(0, min(m.roleCount()-1, m.definitionCursor+step))
 			return m, nil
 		} else if g.tasks.contains(msg.X, msg.Y) {
 			return m.laneStep(step), nil
@@ -1701,7 +1689,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			case "j", "k", "up", "down", "a", "e", "x", "w", "enter", "y", "n", "m":
 				m, cmd, _ := m.workflowPanelKey(key)
 				if m.boardFlow {
-					m.boardMode, m.boardDrawer, m.workflowFocus = true, false, false
+					m.boardMode, m.boardDrawer, m.workflowFocus, m.flowFromDash = true, false, false, true
 				}
 				return m, cmd
 			}
@@ -1752,34 +1740,6 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					m.taskForm, m.taskInput, m.promptPane = "i", "", id
 					return m, nil
 				}
-			}
-		}
-		if m.agentFocus == 1 {
-			defs := m.focusedDefinitions()
-			switch msg.String() {
-			case "j", "down":
-				if m.definitionCursor+1 < len(defs) {
-					m.definitionCursor++
-				}
-				return m, nil
-			case "k", "up":
-				if m.definitionCursor > 0 {
-					m.definitionCursor--
-				}
-				return m, nil
-			case "e", "enter":
-				if m.definitionCursor < len(defs) {
-					path := defs[m.definitionCursor].Path
-					if filepath.Base(path) == "board.yaml" { // a board role has no file of its own: edit its instruction, not the board config
-						path = filepath.Join(roles.GlobalDir(), defs[m.definitionCursor].Name+".md")
-					}
-					editor := os.Getenv("EDITOR")
-					if editor == "" {
-						editor = "vi"
-					}
-					return m, popup(m.tmuxPane, editor+" "+shellQuote(path), func() tea.Msg { return refreshRequestMsg{} })
-				}
-				return m, nil
 			}
 		}
 		if m.taskFocus {

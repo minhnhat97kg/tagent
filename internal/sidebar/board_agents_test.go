@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/x/ansi"
 )
 
 func agentsTestDir(t *testing.T) string {
@@ -102,5 +103,19 @@ func TestAgentsPanelEditCreatesFileForBoardRole(t *testing.T) {
 	m, cmd, _ = m.boardKey("e")
 	if cmd != nil || !strings.Contains(m.taskNotice, "pi agents have no instruction file") {
 		t.Fatalf("pi edit: %q", m.taskNotice)
+	}
+}
+
+func TestAgentStripRowsAreSimple(t *testing.T) {
+	m := Model{boardMode: true, boardDir: agentsTestDir(t)}
+	m, _, _ = m.boardKey("t")
+	rows := ansi.Strip(strings.Join(m.agentStripLines(80), "\n"))
+	if !strings.Contains(rows, "planner  pi · old") || strings.Contains(rows, "board") {
+		t.Fatalf("rows:\n%s", rows)
+	}
+	m.agentDetail = true
+	dt := ansi.Strip(strings.Join(m.agentStripLines(80), "\n"))
+	if strings.Contains(dt, "path") || strings.Contains(dt, "new panes") || !strings.Contains(dt, "not used") && !strings.Contains(dt, "used by") {
+		t.Fatalf("detail:\n%s", dt)
 	}
 }
