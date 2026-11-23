@@ -77,9 +77,15 @@ func (m Model) agentStripLines(width int) []string {
 		}
 	}
 	// One aligned row per agent: name, harness, model, then the live count.
-	nameW, harnessW := 0, 0
+	short := func(a agents.Agent) string {
+		if a.Model == "" {
+			return "default"
+		}
+		return a.Model[strings.LastIndex(a.Model, "/")+1:]
+	}
+	nameW, harnessW, modelW := 0, 0, 0
 	for _, a := range m.agents {
-		nameW, harnessW = max(nameW, lipgloss.Width(a.Name)), max(harnessW, lipgloss.Width(a.Harness))
+		nameW, harnessW, modelW = max(nameW, lipgloss.Width(a.Name)), max(harnessW, lipgloss.Width(a.Harness)), max(modelW, lipgloss.Width(short(a)))
 	}
 	var lines []string
 	for i, a := range m.agents {
@@ -87,12 +93,8 @@ func (m Model) agentStripLines(width int) []string {
 		if m.workflowFocus && i == m.agentCursor {
 			mark = "❯ "
 		}
-		model := a.Model
-		if model == "" {
-			model = "default"
-		} else if j := strings.LastIndex(model, "/"); j >= 0 {
-			model = model[j+1:]
-		}
+		model := short(a)
+		model += strings.Repeat(" ", modelW-lipgloss.Width(model))
 		run := ""
 		if a.Running > 0 {
 			run = "  " + m.boardStyle(m.theme.StatusRunning).Render(fmt.Sprintf("● %d", a.Running))
