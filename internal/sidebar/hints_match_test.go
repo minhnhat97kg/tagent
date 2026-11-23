@@ -75,7 +75,14 @@ func lastLines(s string, from int) string {
 }
 
 // Every key a footer hint names must do something in that context.
-func TestHintedKeysAreHandled(t *testing.T) {
+type hintCase struct {
+	name  string
+	model func() Model
+	hint  func(Model) string
+	noop  []string
+}
+
+func hintCases(t *testing.T) []hintCase {
 	flows := []workflow.Workflow{{Name: "research", File: "research.yml", Jobs: make([]workflow.Job, 1)}}
 	ags := []agents.Agent{{Name: "planner", Harness: "pi", Source: "board"}}
 	base := func() Model {
@@ -104,12 +111,7 @@ func TestHintedKeysAreHandled(t *testing.T) {
 	// Documented no-ops: keys that need a live pane row, or content to scroll or browse
 	// (the fixture has no workflow files and a one-screen ticket).
 	needsPane := []string{"enter", "i", "l", "up", "down"}
-	cases := []struct {
-		name  string
-		model func() Model
-		hint  func(Model) string
-		noop  []string
-	}{
+	return []hintCase{
 		{"dashboard agents", dash(0, nil), dashHint, needsPane},
 		{"dashboard usage", dash(3, nil), dashHint, nil},
 		{"dashboard tasks", dash(2, nil), dashHint, nil},
@@ -123,7 +125,11 @@ func TestHintedKeysAreHandled(t *testing.T) {
 		{"drawer details", board(func(m *Model) { m.boardDrawer = true }), boardHint, []string{"j"}},
 		{"drawer activity", board(func(m *Model) { m.boardDrawer, m.detailTab = true, detailTabActivity }), boardHint, []string{"j"}},
 	}
-	for _, c := range cases {
+}
+
+// Every key a footer hint names must do something in that context.
+func TestHintedKeysAreHandled(t *testing.T) {
+	for _, c := range hintCases(t) {
 		t.Run(c.name, func(t *testing.T) {
 			m := c.model()
 			keys := hintKeys(c.hint(m))
@@ -145,5 +151,82 @@ func TestHintedKeysAreHandled(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// paneKeys is every single key a pane lists (footer and ?), as handleKey sees it.
+func paneKeys(m Model) map[string]bool {
+	out := map[string]bool{}
+	for _, h := range panes[m.focused()].Hints(m) {
+		for _, f := range strings.FieldsFunc(h.Keys+" "+h.HelpKeys, func(r rune) bool { return r == ' ' || r == '/' }) {
+			switch f {
+			case "Tab":
+				f = "tab"
+			case "S-Tab":
+				f = "shift+tab"
+			case "↑↓":
+				out["up"], f = true, "down"
+			case "↑":
+				f = "up"
+			case "↓":
+				f = "down"
+			case "Enter":
+				f = "enter"
+			case "Esc":
+				f = "esc"
+			}
+			if len([]rune(f)) == 1 || slices.Contains([]string{"up", "down", "left", "right", "enter", "esc", "tab", "shift+tab", "space", "backspace"}, f) {
+				out[f] = true
+			}
+		}
+	}
+	return out
+}
+
+// A key only acts in its pane or is global: what other panes list does nothing here.
+func TestOtherPanesKeysDoNothing(t *testing.T) {
+	cases := hintCases(t)
+	global := map[string]bool{"q": true, "ctrl+c": true, ",": true, "o": true, "?": true, "tab": true, "shift+tab": true, "B": true, "[": true, "]": true, "b": true, "esc": true, "enter": true, "up": true, "down": true}
+	for _, c := range cases {
+		m := c.model()
+		own := paneKeys(m)
+		before := fmt.Sprintf("%#v", m)
+		for _, other := range cases {
+			if panes[other.model().focused()].Title() == panes[m.focused()].Title() {
+				continue
+			}
+			for k := range paneKeys(other.model()) {
+				if own[k] || global[k] || k == " " {
+					continue
+				}
+				if after, cmd := pressKey(m, k); after != before || cmd != nil {
+					t.Errorf("%s: key %q (listed by %s) acted here", c.name, k, panes[other.model().focused()].Title())
+				}
+			}
+		}
+	}
+}
+
+func TestFocusedPane(t *testing.T) {
+	for _, c := range []struct {
+		m    Model
+		want paneID
+	}{
+		{Model{}, paneAgents},
+		{Model{dashboard: true}, paneAgents},
+		{Model{dashboard: true, agentFocus: 3}, paneUsage},
+		{Model{dashboard: true, agentFocus: 2, taskFocus: true}, paneTasks},
+		{Model{dashboard: true, agentFocus: 4, workflowFocus: true}, paneWorkflows},
+		{Model{dashboard: true, agentFocus: 4, workflowFocus: true, agentsOpen: true}, paneAgentsTab},
+		{Model{dashboard: true, boardMode: true}, paneBoardTickets},
+		{Model{dashboard: true, boardMode: true, workflowFocus: true}, paneBoardWorkflows},
+		{Model{dashboard: true, boardMode: true, workflowFocus: true, agentsOpen: true}, paneBoardAgents},
+		{Model{dashboard: true, boardMode: true, boardFlow: true}, paneWorkflowView},
+		{Model{dashboard: true, boardMode: true, boardFlow: true, boardConfigView: true}, paneBoardConfig},
+		{Model{dashboard: true, boardMode: true, boardDrawer: true}, paneTaskDetail},
+	} {
+		if got := c.m.focused(); got != c.want {
+			t.Errorf("%+v: focused %d, want %d", c.m, got, c.want)
+		}
 	}
 }

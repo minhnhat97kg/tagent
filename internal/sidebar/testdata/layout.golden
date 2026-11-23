@@ -20,7 +20,7 @@ tagent · tmux-agent
 │ No workflows · tagent work… │
 │                             │
 ╰─────────────────────────────╯
- Tab/S-Tab panel · ↑↓ select ·…
+Tab/S-Tab panel  ↑↓ select  en…
 === dash 32x22 focus 3
 tagent · tmux-agent
 ╭─ Agents ────────────────────╮
@@ -43,7 +43,7 @@ tagent · tmux-agent
 │ No workflows · tagent work… │
 │                             │
 ╰─────────────────────────────╯
- h/l or [ ] range · Tab/S-Tab …
+h/l or [ ] range  Tab/S-Tab pa…
 === dash 32x22 focus 2
 tagent · tmux-agent
 ╭─ Agents ────────────────────╮
@@ -176,7 +176,7 @@ tagent · tmux-agent                     ? help · , settings
 │ ~~~~~~~~~~~~~~ call me if you need anything             │
 │ ~~~~~~~~~~~~~~                                          │
 ╰─────────────────────────────────────────────────────────╯
- Tab/S-Tab panel · ↑↓ select · Enter open · N new agent · …
+Tab/S-Tab panel  ↑↓ select  enter open  N new agent  l log…
 === dash 60x40 focus 3
 tagent · tmux-agent                     ? help · , settings
 ╭─ Agents ────────────────────────────────────────────────╮
@@ -217,7 +217,7 @@ tagent · tmux-agent                     ? help · , settings
 │ ~~~~~~~~~~~~~~ call me if you need anything             │
 │ ~~~~~~~~~~~~~~                                          │
 ╰─────────────────────────────────────────────────────────╯
- h/l or [ ] range · Tab/S-Tab panel · ? help
+h/l or [ ] range  Tab/S-Tab panel  ? help                 …
 === dash 60x40 focus 2
 tagent · tmux-agent                     ? help · , settings
 ╭─ Agents ────────────────────────────────────────────────╮
@@ -437,7 +437,7 @@ tagent · tmux-agent                     ? help · , settings
 │ ~~~~~~~~~~~~~~ call me if you need anything             │
 │ ~~~~~~~~~~~~~~                                          │
 ╰─────────────────────────────────────────────────────────╯
- Tab/S-Tab panel · ↑↓ select · Enter open · N new agent · …
+Tab/S-Tab panel  ↑↓ select  enter open  N new agent  l log…
 === dash 60x55 focus 3
 tagent · tmux-agent                     ? help · , settings
 ╭─ Agents ────────────────────────────────────────────────╮
@@ -493,7 +493,7 @@ tagent · tmux-agent                     ? help · , settings
 │ ~~~~~~~~~~~~~~ call me if you need anything             │
 │ ~~~~~~~~~~~~~~                                          │
 ╰─────────────────────────────────────────────────────────╯
- h/l or [ ] range · Tab/S-Tab panel · ? help
+h/l or [ ] range  Tab/S-Tab panel  ? help                 …
 === dash 60x55 focus 2
 tagent · tmux-agent                     ? help · , settings
 ╭─ Agents ────────────────────────────────────────────────╮
@@ -763,7 +763,7 @@ tagent · tmux-agent                                                            
 │ ~~~~~~~~~~~~~~ call me if you need       ││                                                                                   │
 │ ~~~~~~~~~~~~~~ anything                  ││                                                                                   │
 ╰──────────────────────────────────────────╯╰───────────────────────────────────────────────────────────────────────────────────╯
- Tab/S-Tab panel · ↑↓ select · Enter open · N new agent · l log · i prompt · ? help
+Tab/S-Tab panel  ↑↓ select  enter open  N new agent  l log  i prompt  ? help                                                    …
 === dash 130x45 focus 3
 tagent · tmux-agent                                                                                           ? help · , settings
 ╭─ Agents ─────────────────────────────────╮╭─ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1 ──────────────────────────────────╮
@@ -809,7 +809,7 @@ tagent · tmux-agent                                                            
 │ ~~~~~~~~~~~~~~ call me if you need       ││                                                                                   │
 │ ~~~~~~~~~~~~~~ anything                  ││                                                                                   │
 ╰──────────────────────────────────────────╯╰───────────────────────────────────────────────────────────────────────────────────╯
- h/l or [ ] range · Tab/S-Tab panel · ? help
+h/l or [ ] range  Tab/S-Tab panel  ? help                                                                                       …
 === dash 130x45 focus 2
 tagent · tmux-agent                                                                                           ? help · , settings
 ╭─ Agents ─────────────────────────────────╮┏━ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓

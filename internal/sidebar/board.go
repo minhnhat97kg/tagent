@@ -792,22 +792,11 @@ func (m Model) boardView() string {
 		th, wh := m.boardSplit(h)
 		body = m.tasksCard(m.width, th, 0, !m.workflowFocus) + "\n" + m.workflowCard(m.width, wh, 0)
 	}
-	hint := m.ticketHints()
+	hint := m.footerHints()
 	if m.workflowDelete != "" {
 		hint = "Delete workflow " + m.workflowDelete + "? y / n"
 	} else if m.agentDelete != "" {
 		hint = "Delete agent " + m.agentDelete + "? y / n"
-	} else if m.workflowFocus && m.agentsOpen && !m.boardFlow && !m.boardDrawer {
-		hint = m.keyHints("enter detail", "m model", "e edit", "a add", "x delete", "t close", "Tab tickets", "? help")
-	} else if m.workflowFocus && !m.boardFlow && !m.boardDrawer {
-		hint = m.keyHints("enter view", "a add", "e edit", "x delete", "t agents", "B config", "Tab tickets", "? help")
-	}
-	if m.boardConfigView {
-		hint = m.keyHints("esc close", "enter default", "j/k scroll", "E edit", "? help")
-	} else if m.boardFlow {
-		hint = m.keyHints("esc close", "[/] browse", "e edit", "? help")
-	} else if m.boardDrawer {
-		hint = m.keyHints("esc close", "tab/1-4 tabs", "j/k scroll", "e edit", "c comment", "? help")
 	}
 	if m.taskDelete {
 		hint = "Delete task? y confirm · n cancel"
@@ -964,10 +953,6 @@ func (m Model) detailMaxScroll() int {
 	w, rows := m.width-4, max(0, m.height-5)
 	_, body, bodyRows := m.detailLayout(m.notes[m.taskCursor], w, rows)
 	return max(0, len(body)-max(0, bodyRows-2))
-}
-
-func (m Model) ticketHints() string {
-	return m.keyHints("h/l lane", "j/k card", "n new", "s start", "enter detail", "B config", "p priority", "D deps", "e edit", "C comment", "H/L status", "a files", "x delete", "w workflow", "? help")
 }
 
 // needCandidates lists the tickets the selected one may wait for (every ticket

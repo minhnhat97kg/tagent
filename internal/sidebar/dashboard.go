@@ -125,22 +125,7 @@ func (m Model) dashboardView() string {
 	} else {
 		body = stack("agents", "usage", "tasks", "wf", "comp")
 	}
-	help := " Tab/S-Tab panel · ↑↓ select · Enter open · N new agent · l log · i prompt · ? help"
-	if m.agentFocus == 3 {
-		help = " h/l or [ ] range · Tab/S-Tab panel · ? help"
-	}
-	if m.agentFocus == 4 {
-		help = m.keyHints("h/l agents", "enter view", "a add", "B board config", "Tab focus", "? help")
-		if m.agentsOpen {
-			help = m.keyHints("h/l workflows", "enter detail", "m model", "a add", "Tab focus", "? help")
-			if m.agentDetail {
-				help = m.keyHints("esc back", "m model", "e edit", "j/k agent", "? help")
-			}
-		}
-	}
-	if m.taskFocus {
-		help = m.ticketHints()
-	}
+	help := m.footerHints()
 	if m.taskDelete {
 		help = " Delete task?  y confirm · n cancel"
 	}

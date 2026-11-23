@@ -74,25 +74,42 @@ func (p simplePane) Title() string                                  { return p.t
 func (p simplePane) Hints(m Model) []hint                           { return p.hints(m) }
 func (p simplePane) Key(m Model, key string) (Model, tea.Cmd, bool) { return p.key(m, key) }
 
-func noHints(Model) []hint { return nil }
-
 var panes = map[paneID]pane{
-	paneAgents:         simplePane{"Agents", noHints, Model.agentsKey},
-	paneUsage:          simplePane{"Usage", noHints, Model.usageKey},
-	paneTasks:          simplePane{"Tasks", noHints, Model.tasksCardKey},
-	paneWorkflows:      simplePane{"Board · Workflows", noHints, Model.dashWorkflowsKey},
-	paneAgentsTab:      simplePane{"Board · Workflows", noHints, Model.dashWorkflowsKey},
-	paneBoardTickets:   simplePane{"Board · Tickets", noHints, Model.ticketsKey},
-	paneBoardWorkflows: simplePane{"Board · Workflows", noHints, Model.workflowPanelKey},
-	paneBoardAgents:    simplePane{"Board · Agents", noHints, Model.workflowPanelKey},
-	paneWorkflowView:   simplePane{"Board · Workflow view", noHints, Model.flowKey},
-	paneBoardConfig:    simplePane{"Board · Config view", noHints, Model.configKey},
-	paneTaskDetail:     simplePane{"Board · Task detail", noHints, Model.detailKey},
+	paneAgents:         simplePane{"Agents", Model.agentsHints, Model.agentsKey},
+	paneUsage:          simplePane{"Usage", Model.usageHints, Model.usageKey},
+	paneTasks:          simplePane{"Tasks", Model.tasksCardHints, Model.tasksCardKey},
+	paneWorkflows:      simplePane{"Workflows", Model.dashWorkflowsHints, Model.dashWorkflowsKey},
+	paneAgentsTab:      simplePane{"Workflows · Agents", Model.dashWorkflowsHints, Model.dashWorkflowsKey},
+	paneBoardTickets:   simplePane{"Board · Tickets", Model.boardTicketsHints, Model.ticketsKey},
+	paneBoardWorkflows: simplePane{"Board · Workflows", Model.boardWorkflowsHints, Model.workflowPanelKey},
+	paneBoardAgents:    simplePane{"Board · Agents", Model.boardAgentsHints, Model.workflowPanelKey},
+	paneWorkflowView:   simplePane{"Board · Workflow view", Model.flowHints, Model.flowKey},
+	paneBoardConfig:    simplePane{"Board · Config view", Model.configHints, Model.configKey},
+	paneTaskDetail:     simplePane{"Board · Task detail", Model.detailHints, Model.detailKey},
 }
 
-// hint is one key of a pane: Foot is its short label in the footer line
-// (empty: the key is only listed by ?), Help the sentence ? shows.
-type hint struct{ Keys, Foot, Help string }
+// hint is one key of a pane. Keys and Foot show in the footer line ("j/k card";
+// empty: not in the footer); HelpKeys and Help are its row in ? (Help empty: not
+// listed there). A footer key that the pane does not handle is a test failure.
+type hint struct{ Keys, Foot, HelpKeys, Help string }
+
+// footerHints is the key-hint line of the focused pane, generated from its Hints.
+func (m Model) footerHints() string {
+	var pairs []string
+	for _, h := range panes[m.focused()].Hints(m) {
+		if h.Keys != "" && h.Foot != "" {
+			pairs = append(pairs, h.Keys+" "+h.Foot)
+		}
+	}
+	return m.keyHints(append(pairs, "? help")...)
+}
+
+// globalHints are the keys every pane shares (the "Everywhere" help section).
+var globalHints = []hint{
+	{"", "", "?", "help"}, {"", "", ",", "settings"}, {"", "", "B", "board config (default workflow, agents, triggers)"}, {"", "", "q", "quit"},
+	{"", "", "Tab S-Tab", "next / previous card: Agents, Usage, Tasks, Workflows"}, {"", "", "[ ]", "chart range (1 / 7 / 30 days)"},
+	{"", "", "o", "expand / collapse (prefix + A)"}, {"", "", "b", "board (from the Tasks card)"},
+}
 
 // globalKey is what every pane shares, tried after the focused pane.
 func (m Model) globalKey(key string) (Model, tea.Cmd, bool) {
@@ -154,61 +171,4 @@ func (m Model) chartStep(wider bool) Model {
 		m.chartDays = 1
 	}
 	return m
-}
-
-// usageKey: h/l and the arrows pick the chart range ([ ] work from any card).
-func (m Model) usageKey(key string) (Model, tea.Cmd, bool) {
-	switch key {
-	case "h", "left":
-		return m.chartStep(false), nil, true
-	case "l", "right":
-		return m.chartStep(true), nil, true
-	}
-	return m, nil, false
-}
-
-// tasksCardKey is the dashboard Tasks card: the ticket keys without leaving
-// the dashboard; b opens the board.
-func (m Model) tasksCardKey(key string) (Model, tea.Cmd, bool) {
-	switch key {
-	case "tab", "shift+tab", "q", "ctrl+c", ",", "o", "B", "[", "]":
-		return m, nil, false
-	case "b":
-		return m.openBoard(), nil, true
-	}
-	if m.boardDir == "" || m.boardDir != m.repoDir && m.repoDir != "" {
-		m = m.boardContext()
-	}
-	m.boardDrawer, m.boardFlow, m.workflowFocus = false, false, false
-	m, cmd, _ := m.ticketsKey(key)
-	return m, cmd, true
-}
-
-// dashWorkflowsKey is the dashboard's Workflows card and its Agents tab.
-func (m Model) dashWorkflowsKey(key string) (Model, tea.Cmd, bool) {
-	switch key {
-	case "esc", "backspace":
-		if m.agentsOpen && m.agentDetail { // back from an agent's detail to the list
-			m.agentDetail = false
-			return m, nil, true
-		}
-		if key == "backspace" {
-			return m, nil, true
-		}
-		m.agentFocus, m.taskFocus, m.workflowFocus = 2, true, false
-		return m, nil, true
-	case "t", "h", "l", "[", "]": // swap Workflows <-> Agents (same keys as the other cards' tabs)
-		m.agentsOpen, m.agentDetail, m.agentCursor = !m.agentsOpen, false, 0
-		if m.agentsOpen {
-			m = m.loadAgents()
-		}
-		return m, nil, true
-	case "j", "k", "up", "down", "a", "e", "x", "w", "enter", "y", "n", "m":
-		m, cmd, _ := m.workflowPanelKey(key)
-		if m.boardFlow {
-			m.boardMode, m.boardDrawer, m.workflowFocus, m.flowFromDash = true, false, false, true
-		}
-		return m, cmd, true
-	}
-	return m, nil, false
 }

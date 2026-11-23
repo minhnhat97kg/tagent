@@ -142,3 +142,52 @@ func (m Model) ticketsKey(key string) (Model, tea.Cmd, bool) {
 	}
 	return m.laneStep(step), nil, true
 }
+
+// tasksCardKey is the dashboard Tasks card: the ticket keys without leaving
+// the dashboard; b opens the board.
+func (m Model) tasksCardKey(key string) (Model, tea.Cmd, bool) {
+	switch key {
+	case "tab", "shift+tab", "q", "ctrl+c", ",", "o", "B", "[", "]":
+		return m, nil, false
+	case "b":
+		return m.openBoard(), nil, true
+	}
+	if m.boardDir == "" || m.boardDir != m.repoDir && m.repoDir != "" {
+		m = m.boardContext()
+	}
+	m.boardDrawer, m.boardFlow, m.workflowFocus = false, false, false
+	m, cmd, _ := m.ticketsKey(key)
+	return m, cmd, true
+}
+
+// ticketHints is the ticket keys; nav says where Tab and esc go.
+func ticketHints(nav hint) []hint {
+	return []hint{
+		{"h/l", "lane", "h l", "select lane: todo / in progress / blocked / done (or click its tab)"},
+		{"j/k", "card", "j k ↑ ↓", "select ticket"},
+		{"n", "new", "n", "new ticket ($EDITOR)"},
+		{"s", "start", "s", "start: workflow picker"},
+		{"enter", "detail", "enter i", "ticket detail"},
+		{"B", "config", "B", "board config summary (default workflow, roles, triggers; E edits)"},
+		{"p", "priority", "p / D", "cycle priority / edit dependencies"},
+		{"D", "deps", "", ""},
+		{"e", "edit", "e", "edit in $EDITOR"},
+		{"C", "comment", "c C", "comment on ticket (blocked: prefills @role reply)"},
+		{"H/L", "status", "H L", "previous / next status (each card shows its status)"},
+		{"a", "files", "a / A", "attachments: view or open (images, pdf) / attach file"},
+		{"x", "delete", "x", "delete (confirm)"},
+		{"w", "workflow", "w", "workflow view"},
+		{"", "", "t", "swap Workflows / Agents tab (and back)"},
+		{"", "", "E", "edit .tasks/board.yaml"},
+		{"", "", "?", "help"},
+		nav,
+	}
+}
+
+func (m Model) tasksCardHints() []hint {
+	return ticketHints(hint{"", "", "Tab / b", "focus next panel / open board"})
+}
+
+func (m Model) boardTicketsHints() []hint {
+	return ticketHints(hint{"", "", "Tab / esc", "focus workflows / back"})
+}

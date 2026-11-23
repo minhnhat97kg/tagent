@@ -94,3 +94,16 @@ func (m Model) flowKey(key string) (Model, tea.Cmd, bool) {
 	}
 	return m, nil, true
 }
+
+func (m Model) flowHints() []hint {
+	return []hint{
+		{"esc", "close", "esc w q", "close workflow view"}, {"[/]", "browse", "[ ]", "browse workflows"}, {"e", "edit", "e E", "edit displayed workflow (board config if none)"},
+	}
+}
+
+func (m Model) configHints() []hint {
+	return []hint{
+		{"esc", "close", "esc w q B", "close"}, {"enter", "default", "enter", "pick the default workflow (saved to board.yaml)"}, {"j/k", "scroll", "j k ↑ ↓", "scroll default workflow, roles, triggers"},
+		{"E", "edit", "e E", "edit .tasks/board.yaml in $EDITOR"}, {"", "", "g G", "top / bottom"}, {"", "", "B", "open from the board"},
+	}
+}

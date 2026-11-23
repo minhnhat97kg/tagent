@@ -231,3 +231,17 @@ func (m Model) agentsKey(key string) (Model, tea.Cmd, bool) {
 	}
 	return m, nil, false
 }
+
+func (m Model) agentsHints() []hint {
+	return []hint{
+		{"Tab/S-Tab", "panel", "", ""},
+		{"↑↓", "select", "j k ↑ ↓", "select agent"},
+		{"enter", "open", "enter", "on ! row: answers; again: jump to pane"},
+		{"N", "new agent", "N", "new agent"},
+		{"l", "log", "l", "agent log"},
+		{"i", "prompt", "i", "send prompt"},
+		{"", "", "n", "next agent needing you"}, {"", "", "1-4", "answer open approval"}, {"", "", "space", "quick action on first alert"},
+		{"", "", "1-9", "jump to window"}, {"", "", "/", "filter"}, {"", "", "r", "switch repo"}, {"", "", "p", "pin"},
+		{"", "", "f", "handoff sizing to this terminal"}, {"", "", "v x", "select / delete worktrees"}, {"", "", "S", "clear subagents"}, {"", "", "u", "undo"},
+	}
+}
