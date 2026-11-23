@@ -71,7 +71,7 @@ func (m Model) workflowPanelKey(key string) (Model, tea.Cmd, bool) {
 	}
 	switch key {
 	case "tab", "shift+tab":
-		m.workflowFocus = false
+		m.focus = cardTasks
 	case "j", "down":
 		m.workflowCursor = min(max(0, len(m.boardWorkflows)-1), m.workflowCursor+1)
 	case "k", "up":
@@ -83,11 +83,11 @@ func (m Model) workflowPanelKey(key string) (Model, tea.Cmd, bool) {
 		m.agentsOpen, m.agentDetail, m.agentCursor = true, false, 0
 		m = m.loadAgents()
 	case "B": // board config summary (same view as the board's B key)
-		m.workflowFocus = false
+		m.focus = cardTasks
 		m.boardFlow, m.boardConfigView = true, true
 		m.flowWorkflow, m.boardConfigScroll = "", 0
 	case "esc", "q", "b":
-		m.workflowFocus = false
+		m.focus = cardTasks
 		m.boardMode = false
 	case "enter", "w", "e", "x":
 		if len(m.boardWorkflows) == 0 {

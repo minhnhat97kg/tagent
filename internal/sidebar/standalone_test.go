@@ -78,11 +78,11 @@ func TestStandaloneLayoutsAndEnterOnlyFromList(t *testing.T) {
 		t.Fatalf("agent/dashboard layouts: %v", widths)
 	}
 	m.layout = layoutSplit
-	m.left.agentFocus = 3 // Git panel: Enter is the dashboard's
+	m.left.focus = 3 // Git panel: Enter is the dashboard's
 	if m.listKeys() {
 		t.Fatal("Enter taken from the Git panel")
 	}
-	m.left.agentFocus = 0
+	m.left.focus = 0
 	if !m.listKeys() {
 		t.Fatal("agent list should own Enter")
 	}

@@ -25,7 +25,7 @@ func (m Model) ticketsKey(key string) (Model, tea.Cmd, bool) {
 	}
 	if key == "tab" || key == "shift+tab" {
 		if m.boardMode && !m.boardDrawer {
-			m.workflowFocus = true
+			m.focus = cardWorkflows
 			return m, nil, true
 		}
 	}
@@ -33,7 +33,11 @@ func (m Model) ticketsKey(key string) (Model, tea.Cmd, bool) {
 	case "t":
 		m.boardMode = true
 		m.agentsOpen = !m.agentsOpen
-		m.workflowFocus, m.agentDetail, m.agentCursor = m.agentsOpen, false, 0
+		m.agentDetail, m.agentCursor = false, 0
+		m.focus = cardTasks
+		if m.agentsOpen {
+			m.focus = cardWorkflows
+		}
 		if m.agentsOpen {
 			m = m.loadAgents()
 		}
@@ -155,7 +159,7 @@ func (m Model) tasksCardKey(key string) (Model, tea.Cmd, bool) {
 	if m.boardDir == "" || m.boardDir != m.repoDir && m.repoDir != "" {
 		m = m.boardContext()
 	}
-	m.boardDrawer, m.boardFlow, m.workflowFocus = false, false, false
+	m.boardDrawer, m.boardFlow = false, false
 	m, cmd, _ := m.ticketsKey(key)
 	return m, cmd, true
 }

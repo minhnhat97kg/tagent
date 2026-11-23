@@ -619,8 +619,7 @@ type repoFilterSavedMsg struct{ Success bool }
 
 // Model is the sidebar's TUI state.
 type Model struct {
-	agentFocus     int
-	workflowFocus  bool
+	focus          int // the focused card (cardAgents...cardWorkflows)
 	workflowCursor int
 	workflowDelete string
 	agentsOpen     bool
@@ -674,7 +673,6 @@ type Model struct {
 	metricScope       string
 	metricBusy        bool
 	metricTick        int
-	taskFocus         bool
 	boardMode         bool
 	flowFromDash      bool // the workflow view was opened from the dashboard card
 	boardDrawer       bool
@@ -1532,9 +1530,9 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 			th, _ := m.boardSplit(m.height - 3)
 			if msg.Y >= 1 && msg.Y <= th {
 				m, _ = m.tasksCardClick(msg.X, msg.Y-1, m.width, th, 0)
-				m.workflowFocus = false
+				m.focus = cardTasks
 			} else if msg.Y > th {
-				m.workflowFocus = true
+				m.focus = cardWorkflows
 			}
 		}
 		return m, nil // Dashboard hit targets are not valid while an overlay replaces it.
@@ -1544,7 +1542,7 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		// A click on an unfocused card only focuses it (it grows under the pointer);
 		// on the focused card it selects the row, lane tab or ticket.
 		focusCard := func(f int) Model {
-			m.agentFocus, m.taskFocus, m.workflowFocus = f, f == 2, f == 4
+			m.focus = f
 			return m
 		}
 		switch {
@@ -1553,7 +1551,7 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		case g.usage.contains(msg.X, msg.Y):
 			return focusCard(3), nil
 		case g.tasks.contains(msg.X, msg.Y):
-			wasFocused := m.agentFocus == 2
+			wasFocused := m.focus == cardTasks
 			m = focusCard(2)
 			var card bool
 			m, card = m.tasksCardClick(msg.X-g.tasks.x, msg.Y-g.tasks.y, g.tasks.w, g.tasks.h, paneNum(2))
@@ -1564,7 +1562,7 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		case g.wf.contains(msg.X, msg.Y):
-			wasFocused := m.agentFocus == 4
+			wasFocused := m.focus == cardWorkflows
 			m = focusCard(4)
 			if msg.Y == g.wf.y {
 				name, w := m.cardName(paneNum(4), "")

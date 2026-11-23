@@ -95,8 +95,7 @@ func hintCases(t *testing.T) []hintCase {
 	dash := func(focus int, mod func(*Model)) func() Model {
 		return func() Model {
 			m := base()
-			m.boardMode, m.taskFocus, m.agentFocus, m.chartDays = false, focus == 2, focus, 7
-			m.workflowFocus = focus == 4
+			m.boardMode, m.focus, m.chartDays = false, focus, 7
 			if mod != nil {
 				mod(&m)
 			}
@@ -118,8 +117,8 @@ func hintCases(t *testing.T) []hintCase {
 		{"dashboard workflows", dash(4, nil), dashHint, nil},
 		{"dashboard agents tab", dash(4, func(m *Model) { m.agentsOpen = true }), dashHint, nil},
 		{"board tickets", board(func(m *Model) {}), boardHint, nil},
-		{"board workflows", board(func(m *Model) { m.workflowFocus = true }), boardHint, nil},
-		{"board agents", board(func(m *Model) { m.workflowFocus, m.agentsOpen = true, true }), boardHint, nil},
+		{"board workflows", board(func(m *Model) { m.focus = cardWorkflows }), boardHint, nil},
+		{"board agents", board(func(m *Model) { m.focus, m.agentsOpen = cardWorkflows, true }), boardHint, nil},
 		{"workflow view", board(func(m *Model) { m.boardFlow, m.flowWorkflow = true, "x.yml" }), boardHint, []string{"["}},
 		{"board config", board(func(m *Model) { m.boardFlow, m.boardConfigView = true, true }), boardHint, []string{"j"}},
 		{"drawer details", board(func(m *Model) { m.boardDrawer = true }), boardHint, []string{"j"}},
@@ -214,13 +213,13 @@ func TestFocusedPane(t *testing.T) {
 	}{
 		{Model{}, paneAgents},
 		{Model{dashboard: true}, paneAgents},
-		{Model{dashboard: true, agentFocus: 3}, paneUsage},
-		{Model{dashboard: true, agentFocus: 2, taskFocus: true}, paneTasks},
-		{Model{dashboard: true, agentFocus: 4, workflowFocus: true}, paneWorkflows},
-		{Model{dashboard: true, agentFocus: 4, workflowFocus: true, agentsOpen: true}, paneAgentsTab},
+		{Model{dashboard: true, focus: cardUsage}, paneUsage},
+		{Model{dashboard: true, focus: cardTasks}, paneTasks},
+		{Model{dashboard: true, focus: cardWorkflows}, paneWorkflows},
+		{Model{dashboard: true, focus: cardWorkflows, agentsOpen: true}, paneAgentsTab},
 		{Model{dashboard: true, boardMode: true}, paneBoardTickets},
-		{Model{dashboard: true, boardMode: true, workflowFocus: true}, paneBoardWorkflows},
-		{Model{dashboard: true, boardMode: true, workflowFocus: true, agentsOpen: true}, paneBoardAgents},
+		{Model{dashboard: true, boardMode: true, focus: cardWorkflows}, paneBoardWorkflows},
+		{Model{dashboard: true, boardMode: true, focus: cardWorkflows, agentsOpen: true}, paneBoardAgents},
 		{Model{dashboard: true, boardMode: true, boardFlow: true}, paneWorkflowView},
 		{Model{dashboard: true, boardMode: true, boardFlow: true, boardConfigView: true}, paneBoardConfig},
 		{Model{dashboard: true, boardMode: true, boardDrawer: true}, paneTaskDetail},

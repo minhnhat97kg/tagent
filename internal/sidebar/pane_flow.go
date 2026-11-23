@@ -14,7 +14,7 @@ func (m Model) configKey(key string) (Model, tea.Cmd, bool) {
 		m.boardFlow, m.boardConfigView = false, false
 		if m.flowFromDash { // back to the dashboard's Workflows card
 			m.flowFromDash, m.boardMode = false, false
-			m.agentFocus, m.taskFocus, m.workflowFocus = 4, false, true
+			m.focus = cardWorkflows
 		}
 	case "j", "down":
 		m.boardConfigScroll = min(m.boardConfigScroll+1, m.boardConfigMaxScroll())
@@ -87,7 +87,7 @@ func (m Model) flowKey(key string) (Model, tea.Cmd, bool) {
 		m.boardFlow = false
 		if m.flowFromDash { // back to the dashboard's Workflows card
 			m.flowFromDash, m.boardMode = false, false
-			m.agentFocus, m.taskFocus, m.workflowFocus = 4, false, true
+			m.focus = cardWorkflows
 		}
 	default:
 		return m, nil, false

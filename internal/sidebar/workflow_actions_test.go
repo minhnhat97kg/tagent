@@ -13,7 +13,7 @@ import (
 func TestWorkflowPanelFocus(t *testing.T) {
 	m := Model{boardMode: true, width: 100, height: 40, boardWorkflows: []workflow.Workflow{{Name: "one", File: "one.yml"}, {Name: "two", File: "two.yml"}}}
 	m, _, handled := m.boardKey("tab")
-	if !handled || !m.workflowFocus {
+	if !handled || m.focus != cardWorkflows {
 		t.Fatal("no workflow focus")
 	}
 	m, _, _ = m.boardKey("j")
@@ -21,7 +21,7 @@ func TestWorkflowPanelFocus(t *testing.T) {
 		t.Fatal(m.workflowCursor)
 	}
 	m, _, _ = m.boardKey("tab")
-	if m.workflowFocus {
+	if m.focus == cardWorkflows {
 		t.Fatal("no ticket focus")
 	}
 	m, _, _ = m.boardKey("tab")
@@ -32,7 +32,7 @@ func TestWorkflowPanelFocus(t *testing.T) {
 }
 func TestWorkflowAddAndReload(t *testing.T) {
 	dir := t.TempDir()
-	m := Model{boardMode: true, workflowFocus: true, boardDir: dir}
+	m := Model{boardMode: true, focus: cardWorkflows, boardDir: dir}
 	m, _, _ = m.boardKey("a")
 	if m.taskForm != "workflow-new" {
 		t.Fatal("no name form")
@@ -78,7 +78,7 @@ func TestWorkflowDeleteConfirmation(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	m := Model{boardMode: true, workflowFocus: true, boardDir: dir, boardWorkflows: workflow.List(tasks.MainRoot(dir))}
+	m := Model{boardMode: true, focus: cardWorkflows, boardDir: dir, boardWorkflows: workflow.List(tasks.MainRoot(dir))}
 	m, cmd, _ := m.boardKey("x")
 	if cmd != nil || m.workflowDelete != path {
 		t.Fatal("no confirmation")

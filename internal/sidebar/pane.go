@@ -42,7 +42,7 @@ func (m Model) focused() paneID {
 			return paneBoardConfig
 		case m.boardFlow:
 			return paneWorkflowView
-		case m.workflowFocus || m.workflowDelete != "":
+		case m.focus == cardWorkflows || m.workflowDelete != "":
 			return map[bool]paneID{true: paneBoardAgents, false: paneBoardWorkflows}[m.agentsOpen]
 		}
 		return paneBoardTickets
@@ -51,11 +51,11 @@ func (m Model) focused() paneID {
 		return paneAgents
 	}
 	switch {
-	case m.taskFocus || m.agentFocus == 2:
+	case m.focus == cardTasks:
 		return paneTasks
-	case m.agentFocus == 3:
+	case m.focus == cardUsage:
 		return paneUsage
-	case m.agentFocus == 4:
+	case m.focus == cardWorkflows:
 		return map[bool]paneID{true: paneAgentsTab, false: paneWorkflows}[m.agentsOpen]
 	}
 	return paneAgents
@@ -146,9 +146,7 @@ func (m Model) globalKey(key string) (Model, tea.Cmd, bool) {
 		if key == "shift+tab" {
 			step = len(focusOrder) - 1
 		}
-		m.agentFocus = focusOrder[(slices.Index(focusOrder, m.agentFocus)+step)%len(focusOrder)]
-		m.taskFocus = m.agentFocus == 2
-		m.workflowFocus = m.agentFocus == 4
+		m.focus = focusOrder[(slices.Index(focusOrder, m.focus)+step)%len(focusOrder)]
 		return m, nil, true
 	case "B": // board config, from any dashboard card; esc returns here
 		m.boardMode, m.boardFlow, m.boardConfigView, m.boardDrawer = true, true, true, false

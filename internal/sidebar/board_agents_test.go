@@ -23,7 +23,7 @@ func TestAgentsPanelOpensAndListsRoles(t *testing.T) {
 	dir := agentsTestDir(t)
 	m := Model{boardMode: true, boardDir: dir}
 	m, _, handled := m.boardKey("t")
-	if !handled || !m.agentsOpen || !m.workflowFocus || len(m.agents) != 2 {
+	if !handled || !m.agentsOpen || m.focus != cardWorkflows || len(m.agents) != 2 {
 		t.Fatalf("panel not open: %+v", m.agents)
 	}
 	if !strings.Contains(strings.Join(m.agentStripLines(80), "\n"), "planner") {

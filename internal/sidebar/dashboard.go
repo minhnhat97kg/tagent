@@ -93,7 +93,7 @@ func (m Model) dashboardView() string {
 	}
 	bar := m.topBar(repo, max(6, w-1))
 
-	focus := func(f int) bool { return m.agentFocus == f }
+	focus := func(f int) bool { return m.focus == f }
 	usageName, uw := m.cardName(paneNum(3), "▥ Usage")
 	rng, _ := m.tabStrip([]string{"1d", "7d", "30d"}, slices.Index([]int{1, 7, 30}, m.chartDaysOrDefault()), 3+uw+2)
 	agentsName, _ := m.cardName(paneNum(0), "Agents")
@@ -230,9 +230,9 @@ func fitLine(s string, width int) string {
 	return ansi.Truncate(s, width, "…")
 }
 func (m Model) agentLines(width, height int) []string {
-	out := []string{m.sectionTitle("◉ Running agents", width, !m.taskFocus)}
+	out := []string{m.sectionTitle("◉ Running agents", width, m.focus != cardTasks)}
 	cursor := m.cursor
-	if m.taskFocus {
+	if m.focus == cardTasks {
 		cursor = -1
 	}
 	rows := strings.Split(renderRowsAt(m.rows, width, cursor, m.theme, m.icons, m.animFrame), "\n")
@@ -343,9 +343,16 @@ type dashGeom struct {
 	usageLines                     []string
 }
 
-// focusOrder is the Tab order (agentFocus values): Agents, Usage, Tasks,
+// focusOrder is the Tab order (focus values): Agents, Usage, Tasks,
 // Workflows. Its index + 1 is the card's [n] number.
-var focusOrder = []int{0, 3, 2, 4}
+const (
+	cardAgents    = 0
+	cardUsage     = 3
+	cardTasks     = 2
+	cardWorkflows = 4
+)
+
+var focusOrder = []int{cardAgents, cardUsage, cardTasks, cardWorkflows}
 
 func paneNum(focus int) int { return slices.Index(focusOrder, focus) + 1 }
 
@@ -389,7 +396,7 @@ func (m Model) dashGeometry() dashGeom {
 	// Workflows card are fixed small, Agents takes a set share (all spare rows
 	// in the left column when wide), Tasks takes the rest. Lists scroll inside.
 	// The focused card is the last to lose rows in a short column.
-	last := func(c constraint, focus int) constraint { return c.Last(m.agentFocus == focus) }
+	last := func(c constraint, focus int) constraint { return c.Last(m.focus == focus) }
 	agentsC := func(c constraint) constraint { return last(c.AtLeast(minAgentsH), 0) }
 	usageC := func(n int) constraint { return last(Fixed(n).AtLeast(minUsageH), 3) }
 	tasksC := last(Fill(1).AtLeast(minTasksH), 2)

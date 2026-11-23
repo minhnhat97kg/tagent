@@ -129,7 +129,7 @@ func (m standaloneModel) rightX() int {
 // the help or another panel), so Enter/N/z are ours to take.
 func (m standaloneModel) listKeys() bool {
 	l := m.left
-	return l.agentFocus == 0 && !l.taskFocus && !l.boardMode && !l.helpOpen && l.taskForm == ""
+	return l.focus == cardAgents && !l.boardMode && !l.helpOpen && l.taskForm == ""
 }
 
 // rightSize is the area inside the agent's frame: the frame takes 2 columns and

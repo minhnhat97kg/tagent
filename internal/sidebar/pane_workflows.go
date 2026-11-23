@@ -13,7 +13,7 @@ func (m Model) dashWorkflowsKey(key string) (Model, tea.Cmd, bool) {
 		if key == "backspace" {
 			return m, nil, true
 		}
-		m.agentFocus, m.taskFocus, m.workflowFocus = 2, true, false
+		m.focus = cardTasks
 		return m, nil, true
 	case "t", "h", "l", "[", "]": // swap Workflows <-> Agents (same keys as the other cards' tabs)
 		m.agentsOpen, m.agentDetail, m.agentCursor = !m.agentsOpen, false, 0
@@ -24,7 +24,7 @@ func (m Model) dashWorkflowsKey(key string) (Model, tea.Cmd, bool) {
 	case "j", "k", "up", "down", "a", "e", "x", "w", "enter", "y", "n", "m":
 		m, cmd, _ := m.workflowPanelKey(key)
 		if m.boardFlow {
-			m.boardMode, m.boardDrawer, m.workflowFocus, m.flowFromDash = true, false, false, true
+			m.boardMode, m.boardDrawer, m.focus, m.flowFromDash = true, false, cardWorkflows, true
 		}
 		return m, cmd, true
 	}

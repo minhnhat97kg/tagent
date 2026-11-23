@@ -17,7 +17,7 @@ import (
 )
 
 func boardTestModel() Model {
-	return Model{icons: DefaultIcons(), dashboard: true, boardMode: true, taskFocus: true, agentFocus: 2,
+	return Model{icons: DefaultIcons(), dashboard: true, boardMode: true, focus: cardTasks,
 		width: 160, height: 40, theme: DefaultTheme(), notesScope: "kanban",
 		boardConfig: tasks.BoardConfig{Columns: []string{"todo", "done"}},
 		notes: []tasks.Task{
@@ -455,7 +455,7 @@ func TestBoardListsWorkflowsBelow(t *testing.T) {
 	m := boardTestModel()
 	m.boardWorkflows = []workflow.Workflow{{Name: "research", Jobs: make([]workflow.Job, 1)}, {Name: "deploy", Global: true, Jobs: make([]workflow.Job, 3)}}
 	m.notes = append(m.notes, tasks.Task{ID: "9", Title: "Run", Status: "researching", Workflow: "research"})
-	m.workflowFocus = true // an unfocused Workflows card collapses to its selected row
+	m.focus = cardWorkflows // an unfocused Workflows card collapses to its selected row
 	for _, w := range []int{160, 45} {
 		m.width = w
 		view := ansi.Strip(m.View())

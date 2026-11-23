@@ -24,7 +24,7 @@ type boardConfigMsg struct {
 }
 
 func (m Model) openBoard() Model {
-	m.boardMode, m.taskFocus, m.agentFocus = true, true, 2
+	m.boardMode, m.focus = true, cardTasks
 	m.boardDrawer = false
 	return m.boardContext()
 }
@@ -490,7 +490,7 @@ func (m Model) workflowLines(width int) []string {
 			run = "  " + m.boardStyle(m.theme.StatusRunning).Render(fmt.Sprintf("● %d running", active))
 		}
 		mark := "▸ "
-		if m.workflowFocus && i == m.workflowCursor {
+		if m.focus == cardWorkflows && i == m.workflowCursor {
 			mark = "❯ "
 		}
 		lines = append(lines, boardFit(mark+m.boardStyle(m.theme.TextPrimary).Bold(true).Render(w.Name)+"  "+dim.Render(info)+run, width))
@@ -714,7 +714,7 @@ func (m Model) boardPanel(title, pos string, lines []string, width, height int, 
 func (m Model) boardSplit(h int) (tasksH, wfH int) {
 	// Only terminal size and focus decide card heights, never ticket counts:
 	// Workflows rests at 3 rows and grows to 8 when focused; tickets take the rest.
-	hs := split(h, Fill(1).AtLeast(6), Fixed(3+5*b2i(m.workflowFocus)).AtLeast(3))
+	hs := split(h, Fill(1).AtLeast(6), Fixed(3+5*b2i(m.focus == cardWorkflows)).AtLeast(3))
 	return hs[0], hs[1]
 }
 
@@ -728,7 +728,7 @@ func (m Model) workflowCard(width, height, num int) string {
 	if !(m.agentsOpen && m.agentDetail) {
 		start = max(0, cursor-max(1, height-2)+1)
 	}
-	return m.boardPanel(name+tabs, position(cursor, n), lines[min(start, len(lines)):], width, height, m.workflowFocus)
+	return m.boardPanel(name+tabs, position(cursor, n), lines[min(start, len(lines)):], width, height, m.focus == cardWorkflows)
 }
 
 func (m Model) boardHeader() string {
@@ -790,7 +790,7 @@ func (m Model) boardView() string {
 		body = m.boardPanel("Task · esc close", "", m.boardDetail(m.width-4, h-2), m.width, h, true)
 	} else {
 		th, wh := m.boardSplit(h)
-		body = m.tasksCard(m.width, th, 0, !m.workflowFocus) + "\n" + m.workflowCard(m.width, wh, 0)
+		body = m.tasksCard(m.width, th, 0, m.focus != cardWorkflows) + "\n" + m.workflowCard(m.width, wh, 0)
 	}
 	hint := m.footerHints()
 	if m.workflowDelete != "" {
