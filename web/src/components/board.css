@@ -129,3 +129,6 @@
 /* Each tab body is its own column so the comment form still sticks to the bottom. */
 .drawer-panel { display: flex; flex-direction: column; gap: 18px; min-height: 0; }
 .drawer-panel > * { flex-shrink: 0; }
+/* Chat takes the rest of the drawer: the transcript scrolls, the composer stays at the bottom. */
+.board-drawer .drawer-panel.drawer-chat { flex: 1 1 auto; gap: 0; }
+.board-drawer .drawer-panel.drawer-chat > * { flex-shrink: 1; }

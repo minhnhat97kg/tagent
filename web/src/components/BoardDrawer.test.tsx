@@ -87,10 +87,13 @@ test("a ticket without a workflow says so on the Run tab", async () => {
   render(<BoardDrawer task={{ ...task, workflow: undefined }} statuses={["todo", "done"]} roles={[]} role="" dir="/repo" reload={() => {}} workflows={[]} />)
   await userEvent.click(screen.getByRole("tab", { name: "Run" }))
   expect(within(screen.getByRole("tabpanel")).getByText(/no workflow/i)).toBeTruthy()
-  expect(mocks.api).not.toHaveBeenCalled()
+  expect(mocks.api).not.toHaveBeenCalledWith(expect.stringContaining("/run"))
 })
 
-test("arrow keys walk the tabs and only the active tab is in the tab order", async () => {
+test("arrow keys walk the tabs, skip a disabled Chat, and only the active tab is in the tab order", async () => {
+  mocks.api.mockImplementation(async (path: string) => path.startsWith("/api/tickets/30/chat")
+    ? { key: "scope#30", pane: "%3", harness: "codex", available: false, reason: "Chat needs a claude or pi agent, but %3 runs codex." }
+    : run)
   const tablist = mount()
   await userEvent.click(screen.getByRole("tab", { name: "Details" }))
   await userEvent.keyboard("{ArrowRight}")
@@ -102,7 +105,36 @@ test("arrow keys walk the tabs and only the active tab is in the tab order", asy
   expect(screen.getByRole("tab", { name: "Details" }).getAttribute("aria-selected")).toBe("true")
   await userEvent.keyboard("{End}")
   expect(screen.getByRole("tab", { name: "Run" }).getAttribute("aria-selected")).toBe("true")
-  await waitFor(() => expect(within(tablist).getAllByRole("tab")).toHaveLength(3))
+  await waitFor(() => expect(within(tablist).getAllByRole("tab")).toHaveLength(4))
+})
+
+test("Chat is disabled with the reason when the ticket's pane cannot be read", async () => {
+  mocks.api.mockImplementation(async (path: string) => path.startsWith("/api/tickets/30/chat")
+    ? { key: "scope#30", pane: "%3", harness: "codex", available: false, reason: "Chat needs a claude or pi agent, but %3 runs codex." }
+    : run)
+  mount()
+  const chat = screen.getByRole("tab", { name: "Chat" })
+  await waitFor(() => expect(chat.hasAttribute("disabled")).toBe(true))
+  expect(screen.getByRole("status").textContent).toContain("Chat needs a claude or pi agent")
+  await userEvent.click(chat)
+  expect(screen.getByRole("tab", { name: "Details" }).getAttribute("aria-selected")).toBe("true")
+})
+
+test("Chat starts the ticket's pane and a message can be saved as a comment", async () => {
+  const reload = vi.fn()
+  mocks.api.mockImplementation(async (path: string) => {
+    if (path.startsWith("/api/tickets/30/chat")) return { key: "scope#30", pane: "", harness: "", status: "", available: true }
+    return { harness: "claude", status: "idle", items: [{ id: "a.0", role: "assistant", text: "Keep the queue." }], cursor: "a.0", reset: true, more: false, queued: [] }
+  })
+  mocks.post.mockResolvedValue({ key: "scope#30", pane: "%7", harness: "claude", status: "idle", available: true, created: true })
+  render(<BoardDrawer task={task} statuses={["todo", "build", "done"]} roles={["builder"]} role="builder" dir="/repo" reload={reload} workflows={[workflow]} />)
+  await userEvent.click(screen.getByRole("tab", { name: "Chat" }))
+  await userEvent.click(await screen.findByRole("button", { name: /start chat/i }))
+  expect(mocks.post).toHaveBeenCalledWith("/api/tickets/30/chat?dir=%2Frepo", {})
+  expect(await screen.findByText("Keep the queue.")).toBeTruthy()
+  await userEvent.click(screen.getByRole("button", { name: "Save to ticket" }))
+  expect(mocks.post).toHaveBeenCalledWith("/api/tasks", { Dir: "/repo", Op: "comment", ID: "30", Text: "Keep the queue." })
+  expect(reload).toHaveBeenCalled()
 })
 
 test("a reply notification opens on Activity with the draft ready", () => {

@@ -4,12 +4,16 @@ import { AttachmentRows, AttachmentViewer, type Attachment } from "./Attachments
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react"
 import { DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { act, post } from "@/api"
-import { ArrowRight, Check, Paperclip, Pencil, Play, Reply, Trash2 } from "lucide-react"
+import { ArrowRight, Check, Paperclip, Pencil, Play, Reply, Trash2, TriangleAlert } from "lucide-react"
 import { RunView } from "./RunPage"
-import type { Task, Workflow } from "@/types"
+import { TicketChat } from "./TicketChat"
+import { useTicketChat } from "@/hooks/useTicketChat"
+import type { Project, Task, Workflow } from "@/types"
 
-// TABS splits the ticket panel: the facts, the conversation, and what actually ran.
-const TABS = [{ id: "details", label: "Details" }, { id: "activity", label: "Activity" }, { id: "run", label: "Run" }] as const
+// TABS splits the ticket panel: the facts, the ticket's chat, the conversation
+// on the ticket, and what actually ran. Chat is disabled with a reason when the
+// ticket's pane cannot be read (see useTicketChat).
+const TABS = [{ id: "details", label: "Details" }, { id: "chat", label: "Chat" }, { id: "activity", label: "Activity" }, { id: "run", label: "Run" }] as const
 type TabID = (typeof TABS)[number]["id"]
 
 // Status colours are reserved and always sit next to a text label.
@@ -60,7 +64,22 @@ export function Md({ text }: { text: string }) {
   })}</div>
 }
 
-export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, workflows, initialReply = '' }: { initialReply?: string; task: Task; statuses: string[]; roles: string[]; role: string; reason?: string; dir: string; reload: () => void; workflows: Workflow[] }) {
+export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, workflows, project, initialReply = '' }: { initialReply?: string; project?: Project; task: Task; statuses: string[]; roles: string[]; role: string; reason?: string; dir: string; reload: () => void; workflows: Workflow[] }) {
+  // The ticket's chat pane: the tab needs to know before it is opened whether Chat can be shown at all.
+  const chat = useTicketChat(dir, task.id)
+  const chatOff = !!chat.info && !chat.info.available
+  const tabAllowed = (i: number) => !(TABS[i]!.id === "chat" && chatOff)
+  // Saving a chat message is the human's action: it posts a normal ticket comment, so it
+  // shows in Activity, reaches the agents, and outlives the pane.
+  const saveToTicket = (text: string) => {
+    const body = text.trim()
+    if (!body) return
+    act(post<{ notice?: string }>("/api/tasks", { Dir: dir, Op: "comment", ID: task.id, Text: body }).then(r => {
+      toast.success(`Saved to ${shortId(task.id)}`)
+      if (r?.notice) toast(r.notice)
+      reload()
+    }))
+  }
   const [body, setBody] = useState(initialReply)
   const [sending, setSending] = useState(false)
   const [files, setFiles] = useState<File[]>([])
@@ -110,10 +129,14 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
   const [flow, setFlow] = useState(workflows.find(w => !w.error)?.name ?? "board")
   // A notification that offers to reply opens the conversation, not the facts.
   const [tab, setTab] = useState<TabID>(initialReply ? "activity" : "details")
+  // Chat can turn unavailable under an open panel (its pane's harness changed): leave it rather than show a dead tab.
+  useEffect(() => { if (tab === "chat" && chatOff) setTab("details") }, [tab, chatOff])
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([])
   const pickTab = (i: number) => {
-    const next = TABS[(i + TABS.length) % TABS.length]!
-    setTab(next.id); tabRefs.current[(i + TABS.length) % TABS.length]?.focus()
+    if (!TABS.some((_, n) => tabAllowed(n))) return
+    let next = ((i % TABS.length) + TABS.length) % TABS.length
+    while (!tabAllowed(next)) next = (next + 1) % TABS.length
+    setTab(TABS[next]!.id); tabRefs.current[next]?.focus()
   }
   const op = (body: Record<string, string>) => act(post("/api/tasks", { Dir: dir, ID: task.id, ...body }).then(reload))
   // Replying belongs to the conversation, so the reply lands in the Activity tab.
@@ -143,12 +166,14 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
     </form>}
     <div className="drawer-tabs" role="tablist" aria-label="Ticket panel">
       {TABS.map((t, i) => <button key={t.id} ref={el => { tabRefs.current[i] = el }} type="button" role="tab" id={`task-tab-${t.id}`} aria-selected={tab === t.id} aria-controls={`task-panel-${t.id}`} tabIndex={tab === t.id ? 0 : -1}
+        disabled={!tabAllowed(i)} title={t.id === "chat" && chatOff ? chat.info?.reason : undefined}
         onClick={() => setTab(t.id)}
         onKeyDown={e => {
           if (e.key === "ArrowRight" || e.key === "ArrowLeft") { e.preventDefault(); pickTab(i + (e.key === "ArrowRight" ? 1 : -1)) }
           if (e.key === "Home" || e.key === "End") { e.preventDefault(); pickTab(e.key === "Home" ? 0 : TABS.length - 1) }
         }}>{t.label}</button>)}
     </div>
+    {chatOff && <p role="status" className="-mt-3 flex items-start gap-1.5 rounded-md border border-amber-500/40 bg-amber-500/5 px-2 py-1.5 text-[11.5px] text-amber-700 dark:text-amber-400"><TriangleAlert className="mt-px size-3.5 shrink-0" /><span>Chat unavailable · {chat.info?.reason || "this ticket's chat cannot be read"}</span></p>}
     {tab === "details" && <div role="tabpanel" id="task-panel-details" aria-labelledby="task-tab-details" className="drawer-panel">
       <dl className="board-fields">
       <dt>Status</dt><dd><i className="status-dot" style={{ background: statusColor(task.status) }} /><select aria-label="Task status" value={task.status} onChange={e => act(post("/api/tasks", { Dir: dir, Op: "set", ID: task.id, Status: e.target.value }).then(reload))}>{statuses.map(s => <option key={s}>{s}</option>)}</select></dd>
@@ -166,6 +191,9 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
       {desc && <section><h3>Description</h3><Md text={desc} /></section>}
       {!!attachments.length && <section><h3>Attachments <span className="board-muted">{attachments.length}</span></h3><AttachmentRows items={attachments} open={setSelected} /></section>}
       {!desc && !attachments.length && <p className="board-muted">No description or attachments yet.</p>}
+    </div>}
+    {tab === "chat" && <div role="tabpanel" id="task-panel-chat" aria-labelledby="task-tab-chat" className="drawer-panel drawer-chat">
+      <TicketChat info={chat.info} error={chat.error} starting={chat.starting} onStart={() => void chat.start()} onReload={() => void chat.reload()} onSave={saveToTicket} project={project} />
     </div>}
     {tab === "activity" && <div role="tabpanel" id="task-panel-activity" aria-labelledby="task-tab-activity" className="drawer-panel">
       <section>

@@ -1,5 +1,5 @@
 import { useLayoutEffect, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react"
-import { ArrowRight, ArrowUp, Brain, Bot, ListTodo, Paperclip, Workflow, X, Check, ChevronDown, Cpu, ExternalLink, FileText, MessageCircleQuestion, Loader2, Pencil, Search, Terminal, Wrench } from "lucide-react"
+import { ArrowRight, ArrowUp, Brain, Bot, ListTodo, Paperclip, Save, Workflow, X, Check, ChevronDown, Cpu, ExternalLink, FileText, MessageCircleQuestion, Loader2, Pencil, Search, Terminal, Wrench } from "lucide-react"
 import { api, post } from "@/api"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -16,7 +16,8 @@ const MAX_ITEMS = 1000
 const POLL_MS = 1500
 
 // AgentChat renders the agent's harness transcript. The agent keeps running in tmux; this only reads it and sends text.
-export function AgentChat({ pane, onOpenTerminal, onUnavailable, project }: { pane: string; onOpenTerminal: () => void; onUnavailable: () => void; project?: Project }) {
+// onSave, when given, offers each message a "Save to ticket" button (a ticket's Chat tab only).
+export function AgentChat({ pane, onOpenTerminal, onUnavailable, project, onSave }: { pane: string; onOpenTerminal: () => void; onUnavailable: () => void; project?: Project; onSave?: (text: string) => void }) {
   const [items, setItems] = useState<Item[]>([])
   const [feed, setFeed] = useState<Feed>()
   const [draft, setDraft] = useState("")
@@ -181,7 +182,7 @@ export function AgentChat({ pane, onOpenTerminal, onUnavailable, project }: { pa
     } catch (e) { setError((e as Error).message) }
   }
   const status = statusLabel(feed?.status, tool)
-  const renderRow = (r: Row) => r.kind === "msg" ? <Message key={r.item.id} item={r.item} /> : (isQuestion(r)
+  const renderRow = (r: Row) => r.kind === "msg" ? <Message key={r.item.id} item={r.item} onSave={onSave} /> : (isQuestion(r)
     ? <AskCard key={r.call.id} ask={toAsk(r)!} answer={r.output === undefined ? undefined : cleanAnswer(r.output)} actions={r.output === undefined ? actions : undefined} picked={r.output === undefined ? picked : undefined} />
     : <ToolCard key={r.call.id} row={r} />)
   return <div className="flex min-h-0 flex-1 flex-col">
@@ -284,22 +285,39 @@ function statusLabel(status: string | undefined, tool: string | undefined) {
   }
 }
 
-function Message({ item }: { item: Item }) {
+// SaveToTicket is the human's explicit promotion of a chat message to a ticket
+// comment: chat is ephemeral, the ticket's activity is not.
+function SaveToTicket({ text, onSave, align }: { text: string; onSave?: (text: string) => void; align: "start" | "end" }) {
+  if (!onSave || !text.trim()) return null
+  return <div className={`mt-0.5 flex ${align === "end" ? "justify-end" : "ml-8 justify-start"}`}>
+    <button type="button" onClick={() => onSave(text)} title="Post this message as a comment on the ticket"
+      className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-1 group-hover/msg:opacity-100 max-md:opacity-100">
+      <Save className="size-3" />Save to ticket
+    </button>
+  </div>
+}
+
+function Message({ item, onSave }: { item: Item; onSave?: (text: string) => void }) {
   if (item.role === "thinking") return <Fold icon={<Brain className="size-3.5 shrink-0" />} title="Reasoning">
     <p className="whitespace-pre-wrap text-muted-foreground">{item.text}</p>
   </Fold>
-  if (item.role !== "user") return <Bubble who="assistant"><Markup text={item.text ?? ""} /></Bubble>
+  if (item.role !== "user") return <div className="group/msg">
+    <Bubble who="assistant"><Markup text={item.text ?? ""} /></Bubble>
+    <SaveToTicket text={item.text ?? ""} onSave={onSave} align="start" />
+  </div>
   // Uploaded files travel as paths; show images as thumbnails and other files as download cards.
   const sys = splitSystem(item.text ?? "")
   const { text, files } = splitAttachments(sys.text)
   const notes = sys.notes.map((n, i) => <p key={i} className="px-2 py-0.5 text-center text-[11px] text-muted-foreground">{n}</p>)
   if (!text && !files.length) return <>{notes}</>
-  return <>{notes}<Bubble who="user">
+  return <div className="group/msg">{notes}<Bubble who="user">
     {!!files.length && <span className="mb-1 flex flex-wrap gap-1.5">{files.map(f => f.image
       ? <a key={f.url} href={f.url} target="_blank" rel="noreferrer"><img src={f.url} alt={f.name} className="max-h-40 max-w-full rounded-lg border object-cover" /></a>
       : <a key={f.url} href={f.url} download={f.name} className="flex max-w-full items-center gap-2 rounded-lg border bg-background px-2.5 py-1.5 text-xs hover:bg-accent"><FileText className="size-4 shrink-0" /><span className="truncate font-medium">{f.name}</span></a>)}</span>}
     {text && <span className="whitespace-pre-wrap">{text}</span>}
-  </Bubble></>
+  </Bubble>
+  <SaveToTicket text={text} onSave={onSave} align="end" />
+  </div>
 }
 
 function toolIcon(name = ""): ReactNode {

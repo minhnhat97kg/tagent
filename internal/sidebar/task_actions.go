@@ -84,6 +84,9 @@ func (m Model) handleTaskForm(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	}
+	if m.taskForm == "chat" && key.Type == tea.KeyCtrlS {
+		return m.saveChatInput()
+	}
 	switch key.Type {
 	case tea.KeyBackspace, tea.KeyDelete:
 		r := []rune(m.taskInput)
@@ -97,6 +100,13 @@ func (m Model) handleTaskForm(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case tea.KeyEnter:
 		mode, input := m.taskForm, strings.TrimSpace(m.taskInput)
 		m.taskForm = ""
+		if mode == "chat" {
+			pane := m.chat.Pane
+			if input == "" || pane == "" {
+				return m, nil
+			}
+			return m, sendTicketChat(pane, input)
+		}
 		if mode == "attach" {
 			scope, id := m.notesScope, m.notes[m.taskCursor].ID
 			return m, func() tea.Msg {
@@ -175,6 +185,8 @@ func (m Model) taskFormView() string {
 		title, hint = "● Commit staged changes", "Message · Enter commit · Esc cancel"
 	case "i":
 		title, hint = "✎ Send prompt to "+m.promptPane, "Enter send · Esc cancel"
+	case "chat":
+		title, hint = "✎ Message the chat", "Enter send · ctrl+s save to ticket · Esc cancel"
 
 	}
 	if m.taskForm != "start" && m.taskForm != "attachments" {

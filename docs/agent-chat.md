@@ -64,3 +64,25 @@ endpoint, and the pane keeps running in tmux.
 The conversation itself lives in the pane transcript, so it is the same for
 Web and TUI and disappears when the pane is cleared. The older per-project
 receptionist/intake harness was removed; this path replaces it.
+
+## Per-ticket chat (UI)
+
+The ticket panel has a **Chat** tab next to Details, Activity and Run — the same
+tab in the web drawer and in the sidebar's ticket drawer (`1`-`4`, `Tab`).
+
+- **Web**: `GET /api/tickets/<id>/chat` decides the tab. With no pane yet the tab
+  offers **Start chat**; `POST` spawns it with the ticket context. The conversation
+  is the ordinary Chat view of that pane (status line, queued messages, approval
+  excerpt, Open in Terminal).
+- **TUI**: the tab shows the pane's transcript; `enter` starts the chat when
+  there is none and `i` messages the agent through `tagent send` (queued while
+  the agent is busy).
+- **Save to ticket**: chat is ephemeral, the ticket is not. A human saves a
+  message as a ticket comment: the **Save to ticket** button under a web message
+  (`Op: "comment"` on `/api/tasks`, author `user`), `S` for the newest reply in
+  the TUI, `ctrl+s` in the TUI composer for what was typed. Nothing is saved
+  automatically, and the agent never posts a comment this way.
+- **Unavailable**: when a pane bound to the ticket runs a harness whose
+  transcript cannot be read (not claude/pi), `available:false` with a `reason`:
+  the web tab is disabled and prints the reason, the TUI keeps the reason on the
+  ticket summary line and skips the tab when cycling.

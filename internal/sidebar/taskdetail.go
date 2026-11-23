@@ -19,24 +19,32 @@ const detailLabelWidth = 11
 // detailDescLines is how much of a long description is shown while collapsed.
 const detailDescLines = 8
 
-// The ticket panel's tabs: what the ticket is, the conversation about it, and
-// what actually ran. The summary above them never changes with the tab.
+// The ticket panel's tabs: what the ticket is, the ticket's chat, the
+// conversation about it, and what actually ran. The summary above them never
+// changes with the tab.
 const (
 	detailTabDetails = iota
+	detailTabChat
 	detailTabActivity
 	detailTabRun
 )
 
-var detailTabs = []string{"Details", "Activity", "Run"}
+var detailTabs = []string{"Details", "Chat", "Activity", "Run"}
 
 // detailFooter is the sticky key line inside the drawer, always the last row.
+// Each tab line is shortened rather than cut, so a narrow pane keeps the keys
+// that work where the cursor is.
 func (m Model) detailFooter(w int) string {
-	keys := "tab/1-3 tabs · j/k scroll · e edit · C comment · a files · s events · esc close"
-	if ansi.StringWidth(keys) > w {
-		keys = "tab tabs · j/k scroll · e edit · C · a files · s · esc"
+	ladder := []string{"tab/1-4 tabs · j/k scroll · e edit · C comment · a files · s events · esc close", "tab tabs · j/k scroll · e edit · C · a files · s · esc", "tab · j/k · esc"}
+	if m.detailTab == detailTabChat {
+		ladder = []string{"i message · S save reply · tab/1-4 tabs · j/k scroll · esc close", "i message · S save · tab · j/k · esc", "i · S · esc"}
 	}
-	if ansi.StringWidth(keys) > w {
-		keys = "tab · j/k · esc"
+	keys := ladder[len(ladder)-1]
+	for _, line := range ladder {
+		if ansi.StringWidth(line) <= w {
+			keys = line
+			break
+		}
 	}
 	return m.boardStyle(m.theme.TextDim).Render(keys)
 }
@@ -109,6 +117,11 @@ func (m Model) taskDetailSummary(t tasks.Task, w int) []string {
 	}
 	if tabs := m.detailTabStrip(w); len(tabs) > 0 {
 		lines = append(lines, tabs...)
+	}
+	// A Chat tab that cannot be entered says why, right where the tabs are: a
+	// TUI has no tooltips, so the reason has to stay on screen.
+	if m.chat.Loaded && m.chat.ID == t.ID && !m.chat.available() {
+		lines = append(lines, ansi.Truncate("  "+m.boardStyle(m.theme.StatusError).Render("Chat unavailable")+dim.Render(" · "+m.chat.Reason), w, ""))
 	}
 	if t.Status == "blocked" {
 		question := m.detailQuestion(t)
@@ -211,6 +224,8 @@ func (m Model) taskDetailBody(t tasks.Task, w int) []string {
 		return nil
 	}
 	switch m.detailTab {
+	case detailTabChat:
+		return m.taskDetailChat(t, w)
 	case detailTabActivity:
 		return m.taskDetailActivity(t, w)
 	case detailTabRun:
@@ -654,21 +669,36 @@ func (m Model) detailViewport(lines []string, w, rows, offset int) []string {
 }
 
 // detailTabKey switches the ticket panel's tab: tab/l and shift+tab/h cycle,
-// 1-3 jump straight to Details, Activity or Run. Scrolling restarts at the top
-// so a new tab never opens half way down.
+// 1-4 jump straight to Details, Chat, Activity or Run. Scrolling restarts at the
+// top so a new tab never opens half way down. A Chat tab that cannot be entered
+// (its pane's harness cannot be read) is skipped by cycling and explained when
+// it is asked for by number.
 func (m *Model) detailTabKey(key string) bool {
-	next := -1
+	step := 0
+	cycle := false
 	switch key {
 	case "tab", "l":
-		next = m.detailTab + 1
+		step, cycle = 1, true
 	case "shift+tab", "h":
-		next = m.detailTab - 1
-	case "1", "2", "3":
-		next = int(key[0] - '1')
+		step, cycle = -1, true
+	case "1", "2", "3", "4":
+		step = int(key[0]-'1') - m.detailTab
 	default:
 		return false
 	}
-	m.detailTab = (next%len(detailTabs) + len(detailTabs)) % len(detailTabs)
+	next := ((m.detailTab+step)%len(detailTabs) + len(detailTabs)) % len(detailTabs)
+	if next == detailTabChat && m.chatTabBlocked() {
+		if !cycle {
+			m.taskNotice = "Chat unavailable: " + m.chat.Reason
+			return true
+		}
+		dir := 1
+		if step < 0 {
+			dir = -1
+		}
+		next = ((next+dir)%len(detailTabs) + len(detailTabs)) % len(detailTabs)
+	}
+	m.detailTab = next
 	m.detailScroll = 0
 	return true
 }

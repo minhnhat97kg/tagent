@@ -682,18 +682,60 @@ func accordion(total int, rest, want []int, focus int) []int {
 	return h
 }
 
-// fitHeights gives each card its need; when they do not fit, unfocused cards
-// shrink first (last first), then the focused one, never below 3.
-func fitHeights(total int, need []int, focus int) []int {
-	h := slices.Clone(need)
-	over := sum(h) - total
-	for pass := 0; pass < 2; pass++ {
-		for i := len(h) - 1; i >= 0 && over > 0; i-- {
-			if (i != focus) == (pass == 0) {
-				cut := min(over, max(0, h[i]-3))
-				h[i] -= cut
-				over -= cut
+// fitHeights fills exactly total rows with the cards of one column, so no gap
+// is ever left above the footer. Every card starts at its min height, grows
+// toward its need in column order (fixed content is not clipped just because a
+// lower card wants the rows) and the spare rows left are split by weight, with
+// Tasks and Workflows (weight > 0) taking them first. A column too short for
+// the minimums shrinks the unfocused cards first, always the tallest one, down
+// to a row.
+func fitHeights(total int, low, need, weight []int, focus int) []int {
+	h := make([]int, len(low))
+	for i := range h {
+		h[i] = max(1, low[i])
+	}
+	left := total - sum(h)
+	if left < 0 {
+		for pass := 0; pass < 2 && left < 0; pass++ { // unfocused cards, then the focused one
+			for left < 0 {
+				pick := -1
+				for i := range h {
+					if (i != focus) == (pass == 1) || h[i] <= 1 {
+						continue
+					}
+					if pick < 0 || h[i] > h[pick] {
+						pick = i
+					}
+				}
+				if pick < 0 {
+					break
+				}
+				h[pick]--
+				left++
 			}
+		}
+		return h
+	}
+	for i := range h {
+		grow := min(left, max(0, need[i]-h[i]))
+		h[i] += grow
+		left -= grow
+	}
+	if left > 0 { // spare rows: Tasks and Workflows first, in proportion to weight
+		var slots []int
+		for i, w := range weight {
+			for k := 0; k < w; k++ {
+				slots = append(slots, i)
+			}
+		}
+		if len(slots) == 0 { // a column of fixed cards only: they still fill it
+			for i := range h {
+				slots = append(slots, i)
+			}
+		}
+		for k := 0; left > 0; k++ {
+			h[slots[k%len(slots)]]++
+			left--
 		}
 	}
 	return h
@@ -966,11 +1008,29 @@ func (m Model) boardKey(key string) (Model, tea.Cmd, bool) {
 				m.detailSysOpen = !m.detailSysOpen
 			}
 			return m, nil, true
-		case "enter", " ": // expand or collapse a long description in place
-			if m.detailTab == detailTabDetails {
+		case "enter", " ": // expand a long description in place, or start the ticket's chat
+			switch m.detailTab {
+			case detailTabDetails:
 				m.detailDescOpen = !m.detailDescOpen
+			case detailTabChat:
+				if m.chat.Pane == "" && m.chat.available() && len(m.notes) > 0 {
+					dir, id := m.boardDir, m.notes[m.taskCursor].ID
+					m.taskNotice = "Starting the chat…"
+					return m, startTicketChat(dir, id), true
+				}
 			}
 			return m, nil, true
+		case "i": // message the chat's agent; the form's footer says how to save it
+			if m.detailTab == detailTabChat {
+				if m.chat.started() {
+					m.taskForm, m.taskInput = "chat", ""
+				}
+				return m, nil, true
+			}
+		case "S": // save the newest reply to the ticket as a comment
+			if m.detailTab == detailTabChat {
+				return m.saveChatReply(), nil, true
+			}
 		}
 		if m.scrollDetail(key) {
 			return m, nil, true

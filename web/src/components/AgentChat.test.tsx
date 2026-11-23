@@ -227,3 +227,21 @@ test("@ tags a ticket or a workflow and # tags tickets only", async () => {
   expect(input.value).toBe('see workflow "feature" and task #25 (Agents management) ')
   expect(mocks.post).not.toHaveBeenCalled()
 })
+
+test("Save to ticket is offered only when the parent asks for it and posts that message", async () => {
+  mocks.api.mockReset().mockResolvedValue(feed({ items: [
+    { id: "u.0", role: "user", text: "what did we decide?" },
+    { id: "a.0", role: "assistant", text: "Keep the queue." },
+  ], cursor: "a.0" }))
+  const onSave = vi.fn()
+  render(<AgentChat pane="%1" onOpenTerminal={vi.fn()} onUnavailable={vi.fn()} onSave={onSave} />)
+  expect((await screen.findAllByRole("button", { name: "Save to ticket" })).length).toBe(2)
+  await userEvent.click(screen.getAllByRole("button", { name: "Save to ticket" })[1]!)
+  expect(onSave).toHaveBeenCalledWith("Keep the queue.")
+  cleanup()
+  // Without onSave (an ordinary agent's Chat view) there is no such button.
+  mocks.api.mockReset().mockImplementation(async () => feed({ items: [{ id: "a.1", role: "assistant", text: "Done." }], cursor: "a.1" }))
+  mount()
+  await screen.findByText("Done.")
+  expect(screen.queryByRole("button", { name: "Save to ticket" })).toBeNull()
+})

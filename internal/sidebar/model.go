@@ -680,9 +680,11 @@ type Model struct {
 	boardWorkflows []workflow.Workflow // listed under the board
 	boardFlow      bool                // workflow view: the configured statuses and who acts in each
 	detailScroll   int
-	detailTab      int  // the ticket panel's tab: Details, Activity or Run
+	detailTab      int  // the ticket panel's tab: Details, Chat, Activity or Run
 	detailDescOpen bool // the drawer shows the whole description
 	detailSysOpen  bool // the drawer shows the dispatch/system events
+	chat           ticketChat
+	chatBusy       bool // a chat read is in flight; do not start another
 	boardDir       string
 	flowWorkflow   string
 	boardHistory   []tasks.Event
@@ -1153,10 +1155,18 @@ func (m *Model) recomputeRepoNames() {
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if _, ok := msg.(taskActionMsg); ok {
 		m.attachmentsKey = ""
+		m.chat = ticketChat{} // a comment or a status move changes what the chat shows
 	}
 	next, cmd := m.update(msg)
 	if nm, ok := next.(Model); ok {
-		return nm.syncAttachments(), cmd
+		nm = nm.syncAttachments()
+		// The Chat tab follows the ticket under the cursor and the pane transcript
+		// without the keys having to ask for it.
+		var chatCmd tea.Cmd
+		if nm, chatCmd = nm.chatLoadCmd(); chatCmd != nil {
+			cmd = tea.Batch(cmd, chatCmd)
+		}
+		return nm, cmd
 	}
 	return next, cmd
 }
@@ -1210,6 +1220,18 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.taskNotice = msg.Text
 		m.setNotes(tasks.List(m.notesScope))
 		m.boardHistory, _ = tasks.ReadEvents(m.notesScope, 0)
+		return m, nil
+	case ticketChatMsg:
+		m.chat, m.chatBusy = msg.Chat, false
+		return m, nil
+	case chatStartedMsg:
+		m.chatBusy = false
+		m.chat = ticketChat{}
+		if msg.Err != nil {
+			m.taskNotice = "! Chat: " + msg.Err.Error()
+		} else {
+			m.taskNotice = "✓ Chat started"
+		}
 		return m, nil
 	case tea.WindowSizeMsg:
 		m.width = msg.Width

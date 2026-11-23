@@ -98,11 +98,18 @@ the selection when necessary. `h/l` selects a column; `j/k` selects a card withi
 it. Narrow panes retain the list with status group headers. `H/L` still moves
 the ticket's status. Enter opens the detail drawer; Escape closes it. At 100
  columns or more it is a right pane beside the tickets, narrower panes show it
- full width. The drawer has three tabs: **Details** (description, attachments, note, agent runs),
- **Activity** (comments and the folded dispatch noise) and **Run** (the ticket's
- run, same data as the web). `Tab`/`l` and `Shift-Tab`/`h` cycle the tabs; `1`,
- `2`, `3` jump to Details, Activity, Run. Opening the drawer always starts on
- Details.
+ full width. The drawer has four tabs: **Details** (description, attachments, note, agent runs),
+ **Chat** (the ticket's own agent conversation), **Activity** (comments and the
+ folded dispatch noise) and **Run** (the ticket's run, same data as the web).
+ `Tab`/`l` and `Shift-Tab`/`h` cycle the tabs; `1`, `2`, `3`, `4` jump to
+ Details, Chat, Activity, Run. Opening the drawer always starts on Details.
+
+Chat is the pane bound to the ticket (`tagent chat <id>`, the same conversation
+as the web's Chat tab). `enter` starts it when there is none; `i` messages the
+agent (queued while it is busy, like `tagent send`); `S` saves the newest reply
+to the ticket as a comment, so what was settled survives the pane. When the
+bound pane runs a harness whose transcript Chat cannot read (anything but claude
+or pi), the tab is disabled and the summary line says why.
 
 Cards show the current status role and its live pane state, comment count, and
 repeated workflow-entry count when greater than one. Blocked tickets and tickets

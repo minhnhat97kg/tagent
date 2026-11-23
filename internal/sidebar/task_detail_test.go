@@ -293,16 +293,16 @@ func TestTaskDetailTabs(t *testing.T) {
 	m.width, m.height = 80, 24
 	m.boardDrawer = true
 	view := ansi.Strip(strings.Join(m.boardDetail(76, 19), "\n"))
-	for _, want := range []string{"[Details]", "Activity", "Run", "Description"} {
+	for _, want := range []string{"[Details]", "Chat", "Activity", "Run", "Description"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("default tab misses %q:\n%s", want, view)
 		}
 	}
-	// 1-3 jump straight to a tab.
+	// 1-4 jump straight to a tab.
 	for _, c := range []struct {
 		key string
 		tab int
-	}{{"2", detailTabActivity}, {"3", detailTabRun}, {"1", detailTabDetails}} {
+	}{{"2", detailTabChat}, {"3", detailTabActivity}, {"4", detailTabRun}, {"1", detailTabDetails}} {
 		m, _ = boardPress(m, c.key)
 		if m.detailTab != c.tab {
 			t.Fatalf("%s selected tab %d, want %d", c.key, m.detailTab, c.tab)
@@ -310,7 +310,7 @@ func TestTaskDetailTabs(t *testing.T) {
 	}
 	// tab / shift+tab cycle, wrapping at the ends.
 	m, _ = boardPress(m, "tab")
-	if m.detailTab != detailTabActivity {
+	if m.detailTab != detailTabChat {
 		t.Fatal("tab did not cycle forward")
 	}
 	m, _ = boardPress(m, "shift+tab")

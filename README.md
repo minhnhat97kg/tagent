@@ -209,6 +209,12 @@ harness notifications, check status when the user asks.
 
 Each agent in the web dashboard has **Terminal** and **Chat** views (Chat renders the conversation from the transcript; claude and pi agents). See [agent chat](docs/agent-chat.md).
 
+A ticket's panel has its own **Chat** tab (web and TUI): one agent dedicated to
+that ticket, started with the ticket's context. A human can save a chat message
+to the ticket as a comment, so what the conversation settled stays on the board.
+The tab is disabled with the reason when its pane runs a harness Chat cannot
+read.
+
 The web dashboard opens on the ticket board. The left rail (usage, agents,
 tickets) collapses to an icon strip with the toggle at the left of the top bar;
 the choice is remembered per device.
