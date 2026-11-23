@@ -96,11 +96,10 @@ the main worktree's `.tasks/workflows/<name>.yml`; existing files are never over
 The list reloads after the editor exits (including errors) or a deletion. Editing
 and deleting target the selected file, including global workflows marked `global`.
 
-The sidebar opens on tickets grouped by configured status order. At dashboard
-widths it shows Kanban columns, windowed around the selected ticket when the
-workflow has more columns than fit. At 110 columns and wider, a ticket inspector
-shares the screen. Enter opens the full comment timeline; Escape closes drawers
-without leaving the board. Mouse clicks select cards; wheel or j/k changes selection.
+The sidebar opens on tickets grouped by configured status order. At pane widths of 120 columns or more it shows status columns, windowed around
+the selection when necessary. `h/l` selects a column; `j/k` selects a card within
+it. Narrow panes retain the list with status group headers. `H/L` still moves
+the ticket's status. Enter opens the detail drawer; Escape closes it.
 
 Cards show the current status role and its live pane state, comment count, and
 repeated workflow-entry count when greater than one. Blocked tickets and tickets
@@ -131,10 +130,10 @@ Next, pass and fail must name existing statuses. Run requires both pass and fail
 Max_loops is nonnegative (0/omitted is unlimited); the fire cap must be positive.
 Omitted next permits any move; explicit `next: []` permits none.
 
-The board shows few columns for many statuses, like Jira status categories.
-Each status sits in its `column:`; by default `todo` and `done` are their own
-columns and every other status is `in progress`. Cards show their status as a
-badge, so `plan`, `build`, `test`, `review` and `blocked` share one column.
+The TUI board uses one column per configured status, in configuration order.
+Headers show the status, ticket count and role/run. Cards use two title lines
+and one metadata line; blocked cards show the question. Done cards collapse to
+one line.
 
 A configured role requires agent, with optional model. Agent resolves as a
 harness name or an existing agent definition. Unlisted roles resolve as their own
@@ -293,6 +292,14 @@ The global tmux destination is shared by boards. Messages expose project scope,
 ticket title/ID and assignees, with long display text truncated. Delivery is
 best-effort after releasing the board lock, with a three-second timeout and no
 retries or replay; concurrent transitions may arrive out of order.
+
+## Web receptionist
+
+The left pane's **Start Chat** button reveals/resumes the selected project's durable conversation and focuses its composer. It never calls the model, clears history, or creates a ticket. Pending proposals remain indicated while closed. **Create & start** is a separate approval action.
+
+Web chat uses one bounded, non-streaming native Ollama `/api/chat` tool call. Install/run Ollama with a tool-capable model (default `bonsai-2:9b`). Set `@agent_chat_model` to change the model, or `off` to disable web chat; `@agent_chat_endpoint` defaults to `http://127.0.0.1:11434`. Only use a trusted endpoint: project summaries and conversation history are sent there. Unsupported models and transport errors fail visibly and can be retried; there is no prose fallback.
+
+The fixed tools answer, ask a question, propose a ticket, propose an allowlisted command, or escalate. The native prompt includes command allowlisting documentation, not the legacy `ANSWER:`/`CMD:` response protocol. There is no MCP, plugin discovery, shell tool, or file tool. Tools only produce proposals: mutations still require explicit local approval. Commands require a `!` request. CLI/sidebar/Telegram retain the legacy `@agent_intake_llm` command/prose adapter; custom shell commands are never launched by web chat. Both paths share history and approval state.
 
 ## Telegram receptionist chat
 

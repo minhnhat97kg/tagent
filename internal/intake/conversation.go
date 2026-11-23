@@ -183,6 +183,15 @@ func ReserveSubmission(scope, input, identity string) (Conversation, error) {
 }
 
 func CompleteSubmission(scope string, generation uint64, raw string, runErr error, workflows []string) (Conversation, error) {
+	p, err := ParseResponse(raw)
+	if runErr == nil {
+		runErr = err
+	}
+	return CompleteTypedSubmission(scope, generation, Result{p.Question, p.Answer, p.Command, p.Escalate, p.Draft}, raw, runErr, workflows)
+}
+
+// CompleteTypedSubmission shares persistence and approval semantics with legacy clients.
+func CompleteTypedSubmission(scope string, generation uint64, p Result, raw string, runErr error, workflows []string) (Conversation, error) {
 	return conversationUpdate(scope, func(s *Conversation) error {
 		if s.Generation != generation || s.Status != "running" || s.Owner != os.Getpid() {
 			return ErrStale
@@ -198,8 +207,7 @@ func CompleteSubmission(scope string, generation uint64, raw string, runErr erro
 			s.append("error", runErr.Error())
 			return nil
 		}
-		p, err := ParseResponse(raw)
-		if err != nil || (p.Question != "" && len(s.Turns) >= 3) {
+		if p.Question != "" && len(s.Turns) >= 3 {
 			s.Status = "failed"
 			s.append("error", "Invalid receptionist reply; please retry.")
 			return nil

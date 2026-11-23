@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/x/ansi"
+
+	"tagent/internal/tasks"
 )
 
 func TestLocalDefinitionsIncludeBoardRoles(t *testing.T) {
@@ -18,7 +20,7 @@ func TestLocalDefinitionsIncludeBoardRoles(t *testing.T) {
 	}
 	os.MkdirAll(filepath.Join(dir, ".tasks"), 0o755)
 	os.WriteFile(filepath.Join(dir, ".tasks", "board.yaml"), []byte("roles:\n  researcher: {agent: pi, model: m}\n  planner: {agent: pi}\n"), 0o644)
-	defs := localDefinitions(dir, "claude")
+	defs := tasks.LocalDefinitions(dir, "claude")
 	if len(defs) != 2 || defs[0].Name != "planner" || defs[1].Name != "researcher" || !strings.HasSuffix(defs[1].Path, "board.yaml") {
 		t.Fatalf("%+v", defs)
 	}

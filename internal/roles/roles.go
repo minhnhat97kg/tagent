@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"tagent/internal/apppath"
 
 	"github.com/BurntSushi/toml"
 )
@@ -51,7 +52,7 @@ func GlobalDir() string {
 		home, _ := os.UserHomeDir()
 		base = filepath.Join(home, ".config")
 	}
-	return filepath.Join(base, "tagent", "agents")
+	return filepath.Join(apppath.Dir(base), "agents")
 }
 func ListGlobal(harness string) []Definition {
 	defs := listDir(filepath.Join(GlobalDir(), Harness(harness)), Harness(harness))

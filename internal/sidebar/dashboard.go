@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"slices"
 	"strings"
 	"time"
 
@@ -234,11 +233,46 @@ func (m Model) taskLines(width, height int) []string {
 	if len(m.notes) == 0 {
 		out = append(out, "  no tasks · task add <text>")
 	}
-	// Same two-line rows as the board: icon + title, then status · owner · agent state.
-	order := m.boardOrder()
-	start := taskStart(slices.Index(order, m.taskCursor), len(order), 1+(height-1)/2)
-	for i := start; i < len(m.notes) && len(out)+2 <= height; i++ {
-		out = append(out, m.boardRow(order[i], width)...)
+	var lines []string
+	cursorLine := 0
+	for _, status := range m.boardColumns() {
+		cards := m.boardStatusCards(status)
+		lines = append(lines, m.boardStyle(m.boardColor(status)).Bold(true).Render(fmt.Sprintf(" %s %d", status, len(cards))))
+		for _, idx := range cards {
+			t := m.notes[idx]
+			mark := "  "
+			if idx == m.taskCursor {
+				mark = "▌ "
+				cursorLine = len(lines)
+			}
+			row := fmt.Sprintf("%sTA-%s %s", mark, t.ID, boardTitle(t))
+			if worker := m.boardWorker(t); worker != "" {
+				row += " · " + worker
+			} else if len(t.Assignees) > 0 {
+				row += " · " + t.Assignees[0]
+			} else {
+				for _, s := range m.boardConfig.Statuses {
+					if s.ID == status && s.Role != "" {
+						row += " · " + s.Role
+					}
+				}
+			}
+			if status == "blocked" {
+				cfg, _ := tasks.ConfigForTask(m.boardDir, m.boardConfig, t)
+				_, _, reason := tasks.BlockContext(t, cfg, m.boardHistory)
+				if reason != "" {
+					row += " · " + strings.Join(strings.Fields(reason), " ")
+				}
+			}
+			if len(t.Comments) > 0 {
+				row += fmt.Sprintf(" · %s %d", m.icons.Message, len(t.Comments))
+			}
+			lines = append(lines, m.boardStyle(m.boardColor(status)).Render(boardFit(row, width)))
+		}
+	}
+	start := max(0, cursorLine-max(1, height-3))
+	for i := start; i < len(lines) && len(out) < height; i++ {
+		out = append(out, lines[i])
 	}
 	for len(out) < height {
 		out = append(out, "")
@@ -374,7 +408,7 @@ func (m Model) focusedDefinitions() []roles.Definition {
 	defs := roles.ListGlobal(harness)
 	selected, _ := paneIDAt(m.rows, m.cursor)
 	if dir := m.focusDir(selected); dir != "" {
-		defs = append(defs, localDefinitions(dir, harness)...)
+		defs = append(defs, tasks.LocalDefinitions(dir, harness)...)
 	}
 	return defs
 }

@@ -1,16 +1,21 @@
-import { LayoutDashboard } from "lucide-react"
-import { ProjectSelect } from "@/components/ProjectSelect"
-import { Panel } from "@/components/Panel"
-import { nav } from "@/hooks/useRoute"
-import { baseName } from "@/lib/status"
 import type { Overview } from "@/types"
 const compact = (n: number) => Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(n)
-export function OverviewPanel({overview, projects, dir, onDir, className}: {overview?: Overview; projects: string[]; dir: string; onDir: (dir: string) => void; className?: string}) {
- const pct = (n: number | null) => n === null ? "n/a" : `${Math.round(n)}%`
- return <Panel className={className} icon={<LayoutDashboard className="size-4" />} title={`Overview · ${baseName(dir)}`} right={<ProjectSelect value={dir} projects={projects} onChange={d => {onDir(d); nav("/")}} />}>
- {!overview ? <p className="p-2.5 text-xs text-muted-foreground">Loading overview…</p> : <div className="grid grid-cols-3 gap-2 p-2.5 text-xs">
- {overview.providers.map(p => <div key={p.name} className="space-y-1"><div className="text-muted-foreground">{p.name}{p.stale ? " (stale)" : ""}</div><div className="font-semibold">{pct(p.usedPercent)} · {pct(p.weeklyPercent)}</div><div className="h-1 rounded bg-muted"><div className="h-1 rounded bg-zinc-600" style={{width: `${Math.max(0, Math.min(100, p.weeklyPercent ?? 0))}%`}} /></div></div>)}
- <div className="space-y-1"><div className="text-muted-foreground">Tokens today</div><div className="font-semibold">{compact(overview.tokens.today)}</div><div title={overview.tokens.days.map(d => `${d.date}: ${d.tokens}`).join("\n")} className="font-mono text-zinc-600">{overview.tokens.sparkline}</div><div className="text-muted-foreground">7d · {compact(overview.tokens.total7d)}</div></div>
- </div>}
- </Panel>
+const pct = (n: number | null) => (n === null ? "–" : `${Math.round(n)}%`)
+
+// OverviewPanel is the usage strip at the top of the rail: provider limits and tokens.
+export function OverviewPanel({ overview, className }: { overview?: Overview; className?: string }) {
+  return <section className={`rounded-lg border bg-card px-3 py-2.5 ${className ?? ""}`} aria-label="Usage">
+    {!overview ? <p className="text-xs text-muted-foreground">Loading usage…</p> : <div className="grid grid-cols-3 gap-3 text-[11.5px]">
+      {overview.providers.map(p => <div key={p.name} className="min-w-0 space-y-1" title={`${p.name}: 5h ${pct(p.usedPercent)} · 7d ${pct(p.weeklyPercent)}${p.stale ? " (stale)" : ""}`}>
+        <div className="truncate text-muted-foreground">{p.name}</div>
+        <div className="font-semibold tabular-nums">{pct(p.usedPercent)}<span className="font-normal text-muted-foreground"> · {pct(p.weeklyPercent)}</span></div>
+        <div className="h-1 rounded-full bg-muted"><div className={`h-1 rounded-full ${(p.weeklyPercent ?? 0) > 85 ? "bg-amber-500" : "bg-zinc-700"}`} style={{ width: `${Math.max(0, Math.min(100, p.weeklyPercent ?? 0))}%` }} /></div>
+      </div>)}
+      <div className="min-w-0 space-y-1" title={[`7d: ${compact(overview.tokens.total7d)}`, ...overview.tokens.days.map(d => `${d.date}: ${d.tokens}`)].join("\n")}>
+        <div className="truncate text-muted-foreground">Tokens</div>
+        <div className="font-semibold tabular-nums">{compact(overview.tokens.today)}<span className="font-normal text-muted-foreground"> today</span></div>
+        <div className="font-mono leading-none text-zinc-500">{overview.tokens.sparkline}</div>
+      </div>
+    </div>}
+  </section>
 }

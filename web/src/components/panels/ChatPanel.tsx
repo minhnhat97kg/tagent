@@ -24,7 +24,7 @@ export function ChatPanel({dir, onTasks, className}: {dir: string; onTasks: () =
    setEdit(null); poll.reload(); if (op === "create" || op === "start") onTasks()
   } catch (e) {setError((e as Error).message);poll.reload()} finally {setPending(false)}
  }
- return <Panel className={className} icon={<MessageSquare className="size-4" />} title="Chat" bodyClass="flex flex-col">
+ return <Panel className={className} icon={<MessageSquare className="text-sky-600" />} title="Chat" bodyClass="flex flex-col">
  {!chat ? <p className="p-2.5 text-xs text-muted-foreground">{poll.error?.message ?? "Loading chat…"}</p> : !chat.enabled ? <p className="p-2.5 text-xs text-muted-foreground">Chat disabled</p> : <>
  <div role="log" className="min-h-20 flex-1 space-y-2 overflow-y-auto p-2.5 text-xs">
  {!chat.messages.length && <p className="text-muted-foreground">Ask: which agents are running? · Draft: a ticket</p>}

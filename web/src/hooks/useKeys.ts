@@ -6,7 +6,7 @@ import type { Agent } from "@/types"
 const SKIP = "input, textarea, select, [contenteditable], [data-terminal], [role=dialog]"
 
 // useKeys binds the dashboard shortcuts: j/k move, n jumps to the next agent that needs you,
-// Enter focuses the terminal, ? opens help. Esc leaves the terminal so keys stop reaching the pane.
+// Enter focuses the terminal, ? opens help. Ctrl+Shift+F6 returns focus to the agent header.
 export function useKeys(order: Agent[], selPane: string | undefined, onHelp: () => void) {
   const latest = useRef({ order, selPane, onHelp })
   latest.current = { order, selPane, onHelp }
@@ -14,10 +14,10 @@ export function useKeys(order: Agent[], selPane: string | undefined, onHelp: () 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null
-      if (e.key === "Escape" && t?.closest?.("[data-terminal]")) {
+      if (e.key === "F6" && e.ctrlKey && e.shiftKey && t?.closest?.("[data-terminal]")) {
         e.stopPropagation()
         e.preventDefault()
-        t.blur()
+        t.closest("[data-terminal]")?.parentElement?.querySelector<HTMLElement>("[data-agent-header]")?.focus()
         return
       }
       if (e.metaKey || e.ctrlKey || e.altKey || t?.closest?.(SKIP)) return
@@ -48,7 +48,7 @@ export function useKeys(order: Agent[], selPane: string | undefined, onHelp: () 
           // Only when focus is on the page itself, not on a button or link that Enter should activate.
           if (!selPane || (t && t !== document.body && t.closest?.("button, a, [role=button]"))) return
           e.preventDefault()
-          document.querySelector<HTMLElement>("[data-terminal] .xterm-helper-textarea")?.focus()
+          document.querySelector<HTMLElement>("[data-terminal]:not([data-readonly]) .xterm-helper-textarea")?.focus()
           return
         case "?":
           onHelp()

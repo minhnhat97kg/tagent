@@ -7,7 +7,6 @@ package sidebar
 import (
 	"fmt"
 	"io"
-	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -964,25 +963,8 @@ func (m *Model) applyRows() {
 	m.syncViewport()
 }
 
-// localDefinitions are the repo's agent definition files plus the roles declared
-// in .tasks/board.yaml (pi has no definition files; its agents live there).
-func localDefinitions(dir, harness string) []roles.Definition {
-	defs := roles.ListIn(dir, harness)
-	cfg, err := tasks.LoadBoardConfig(dir)
-	if err != nil {
-		return defs
-	}
-	names := slices.Sorted(maps.Keys(cfg.Roles))
-	for _, name := range names {
-		if !slices.ContainsFunc(defs, func(d roles.Definition) bool { return d.Name == name }) {
-			defs = append(defs, roles.Definition{Name: name, Path: tasks.BoardConfigPath(dir), Harness: cfg.Roles[name].Agent})
-		}
-	}
-	return defs
-}
-
 func repoAgentRows(dir, harness string) []Row {
-	defs := localDefinitions(dir, harness)
+	defs := tasks.LocalDefinitions(dir, harness)
 	rows := []Row{{IsRepoAgent: true, Header: "Global agents"}}
 	for _, d := range roles.ListGlobal(harness) {
 		rows = append(rows, Row{IsRepoAgent: true, RepoAgentName: d.Name})

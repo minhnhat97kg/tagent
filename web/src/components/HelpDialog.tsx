@@ -5,7 +5,8 @@ const KEYS: [string, string][] = [
   ["k / ↑", "Previous agent"],
   ["n", "Next agent that needs you"],
   ["Enter", "Focus the agent's terminal"],
-  ["Esc", "Leave the terminal"],
+  ["Ctrl+Shift+F6", "Leave terminal; focus agent header"],
+  ["Esc", "Send Escape to agent (while terminal focused)"],
   ["?", "Show this help"],
 ]
 

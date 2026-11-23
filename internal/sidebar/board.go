@@ -119,6 +119,13 @@ func (m Model) boardColumns() []string {
 	if len(m.boardConfig.Columns) > 0 {
 		return m.boardConfig.Columns
 	}
+	if len(m.boardConfig.Statuses) > 0 {
+		var columns []string
+		for _, s := range m.boardConfig.Statuses {
+			columns = append(columns, s.ID)
+		}
+		return columns
+	}
 	return tasks.DefaultColumns()
 }
 
@@ -126,10 +133,19 @@ func (m Model) boardColumns() []string {
 // open tickets first, done last, each in board order.
 func (m Model) boardOrder() []int {
 	var open, done []int
-	for i, t := range m.notes {
-		if m.boardConfig.Lane(t.Status) == "done" {
-			done = append(done, i)
-		} else {
+	seen := map[int]bool{}
+	for _, status := range m.boardColumns() {
+		for _, i := range m.boardStatusCards(status) {
+			seen[i] = true
+			if m.boardConfig.Lane(status) == "done" {
+				done = append(done, i)
+			} else {
+				open = append(open, i)
+			}
+		}
+	}
+	for i := range m.notes {
+		if !seen[i] {
 			open = append(open, i)
 		}
 	}
@@ -200,6 +216,131 @@ func (m Model) boardRow(idx, width int) []string {
 		boardFit(mark+m.boardStyle(color).Render(glyph)+" "+title.Render(boardTitle(t)), width),
 		boardFit("    "+m.boardStyle(m.theme.TextMuted).Render(strings.Join(meta, " · ")), width),
 	}
+}
+
+// boardStatusCards preserves ticket order within a configured status.
+func (m Model) boardStatusCards(status string) []int {
+	var cards []int
+	for i, t := range m.notes {
+		if t.Status == status {
+			cards = append(cards, i)
+		}
+	}
+	return cards
+}
+
+func (m Model) boardNavigateColumn(key string) Model {
+	if len(m.notes) == 0 {
+		return m
+	}
+	columns := m.boardColumns()
+	col := slices.Index(columns, m.notes[m.taskCursor].Status)
+	row := slices.Index(m.boardStatusCards(m.notes[m.taskCursor].Status), m.taskCursor)
+	step := 1
+	if key == "h" {
+		step = -1
+	}
+	for col += step; col >= 0 && col < len(columns); col += step {
+		cards := m.boardStatusCards(columns[col])
+		if len(cards) > 0 {
+			m.taskCursor = cards[min(max(0, row), len(cards)-1)]
+			break
+		}
+	}
+	m.detailScroll = 0
+	return m
+}
+
+func (m Model) boardCard(idx, width int) []string {
+	t := m.notes[idx]
+	mark := "  "
+	style := m.boardStyle(m.theme.TextPrimary)
+	if idx == m.taskCursor {
+		mark = "▌ "
+		style = style.Bold(true).Foreground(m.theme.Accent)
+	}
+	if m.boardConfig.Lane(t.Status) == "done" {
+		return []string{boardFit(style.Render(mark+"#"+t.ID+" "+boardTitle(t)), width)}
+	}
+	title := strings.Split(ansi.Wrap(boardTitle(t), max(1, width-2), ""), "\n")
+	for len(title) < 2 {
+		title = append(title, "")
+	}
+	role := ""
+	for _, s := range m.boardConfig.Statuses {
+		if s.ID == t.Status {
+			role = s.Role
+		}
+	}
+	if role == "" && len(t.Assignees) > 0 {
+		role = t.Assignees[0]
+	}
+	meta := "#" + t.ID + " " + role
+	if worker := m.boardWorker(t); worker != "" {
+		meta += " " + worker
+	}
+	if len(t.Comments) > 0 {
+		meta += fmt.Sprintf(" %s%d", m.icons.Message, len(t.Comments))
+	}
+	if t.Status == "blocked" {
+		cfg, _ := tasks.ConfigForTask(m.boardDir, m.boardConfig, t)
+		_, _, question := tasks.BlockContext(t, cfg, m.boardHistory)
+		if question == "" {
+			question = "Blocked: reply with @role"
+		}
+		title[1] = strings.Join(strings.Fields(question), " ")
+	}
+	return []string{boardFit(style.Render(mark+title[0]), width), boardFit(style.Render("  "+title[1]), width), boardFit(m.boardStyle(m.theme.TextMuted).Render("  "+meta), width)}
+}
+
+func (m Model) boardColumnView(height int) string {
+	columns := m.boardColumns()
+	if len(columns) == 0 {
+		return ""
+	}
+	// Window wide workflows around the selected status, retaining readable cards.
+	visible := min(len(columns), max(1, m.width/24))
+	selected := 0
+	if len(m.notes) > 0 {
+		selected = max(0, slices.Index(columns, m.notes[m.taskCursor].Status))
+	}
+	start := min(max(0, selected-visible+1), len(columns)-visible)
+	width := m.width / visible
+	var panels []string
+	for col := start; col < start+visible; col++ {
+		status := columns[col]
+		cards := m.boardStatusCards(status)
+		label := fmt.Sprintf("%s · %d", status, len(cards))
+		for _, s := range m.boardConfig.Statuses {
+			if s.ID == status {
+				if s.Role != "" {
+					label += " · " + s.Role
+				}
+				if s.Run != "" {
+					label += " · " + s.Run
+				}
+			}
+		}
+		var lines []string
+		selectedLine := 0
+		cardHeight := 3
+		if m.boardConfig.Lane(status) == "done" {
+			cardHeight = 1
+		}
+		for _, idx := range cards {
+			if idx == m.taskCursor {
+				selectedLine = len(lines)
+			}
+			lines = append(lines, m.boardCard(idx, width-4)...)
+		}
+		offset := max(0, selectedLine+cardHeight-max(1, height-2))
+		panelWidth := width
+		if col == start+visible-1 {
+			panelWidth = m.width - width*(visible-1)
+		}
+		panels = append(panels, m.boardPanel(m.boardStyle(m.boardColor(status)).Render(label), lines[min(offset, len(lines)):], panelWidth, height, !m.workflowFocus && col == selected))
+	}
+	return lipgloss.JoinHorizontal(lipgloss.Top, panels...)
 }
 
 // workflowLines lists the repo's and global workflows: name, scope, jobs and
@@ -419,6 +560,14 @@ func (m Model) boardView() string {
 		body = m.boardPanel("Workflow · "+label, m.flowLines(m.width-4), m.width, h, true)
 	} else if m.boardDrawer {
 		body = m.boardPanel("Task · esc close", m.boardDetail(m.width-4, h-2), m.width, h, true)
+	} else if m.width >= 120 {
+		wfLines := m.workflowLines(m.width - 4)
+		wh := min(len(wfLines)+2, max(3, h/3))
+		wfStart := 0
+		if m.workflowFocus {
+			wfStart = max(0, m.workflowCursor-max(1, wh-2)+1)
+		}
+		body = m.boardColumnView(h-wh) + "\n" + m.boardPanel(fmt.Sprintf("Workflows %d · a add · e edit", len(m.boardWorkflows)), wfLines[min(wfStart, len(wfLines)):], m.width, wh, m.workflowFocus)
 	} else {
 		lw := m.width
 		if m.boardWide() {
@@ -427,7 +576,12 @@ func (m Model) boardView() string {
 		order := m.boardOrder()
 		var lines []string
 		selected := 0
+		lastStatus := ""
 		for _, idx := range order {
+			if status := m.notes[idx].Status; status != lastStatus {
+				lines = append(lines, m.boardStyle(m.boardColor(status)).Bold(true).Render(status))
+				lastStatus = status
+			}
 			if idx == m.taskCursor {
 				selected = len(lines)
 			}
@@ -709,6 +863,11 @@ func (m Model) boardKey(key string) (Model, tea.Cmd, bool) {
 		step = 1
 	case "k", "up":
 		step = -1
+	case "h", "l":
+		if m.width >= 120 && !m.boardDrawer {
+			m = m.boardNavigateColumn(key)
+		}
+		return m, nil, true
 	case "H":
 		step, move = -1, true
 	case "L":
@@ -740,6 +899,9 @@ func (m Model) boardKey(key string) (Model, tea.Cmd, bool) {
 		return m, nil, true
 	}
 	order := m.boardOrder()
+	if m.boardMode && m.width >= 120 {
+		order = m.boardStatusCards(m.notes[m.taskCursor].Status)
+	}
 	pos := slices.Index(order, m.taskCursor)
 	m.taskCursor = order[max(0, min(len(order)-1, pos+step))]
 	m.detailScroll = 0
@@ -759,5 +921,5 @@ func (m Model) detailMaxScroll() int {
 }
 
 func (m Model) ticketHints() string {
-	return m.keyHints("n new", "s start", "enter detail", "e edit", "C comment", "H/L status", "x delete", "w workflow", "? help")
+	return m.keyHints("h/l column", "j/k card", "n new", "s start", "enter detail", "e edit", "C comment", "H/L status", "x delete", "w workflow", "? help")
 }

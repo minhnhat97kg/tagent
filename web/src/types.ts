@@ -31,7 +31,7 @@ export interface State {
 export interface Task {
  title: string
  workflow?: string
- comments: { author: string; body: string }[] | null
+ comments: { id?: string; author: string; body: string; created?: string }[] | null
   id: string
   text: string
   status: string
@@ -42,6 +42,10 @@ export interface Task {
 }
 
 export interface Project {
+  statuses: { id: string; role: string; run: string }[]
+  workers?: Record<string, { role: string; pane: string; live: boolean }>
+  blockedReasons?: Record<string, string>
+  workflows?: Workflow[]
   dir: string
   tasks: Task[] | null
   roles: string[] | null
@@ -51,3 +55,4 @@ export interface Project {
 export interface Overview { dir: string; project: string; attention: { needed: boolean; text: string }; providers: {name: string; usedPercent: number | null; weeklyPercent: number | null; stale: boolean}[]; tokens: {today: number; total7d: number; sparkline: string; days: {date: string; tokens: number}[]} }
 export interface Draft {title: string; goal: string; acceptance: string[]; outOfScope: string[]; workflow: string}
 export interface Chat {dir: string; enabled: boolean; revision: number; status: string; messages: {role: string; text: string; revision: number}[]; response: {question: string; answer: string; command: string; escalate: string; draft: Draft | null}; workflows: string[]; actions: string[]}
+export interface Workflow { name: string; description: string; global: boolean; file: string; error: string; jobs: { id: string; status: string; agent: string; run: string }[] }

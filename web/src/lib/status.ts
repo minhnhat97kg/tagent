@@ -1,11 +1,11 @@
 // Glyphs mirror the TUI dashboard. The class carries the color (from index.css tokens).
 export const STATUS_GLYPH: Record<string, { glyph: string; cls: string }> = {
-  running: { glyph: "●", cls: "text-primary animate-pulse" },
-  background: { glyph: "◌", cls: "text-primary/60" },
+  running: { glyph: "●", cls: "text-emerald-500 animate-pulse" },
+  background: { glyph: "◌", cls: "text-emerald-500/70" },
   waiting: { glyph: "!", cls: "font-bold text-amber-500" },
   error: { glyph: "✖", cls: "text-red-500" },
   done: { glyph: "✔", cls: "text-green-600" },
-  idle: { glyph: "○", cls: "text-muted-foreground" },
+  idle: { glyph: "●", cls: "text-zinc-300" },
 }
 
 export const isActive = (status: string) => status === "running" || status === "background"

@@ -36,9 +36,9 @@ func (s *server) intakeCommand() string {
 	if s.deps.command != nil {
 		return s.deps.command()
 	}
-	c, ok := tmux.GetOption("@agent_intake_llm")
+	c, ok := tmux.GetOption("@agent_chat_model")
 	if !ok {
-		c = "ollama run --nowordwrap --think=false bonsai-2:9b"
+		c = "bonsai-2:9b"
 	}
 	return c
 }
@@ -129,7 +129,14 @@ func (s *server) chat(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(202)
 		writeJSON(w, chatDTO(dir, true, sub.Conversation))
-		go intake.RunSubmission(sub, command, s.deps.run)
+		h := intake.Harness{Endpoint: "http://127.0.0.1:11434", Model: command}
+		if endpoint, ok := tmux.GetOption("@agent_chat_endpoint"); ok && endpoint != "" {
+			h.Endpoint = endpoint
+		}
+		if s.deps.harness != nil {
+			h = *s.deps.harness
+		}
+		go intake.RunReceptionist(sub, h)
 		return
 	}
 	switch o.Op {

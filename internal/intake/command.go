@@ -12,7 +12,10 @@ import (
 
 const CommandReference = `Factual questions -> ANSWER; ! operations -> CMD; new work -> Q/TICKET; design/review/judgement -> ESCALATE.
 Reply ONLY ANSWER: <facts>, CMD: tagent <args> (one command), ESCALATE: <one-line reason>, Q: <question>, or TICKET.
-Allowed commands (no other subcommands):
+` + AllowedCommandReference
+
+// AllowedCommandReference documents commands without prescribing a response protocol.
+const AllowedCommandReference = `Allowed commands (no other subcommands):
 list; task ls; task show ID; task move ID STATUS [NOTE]; task set ID STATUS [NOTE]; task comment ID "TEXT"; task assign ID ROLE[,ROLE]; task due ID YYYY-MM-DD;
 workflow list; workflow run NAME [--input key=value] ["TITLE"];
 reload; queue [PANE] | queue clear PANE; ctx [ls | add "TEXT"] [--global]; stats; kill AGENT.

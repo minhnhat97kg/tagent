@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"tagent/internal/intake"
 	"tagent/internal/metrics"
 	"tagent/internal/quota"
 	"tagent/internal/tasks"
@@ -17,7 +18,7 @@ type apiDeps struct {
 	refresh  func(string, []tmux.SessionInfo) metrics.State
 	quota    func() quota.Snapshot
 	command  func() string
-	run      func(string, string) (string, error)
+	harness  *intake.Harness
 	execute  func(string, string) (string, error)
 }
 

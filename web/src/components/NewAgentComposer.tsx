@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { toast } from "sonner"
-import { post } from "@/api"
+import { api, post } from "@/api"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
@@ -9,6 +9,10 @@ import { Textarea } from "@/components/ui/textarea"
 import { enc, nav } from "@/hooks/useRoute"
 import { baseName } from "@/lib/status"
 import { useAppState } from "@/state"
+import type { Chat } from "@/types"
+
+// The receptionist is not a tmux pane: it answers questions and drafts tickets in the Chat view.
+export const RECEPTIONIST = "receptionist"
 
 // NewAgentComposer starts an agent in a project. Used on Home and in NewAgentDialog.
 export function NewAgentComposer({ onDone }: { onDone?: () => void }) {
@@ -20,7 +24,7 @@ export function NewAgentComposer({ onDone }: { onDone?: () => void }) {
   const [worktree, setWorktree] = useState(false)
   const [busy, setBusy] = useState(false)
 
-  const harnesses = state?.harnesses ?? []
+  const harnesses = [...(state?.harnesses ?? []), RECEPTIONIST]
   const projects = state?.projects ?? []
   const agent = harness || harnesses[0] || ""
   const dir = cwd || projects[0] || ""
@@ -32,6 +36,14 @@ export function NewAgentComposer({ onDone }: { onDone?: () => void }) {
     }
     setBusy(true)
     try {
+      if (agent === RECEPTIONIST) {
+        const chat = await api<Chat>(`/api/chat?dir=${enc(dir)}`)
+        await post("/api/chat", { dir, op: "send", revision: chat.revision, text: prompt })
+        setPrompt("")
+        onDone?.()
+        nav("/chat")
+        return
+      }
       const r = await post<{ pane: string }>("/api/agents", {
         Agent: agent,
         Model: model,
@@ -52,7 +64,7 @@ export function NewAgentComposer({ onDone }: { onDone?: () => void }) {
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border bg-card p-3 shadow-sm">
+    <div className="flex flex-col gap-3 rounded-lg border bg-card p-3">
       <Textarea
         autoFocus={!!onDone}
         value={prompt}
@@ -63,7 +75,7 @@ export function NewAgentComposer({ onDone }: { onDone?: () => void }) {
             void submit()
           }
         }}
-        placeholder="What should an agent do?"
+        placeholder={agent === RECEPTIONIST ? "Ask the receptionist: which agents are running? Draft a ticket for…" : "What should an agent do?"}
         className="min-h-24 resize-none border-0 bg-transparent px-1 shadow-none focus-visible:ring-0"
       />
       <div className="flex flex-wrap items-center gap-2">
@@ -81,12 +93,12 @@ export function NewAgentComposer({ onDone }: { onDone?: () => void }) {
             </SelectContent>
           </Select>
         )}
-        <Input
+        {agent !== RECEPTIONIST && <Input
           value={model}
           onChange={(e) => setModel(e.target.value)}
           placeholder="model"
           className="h-8 w-28"
-        />
+        />}
         {projects.length > 0 && (
           <Select value={dir} onValueChange={setCwd}>
             <SelectTrigger size="sm" className="max-w-48">
@@ -101,10 +113,10 @@ export function NewAgentComposer({ onDone }: { onDone?: () => void }) {
             </SelectContent>
           </Select>
         )}
-        <label className="flex items-center gap-2 text-sm text-muted-foreground">
+        {agent !== RECEPTIONIST && <label className="flex items-center gap-2 text-sm text-muted-foreground">
           <Switch checked={worktree} onCheckedChange={setWorktree} />
           Worktree
-        </label>
+        </label>}
         <Button className="ml-auto" disabled={busy} onClick={() => void submit()}>
           Start
         </Button>

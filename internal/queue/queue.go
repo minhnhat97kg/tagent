@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"tagent/internal/apppath"
 	"time"
 )
 
@@ -23,7 +24,7 @@ func Dir() string {
 		home, _ := os.UserHomeDir()
 		state = filepath.Join(home, ".local", "state")
 	}
-	return filepath.Join(state, "tagent", "queue")
+	return filepath.Join(apppath.Dir(state), "queue")
 }
 
 func paneDir(pane string) string {

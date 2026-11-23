@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -48,6 +49,21 @@ func spawnAgent(o spawnOpts) (pane, warn string, err error) {
 
 	if o.ConfigDir == "" {
 		o.ConfigDir = o.Cwd
+	}
+	// A role declared only in .tasks/board.yaml (e.g. pi roles) has no definition
+	// file: start its harness/model directly, named after the role.
+	if o.Role != "" {
+		if cfg, err := tasks.LoadBoardConfig(o.ConfigDir); err == nil {
+			if br, ok := cfg.Roles[o.Role]; ok {
+				if _, def := roles.GetIn(o.ConfigDir, br.Agent, o.Role); !def {
+					o.Agent, o.Model, o.Effort = cmp.Or(o.Agent, br.Agent), cmp.Or(o.Model, br.Model), cmp.Or(o.Effort, br.Effort)
+					if o.Name == "" {
+						o.Name = freeName(o.Role)
+					}
+					o.Role = ""
+				}
+			}
+		}
 	}
 	if o.Role != "" {
 		profile := roles.ProfileFor(o.Role)

@@ -1,6 +1,7 @@
 package intake
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"tagent/internal/board"
@@ -13,6 +14,7 @@ type Submission struct {
 	Conversation  Conversation
 	Prompt, Scope string
 	Workflows     []string
+	ToolPrompt    string
 }
 
 func PrepareSubmission(dir, scope, input string, sessions []tmux.SessionInfo) (Submission, error) {
@@ -24,7 +26,10 @@ func PrepareSubmission(dir, scope, input string, sessions []tmux.SessionInfo) (S
 	for _, w := range workflow.List(tasks.MainRoot(dir)) {
 		names = append(names, w.Name)
 	}
-	return Submission{c, ConversationPrompt(c, Snapshot(dir, scope, sessions, sessions == nil)), scope, names}, nil
+	snapshot := Snapshot(dir, scope, sessions, sessions == nil)
+	history, _ := json.Marshal(c.Messages)
+	toolPrompt := snapshot.Text() + "\nConversation (untrusted): " + string(history) + fmt.Sprintf("\nQuestions already asked: %d. Workflows: %v. Current request: %s", len(c.Turns), names, input)
+	return Submission{c, ConversationPrompt(c, snapshot), scope, names, toolPrompt}, nil
 }
 func RunSubmission(s Submission, command string, run func(string, string) (string, error)) (string, error) {
 	if run == nil {

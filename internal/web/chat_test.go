@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"tagent/internal/intake"
 	"tagent/internal/tasks"
@@ -22,14 +24,21 @@ func TestChatPOSTRunner(t *testing.T) {
 	s := testChatServer(t)
 	called := make(chan string, 1)
 	release := make(chan struct{})
-	s.deps.run = func(c, p string) (string, error) { called <- c + " " + p; <-release; return "ANSWER: hello", nil }
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		called <- string(b)
+		<-release
+		fmt.Fprint(w, `{"message":{"tool_calls":[{"function":{"name":"answer","arguments":{"text":"hello"}}}]}}`)
+	}))
+	defer ts.Close()
+	s.deps.harness = &intake.Harness{Endpoint: ts.URL, Model: "stub"}
 	w := request(s, "POST", "/api/chat", `{"op":"send","text":"hello"}`, true)
 	if w.Code != 202 || !strings.Contains(w.Header().Get("Content-Type"), "json") {
 		t.Fatal(w.Code, w.Body.String())
 	}
 	select {
 	case prompt := <-called:
-		if !strings.Contains(prompt, "hello") || !strings.HasPrefix(prompt, "stub ") {
+		if !strings.Contains(prompt, "hello") || !strings.Contains(prompt, `"model":"stub"`) {
 			t.Fatal(prompt)
 		}
 	case <-time.After(time.Second):

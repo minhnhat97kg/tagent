@@ -1,83 +1,14 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from "react"
 import { toast } from "sonner"
-import { post } from "@/api"
-import { Button } from "@/components/ui/button"
-import { ArrowUp } from "lucide-react"
+import { paneInput } from "@/lib/paneInput"
 
-const KEYS: [string, string][] = [
-  ["Esc", "\x1b"],
-  ["Ctrl-C", "\x03"],
-  ["↑", "\x1b[A"],
-  ["↓", "\x1b[B"],
-  ["Tab", "\t"],
-  ["Enter", "\r"],
-]
+const KEYS = [["Esc", "\x1b"], ["Ctrl-C", "\x03"], ["↑", "\x1b[A"], ["↓", "\x1b[B"], ["←", "\x1b[D"], ["→", "\x1b[C"], ["Tab", "\t"], ["⇧Tab", "\x1b[Z"], ["Enter", "\r"]]
 
-// Composer types a message into an agent pane, plus keys the terminal needs.
-export function Composer({ pane, name }: { pane: string; name: string }) {
-  const [text, setText] = useState("")
-  const [busy, setBusy] = useState(false)
-  const ref = useRef<HTMLTextAreaElement>(null)
-
-  useEffect(() => {
-    const t = ref.current
-    if (!t) return
-    t.style.height = "auto"
-    t.style.height = `${Math.min(t.scrollHeight, 200)}px`
-  }, [text])
-
-  async function send() {
-    const v = text.trim()
-    if (!v || busy) return
-    setBusy(true)
-    try {
-      await post("/api/pane/send", { pane, data: v })
-      setText("")
-    } catch (e) {
-      toast.error((e as Error).message)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function key(data: string) {
-    try {
-      await post("/api/pane/input", { pane, data })
-    } catch (e) {
-      toast.error((e as Error).message)
-    }
-  }
-
-  function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-      e.preventDefault()
-      void send()
-    }
-  }
-
-  return (
-    <div className="rounded-2xl border bg-card p-3 shadow-sm focus-within:ring-2 focus-within:ring-ring/40">
-      <textarea
-        ref={ref}
-        rows={1}
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={onKeyDown}
-        placeholder={`Reply to ${name}…`}
-        className="block w-full resize-none bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-      />
-      <div className="mt-2 flex items-center justify-between gap-2">
-        <div className="flex flex-wrap gap-1">
-          {KEYS.map(([label, data]) => (
-            <Button key={label} variant="ghost" size="xs" className="text-xs" onClick={() => void key(data)}>
-              {label}
-            </Button>
-          ))}
-        </div>
-        <Button size="icon" className="rounded-full" disabled={!text.trim() || busy} onClick={() => void send()} aria-label="Send">
-          <ArrowUp />
-        </Button>
-      </div>
-    </div>
-  )
+// KeyBar gives touch screens the keys their on-screen keyboard lacks. Typing goes into the terminal itself.
+export function KeyBar({ pane, disabled = false }: { pane: string; disabled?: boolean }) {
+  return <div className="flex shrink-0 gap-1 overflow-x-auto border-t bg-card px-1.5 py-1 pb-[max(4px,env(safe-area-inset-bottom))]" role="toolbar" aria-label="Terminal keys">
+    {KEYS.map(([label, data]) => <button key={label} type="button" disabled={disabled}
+      aria-label={`Send ${label} to terminal`} className="h-8 min-w-10 shrink-0 rounded-md border bg-background px-2 font-mono text-[12px] text-zinc-700 disabled:opacity-40"
+      onPointerDown={e => e.preventDefault() /* keep the terminal's keyboard open */}
+      onClick={() => void paneInput(pane, "input", data).catch(e => toast.error(e.message))}>{label}</button>)}
+  </div>
 }

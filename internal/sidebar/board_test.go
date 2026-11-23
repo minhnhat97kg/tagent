@@ -42,7 +42,7 @@ func TestBoardListTwoLineRows(t *testing.T) {
 	m := boardTestModel()
 	m.boardConfig = tasks.BoardConfig{Columns: []string{"todo", "build", "review", "blocked", "done"}}
 	m.notes = append(m.notes, tasks.Task{ID: "4", Title: "Fourth card", Status: "build"}, tasks.Task{ID: "5", Title: "Fifth card", Status: "blocked"})
-	for _, size := range [][2]int{{160, 40}, {45, 40}} {
+	for _, size := range [][2]int{{119, 40}, {45, 40}} {
 		m.width, m.height = size[0], size[1]
 		view := ansi.Strip(m.View())
 		for _, want := range []string{"○ First card", "◐ Fourth card", "✖ Fifth card", "✔ Third card", "todo · builder", "12-01", "Board 5"} {
@@ -392,6 +392,7 @@ func TestBoardScrollAndRecentComments(t *testing.T) {
 	m.notes[0].Text = strings.Repeat("description ", 300)
 	m.width = 160
 	m.detailScroll = 1000000
+	m.boardDrawer = true // Wide columns open details only in the drawer.
 	m.notes[0].Comments = []tasks.TaskComment{{Author: "old", Body: strings.Repeat("old body ", 100), Created: time.Unix(1, 0)}, {Author: "new", Body: "newest @builder", Created: time.Unix(2, 0)}}
 	view := ansi.Strip(m.View())
 	if newest, old := strings.Index(view, "newest @builder"), strings.Index(view, "old body"); newest < 0 || (old >= 0 && old > newest) {
@@ -457,5 +458,49 @@ func TestBoardListsWorkflowsBelow(t *testing.T) {
 		if strings.Index(view, "First card") > strings.Index(view, "Workflows 2") {
 			t.Fatal("workflows are not below the ticket list")
 		}
+	}
+}
+
+func TestBoardColumnsAndNavigation(t *testing.T) {
+	m := boardTestModel()
+	view := ansi.Strip(m.View())
+	if !strings.Contains(view, "todo · 2") || !strings.Contains(view, "done · 1") {
+		t.Fatal(view)
+	}
+	lines := strings.Split(view, "\n")
+	if !strings.Contains(lines[1], "todo") || !strings.Contains(lines[1], "done") {
+		t.Fatal("headers not side by side")
+	}
+	for _, tc := range []struct {
+		key    string
+		cursor int
+	}{{"j", 1}, {"j", 1}, {"l", 2}, {"k", 2}, {"h", 0}, {"j", 1}, {"k", 0}} {
+		m, _ = boardPress(m, tc.key)
+		if m.taskCursor != tc.cursor {
+			t.Fatalf("%s: cursor %d want %d", tc.key, m.taskCursor, tc.cursor)
+		}
+	}
+	for _, key := range []string{"L", "H"} {
+		m.taskCursor = 0
+		if key == "H" {
+			m.taskCursor = 2
+		}
+		_, cmd := boardPress(m, key)
+		if cmd == nil {
+			t.Fatalf("%s no status mutation", key)
+		}
+	}
+	if len(m.boardCard(2, 40)) != 1 || len(m.boardCard(0, 40)) != 3 {
+		t.Fatal("card heights")
+	}
+	m.width = 119
+	view = ansi.Strip(m.View())
+	if !strings.Contains(view, "todo") || !strings.Contains(view, "○ First card") {
+		t.Fatal("missing narrow groups")
+	}
+	m, _ = boardPress(m, "j")
+	m, _ = boardPress(m, "j")
+	if m.taskCursor != 2 {
+		t.Fatal("narrow must traverse statuses")
 	}
 }

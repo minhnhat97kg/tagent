@@ -202,11 +202,9 @@ func ResolvePane(target string) string {
 	return target
 }
 
-// TypeLine types text into pane and presses Enter. TUIs like Claude Code
-// treat a burst of input as a paste and would swallow an Enter arriving in
-// the same burst, hence the pause before it.
-// TypeLine pastes text (bracketed paste, so TUIs like pi do not open
-// autocomplete popups mid-text that would swallow the Enter) and submits it.
+// TypeLine pastes text and submits it separately: TUIs can swallow Enter
+// arriving in the same burst as a paste. Pi can also accept the text during
+// startup before submission is ready, so verify its editor before retrying.
 func TypeLine(pane, text string) {
 	buf := "tagent-" + strings.TrimPrefix(pane, "%")
 	if _, ok := RunTmux("set-buffer", "-b", buf, "--", text); ok {
@@ -216,4 +214,54 @@ func TypeLine(pane, text string) {
 	}
 	time.Sleep(300 * time.Millisecond)
 	RunTmux("send-keys", "-t", pane, "Enter")
+	retryPiSubmit(pane, text, 30*time.Second, 300*time.Millisecond)
+}
+
+// Retry only Enter, never the paste. Lifecycle idle alone is not proof that a
+// prompt was missed (a short turn may already have completed). Require the exact
+// original text in Pi's editor as well, not a match in transcript/history.
+func retryPiSubmit(pane, text string, timeout, poll time.Duration) {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		time.Sleep(poll)
+		if GetPaneOptionValue(pane, PaneAgent) != "pi" || GetPaneOptionValue(pane, PaneStatusOpt) != string(StatusIdle) {
+			return
+		}
+		screen, ok := RunTmux("capture-pane", "-p", "-t", pane)
+		if !ok || !piEditorContains(screen, text) {
+			return
+		}
+		RunTmux("send-keys", "-t", pane, "Enter")
+	}
+}
+
+func piEditorContains(screen, text string) bool {
+	lines := strings.Split(screen, "\n")
+	bottom := -1
+	for i := len(lines) - 1; i >= 0; i-- {
+		line := strings.TrimSpace(lines[i])
+		// Pi's standard editor is bounded by horizontal rules. Fail closed for
+		// custom editors, clipped prompts, or dialogs rather than guessing.
+		if len([]rune(line)) < 3 || strings.Trim(line, "─") != "" {
+			continue
+		}
+		if bottom < 0 {
+			bottom = i
+			continue
+		}
+		normalize := func(s string) string { return strings.Join(strings.Fields(s), "") }
+		body := lines[i+1 : bottom]
+		// A long prompt scrolls: pi shows "── ↑ N more ──" as the editor's first line
+		// and only the tail of the text, so match a suffix then.
+		scrolled := len(body) > 0 && strings.Contains(body[0], "↑") && strings.Contains(body[0], "more")
+		if scrolled {
+			body = body[1:]
+		}
+		got, want := normalize(strings.Join(body, "\n")), normalize(text)
+		if got == "" || want == "" {
+			return false
+		}
+		return got == want || (scrolled && len(got) >= 20 && strings.HasSuffix(want, got))
+	}
+	return false
 }

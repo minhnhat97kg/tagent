@@ -201,6 +201,8 @@ harness notifications, check status when the user asks.
   approval and when a ticket reaches `done` or `blocked` (with assignees).
   Intermediate workflow steps and finished agent turns stay on the desktop.
 
+Browser dashboard: click **Start Chat** in the left pane to resume the project's conversation without sending a model request. Web chat uses native Ollama tools only (no MCP); `@agent_chat_model` defaults to `bonsai-2:9b` (`off` disables it), and `@agent_chat_endpoint` defaults to `http://127.0.0.1:11434`. Use a tool-capable local model. Ticket/command proposals still need approval. Legacy CLI/sidebar/Telegram `@agent_intake_llm` commands remain separate. See [web receptionist](docs/board.md#web-receptionist).
+
 Press `?` in the sidebar or dashboard for contextual help. In Chat, `?` is literal input: Tab away first to open help. Focus Chat with Tab or a click, Enter to send, and Esc to close. Ask “which agents are running?” for a read-only answer, describe new work to clarify/draft a ticket, or use `!reload` / `!show ticket abc` to propose an operation. Commands and ticket creation require explicit approval. After an answer, type and Enter to start a fresh request (no conversation history). Context is the latest local ticket/agent/workflow snapshot, not an authoritative historical search; unavailable data is reported rather than guessed. Architectural judgement is escalated to the lead.
 
 ### Tickets and status handoffs

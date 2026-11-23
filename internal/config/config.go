@@ -45,6 +45,8 @@ type Setting struct {
 // Settings is what the settings screen shows: the few options worth
 // changing by hand, in display order.
 var Settings = []Setting{
+	{Key: "@agent_chat_model", Group: "Board", Label: "Web chat Ollama model", Kind: Preset, Default: "bonsai-2:9b", Choices: []string{"bonsai-2:9b", "off"}},
+	{Key: "@agent_chat_endpoint", Group: "Board", Label: "Web chat Ollama endpoint", Kind: Text, Default: "http://127.0.0.1:11434"},
 	{Key: "@agent_intake_llm", Group: "Board", Label: "Ticket intake LLM", Kind: Preset, Default: "ollama run --nowordwrap --think=false bonsai-2:9b", Choices: []string{"ollama run --nowordwrap --think=false bonsai-2:9b", "off"}},
 	{Key: "@agent_theme", Group: "Look", Label: "Theme", Kind: Choice, Default: "light", Choices: []string{"dark", "light"}},
 	{Key: "@agent_avatar", Group: "Look", Label: "Character", Kind: Choice, Default: "slime",

@@ -22,13 +22,12 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"tagent/internal/board"
+	"tagent/internal/workflow"
 	"time"
 
-	"tagent/internal/roles"
 	"tagent/internal/scrape"
 	"tagent/internal/tasks"
 	"tagent/internal/tmux"
@@ -55,7 +54,7 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("GET /api/overview", s.overview)
 	mux.HandleFunc("GET /api/chat", s.chat)
 	mux.HandleFunc("POST /api/chat", s.chat)
-	mux.HandleFunc("GET /api/pane/stream", s.stream)
+	mux.HandleFunc("GET /api/pane/ws", s.paneWS)
 	mux.HandleFunc("POST /api/pane/input", s.input)
 	mux.HandleFunc("POST /api/pane/send", s.send)
 	mux.HandleFunc("POST /api/pane/answer", s.answer)
@@ -63,7 +62,13 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("POST /api/agents", s.newAgent)
 	mux.HandleFunc("POST /api/tasks", s.taskOp)
 	sub, _ := fs.Sub(dist, "dist")
-	mux.Handle("/", http.FileServerFS(sub))
+	files := http.FileServerFS(sub)
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasPrefix(r.URL.Path, "/assets/") {
+			w.Header().Set("Cache-Control", "no-cache") // index.html must pick up new hashed assets
+		}
+		files.ServeHTTP(w, r)
+	})
 	return s.auth(mux)
 }
 
@@ -104,7 +109,7 @@ type server struct {
 func (s *server) auth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if t := r.URL.Query().Get("token"); t != "" && s.ok(t) {
-			http.SetCookie(w, &http.Cookie{Name: "tmux_agent", Value: t, Path: "/", HttpOnly: true, SameSite: http.SameSiteStrictMode, MaxAge: 90 * 24 * 3600})
+			http.SetCookie(w, &http.Cookie{Name: "tmux_agent", Value: t, Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode, MaxAge: 90 * 24 * 3600})
 			http.Redirect(w, r, "/", http.StatusFound)
 			return
 		}
@@ -248,53 +253,19 @@ type paneShot struct {
 	Cursor bool   `json:"cursor"`
 }
 
-// stream pushes the pane's screen (with colors) whenever it changes.
-// ponytail: full screen per change, ~10/s; diff frames if bandwidth matters.
-func (s *server) stream(w http.ResponseWriter, r *http.Request) {
-	pane := r.URL.Query().Get("pane")
-	if err := agentPane(pane); err != nil {
-		fail(w, err)
-		return
-	}
-	fl, _ := w.(http.Flusher)
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	last := ""
-	tick := time.NewTicker(100 * time.Millisecond)
-	defer tick.Stop()
-	for {
-		info, ok := tmux.RunTmux("display-message", "-p", "-t", pane, "#{pane_width} #{pane_height} #{cursor_x} #{cursor_y} #{cursor_flag}")
-		if !ok {
-			fmt.Fprint(w, "event: gone\ndata: {}\n\n")
-			fl.Flush()
-			return
-		}
-		screen, _ := tmux.RunTmux("capture-pane", "-e", "-p", "-t", pane)
-		if key := info + screen; key != last {
-			last = key
-			f := strings.Fields(info)
-			n := func(i int) int {
-				if i < len(f) {
-					v, _ := strconv.Atoi(f[i])
-					return v
-				}
-				return 0
-			}
-			b, _ := json.Marshal(paneShot{Screen: strings.TrimRight(screen, "\n"), Cols: n(0), Rows: n(1), CX: n(2), CY: n(3), Cursor: n(4) == 1})
-			fmt.Fprintf(w, "data: %s\n\n", b)
-			fl.Flush()
-		}
-		select {
-		case <-r.Context().Done():
-			return
-		case <-tick.C:
-		}
-	}
+var paneInputLocks sync.Map
+
+func lockPaneInput(pane string) func() {
+	v, _ := paneInputLocks.LoadOrStore(pane, &sync.Mutex{})
+	mu := v.(*sync.Mutex)
+	mu.Lock()
+	return mu.Unlock
 }
 
 type paneReq struct {
-	Pane string `json:"pane"`
-	Data string `json:"data"` // raw terminal input (input) / text (send) / option key (answer)
+	Dialog *dialogJSON `json:"dialog,omitempty"`
+	Pane   string      `json:"pane"`
+	Data   string      `json:"data"` // raw terminal input (input) / text (send) / option key (answer)
 }
 
 func (s *server) paneBody(w http.ResponseWriter, r *http.Request) (paneReq, bool) {
@@ -320,17 +291,47 @@ func (s *server) input(w http.ResponseWriter, r *http.Request) {
 	for _, b := range []byte(p.Data) {
 		args = append(args, fmt.Sprintf("%02x", b))
 	}
-	tmux.RunTmux(args...)
+	unlock := lockPaneInput(p.Pane)
+	defer unlock()
+	if _, ok := tmux.RunTmux(args...); !ok {
+		fail(w, fmt.Errorf("terminal input failed; delivery uncertain, not retried"))
+	}
 }
 
 func (s *server) send(w http.ResponseWriter, r *http.Request) {
-	if p, ok := s.paneBody(w, r); ok && strings.TrimSpace(p.Data) != "" {
-		tmux.TypeLine(p.Pane, p.Data)
+	if p, ok := s.paneBody(w, r); ok && p.Data != "" {
+		unlock := lockPaneInput(p.Pane)
+		defer unlock()
+		buf := "tagent-web-" + strings.TrimPrefix(p.Pane, "%")
+		if _, ok := tmux.RunTmux("set-buffer", "-b", buf, "--", p.Data); !ok {
+			fail(w, fmt.Errorf("could not buffer terminal message"))
+			return
+		}
+		if _, ok := tmux.RunTmux("paste-buffer", "-p", "-d", "-b", buf, "-t", p.Pane); !ok {
+			fail(w, fmt.Errorf("terminal paste failed; delivery uncertain, not retried"))
+			return
+		}
+		time.Sleep(300 * time.Millisecond)
+		if _, ok := tmux.RunTmux("send-keys", "-t", p.Pane, "Enter"); !ok {
+			fail(w, fmt.Errorf("terminal Enter failed; message may already be pasted"))
+		}
 	}
 }
 
 func (s *server) answer(w http.ResponseWriter, r *http.Request) {
 	if p, ok := s.paneBody(w, r); ok {
+		unlock := lockPaneInput(p.Pane)
+		defer unlock()
+		if p.Dialog != nil {
+			screen, ok := tmux.RunTmux("capture-pane", "-p", "-t", p.Pane)
+			current, found := scrape.ParseDialog(screen)
+			expected, _ := json.Marshal(p.Dialog)
+			actual, _ := json.Marshal(dialogJSON{current.Question, current.Options})
+			if !ok || !found || string(expected) != string(actual) {
+				fail(w, fmt.Errorf("approval changed; refresh before answering"))
+				return
+			}
+		}
 		if _, err := self("answer", p.Pane, p.Data); err != nil {
 			fail(w, err)
 		}
@@ -402,12 +403,84 @@ func (s *server) project(w http.ResponseWriter, r *http.Request) {
 		t = []tasks.Task{}
 	}
 	harness, _ := tmux.GetOption(tmux.AgentOption)
-	defs := roles.NamesIn(dir, harness)
-	sort.Strings(defs)
-	if defs == nil {
-		defs = []string{}
+	defs := []string{}
+	for _, d := range tasks.LocalDefinitions(dir, harness) {
+		defs = append(defs, d.Name)
 	}
-	writeJSON(w, map[string]any{"dir": dir, "tasks": t, "roles": defs})
+	sort.Strings(defs)
+	cfg, err := tasks.LoadBoardConfig(dir)
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	statuses := []map[string]string{}
+	for _, status := range cfg.Statuses {
+		statuses = append(statuses, map[string]string{"id": status.ID, "role": status.Role, "run": status.Run})
+	}
+	workers := map[string]map[string]any{}
+	history, _ := tasks.ReadEvents(tasks.Scope(dir), 0)
+	reasons := map[string]string{}
+	panes := tmux.QuerySessions()
+	for _, ticket := range t {
+		flow, err := tasks.ConfigForTask(dir, cfg, ticket)
+		if err != nil {
+			fail(w, err)
+			return
+		}
+		role := ""
+		for _, status := range flow.Statuses {
+			if status.ID == ticket.Status {
+				role = status.Role
+			}
+		}
+		if ticket.Status == "blocked" {
+			_, _, reasons[ticket.ID] = tasks.BlockContext(ticket, flow, history)
+		}
+		best := 0
+		for _, session := range panes {
+			for _, window := range session.Windows {
+				for _, pane := range window.Panes {
+					if tasks.MainRoot(pane.Path) != tasks.MainRoot(dir) {
+						continue
+					}
+					name, id, _ := strings.Cut(pane.BoardTarget, "#")
+					rank := 0
+					if id == ticket.ID {
+						rank = 2
+						if name == role {
+							rank = 3
+						}
+					} else if id == "" {
+						for _, assigned := range ticket.Assignees {
+							if assigned == pane.Name || assigned == name {
+								rank = 1
+							}
+						}
+					}
+					if rank > best {
+						best = rank
+						if name == "" {
+							name = pane.Name
+						}
+						workers[ticket.ID] = map[string]any{"role": name, "pane": pane.PaneID, "live": pane.Status.IsActive()}
+					}
+				}
+			}
+		}
+	}
+	flows := []map[string]any{}
+	for _, wf := range workflow.List(tasks.MainRoot(dir)) {
+		jobs := []map[string]string{}
+		for _, j := range wf.Jobs {
+			jobs = append(jobs, map[string]string{"id": j.ID, "status": j.Status, "agent": j.Agent, "run": j.Run})
+		}
+		e := ""
+		if wf.Err != nil {
+			e = wf.Err.Error()
+		}
+		flows = append(flows, map[string]any{"name": wf.Name, "description": wf.Description, "global": wf.Global, "file": wf.File, "jobs": jobs, "error": e})
+	}
+	writeJSON(w, map[string]any{"dir": dir, "tasks": t, "roles": defs, "statuses": statuses, "workers": workers, "blockedReasons": reasons, "workflows": flows})
 }
 
 func (s *server) taskOp(w http.ResponseWriter, r *http.Request) {
@@ -430,10 +503,22 @@ func (s *server) taskOp(w http.ResponseWriter, r *http.Request) {
 		_, err = tasks.Add(scope, o.Text, o.Assignees, tasks.MutationOptions{Actor: "user"})
 	case "set":
 		_, err = tasks.Update(scope, o.ID, o.Status, nil, tasks.MutationOptions{Actor: "user"})
+	case "comment":
+		if strings.TrimSpace(o.Text) == "" {
+			err = fmt.Errorf("comment must not be empty")
+		} else {
+			err = tasks.Comment(scope, o.ID, "user", o.Text, nil, tasks.MutationOptions{Actor: "user"})
+			if _, ok := err.(*tasks.CommentNotice); ok {
+				writeJSON(w, map[string]string{"notice": err.Error()})
+				return
+			}
+		}
 	case "edit":
 		err = tasks.Edit(scope, o.ID, o.Text)
 	case "rm":
 		err = tasks.Remove(scope, o.ID)
+	case "start": // Status names a workflow, or "board" for the next column (same as the TUI's s picker)
+		err = board.Start(o.Dir, o.ID, o.Status)
 	default:
 		err = fmt.Errorf("unknown op %q", o.Op)
 	}
