@@ -130,9 +130,9 @@ func (m Model) dashboardView() string {
 		parts := []string{left[0], left[1], tasksCard}
 		body = strings.Join(append(parts, left[2:]...), "\n")
 	}
-	help := " Tab focus · ↑↓ select · Enter open · l log · i prompt"
+	help := " Tab focus · ↑↓ select · Enter open · N new agent · l log · i prompt · b board"
 	if m.agentFocus == 1 {
-		help = " ↑↓ role · e edit instruction"
+		help = " ↑↓ role · e edit instruction · Tab focus"
 	}
 	if m.taskFocus {
 		help = m.ticketHints()
