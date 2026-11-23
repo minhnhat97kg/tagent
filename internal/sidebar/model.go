@@ -1703,7 +1703,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			case "esc":
 				m.agentFocus, m.taskFocus, m.workflowFocus = 2, true, false
 				return m, nil
-			case "t": // swap Workflows <-> Agents, keeping focus
+			case "t", "h", "l", "[", "]": // swap Workflows <-> Agents (same keys as the other cards' tabs)
 				m.agentsOpen, m.agentDetail, m.agentCursor = !m.agentsOpen, false, 0
 				if m.agentsOpen {
 					m = m.loadAgents()

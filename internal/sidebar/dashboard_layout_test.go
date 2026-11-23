@@ -334,8 +334,12 @@ func TestDashboardWorkflowsAgentsTab(t *testing.T) {
 	if !m.agentsOpen || len(m.agents) == 0 {
 		t.Fatal("t did not open Agents")
 	}
-	if p := ansi.Strip(m.dashboardView()); !strings.Contains(p, "[Agents]") || !strings.Contains(p, "t workflows") || strings.Contains(p, "· local") {
+	if p := ansi.Strip(m.dashboardView()); !strings.Contains(p, "[Agents]") || !strings.Contains(p, "h/l workflows") || strings.Contains(p, "· local") {
 		t.Fatalf("agents tab render:\n%s", p)
+	}
+	next, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("h")})
+	if next.(Model).agentsOpen {
+		t.Fatal("h did not swap back to Workflows")
 	}
 	next, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
 	m = next.(Model)
