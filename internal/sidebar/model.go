@@ -1666,6 +1666,9 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			case "e", "enter":
 				if m.definitionCursor < len(defs) {
 					path := defs[m.definitionCursor].Path
+					if filepath.Base(path) == "board.yaml" { // a board role has no file of its own: edit its instruction, not the board config
+						path = filepath.Join(roles.GlobalDir(), defs[m.definitionCursor].Name+".md")
+					}
 					editor := os.Getenv("EDITOR")
 					if editor == "" {
 						editor = "vi"
