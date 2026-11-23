@@ -110,12 +110,12 @@ func TestAgentStripRowsAreSimple(t *testing.T) {
 	m := Model{boardMode: true, boardDir: agentsTestDir(t)}
 	m, _, _ = m.boardKey("t")
 	rows := ansi.Strip(strings.Join(m.agentStripLines(80), "\n"))
-	if !strings.Contains(rows, "planner  pi · old") || strings.Contains(rows, "board") {
+	if !strings.Contains(rows, "planner") || !strings.Contains(rows, "pi      old") || strings.Contains(rows, "board") {
 		t.Fatalf("rows:\n%s", rows)
 	}
 	m.agentDetail = true
 	dt := ansi.Strip(strings.Join(m.agentStripLines(80), "\n"))
-	if strings.Contains(dt, "path") || strings.Contains(dt, "new panes") || !strings.Contains(dt, "not used") && !strings.Contains(dt, "used by") {
+	if strings.Contains(dt, "path") || strings.Contains(dt, "new panes") || !strings.Contains(dt, "Harness") || !strings.Contains(dt, "Used by") {
 		t.Fatalf("detail:\n%s", dt)
 	}
 }

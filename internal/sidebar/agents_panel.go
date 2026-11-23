@@ -10,6 +10,7 @@ import (
 	"tagent/internal/tmux"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 // The agents panel shares the board's bottom strip with workflows (t toggles it).
@@ -43,17 +44,35 @@ func (m Model) agentStripLines(width int) []string {
 	}
 	dim := m.boardStyle(m.theme.TextMuted)
 	if a, ok := m.selectedAgent(); ok && m.agentDetail {
-		used := "used by " + strings.Join(a.UsedBy, ", ")
+		used := strings.Join(a.UsedBy, ", ")
 		if len(a.UsedBy) == 0 {
 			used = "not used"
 		}
 		first, _, _ := strings.Cut(strings.TrimSpace(a.Instructions), "\n")
-		return []string{
-			boardFit(m.boardStyle(m.theme.TextPrimary).Bold(true).Render(a.Name), width),
-			boardFit(dim.Render(agentSummary(a)), width),
-			boardFit(dim.Render(used), width),
-			boardFit(dim.Render(first), width),
+		row := func(label, value string) string {
+			return boardFit(dim.Render(fmt.Sprintf("%-9s", label))+value, width)
 		}
+		model := a.Model
+		if model == "" {
+			model = "default"
+		}
+		running := dim.Render("idle")
+		if a.Running > 0 {
+			running = m.boardStyle(m.theme.StatusRunning).Render(fmt.Sprintf("● %d running", a.Running))
+		}
+		return []string{
+			boardFit(m.boardStyle(m.theme.TextPrimary).Bold(true).Render(a.Name)+"  "+dim.Render(a.Source), width),
+			row("Harness", a.Harness),
+			row("Model", model),
+			row("Used by", used),
+			row("Live", running),
+			row("Prompt", dim.Render(first)),
+		}
+	}
+	// One aligned row per agent: name, harness, model, then the live count.
+	nameW, harnessW := 0, 0
+	for _, a := range m.agents {
+		nameW, harnessW = max(nameW, lipgloss.Width(a.Name)), max(harnessW, lipgloss.Width(a.Harness))
 	}
 	var lines []string
 	for i, a := range m.agents {
@@ -61,11 +80,18 @@ func (m Model) agentStripLines(width int) []string {
 		if m.workflowFocus && i == m.agentCursor {
 			mark = "❯ "
 		}
+		model := a.Model
+		if model == "" {
+			model = "default"
+		} else if j := strings.LastIndex(model, "/"); j >= 0 {
+			model = model[j+1:]
+		}
 		run := ""
 		if a.Running > 0 {
-			run = "  " + m.boardStyle(m.theme.StatusRunning).Render(fmt.Sprintf("● %d running", a.Running))
+			run = "  " + m.boardStyle(m.theme.StatusRunning).Render(fmt.Sprintf("● %d", a.Running))
 		}
-		lines = append(lines, boardFit(mark+m.boardStyle(m.theme.TextPrimary).Bold(true).Render(a.Name)+"  "+dim.Render(agentSummary(a))+run, width))
+		name := m.boardStyle(m.theme.TextPrimary).Bold(true).Render(a.Name) + strings.Repeat(" ", nameW-lipgloss.Width(a.Name))
+		lines = append(lines, boardFit(mark+name+"  "+dim.Render(a.Harness+strings.Repeat(" ", harnessW-lipgloss.Width(a.Harness))+"  "+model)+run, width))
 	}
 	return lines
 }
