@@ -2,6 +2,7 @@ package intake
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"tagent/internal/board"
 	"tagent/internal/tasks"
@@ -46,11 +47,22 @@ func PrepareSubmission(dir, scope, input string, sessions []tmux.SessionInfo) (S
 	return sub, nil
 }
 
-// NativeHarness is the receptionist for the configured chat model, served by the
-// local Ollama-compatible endpoint (@agent_chat_endpoint) and used by web and TUI alike.
+// NativeHarness is the receptionist for the configured chat model. @agent_chat_harness picks the
+// backend: ollama (default; @agent_chat_endpoint, local) or openai (any OpenAI-compatible
+// chat/completions API; the key comes from $TAGENT_CHAT_API_KEY or $OPENAI_API_KEY).
 func NativeHarness(model string) Harness {
-	endpoint, ok := tmux.GetOption("@agent_chat_endpoint")
-	if !ok || endpoint == "" {
+	endpoint, _ := tmux.GetOption("@agent_chat_endpoint")
+	if kind, _ := tmux.GetOption("@agent_chat_harness"); kind == "openai" {
+		if endpoint == "" || endpoint == "http://127.0.0.1:11434" {
+			endpoint = "https://api.openai.com/v1"
+		}
+		key := os.Getenv("TAGENT_CHAT_API_KEY")
+		if key == "" {
+			key = os.Getenv("OPENAI_API_KEY")
+		}
+		return Harness{Endpoint: endpoint, Model: model, OpenAI: true, APIKey: key}
+	}
+	if endpoint == "" {
 		endpoint = "http://127.0.0.1:11434"
 	}
 	return Harness{Endpoint: endpoint, Model: model}

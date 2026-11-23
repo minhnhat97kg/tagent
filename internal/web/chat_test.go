@@ -212,3 +212,34 @@ func TestChatCancelAndScope(t *testing.T) {
 		t.Fatal(w.Body.String())
 	}
 }
+
+func TestModelNames(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/tags" {
+			t.Errorf("path %s", r.URL.Path)
+		}
+		w.Write([]byte(`{"models":[{"name":"qwen3:4b"},{"name":"bonsai-2:9b"}]}`))
+	}))
+	defer srv.Close()
+	got := modelNames(context.Background(), intake.Harness{Endpoint: srv.URL})
+	if len(got) != 2 || got[0] != "bonsai-2:9b" || got[1] != "qwen3:4b" {
+		t.Fatalf("got %v", got)
+	}
+	if modelNames(context.Background(), intake.Harness{Endpoint: "http://127.0.0.1:1"}) != nil {
+		t.Fatal("unreachable endpoint should give none")
+	}
+}
+
+func TestOpenAIModelNames(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/models" || r.Header.Get("Authorization") != "Bearer k" {
+			t.Errorf("%s %q", r.URL.Path, r.Header.Get("Authorization"))
+		}
+		w.Write([]byte(`{"data":[{"id":"gpt-b"},{"id":"gpt-a"}]}`))
+	}))
+	defer srv.Close()
+	got := modelNames(context.Background(), intake.Harness{Endpoint: srv.URL + "/v1", OpenAI: true, APIKey: "k"})
+	if len(got) != 2 || got[0] != "gpt-a" {
+		t.Fatalf("got %v", got)
+	}
+}

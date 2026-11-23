@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { bindVisualViewport } from '@/lib/touchViewport'
-import { ArrowLeft, Maximize2, Minimize2, Plus, Settings, SquareTerminal, Workflow } from "lucide-react"
+import { ArrowLeft, Kanban, Maximize2, Minimize2, Plus, Settings, SquareTerminal, Workflow } from "lucide-react"
 import { SettingsDialog } from "@/components/SettingsDialog"
 import { api } from "@/api"
 import { AgentView } from "@/components/AgentView"
@@ -100,13 +100,12 @@ export default function App() {
   if (boardRoute) main = board
   else if (flowRoute) { const name = decodeURIComponent(flowRoute[1] ?? ''), id = decodeURIComponent(flowRoute[2] ?? ''); main = <WorkflowsPage key={dir + route} dir={dir} initial={name} ticket={proj?.tasks?.find(t => t.id === id)} runs={proj?.runs?.[id]} /> }
   else if (chatRoute) main = <ChatPanel key={dir} dir={dir} onTasks={projPoll.reload} className="h-full" />
-  else if (agent) main = <AgentView key={agent.pane} agent={agent} />
+  else if (agent) main = <AgentView key={agent.pane} agent={agent} project={proj} />
   else if (sel) main = state ? <div className="p-6 text-muted-foreground">Agent not found. <a href="#/" className="text-foreground underline">Home</a></div> : null
   else main = <>
-    {/* Phone home: the rail's lists stacked; the board is one tap away. */}
+    {/* Phone home: the rail's lists stacked; the board is in the header. */}
     <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto md:hidden">
       <OverviewPanel days={usageDays} onDays={setUsageDays} overview={overview} className="shrink-0" />
-      <a href="#/board" className="flex h-10 shrink-0 items-center justify-center rounded-lg border bg-card font-medium hover:bg-accent">Board</a>
       <AgentsPanel ordered={ordered} chatActive={chatRoute} className="shrink-0" />
       {tasks}
     </div>
@@ -123,6 +122,7 @@ export default function App() {
           <a href="#/" className="flex shrink-0 items-center gap-1.5 text-[13px] font-semibold"><span className="flex size-6 items-center justify-center rounded-md bg-primary text-primary-foreground"><SquareTerminal className="size-3.5" /></span><span className="hidden sm:inline">tagent</span><span className="hidden font-normal text-muted-foreground lg:inline"> · {state?.host ?? ""}</span></a>
           <div className="min-w-0 flex-1 overflow-hidden [&_button]:max-w-full"><ProjectSelect value={dir} projects={state?.projects ?? []} onChange={(d) => { setDir(d); nav("/") }} /></div>
           <div className="ml-auto flex items-center gap-1">
+            <Button variant="ghost" size="icon-xs" aria-label="Board" title="Board" onClick={() => nav('/board')}><Kanban /></Button>
             <Button variant="ghost" size="icon-xs" aria-label="Workflows" title="Workflows" onClick={() => nav('/workflows')}><Workflow /></Button>
             <Notifications items={notices} onOpen={openNotice} onReply={n => openNotice(n, true)} />
             <Button size="sm" onClick={() => setNewOpen(true)}><Plus /> <span className="hidden sm:inline">New agent</span></Button>

@@ -5,7 +5,7 @@ import { ChatPanel } from "./ChatPanel"
 import type { Chat } from "@/types"
 const mocks=vi.hoisted(() => ({post:vi.fn(),reload:vi.fn(),chat:{} as Chat}))
 vi.mock("@/api",()=>({api:vi.fn(),post:mocks.post}))
-vi.mock("@/hooks/usePoll",()=>({usePoll:()=>({data:mocks.chat,reload:mocks.reload})}))
+vi.mock("@/hooks/usePoll",()=>({usePoll:(_f:unknown,_ms:number,key:string)=>key==="models"?{data:{model:"bonsai-2:9b",models:["bonsai-2:9b","qwen3:4b"]},reload:mocks.reload}:{data:mocks.chat,reload:mocks.reload}}))
 beforeEach(()=>{
  mocks.chat={dir:"/repo",enabled:true,revision:1,status:"idle",messages:[],response:{question:"",answer:"",escalate:"",draft:null},workflows:[],actions:[],recipients:[{Name:"builder",Pane:"%1",Role:"build"}]}
  mocks.post.mockReset().mockResolvedValue({});mocks.reload.mockReset()
@@ -32,6 +32,7 @@ test("mentions accept selection before sending",async()=>{
  expect(screen.getByRole("listbox")).toBeTruthy()
  await userEvent.keyboard("{ArrowDown}{Enter}")
  expect(input.value).toBe("@build ");expect(mocks.post).not.toHaveBeenCalled()
+ await new Promise(r => requestAnimationFrame(() => r(null))) // the caret is restored on the next frame
  await userEvent.type(input,"do tests{Enter}")
  expect(mocks.post).toHaveBeenCalledWith("/api/chat",expect.objectContaining({text:"@build do tests"}))
 })
@@ -53,4 +54,11 @@ test("markdown cannot inject HTML or unsafe links",()=>{
  mount();expect(screen.getByText("Hello").tagName).toBe("STRONG")
  expect(document.querySelector("img")).toBeNull()
  expect(document.querySelector('a[href^="javascript:"]')).toBeNull()
+})
+
+test("the header shows the model and changes it through config",async () => {
+ mount()
+ await userEvent.click(screen.getByRole("button",{name:"Model: bonsai-2:9b"}))
+ await userEvent.click(await screen.findByRole("menuitem",{name:"qwen3:4b"}))
+ expect(mocks.post).toHaveBeenCalledWith("/api/config",{Key:"@agent_chat_model",Value:"qwen3:4b"})
 })

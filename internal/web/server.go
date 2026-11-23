@@ -53,6 +53,7 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("GET /api/overview", s.overview)
 	mux.HandleFunc("GET /api/chat", s.chat)
 	mux.HandleFunc("POST /api/chat", s.chat)
+	mux.HandleFunc("GET /api/chat/models", s.chatModels)
 	mux.HandleFunc("GET /api/pane/ws", s.paneWS)
 	mux.HandleFunc("POST /api/pane/input", s.input)
 	mux.HandleFunc("POST /api/pane/send", s.send)

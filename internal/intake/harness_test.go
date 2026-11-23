@@ -128,3 +128,29 @@ func TestHarnessTransportFailureReleasesSubmission(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestOpenAIBackend(t *testing.T) {
+	var gotAuth, gotPath string
+	var body map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth, gotPath = r.Header.Get("Authorization"), r.URL.Path
+		json.NewDecoder(r.Body).Decode(&body)
+		w.Write([]byte(`{"choices":[{"message":{"tool_calls":[{"id":"c1","type":"function","function":{"name":"answer","arguments":"{\"text\":\"hi\"}"}}]}}]}`))
+	}))
+	defer srv.Close()
+	h := Harness{Endpoint: srv.URL + "/v1", Model: "gpt-x", OpenAI: true, APIKey: "k"}
+	cont := []any{map[string]any{"role": "assistant", "tool_calls": []any{map[string]any{"function": map[string]any{"name": "list_tickets", "arguments": map[string]string{}}}}}, map[string]string{"role": "tool", "tool_name": "list_tickets", "content": "x"}}
+	r, err := h.call(context.Background(), "hello", cont)
+	if err != nil || r.Answer != "hi" {
+		t.Fatalf("result %+v err %v", r, err)
+	}
+	if gotAuth != "Bearer k" || gotPath != "/v1/chat/completions" || body["tool_choice"] != "required" {
+		t.Fatalf("auth %q path %q body %v", gotAuth, gotPath, body)
+	}
+	msgs := body["messages"].([]any)
+	last := msgs[len(msgs)-1].(map[string]any)
+	asked := msgs[len(msgs)-2].(map[string]any)["tool_calls"].([]any)[0].(map[string]any)
+	if last["tool_call_id"] != asked["id"] || last["tool_name"] != nil {
+		t.Fatalf("tool message %v", last)
+	}
+}

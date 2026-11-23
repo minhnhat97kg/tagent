@@ -14,10 +14,10 @@ import { Button } from "@/components/ui/button"
 import { agentLabel } from "@/lib/status"
 import { getMode, setMode as rememberMode, type DisplayMode } from "@/lib/transcript"
 import { AgentChat } from "@/components/AgentChat"
-import type { Agent } from "@/types"
+import type { Agent, Project } from "@/types"
 
 // AgentView is the right side when an agent is selected: header, pending approval, terminal, reply box.
-export function AgentView({ agent }: { agent: Agent }) {
+export function AgentView({ agent, project }: { agent: Agent; project?: Project }) {
   const terminalControl = useRef<TerminalControl | null>(null)
   const [ownership, setOwnership] = useState<TerminalOwnership>({ owner: false, cols: 0, rows: 0 })
   const [worktrees, setWorktrees] = useState(false)
@@ -58,7 +58,7 @@ export function AgentView({ agent }: { agent: Agent }) {
         <Terminal key={agent.pane} pane={agent.pane} label={label} controlRef={terminalControl} onOwnership={setOwnership} onConnection={setConnected} keyboardInputRef={keyboardInput} onKeyboardChange={setKeyboardOpen} />
         {touch && <KeyBar pane={agent.pane} disabled={!connected} keyboardOpen={keyboardOpen} onToggleKeyboard={toggleKeyboard} />}
       </div>
-      {chat && <AgentChat pane={agent.pane} onOpenTerminal={() => chooseMode("terminal")} onUnavailable={() => setChatOk(false)} />}
+      {chat && <AgentChat project={project} pane={agent.pane} onOpenTerminal={() => chooseMode("terminal")} onUnavailable={() => setChatOk(false)} />}
       {worktrees && <Worktrees onClose={() => setWorktrees(false)} />}
       {killOpen && <KillDialog pane={agent.pane} name={label} onOpenChange={setKillOpen} />}
       </div>

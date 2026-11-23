@@ -1,5 +1,5 @@
 import { useLayoutEffect, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react"
-import { ArrowRight, ArrowUp, Brain, Paperclip, X, Check, ChevronDown, Cpu, ExternalLink, FileText, MessageCircleQuestion, Loader2, Pencil, Search, Terminal, Wrench } from "lucide-react"
+import { ArrowRight, ArrowUp, Brain, Bot, ListTodo, Paperclip, Workflow, X, Check, ChevronDown, Cpu, ExternalLink, FileText, MessageCircleQuestion, Loader2, Pencil, Search, Terminal, Wrench } from "lucide-react"
 import { api, post } from "@/api"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -7,13 +7,16 @@ import { Bubble, Composer, Fold, Markup, chatColumn, composerInput, sendButton }
 import { paneInput } from "@/lib/paneInput"
 import { currentModel, runningTool, toRows, type Feed, type Item, type Row } from "@/lib/transcript"
 import { commandMatches, harnessModels } from "@/lib/harnessCommands"
+import { useAppState } from "@/state"
+import { applyMention, filterMentions, mentionItems, mentionQuery, type Mention } from "@/lib/mentions"
+import type { Project } from "@/types"
 import { humanSize, splitAttachments, uploadFile, type Upload } from "@/lib/uploads"
 
 const MAX_ITEMS = 1000
 const POLL_MS = 1500
 
 // AgentChat renders the agent's harness transcript. The agent keeps running in tmux; this only reads it and sends text.
-export function AgentChat({ pane, onOpenTerminal, onUnavailable }: { pane: string; onOpenTerminal: () => void; onUnavailable: () => void }) {
+export function AgentChat({ pane, onOpenTerminal, onUnavailable, project }: { pane: string; onOpenTerminal: () => void; onUnavailable: () => void; project?: Project }) {
   const [items, setItems] = useState<Item[]>([])
   const [feed, setFeed] = useState<Feed>()
   const [draft, setDraft] = useState("")
@@ -24,6 +27,11 @@ export function AgentChat({ pane, onOpenTerminal, onUnavailable }: { pane: strin
   const [files, setFiles] = useState<Upload[]>([])
   const [uploading, setUploading] = useState(0)
   const fileInput = useRef<HTMLInputElement>(null)
+  const box = useRef<HTMLTextAreaElement>(null)
+  const [caret, setCaret] = useState(0)
+  const [mentionPick, setMentionPick] = useState(0)
+  const [mentionOff, setMentionOff] = useState(false)
+  const { state } = useAppState()
   const cursor = useRef("")
   const kick = useRef(() => {}) // poll again soon, e.g. right after a key was sent
   const unavailable = useRef(onUnavailable)
@@ -103,9 +111,30 @@ export function AgentChat({ pane, onOpenTerminal, onUnavailable }: { pane: strin
     }
   }
 
+  // `@` tags an agent, a ticket or a workflow; `#` tags a ticket. The chosen name goes into the message.
+  const mq = mentionOff ? null : mentionQuery(draft, caret)
+  const mentions = mq ? filterMentions(mentionItems(state?.agents ?? [], project?.tasks ?? [], project?.workflows ?? [], pane), mq) : []
+  function chooseMention(m: Mention) {
+    if (!mq) return
+    const next = applyMention(draft, caret, mq.start, m)
+    setDraft(next.text)
+    setCaret(next.caret)
+    setMentionPick(0)
+    requestAnimationFrame(() => { box.current?.focus(); box.current?.setSelectionRange(next.caret, next.caret) })
+  }
+
   // Enter sends on desktop; Shift+Enter and IME composition keep their normal meaning.
   const commands = commandMatches(feed?.harness, draft)
   function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
+    if (mentions.length && !e.nativeEvent.isComposing) {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault()
+        setMentionPick(p => (p + (e.key === "ArrowDown" ? 1 : mentions.length - 1)) % mentions.length)
+        return
+      }
+      if (e.key === "Escape") { e.preventDefault(); setMentionOff(true); return }
+      if (e.key === "Tab" || (e.key === "Enter" && !e.shiftKey)) { e.preventDefault(); chooseMention(mentions[mentionPick % mentions.length]!); return }
+    }
     if (commands.length && !e.nativeEvent.isComposing) {
       if (e.key === "ArrowDown" || e.key === "ArrowUp") {
         e.preventDefault()
@@ -188,7 +217,16 @@ export function AgentChat({ pane, onOpenTerminal, onUnavailable }: { pane: strin
       </div>
     </div>
     <Composer onSubmit={() => void send()} hint={touch ? undefined : "Enter to send · Shift+Enter for a new line · / for commands"}
-      above={<>{!!commands.length && <ul id="agent-commands" role="listbox" aria-label="Commands" className="absolute inset-x-3 bottom-full z-10 mb-1 max-h-64 overflow-y-auto rounded-xl border bg-popover p-1 shadow-lg">
+      above={<>{!!mentions.length && <ul id="agent-mentions" role="listbox" aria-label="Mentions" className="absolute inset-x-3 bottom-full z-10 mb-1 max-h-64 overflow-y-auto rounded-xl border bg-popover p-1 shadow-lg">
+        {mentions.map((m, i) => <li key={m.kind + m.key} role="option" aria-selected={i === mentionPick % mentions.length}>
+          <button type="button" className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-xs max-md:min-h-11 ${i === mentionPick % mentions.length ? "bg-accent" : "hover:bg-accent/60"}`}
+            onMouseDown={e => e.preventDefault()} onClick={() => chooseMention(m)}>
+            <MentionIcon kind={m.kind} />
+            <span className="min-w-0 flex-1 truncate font-medium">{m.label}</span>
+            <span className="max-w-[45%] shrink-0 truncate text-muted-foreground">{m.detail}</span>
+          </button>
+        </li>)}
+      </ul>}{!!commands.length && <ul id="agent-commands" role="listbox" aria-label="Commands" className="absolute inset-x-3 bottom-full z-10 mb-1 max-h-64 overflow-y-auto rounded-xl border bg-popover p-1 shadow-lg">
         {commands.map(([c, d], i) => <li key={c} role="option" aria-selected={i === pick % commands.length}>
           <button type="button" className={`flex w-full items-baseline gap-3 rounded-lg px-2.5 py-1.5 text-left text-xs ${i === pick % commands.length ? "bg-accent" : "hover:bg-accent/60"}`}
             onClick={() => setDraft(c)}><span className="font-mono">{c}</span><span className="truncate text-muted-foreground">{d}</span></button>
@@ -211,12 +249,13 @@ export function AgentChat({ pane, onOpenTerminal, onUnavailable }: { pane: strin
       </div>}</>}>
       <input ref={fileInput} type="file" multiple hidden aria-label="Attach files" onChange={e => { void attach(Array.from(e.target.files ?? [])); e.target.value = "" }} />
       <Button type="button" variant="ghost" size="icon" aria-label="Attach file" title="Attach a file or image" className="size-7 shrink-0 self-end rounded-full text-muted-foreground max-md:size-9" onClick={() => fileInput.current?.click()}><Paperclip /></Button>
-      <textarea aria-label="Message agent" rows={1} value={draft} placeholder="Message this agent"
+      <textarea ref={box} aria-label="Message agent" rows={1} value={draft} placeholder="Message this agent"
+        onSelect={e => setCaret(e.currentTarget.selectionStart)}
         onPaste={e => { const picked = Array.from(e.clipboardData.files); if (picked.length) { e.preventDefault(); void attach(picked) } }}
         onDrop={e => { const picked = Array.from(e.dataTransfer.files); if (picked.length) { e.preventDefault(); void attach(picked) } }}
         onDragOver={e => { if (e.dataTransfer.types.includes("Files")) e.preventDefault() }}
-        aria-autocomplete="list" aria-controls="agent-commands"
-        onChange={e => { setDraft(e.target.value); setPick(0) }} onKeyDown={onKeyDown} className={composerInput} />
+        aria-autocomplete="list" aria-controls={mentions.length ? "agent-mentions" : "agent-commands"}
+        onChange={e => { setDraft(e.target.value); setCaret(e.target.selectionStart); setPick(0); setMentionPick(0); setMentionOff(false) }} onKeyDown={onKeyDown} className={composerInput} />
       <Button type="submit" size="icon" aria-label="Send" className={sendButton} disabled={(!draft.trim() && !files.length) || sending || uploading > 0}><ArrowUp /></Button>
     </Composer>
   </div>
@@ -227,6 +266,11 @@ export function AgentChat({ pane, onOpenTerminal, onUnavailable }: { pane: strin
 export function cleanAnswer(out: string) {
   const answers = [...out.matchAll(/"[^"]*"="([^"]*)"/g)].map(m => m[1]!.trim()).filter(Boolean)
   return answers.length ? answers.join(" · ") : out
+}
+
+function MentionIcon({ kind }: { kind: Mention["kind"] }) {
+  const cls = "size-4 shrink-0 text-muted-foreground"
+  return kind === "agent" ? <Bot className={cls} /> : kind === "task" ? <ListTodo className={cls} /> : <Workflow className={cls} />
 }
 
 function statusLabel(status: string | undefined, tool: string | undefined) {

@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import userEvent from "@testing-library/user-event"
 import { AgentChat, cleanAnswer as cleanAnswerOf } from "./AgentChat"
 import type { Feed } from "@/lib/transcript"
+import type { Project } from "@/types"
 
 const mocks = vi.hoisted(() => ({ api: vi.fn(), post: vi.fn() }))
 vi.mock("@/api", () => ({ api: mocks.api, post: mocks.post }))
@@ -27,8 +28,8 @@ beforeEach(() => {
 })
 afterEach(cleanup)
 
-function mount(onOpenTerminal = vi.fn(), onUnavailable = vi.fn()) {
-  render(<AgentChat pane="%1" onOpenTerminal={onOpenTerminal} onUnavailable={onUnavailable} />)
+function mount(onOpenTerminal = vi.fn(), onUnavailable = vi.fn(), project?: Project) {
+  render(<AgentChat pane="%1" project={project} onOpenTerminal={onOpenTerminal} onUnavailable={onUnavailable} />)
   return screen.getByRole("textbox", { name: "Message agent" }) as HTMLTextAreaElement
 }
 
@@ -207,4 +208,20 @@ test("a sent message shows its uploaded files instead of their paths", async () 
   expect(card.getAttribute("download")).toBe("report.pdf")
   expect(screen.queryByText(/uploads\/0123/)).toBeNull()
   expect(screen.getByText("look at these")).toBeTruthy()
+})
+
+test("@ tags a ticket or a workflow and # tags tickets only", async () => {
+  const project = { tasks: [{ id: "25", title: "Agents management", text: "", status: "building" }], workflows: [{ name: "feature", description: "plan, build", jobs: [], error: "" }] } as unknown as Project
+  const input = mount(vi.fn(), vi.fn(), project)
+  await screen.findByText("Done.")
+  await userEvent.type(input, "see @feat")
+  expect(screen.getAllByRole("option")).toHaveLength(1)
+  await userEvent.keyboard("{Enter}")
+  expect(input.value).toBe('see workflow "feature" ')
+  await userEvent.type(input, "and #2")
+  const option = screen.getByRole("option")
+  expect(option.textContent).toContain("Agents management")
+  await userEvent.click(option.querySelector("button")!)
+  expect(input.value).toBe('see workflow "feature" and task #25 (Agents management) ')
+  expect(mocks.post).not.toHaveBeenCalled()
 })

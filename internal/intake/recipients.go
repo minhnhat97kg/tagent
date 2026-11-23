@@ -78,7 +78,8 @@ func freezeCall(dir string, c *ToolCall) error {
 	}
 	if id := c.Args["id"]; id != "" {
 		if _, err := tasks.Get(tasks.Scope(dir), id); err != nil {
-			return err
+			// The model sometimes makes up an id for a ticket that does not exist yet.
+			return fmt.Errorf("no ticket %q: use list_tickets for real ids, or create_ticket for new work", id)
 		}
 	}
 	if c.Args["pane"] == "" {

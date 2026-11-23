@@ -1,14 +1,19 @@
 package web
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"sort"
 	"strings"
 	"tagent/internal/intake"
 	"tagent/internal/tasks"
 	"tagent/internal/tmux"
 	"tagent/internal/workflow"
+	"time"
 )
 
 type draftJSON struct {
@@ -224,4 +229,67 @@ func (s *server) chat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, chatDTO(dir, true, c, intake.Recipients(dir, s.sessions())))
+}
+
+// modelNames lists the models the backend offers; an unreachable one gives none.
+func modelNames(ctx context.Context, h intake.Harness) []string {
+	ctx, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+	path := "/api/tags"
+	if h.OpenAI {
+		path = "/models"
+	}
+	req, err := http.NewRequestWithContext(ctx, "GET", strings.TrimRight(h.Endpoint, "/")+path, nil)
+	if err != nil {
+		return nil
+	}
+	if h.OpenAI && h.APIKey != "" {
+		req.Header.Set("Authorization", "Bearer "+h.APIKey)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil
+	}
+	defer resp.Body.Close()
+	var list struct {
+		Models []struct{ Name string } // Ollama
+		Data   []struct{ ID string }   // OpenAI
+	}
+	if json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&list) != nil {
+		return nil
+	}
+	out := []string{}
+	for _, m := range list.Models {
+		out = append(out, m.Name)
+	}
+	for _, m := range list.Data {
+		out = append(out, m.ID)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// chatModels is the receptionist's current model and the ones the endpoint offers.
+// Changing it is a normal config write (@agent_chat_model), the same as Settings.
+func (s *server) chatModels(w http.ResponseWriter, r *http.Request) {
+	current := s.intakeCommand()
+	h := intake.NativeHarness(current)
+	models := modelNames(r.Context(), h)
+	if current != "off" && !contains(models, current) {
+		models = append([]string{current}, models...)
+	}
+	backend := "ollama"
+	if h.OpenAI {
+		backend = "openai"
+	}
+	writeJSON(w, map[string]any{"model": current, "models": models, "harness": backend})
+}
+
+func contains(l []string, v string) bool {
+	for _, x := range l {
+		if x == v {
+			return true
+		}
+	}
+	return false
 }

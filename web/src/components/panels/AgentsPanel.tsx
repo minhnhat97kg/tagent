@@ -13,8 +13,6 @@ const projOf = (a: Agent) => a.project || baseName(a.path)
 
 // AgentsPanel lists agents in the order useKeys walks them (grouped by project).
 export function AgentsPanel({ ordered, selPane, chatActive, className }: { ordered: Agent[]; selPane?: string; chatActive?: boolean; className?: string }) {
-  const [filter, setFilter] = useState('')
-  const visible = ordered.filter(a => `${a.name} ${a.project} ${a.prompt}`.toLowerCase().includes(filter.toLowerCase()))
   const [open, setOpen] = useState<string | null>(null)
   const multi = new Set(ordered.map(projOf)).size > 1
 
@@ -23,7 +21,6 @@ export function AgentsPanel({ ordered, selPane, chatActive, className }: { order
       className={className}
       icon={<Bot className="text-emerald-600" />}
       title="Agents"
-      right={<input aria-label="Filter agents" placeholder="Filter" className="w-24 rounded border px-1 text-xs" value={filter} onChange={e => setFilter(e.target.value)} />}
       bodyClass="py-1"
     >
       <a href="#/chat" className={cn("flex h-8 items-center gap-2 px-2.5 text-[12.5px] hover:bg-accent", chatActive && "bg-accent")}>
@@ -31,13 +28,12 @@ export function AgentsPanel({ ordered, selPane, chatActive, className }: { order
         <span className="font-medium">Receptionist</span>
       </a>
       {!ordered.length && <p className="px-2.5 py-2 text-xs text-muted-foreground">No agents. Press + New agent.</p>}
-      {!visible.length && ordered.length > 0 && <p className="p-2 text-muted-foreground">No matching agents.</p>}
-      {visible.map((a, i) => {
+      {ordered.map((a, i) => {
         const waitingDialog = a.status === "waiting" && !!a.dialog
         const isOpen = open === a.pane
         return (
           <Fragment key={a.pane}>
-            {multi && (i === 0 || projOf(visible[i - 1]!) !== projOf(a)) && (
+            {multi && (i === 0 || projOf(ordered[i - 1]!) !== projOf(a)) && (
               <h3 className="px-2.5 pt-2 pb-0.5 text-[11px] font-semibold text-muted-foreground">
                 {projOf(a)}
               </h3>

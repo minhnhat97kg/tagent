@@ -183,3 +183,11 @@ func TestToolArgv(t *testing.T) {
 		})
 	}
 }
+
+func TestUnknownTicketIDExplainsItself(t *testing.T) {
+	c := &ToolCall{Name: "start_ticket", Args: map[string]string{"id": "draft_tests_ticket", "workflow": ""}}
+	err := freezeCall(t.TempDir(), c)
+	if err == nil || strings.Contains(err.Error(), "invalid task id") {
+		t.Fatalf("want an explanatory error, got %v", err)
+	}
+}

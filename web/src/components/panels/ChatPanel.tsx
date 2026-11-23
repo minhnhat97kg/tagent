@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react"
-import { ArrowUp, Bot, ChevronRight, MessageSquare, SquarePen, Wrench } from "lucide-react"
+import { ArrowUp, Bot, ChevronDown, ChevronRight, Cpu, MessageSquare, SquarePen, Wrench } from "lucide-react"
 import { api, post } from "@/api"
 import { Panel } from "@/components/Panel"
 import { Button } from "@/components/ui/button"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Bubble, Composer, Markup, Typing, chatColumn, composerInput, sendButton } from "@/components/ChatParts"
 import { usePoll } from "@/hooks/usePoll"
 import { enc } from "@/hooks/useRoute"
@@ -10,6 +11,11 @@ import type { Chat, Draft } from "@/types"
 export function ChatPanel({dir, onTasks, className}: {dir: string; onTasks: () => void; className?: string}) {
  const poll = usePoll<Chat>(() => api(`/api/chat?dir=${enc(dir)}`), 2000, dir)
  const chat = poll.data?.dir === dir ? poll.data : undefined
+ const models = usePoll<{model: string; models: string[]; harness?: string}>(() => api("/api/chat/models"), 15000, "models")
+ // The receptionist's model is the same setting as Settings > Chat model; the backend (ollama or openai) is Settings > Chat backend.
+ const pickModel = async (m: string) => {
+  try {await post("/api/config", {Key: "@agent_chat_model", Value: m}); models.reload(); poll.reload()} catch (e) {setError((e as Error).message)}
+ }
  const [text,setText] = useState("")
  const [cursor,setCursor] = useState(0)
  const [selected,setSelected] = useState(0)
@@ -41,7 +47,12 @@ export function ChatPanel({dir, onTasks, className}: {dir: string; onTasks: () =
  }
  const label = (role: string) => role === "user" ? "user" : role === "error" ? "error" : "assistant"
  return <Panel className={className} icon={<MessageSquare className="text-sky-600" />} title="Chat" bodyClass="flex flex-col"
-  right={chat?.enabled && <Button size="xs" variant="ghost" disabled={pending || chat.status === "approving"} onClick={() => void act("clear")}><SquarePen />New chat</Button>}>
+  right={chat?.enabled && <>
+  {models.data && <DropdownMenu>
+   <DropdownMenuTrigger asChild><Button size="xs" variant="ghost" aria-label={`Model: ${models.data.model}`} className="font-mono text-muted-foreground"><Cpu />{models.data.model}<ChevronDown /></Button></DropdownMenuTrigger>
+   <DropdownMenuContent align="end">{models.data.models.map(m => <DropdownMenuItem key={m} onSelect={() => void pickModel(m)}>{m}</DropdownMenuItem>)}{models.data.harness && <DropdownMenuItem disabled className="text-xs">Backend: {models.data.harness} (change in Settings)</DropdownMenuItem>}</DropdownMenuContent>
+  </DropdownMenu>}
+  <Button size="xs" variant="ghost" disabled={pending || chat.status === "approving"} onClick={() => void act("clear")}><SquarePen />New chat</Button></>}>
  {!chat ? <p className="p-2.5 text-xs text-muted-foreground">{poll.error?.message ?? "Loading chat…"}</p> : !chat.enabled ? <p className="p-2.5 text-xs text-muted-foreground">Chat disabled</p> : <>
  <div role="log" aria-live="polite" ref={log} onScroll={e => {const el=e.currentTarget;nearBottom.current=el.scrollHeight-el.scrollTop-el.clientHeight<64}} className="min-h-20 flex-1 overflow-y-auto">
  <div className={`${chatColumn} space-y-4 px-3 py-4`}>
