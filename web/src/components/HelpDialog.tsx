@@ -7,6 +7,7 @@ const KEYS: [string, string][] = [
   ["Enter", "Focus the agent's terminal"],
   ["Ctrl+Shift+F6", "Leave terminal; focus agent header"],
   ["Esc", "Send Escape to agent (while terminal focused)"],
+  ["Terminal | Chat", "Switch an agent between its terminal and its conversation"],
   ["?", "Show this help"],
 ]
 

@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"tagent/internal/transcript"
 	"time"
 )
 
@@ -47,7 +48,7 @@ func readPi(sessionID string) (Count, bool) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
-	path, _ := findSession(ctx, filepath.Join(root, "sessions"), "_"+sessionID+".jsonl")
+	path, _ := transcript.Locate(ctx, filepath.Join(root, "sessions"), "_"+sessionID+".jsonl")
 	f, err := os.Open(path)
 	if err != nil {
 		return Count{}, false
@@ -83,20 +84,10 @@ func readPi(sessionID string) (Count, bool) {
 	return total, found && sc.Err() == nil
 }
 
-func codexRoot() string {
-	home, _ := os.UserHomeDir()
-	root := filepath.Join(home, ".codex", "sessions")
-	if d := os.Getenv("CODEX_HOME"); d != "" {
-		root = filepath.Join(d, "sessions")
-	}
-	return root
-}
-
 func codexSessionPath(sessionID string) string {
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
-	path, _ := findSession(ctx, codexRoot(), sessionID+".jsonl")
-	return path
+	return transcript.Find(ctx, "codex", sessionID)
 }
 
 func readCodex(sessionID string) (Count, bool) {

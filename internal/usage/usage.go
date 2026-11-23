@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"tagent/internal/transcript"
 	"time"
 )
 
@@ -44,13 +45,7 @@ func human(n int64) string {
 }
 
 // Root is where Claude Code keeps transcripts.
-func Root() string {
-	if d := os.Getenv("CLAUDE_CONFIG_DIR"); d != "" {
-		return filepath.Join(d, "projects")
-	}
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".claude", "projects")
-}
+func Root() string { return transcript.ClaudeRoot() }
 
 type cached struct {
 	mod  time.Time

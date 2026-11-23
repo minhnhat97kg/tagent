@@ -173,7 +173,7 @@ func cmdSend(args []string, stdout, stderr io.Writer) int {
 		awaitDone = func() int { return waitReport(reportFile, reportTimeout, stdout, stderr) }
 	}
 	status := tmux.ParsePaneStatus(tmux.GetPaneOptionValue(pane, tmux.PaneStatusOpt))
-	busy := status == tmux.StatusRunning || status == tmux.StatusBackground || status == tmux.StatusWaiting
+	busy := queue.Busy(status)
 	if now && status == tmux.StatusWaiting {
 		// Typing into a pending approval dialog would answer it with
 		// whatever the text happens to start with.

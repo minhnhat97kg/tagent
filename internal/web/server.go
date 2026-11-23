@@ -55,6 +55,8 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("POST /api/chat", s.chat)
 	mux.HandleFunc("GET /api/pane/ws", s.paneWS)
 	mux.HandleFunc("POST /api/pane/input", s.input)
+	mux.HandleFunc("POST /api/pane/send", s.send)
+	mux.HandleFunc("GET /api/agents/{pane}/transcript", s.transcript)
 	mux.HandleFunc("GET /api/workflows", s.workflows)
 	mux.HandleFunc("POST /api/workflows", s.workflows)
 	mux.HandleFunc("DELETE /api/workflows", s.workflows)

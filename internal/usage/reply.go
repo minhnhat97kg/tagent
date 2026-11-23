@@ -10,10 +10,13 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
+	"tagent/internal/transcript"
 	"time"
 )
+
+const replyBytes = 4 << 20
+const replyRecords = 4096
 
 // AssistantReply distinguishes unavailable storage from a known turn with no text.
 // Cursor identifies assistant content, not file size (tool records cannot advance it).
@@ -64,20 +67,18 @@ func readAssistant(ctx context.Context, harness, sessionID string) AssistantRepl
 		}
 		return reply(row.Text, row.ID)
 	}
-	root, suffix := "", ""
-	switch harness {
-	case "claude":
-		root, suffix = Root(), string(filepath.Separator)+sessionID+".jsonl"
-	case "codex":
-		root, suffix = codexRoot(), sessionID+".jsonl"
-	case "pi":
-		home, _ := os.UserHomeDir()
-		root, suffix = filepath.Join(home, ".pi", "agent", "sessions"), "_"+sessionID+".jsonl"
-	default:
+	if harness == "claude" || harness == "pi" {
+		it, err := transcript.Latest(ctx, harness, sessionID)
+		if err != nil || it.Text == "" {
+			return AssistantReply{Available: true}
+		}
+		return reply(it.Text, it.ID)
+	}
+	if harness != "codex" {
 		return AssistantReply{}
 	}
-	path, exhausted := findSession(ctx, root, suffix)
-	if exhausted {
+	path := transcript.Find(ctx, "codex", sessionID)
+	if path == "" {
 		return AssistantReply{Available: true}
 	}
 	f, err := os.Open(path)
@@ -89,29 +90,10 @@ func readAssistant(ctx context.Context, harness, sessionID string) AssistantRepl
 	if err != nil || !info.Mode().IsRegular() {
 		return AssistantReply{Available: true}
 	}
-	// Validate identity from the start independently of the bounded recent tail.
-	if harness == "pi" {
-		header := bufio.NewScanner(io.NewSectionReader(f, 0, 64<<10))
-		header.Buffer(make([]byte, 4096), 64<<10)
-		var row struct{ Type, ID string }
-		if !header.Scan() || json.Unmarshal(header.Bytes(), &row) != nil || row.Type != "session" || row.ID != sessionID {
-			return AssistantReply{Available: true}
-		}
-	}
 	start := int64(0)
 	if info.Size() > replyBytes {
 		start = info.Size() - replyBytes
 	}
-	type entry struct {
-		Type, ID, UUID, SessionID string
-		ParentID                  *string
-		ParentUUID                *string
-		Message                   json.RawMessage
-		Payload                   json.RawMessage
-	}
-	entries := map[string]entry{}
-	leaf := ""
-	header := true
 	latest := AssistantReply{Available: true}
 	sc := bufio.NewScanner(io.NewSectionReader(f, start, info.Size()-start))
 	sc.Buffer(make([]byte, 64<<10), 256<<10)
@@ -137,71 +119,24 @@ func readAssistant(ctx context.Context, harness, sessionID string) AssistantRepl
 		}
 		recordPosition := position
 		position += int64(len(sc.Bytes()) + 1)
-		var row entry
-		if json.Unmarshal(sc.Bytes(), &row) != nil {
+		var row struct {
+			Type    string
+			Payload json.RawMessage
+		}
+		if json.Unmarshal(sc.Bytes(), &row) != nil || row.Type != "response_item" {
 			continue
 		}
-		if harness == "pi" && row.Type == "session" {
-			if row.ID != sessionID {
-				return AssistantReply{Available: true}
-			}
-			header = true
-			continue
-		}
-		if harness == "claude" && row.SessionID != "" && row.SessionID != sessionID {
-			return AssistantReply{Available: true}
-		}
-		if harness == "codex" {
-			if row.Type != "response_item" {
-				continue
-			}
-			role, text, id := assistantContent(row.Payload)
-			if role == "user" {
-				latest = AssistantReply{Available: true}
-			} else if role == "assistant" && text != "" {
-				latest = reply(text, fmt.Sprintf("%d:%s", recordPosition, id))
-			}
-			continue
-		}
-		id := row.ID
-		if harness == "claude" {
-			id = row.UUID
-			row.ParentID = row.ParentUUID
-		}
-		if id != "" {
-			entries[id] = row
-			leaf = id
+		role, text, id := assistantContent(row.Payload)
+		if role == "user" {
+			latest = AssistantReply{Available: true}
+		} else if role == "assistant" && text != "" {
+			latest = reply(text, fmt.Sprintf("%d:%s", recordPosition, id))
 		}
 	}
-	if sc.Err() != nil || !header || ctx.Err() != nil {
+	if sc.Err() != nil || ctx.Err() != nil {
 		return AssistantReply{Available: true}
 	}
-	if harness == "codex" {
-		return latest
-	}
-	visited := map[string]bool{}
-	for leaf != "" && !visited[leaf] {
-		if ctx.Err() != nil {
-			return AssistantReply{Available: true}
-		}
-		visited[leaf] = true
-		row, ok := entries[leaf]
-		if !ok {
-			break
-		}
-		role, text, id := assistantContent(row.Message)
-		if role == "assistant" && text != "" {
-			return reply(text, leaf+id)
-		}
-		if role == "user" {
-			break
-		}
-		if row.ParentID == nil {
-			break
-		}
-		leaf = *row.ParentID
-	}
-	return AssistantReply{Available: true}
+	return latest
 }
 
 func assistantContent(raw json.RawMessage) (role, text, id string) {

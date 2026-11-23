@@ -2,7 +2,6 @@ package usage
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -45,23 +44,5 @@ func TestReplyBudgets(t *testing.T) {
 	cancel()
 	if got = readAssistant(ctx, "pi", "large"); !got.Available || got.Text != "" {
 		t.Fatal("deadline must fail closed", got)
-	}
-}
-
-func TestSessionDiscoveryBudget(t *testing.T) {
-	root := t.TempDir()
-	for i := 0; i < discoveryEntries+1; i++ {
-		if err := os.WriteFile(filepath.Join(root, fmt.Sprintf("%05d", i)), nil, 0600); err != nil {
-			t.Fatal(err)
-		}
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	if path, exhausted := findSession(ctx, root, "missing.jsonl"); path != "" || !exhausted {
-		t.Fatal("discovery entry budget", path, exhausted)
-	}
-	cancel()
-	if _, exhausted := findSession(ctx, root, "also-missing.jsonl"); !exhausted {
-		t.Fatal("discovery deadline")
 	}
 }
