@@ -131,7 +131,13 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
     <dl className="board-fields">
       <dt>Status</dt><dd><i className="status-dot" style={{ background: statusColor(task.status) }} /><select aria-label="Task status" value={task.status} onChange={e => act(post("/api/tasks", { Dir: dir, Op: "set", ID: task.id, Status: e.target.value }).then(reload))}>{statuses.map(s => <option key={s}>{s}</option>)}</select></dd>
       {role && <><dt>Role</dt><dd><Avatar role={role} />{role}</dd></>}
-      {task.workflow && <><dt>Workflow</dt><dd>{task.workflow}</dd></>}
+      {task.workflow && <><dt>Workflow</dt><dd className="flex flex-wrap items-center gap-1">{task.workflow}{(() => {
+        // Steps of the ticket's recipe: finished ones checked, the current one highlighted.
+        const jobs = workflows.find(w => w.name === task.workflow || w.file === task.workflow)?.jobs ?? []
+        const at = task.status === "done" ? jobs.length : jobs.findIndex(j => j.status === task.status)
+        return jobs.map((j, i) => <span key={j.id} title={j.agent || j.run || ""} className={`rounded px-1.5 py-px text-[11px] ${i === at ? "bg-foreground text-background" : i < at ? "text-emerald-600" : "text-muted-foreground"}`}>
+          {i > 0 && <span className="mr-1 text-muted-foreground">›</span>}{i < at ? "✓ " : ""}{j.status}</span>)
+      })()}</dd></>}
       {!!task.assignees?.length && <><dt>Assignees</dt><dd>{task.assignees.join(", ")}</dd></>}
       <dt>Updated</dt><dd title={task.updated}>{rel(task.updated) || "—"}</dd>
     </dl>
