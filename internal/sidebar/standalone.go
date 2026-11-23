@@ -539,15 +539,19 @@ func (m standaloneModel) View() string {
 		frame = th.BorderFocus
 	}
 	fs := lipgloss.NewStyle().Foreground(frame)
+	tl, tr, bl, br, hz, vt := "╭", "╮", "╰", "╯", "─", "│"
+	if m.focusRight { // heavy border while typing into the agent
+		tl, tr, bl, br, hz, vt = "┏", "┓", "┗", "┛", "━", "┃"
+	}
 	ts := lipgloss.NewStyle().Foreground(th.TextPrimary).Bold(true)
 	label := " " + ansi.Truncate(title, max(1, rw-4), "…") + " "
-	lines := []string{fs.Render("╭─") + ts.Render(label) + fs.Render(strings.Repeat("─", max(0, rw-ansi.StringWidth(label)-1))+"╮")}
+	lines := []string{fs.Render(tl+hz) + ts.Render(label) + fs.Render(strings.Repeat(hz, max(0, rw-ansi.StringWidth(label)-1))+tr)}
 	body := strings.Split(strings.TrimRight(m.screen, "\n"), "\n")
 	if len(body) > rh { // keep the bottom: that's where the agent's prompt is
 		body = body[len(body)-rh:]
 	}
 	skipped := len(strings.Split(strings.TrimRight(m.screen, "\n"), "\n")) - len(body)
-	edge := fs.Render("│")
+	edge := fs.Render(vt)
 	for i, l := range body {
 		l = ansi.Truncate(l, rw, "")
 		if m.cursorOn && i+skipped == m.cy && m.cx < rw {
@@ -558,7 +562,7 @@ func (m standaloneModel) View() string {
 	for len(lines) < rh+1 {
 		lines = append(lines, edge+strings.Repeat(" ", rw)+edge)
 	}
-	lines = append(lines, fs.Render("╰"+strings.Repeat("─", rw)+"╯"))
+	lines = append(lines, fs.Render(bl+strings.Repeat(hz, rw)+br))
 	keyStyle := lipgloss.NewStyle().Foreground(th.Accent).Bold(true)
 	var hints []string
 	for _, h := range hint {

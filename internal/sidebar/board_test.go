@@ -88,7 +88,7 @@ func TestBoardPaneBounds(t *testing.T) {
 					return
 				}
 				// The body, not just padded footer text, must span the entire pane.
-				if !strings.HasSuffix(lines[1], "╮") || !strings.HasSuffix(lines[m.height-3], "╯") {
+				if !(strings.HasSuffix(lines[1], "╮") || strings.HasSuffix(lines[1], "┓")) || !(strings.HasSuffix(lines[m.height-3], "╯") || strings.HasSuffix(lines[m.height-3], "┛")) {
 					t.Fatalf("box does not span the full width: %v", lines)
 				}
 			})

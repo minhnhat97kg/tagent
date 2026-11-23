@@ -81,7 +81,7 @@ func TestDashboardShowsLanesAtEveryWidth(t *testing.T) {
 		m.width, m.height = size[0], size[1]
 		plain := ansi.Strip(m.dashboardView())
 		// ticket 3 is "doing": in progress lane with 3 tickets (doing, review, blocked).
-		for _, want := range []string{"☷ Tasks  todo 2 · [in progress 3] · done 1", "Ticket number 3", "● doing", "[4]"} {
+		for _, want := range []string{"☷ Tasks  todo 2 · [in progress 3] · done 1", "Ticket number 3", "● doing"} {
 			if !strings.Contains(plain, want) {
 				t.Fatalf("%v: lacks %q:\n%s", size, want, plain)
 			}
@@ -116,7 +116,7 @@ func TestLanesHeaderText(t *testing.T) {
 		m := dashSample()
 		m.width, m.height = w, 40
 		title, _ := m.tasksTitle(4)
-		if got := ansi.Strip(title); got != "[4] ☷ Tasks  todo 2 · [in progress 3] · done 1" {
+		if got := ansi.Strip(title); got != "☷ Tasks  todo 2 · [in progress 3] · done 1" {
 			t.Fatalf("width %d: %q", w, got)
 		}
 	}
@@ -125,7 +125,7 @@ func TestLanesHeaderText(t *testing.T) {
 // Every card is always drawn with a full rounded border, the title inside the
 // top edge, equal widths; the set of cards never changes with focus.
 func TestDashboardCardSetIsStable(t *testing.T) {
-	titles := []string{"[1] Agents", "[2] ▥ Usage", "[3] Agent definitions", "[4] ☷ Tasks", "[5] [Workflows]"}
+	titles := []string{"Agents", "▥ Usage", "Agent definitions", "☷ Tasks", "[Workflows]"}
 	for _, size := range [][2]int{{140, 40}, {100, 30}, {60, 60}, {40, 60}, {60, 20}} {
 		for _, f := range focusOrder {
 			m := dashSample()
@@ -133,7 +133,7 @@ func TestDashboardCardSetIsStable(t *testing.T) {
 			m.width, m.height = size[0], size[1]
 			plain := ansi.Strip(m.dashboardView())
 			for _, title := range titles {
-				if !strings.Contains(plain, "─ "+title) {
+				if !strings.Contains(plain, "─ "+title) && !strings.Contains(plain, "━ "+title) { // heavy edge on the focused card
 					t.Fatalf("%v focus %d: card %q missing:\n%s", size, f, title, plain)
 				}
 			}
@@ -147,14 +147,16 @@ func TestDashboardCardSetIsStable(t *testing.T) {
 					continue
 				}
 				first, last := r[0], r[len(r)-1]
-				ok := (first == '╭' && last == '╮') || (first == '│' && last == '│') || (first == '╰' && last == '╯')
+				// light borders, or heavy ones on the focused card
+				ok := (first == '╭' && last == '╮') || (first == '│' && last == '│') || (first == '╰' && last == '╯') ||
+					(first == '┏' && last == '┓') || (first == '┃' && last == '┃') || (first == '┗' && last == '┛')
 				if lipgloss.Width(l) != size[0]-1 || !ok {
 					t.Fatalf("%v focus %d line %d is not a full card edge: %q", size, f, i, l)
 				}
-				if first == '╭' {
+				if first == '╭' || first == '┏' {
 					tops++
 				}
-				if first == '╰' {
+				if first == '╰' || first == '┗' {
 					bottoms++
 				}
 			}

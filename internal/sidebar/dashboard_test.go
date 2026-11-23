@@ -7,6 +7,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 
 	"tagent/internal/metrics"
 	"tagent/internal/tasks"
@@ -101,5 +102,32 @@ func TestNarrowClickFocusesTheCardClicked(t *testing.T) {
 	}
 	if got := click(g.tasks.x+5, g.tasks.y); got.agentFocus != 2 || !got.taskFocus {
 		t.Fatalf("click on the Tasks header: focus=%d taskFocus=%v", got.agentFocus, got.taskFocus)
+	}
+}
+
+func TestUsageFocusDoesNotMoveAgents(t *testing.T) {
+	m := dashSample()
+	m.agentFocus = 3
+	before := m.cursor
+	for _, k := range []string{"j", "k"} {
+		next, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(k)})
+		m = next.(Model)
+	}
+	for _, k := range []tea.KeyType{tea.KeyDown, tea.KeyUp} {
+		next, _ := m.handleKey(tea.KeyMsg{Type: k})
+		m = next.(Model)
+	}
+	if m.cursor != before {
+		t.Fatalf("agent cursor moved from %d to %d while Usage had focus", before, m.cursor)
+	}
+}
+
+func TestFocusedCardHasHeavyBorder(t *testing.T) {
+	m := dashSample()
+	m.width, m.height = 100, 40
+	m.agentFocus = 3
+	out := ansi.Strip(m.dashboardView())
+	if !strings.Contains(out, "┏━") || !strings.Contains(out, "┗━") {
+		t.Fatal("focused card has no heavy border")
 	}
 }

@@ -1735,6 +1735,12 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
+		if m.agentFocus == 3 { // Usage owns the keys: the Agents list must not move under it
+			switch msg.String() {
+			case "j", "k", "up", "down", "enter", " ", "p", "u", "S", "x", "v", "n", "N", "i", "l", "/", "1", "2", "3", "4", "5", "6", "7", "8", "9":
+				return m, nil
+			}
+		}
 		if m.agentFocus == 0 {
 			if id, ok := paneIDAt(m.rows, m.cursor); ok {
 				switch msg.String() {

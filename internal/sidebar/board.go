@@ -279,17 +279,14 @@ func (m Model) tabStrip(labels []string, active, x int) (string, []tabSpan) {
 	return b.String(), spans
 }
 
-// cardName is "[n] name  " (n is the Tab-order number, 0: none); w is its width
+// cardName is "name" and its width (num is ignored: cards carry no number)
 // and the title text starts at x = 3 inside the card (after "╭─ ").
 func (m Model) cardName(num int, name string) (string, int) {
 	s := m.boardStyle(m.theme.TextPrimary).Bold(true).Render(name)
-	if num > 0 {
-		s = m.boardStyle(m.theme.TextMuted).Render(fmt.Sprintf("[%d] ", num)) + s
-	}
-	return s, ansi.StringWidth(s)
+	return s, ansi.StringWidth(s) // num is unused: cards are not numbered
 }
 
-// tasksTitle is "[4] ☷ Tasks  [todo 1] · in progress 2 · done 32".
+// tasksTitle is "☷ Tasks  [todo 1] · in progress 2 · done 32".
 func (m Model) tasksTitle(num int) (string, []tabSpan) {
 	name, w := m.cardName(num, "☷ Tasks")
 	labels := make([]string, len(boardLanes))
@@ -599,19 +596,24 @@ func (m Model) boardPanel(title, pos string, lines []string, width, height int, 
 		color = focus
 	}
 	border := m.boardStyle(color)
+	// The focused card has a heavy border (┏━┓ ┃ ┗━┛), the others a light rounded one.
+	tl, tr, bl, br, hz, vt := "╭", "╮", "╰", "╯", "─", "│"
+	if focused {
+		tl, tr, bl, br, hz, vt = "┏", "┓", "┗", "┛", "━", "┃"
+	}
 	width, height = max(4, width), max(3, height)
 	label := ansi.Truncate(" "+title+" ", width-3, "…")
-	out := []string{border.Render("╭─") + label + border.Render(strings.Repeat("─", max(0, width-3-ansi.StringWidth(label)))+"╮")}
+	out := []string{border.Render(tl+hz) + label + border.Render(strings.Repeat(hz, max(0, width-3-ansi.StringWidth(label)))+tr)}
 	for i := 0; i < height-2; i++ {
 		line := ""
 		if i < len(lines) {
 			line = lines[i]
 		}
-		out = append(out, border.Render("│")+" "+boardFit(line, width-4)+" "+border.Render("│"))
+		out = append(out, border.Render(vt)+" "+boardFit(line, width-4)+" "+border.Render(vt))
 	}
-	bottom := border.Render("╰" + strings.Repeat("─", width-2) + "╯")
+	bottom := border.Render(bl + strings.Repeat(hz, width-2) + br)
 	if p := " " + pos + " "; pos != "" && ansi.StringWidth(p) <= width-4 {
-		bottom = border.Render("╰"+strings.Repeat("─", width-3-ansi.StringWidth(p))) + m.boardStyle(m.theme.TextMuted).Render(p) + border.Render("─╯")
+		bottom = border.Render(bl+strings.Repeat(hz, width-3-ansi.StringWidth(p))) + m.boardStyle(m.theme.TextMuted).Render(p) + border.Render(hz+br)
 	}
 	return strings.Join(append(out, bottom), "\n")
 }
