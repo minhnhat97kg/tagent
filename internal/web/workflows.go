@@ -7,10 +7,27 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"tagent/internal/tasks"
 	"tagent/internal/workflow"
+	"time"
 )
+
+// workflowCommand is a seam for endpoint tests; production still invokes the CLI.
+var workflowCommand = func(root string, args []string) error {
+	bin, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	cmd := exec.Command(bin, args...)
+	cmd.Dir = root
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%s: %w", output, err)
+	}
+	return nil
+}
 
 var workflowName = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_-]*$`)
 
@@ -40,6 +57,8 @@ func (s *server) workflows(w http.ResponseWriter, r *http.Request) {
 	root := tasks.MainRoot(s.projectDir(r))
 	if r.Method == "GET" {
 		out := []map[string]any{}
+		tickets := tasks.List(tasks.Scope(root))
+		config, _ := tasks.LoadBoardConfig(root)
 		for _, f := range workflow.List(root) {
 			b, err := os.ReadFile(f.File)
 			message := ""
@@ -48,7 +67,21 @@ func (s *server) workflows(w http.ResponseWriter, r *http.Request) {
 			} else if err != nil {
 				message = err.Error()
 			}
-			out = append(out, map[string]any{"name": f.Name, "key": strings.TrimSuffix(filepath.Base(f.File), filepath.Ext(f.File)), "global": f.Global, "yaml": string(b), "description": f.Description, "jobs": f.Jobs, "error": message})
+			total, running := 0, 0
+			var last time.Time
+			for _, t := range tickets {
+				if t.Workflow != f.Name {
+					continue
+				}
+				total++
+				if t.Status != "todo" && config.Lane(t.Status) != "done" {
+					running++
+				}
+				if t.Created.After(last) {
+					last = t.Created
+				}
+			}
+			out = append(out, map[string]any{"name": f.Name, "key": strings.TrimSuffix(filepath.Base(f.File), filepath.Ext(f.File)), "global": f.Global, "yaml": string(b), "description": f.Description, "jobs": f.Jobs, "inputs": f.Inputs, "total": total, "running": running, "lastUsed": last, "error": message})
 		}
 		writeJSON(w, out)
 		return
@@ -56,9 +89,20 @@ func (s *server) workflows(w http.ResponseWriter, r *http.Request) {
 	var o struct {
 		Name, YAML, Op, Goal string
 		Global               bool
+		Inputs               map[string]string
+		Patch                *workflowPatch
 	}
 	if err := readBody(r, &o); err != nil {
 		fail(w, err)
+		return
+	}
+	if o.Op == "validate" || o.Op == "patch" {
+		source, preview, err := patchWorkflow(o.YAML, o.Patch)
+		if err != nil {
+			fail(w, err)
+			return
+		}
+		writeJSON(w, map[string]any{"yaml": source, "preview": preview})
 		return
 	}
 	if o.Global && o.Op != "run" {
@@ -85,20 +129,30 @@ func (s *server) workflows(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if o.Op == "run" {
-		if strings.TrimSpace(o.Goal) == "" {
+		if o.Inputs == nil && strings.TrimSpace(o.Goal) == "" {
 			fail(w, fmt.Errorf("goal is required"))
 			return
 		}
-		var bin string
-		bin, err = os.Executable()
+		given := o.Inputs
+		if given == nil {
+			given = map[string]string{"goal": o.Goal}
+		}
+		recipe := workflow.Load(file)
+		err = recipe.Err
 		if err == nil {
-			cmd := exec.Command(bin, "workflow", "run", file, "--input", "goal="+o.Goal)
-			cmd.Dir = root
-			var output []byte
-			output, err = cmd.CombinedOutput()
-			if err != nil {
-				err = fmt.Errorf("%s: %w", output, err)
+			_, err = recipe.Values(given)
+		}
+		if err == nil {
+			args := []string{"workflow", "run", file}
+			keys := make([]string, 0, len(given))
+			for key := range given {
+				keys = append(keys, key)
 			}
+			sort.Strings(keys)
+			for _, key := range keys {
+				args = append(args, "--input", key+"="+given[key])
+			}
+			err = workflowCommand(root, args)
 		}
 	} else if r.Method == "DELETE" {
 		err = os.Remove(file)
