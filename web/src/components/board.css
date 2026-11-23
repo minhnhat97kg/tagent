@@ -107,3 +107,8 @@
 .dark .board-tools button[aria-pressed=true] { background: #3b1215; color: #fca5a5; }
 .dark .board-icon { background: #134e4a; }
 .dark .drawer-actions button.danger { background: #3b1215; color: #fca5a5; }
+.attachment-viewer { border: 1px solid var(--line); padding: 12px; background: var(--card); }
+.attachment-viewer pre { overflow: auto; max-height: 60vh; white-space: pre; font-family: monospace; }
+.attachment-viewer img { max-width: 100%; max-height: 70vh; object-fit: contain; }
+.attachment-full { position: fixed; inset: 12px; z-index: 100; overflow: auto; }
+.attachment-full pre { max-height: 80vh; }

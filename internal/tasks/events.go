@@ -249,55 +249,16 @@ func Comment(scope, id, author, body string, attach []string, opts ...MutationOp
 		}
 		c := TaskComment{ID: strconv.FormatInt(time.Now().UnixNano(), 36), Author: author, Body: body, Created: time.Now().UTC(), Attachments: []Attachment{}}
 		dir := filepath.Join(boardDir(scope), id)
-		var copied []string
 		committed := false
 		defer func() {
 			if !committed {
-				for _, p := range copied {
-					os.Remove(p)
+				for _, a := range c.Attachments {
+					os.Remove(filepath.Join(dir, a.File))
 				}
 			}
 		}()
-		for i, src := range attach {
-			info, err := os.Lstat(src)
-			if err != nil {
-				return err
-			}
-			if !info.Mode().IsRegular() {
-				return fmt.Errorf("attachment must be a regular file")
-			}
-			if err = os.MkdirAll(dir, 0700); err != nil {
-				return err
-			}
-			info, err = os.Lstat(dir)
-			if err != nil {
-				return err
-			}
-			if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
-				return fmt.Errorf("invalid attachment directory")
-			}
-			name := filepath.Base(src)
-			file := fmt.Sprintf("%s-%d-%s", c.ID, i, name)
-			in, err := os.Open(src)
-			if err != nil {
-				return err
-			}
-			out, err := os.OpenFile(filepath.Join(dir, file), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
-			if err != nil {
-				in.Close()
-				return err
-			}
-			copied = append(copied, out.Name())
-			_, err = io.Copy(out, in)
-			in.Close()
-			closeErr := out.Close()
-			if err != nil {
-				return err
-			}
-			if closeErr != nil {
-				return closeErr
-			}
-			c.Attachments = append(c.Attachments, Attachment{Name: name, File: file})
+		if err := moveAttachments(scope, id, &c, attach); err != nil {
+			return err
 		}
 		if err := compactBody(scope, id, &c); err != nil {
 			return err
@@ -415,21 +376,8 @@ func OpenAttachment(scope, id, name string) (*os.File, error) {
 	if !found {
 		return nil, fmt.Errorf("attachment not found")
 	}
-	dir := filepath.Join(boardDir(scope), id)
-	info, err := os.Lstat(dir)
-	if err != nil {
-		return nil, err
+	if filepath.Base(id) != id || !filepath.IsLocal(id) {
+		return nil, fmt.Errorf("invalid ticket")
 	}
-	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
-		return nil, fmt.Errorf("invalid attachment directory")
-	}
-	path := filepath.Join(dir, name)
-	info, err = os.Lstat(path)
-	if err != nil {
-		return nil, err
-	}
-	if !info.Mode().IsRegular() {
-		return nil, fmt.Errorf("invalid attachment file")
-	}
-	return os.Open(path)
+	return confinedFile(boardDir(scope), filepath.Join(id, name))
 }

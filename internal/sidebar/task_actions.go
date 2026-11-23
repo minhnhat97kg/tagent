@@ -25,6 +25,23 @@ func actionResult(text string, err error) taskActionMsg {
 	return taskActionMsg{"✓ " + text}
 }
 func (m Model) handleTaskForm(key tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if m.taskForm == "attachments" {
+		list := m.attachments
+		switch key.String() {
+		case "esc":
+			m.taskForm = ""
+		case "j", "down":
+			m.taskStep = min(max(0, len(list)-1), m.taskStep+1)
+		case "k", "up":
+			m.taskStep = max(0, m.taskStep-1)
+		case "enter":
+			if len(list) > 0 {
+				m.taskForm = ""
+				return m, openTaskAttachment(m.notesScope, m.boardDir, m.notes[m.taskCursor].ID, list[m.taskStep].Ref, m.tmuxPane)
+			}
+		}
+		return m, nil
+	}
 	if m.taskForm == "intake" {
 		return m.handleIntake(key)
 	}
@@ -84,6 +101,12 @@ func (m Model) handleTaskForm(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case tea.KeyEnter:
 		mode, input := m.taskForm, strings.TrimSpace(m.taskInput)
 		m.taskForm = ""
+		if mode == "attach" {
+			scope, id := m.notesScope, m.notes[m.taskCursor].ID
+			return m, func() tea.Msg {
+				return actionResult("File attached", tasks.Comment(scope, id, "user", "", []string{input}))
+			}
+		}
 		if mode == "c" {
 			root := m.scopeDir()
 			if input == "" || root == "" {
@@ -113,6 +136,17 @@ func (m Model) taskFormView() string {
 	title, hint := "Task detail", "Esc close"
 	body := ""
 	switch m.taskForm {
+	case "attach":
+		title, hint = "Attach file", "Local file path · Enter attach · Esc cancel"
+	case "attachments":
+		title, hint = "Attachments", "j/k select · Enter view · Esc cancel"
+		for i, a := range m.attachments {
+			prefix := "  "
+			if i == m.taskStep {
+				prefix = "› "
+			}
+			body += fmt.Sprintf("%s%s · %d bytes · %s · %s %s\n", prefix, a.Name, a.Size, a.Author, a.Time.Format("2006-01-02 15:04"), a.Error)
+		}
 	case "new-agent":
 		title, hint = "New agent", "j/k select · Enter open · Esc cancel"
 		for i, choice := range newAgentChoices {
@@ -146,7 +180,7 @@ func (m Model) taskFormView() string {
 		title, hint = "✎ Send prompt to "+m.promptPane, "Enter send · Esc cancel"
 
 	}
-	if m.taskForm != "start" {
+	if m.taskForm != "start" && m.taskForm != "attachments" {
 		body += "\n" + wrappedInput(m.taskInput, width, m.height)
 	}
 	return lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(m.theme.Accent).Width(width).Render(lipgloss.NewStyle().Bold(true).Foreground(m.theme.Accent).Render(title) + "\n\n" + lipgloss.NewStyle().Width(width).Render(body) + "\n\n" + hint)

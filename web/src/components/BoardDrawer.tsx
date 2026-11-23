@@ -1,3 +1,6 @@
+import { attachmentURL, uploadError as validateUpload } from "@/lib/attachments"
+import { toast } from "sonner"
+import { AttachmentRows, AttachmentViewer, type Attachment } from "./Attachments"
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react"
 import { DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { act, post } from "@/api"
@@ -40,6 +43,7 @@ function inline(text: string) {
 export function Md({ text }: { text: string }) {
   const blocks = text.trim().split(/\n\s*\n/)
   return <div className="md">{blocks.map((b, i) => {
+    if (b.startsWith("```")) return <pre key={i}><code>{b.replace(/^```[^\n]*\n/, "").replace(/\n```$/, "")}</code></pre>
     const lines = b.split("\n")
     const out: ReactNode[] = []
     const head = lines[0]!.replace(/^#+\s*/, "")
@@ -54,6 +58,30 @@ export function Md({ text }: { text: string }) {
 export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, workflows, initialReply = '' }: { initialReply?: string; task: Task; statuses: string[]; roles: string[]; role: string; reason?: string; dir: string; reload: () => void; workflows: Workflow[] }) {
   const [body, setBody] = useState(initialReply)
   const [sending, setSending] = useState(false)
+  const [files, setFiles] = useState<File[]>([])
+  const [attachments, setAttachments] = useState<Attachment[]>([])
+  const [selected, setSelected] = useState<Attachment | null>(null)
+  const [uploadError, setUploadError] = useState("")
+  const url = attachmentURL(dir, task.id)
+  useEffect(() => {
+    const controller = new AbortController()
+    fetch(url, { signal: controller.signal }).then(r => { if (!r.ok) throw new Error("Cannot list attachments"); return r.json() }).then(setAttachments).catch(e => { if (!controller.signal.aborted) setUploadError(String(e)) })
+    return () => controller.abort()
+  }, [url, task.updated])
+  const enqueue = (incoming: File[]) => {
+    const error = validateUpload([...files, ...incoming]); if (error) { setUploadError(error); return }
+    setFiles([...files, ...incoming]); setUploadError("")
+  }
+  const submitComment = async () => {
+    setSending(true); setUploadError("")
+    try {
+      const data = new FormData(); data.set("text", body); files.forEach(f => data.append("files", f))
+      const r = await fetch(url, { method: "POST", body: data }); if (!r.ok) throw new Error(await r.text())
+      const res: { notice?: string } = await r.json().catch(() => ({}))
+      setBody(""); setFiles([]); reload()
+      if (res.notice) toast(res.notice)
+    } catch (e) { setUploadError(String(e)) } finally { setSending(false) }
+  }
   const [cursor, setCursor] = useState(0)
   const [index, setIndex] = useState(0)
   const [dismissed, setDismissed] = useState(false)
@@ -108,18 +136,23 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
       <dt>Updated</dt><dd title={task.updated}>{rel(task.updated) || "—"}</dd>
     </dl>
     {desc && <section><h3>Description</h3><Md text={desc} /></section>}
+    <section><h3>Attachments</h3><AttachmentRows items={attachments} open={setSelected} /></section>
+    {selected && <AttachmentViewer key={selected.ref} a={selected} url={url} close={() => setSelected(null)} />}
     <section>
       <h3>Activity <span className="board-muted">{task.comments?.length ?? 0}</span></h3>
-      <ul className="board-activity">{task.comments?.map((c, i) => <li key={c.id ?? i}><Avatar role={c.author} /><div className="comment"><header><b>{c.author}</b><time className="board-muted" title={c.created}>{rel(c.created)}</time></header><Md text={c.body} /></div></li>)}</ul>
+      <ul className="board-activity">{task.comments?.map((c, i) => <li key={c.id ?? i}><Avatar role={c.author} /><div className="comment"><header><b>{c.author}</b><time className="board-muted" title={c.created}>{rel(c.created)}</time></header><Md text={c.body} /><AttachmentRows items={attachments.filter(a => a.commentId === c.id)} open={setSelected} /></div></li>)}</ul>
       {!task.comments?.length && <p className="board-muted">No activity yet.</p>}
     </section>
-    <form className="comment-form" onSubmit={e => { e.preventDefault(); if (!body.trim() || sending) return; setSending(true); act(post("/api/tasks", { Dir: dir, Op: "comment", ID: task.id, Text: body }).then(() => { setBody(""); reload() }).finally(() => setSending(false))) }}>
+    <form className="comment-form" onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); enqueue(Array.from(e.dataTransfer.files)) }} onPaste={e => { const images = Array.from(e.clipboardData.files).filter(f => f.type.startsWith("image/")); if (images.length) { e.preventDefault(); enqueue(images) } }} onSubmit={e => { e.preventDefault(); if ((!body.trim() && !files.length) || sending) return; void submitComment() }}>
+      <label>📎 Attach files <input type="file" multiple disabled={sending} onChange={e => { enqueue(Array.from(e.target.files ?? [])); e.target.value = "" }} /></label>
+      {files.map((f, i) => <button type="button" key={i} onClick={() => setFiles(files.filter((_, j) => i !== j))}>{f.name} ×</button>)}
+      {uploadError && <p role="alert">{uploadError}</p>}
       <label htmlFor="task-comment" className="sr-only">Comment</label>
       <textarea id="task-comment" ref={input} value={body} placeholder="Comment… type @role to hand off" aria-autocomplete="list" aria-controls={suggestions.length ? "role-suggestions" : undefined} aria-activedescendant={suggestions.length ? `role-option-${index % suggestions.length}` : undefined}
         onSelect={e => setCursor(e.currentTarget.selectionStart)} onChange={e => { setBody(e.target.value); setCursor(e.target.selectionStart); setIndex(0); setDismissed(false) }}
         onKeyDown={e => { if (!suggestions.length) return; if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setDismissed(true) } else if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); setIndex((index + (e.key === "ArrowDown" ? 1 : suggestions.length - 1)) % suggestions.length) } else if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); choose(suggestions[index % suggestions.length]) } }} />
       {!!suggestions.length && <ul id="role-suggestions" role="listbox" aria-label="Mention role">{suggestions.map((r, i) => <li role="option" aria-selected={i === index % suggestions.length} id={`role-option-${i}`} key={r} onMouseDown={e => e.preventDefault()} onClick={() => choose(r)}>@{r}</li>)}</ul>}
-      <button className="board-send" disabled={sending || !body.trim()}>{sending ? "Sending…" : "Comment"}</button>
+      <button className="board-send" disabled={sending || (!body.trim() && !files.length)}>{sending ? "Sending…" : "Comment"}</button>
     </form>
   </>
 }

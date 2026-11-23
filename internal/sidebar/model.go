@@ -663,6 +663,8 @@ type Model struct {
 	// notes/notesScope: the shared-context board of the project of the pane
 	// under the cursor, shown below the list when there's room (view.go).
 	notes          []tasks.Task
+	attachments    []tasks.TicketAttachment // selected ticket only; refreshed by syncAttachments
+	attachmentsKey string
 	notesScope     string
 	dashboard      bool
 	metricState    metrics.State
@@ -1133,6 +1135,34 @@ func (m *Model) recomputeRepoNames() {
 // it always goes through refreshCmd() so the subprocess call stays inside a
 // tea.Cmd.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if _, ok := msg.(taskActionMsg); ok {
+		m.attachmentsKey = ""
+	}
+	next, cmd := m.update(msg)
+	if nm, ok := next.(Model); ok {
+		return nm.syncAttachments(), cmd
+	}
+	return next, cmd
+}
+
+// syncAttachments caches the selected ticket's attachment list so renders and
+// keypresses do not stat files; it reloads when the selection or key changes.
+func (m Model) syncAttachments() Model {
+	key := ""
+	if m.boardMode && m.taskCursor >= 0 && m.taskCursor < len(m.notes) {
+		key = m.boardDir + "\x00" + m.notes[m.taskCursor].ID
+	}
+	if key == m.attachmentsKey {
+		return m
+	}
+	m.attachmentsKey, m.attachments = key, nil
+	if key != "" {
+		m.attachments, _ = tasks.AttachmentList(m.notesScope, m.boardDir, m.notes[m.taskCursor].ID)
+	}
+	return m
+}
+
+func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case boardConfigMsg:
 		if msg.err != nil {

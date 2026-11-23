@@ -90,6 +90,12 @@ func (m Model) taskDetailLines(t tasks.Task, w int) []string {
 		}
 		field("Time", shortDuration(total)+" · Tokens "+tokens)
 	}
+	if len(m.attachments) > 0 {
+		section("Attachments · a view · A attach")
+		for _, a := range m.attachments {
+			field("📎", fmt.Sprintf("%s · %d bytes · %s · %s %s", a.Name, a.Size, a.Author, a.Time.Format("2006-01-02 15:04"), a.Error))
+		}
+	}
 	section("Description")
 	text := t.Text
 	if first, rest, _ := strings.Cut(text, "\n"); first == boardTitle(t) {

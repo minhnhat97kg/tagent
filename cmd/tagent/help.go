@@ -36,6 +36,7 @@ task move id status [--output k=v]... [comment]  Handoff along configured transi
   task assign id names         Assign comma-separated agent names (- clears)
   task show id [--brief|--all]  Compact agent context / full human history, including dispatch activity
   task comment id [--attach path]... [--diff] text  Comment / @mention an agent
+  task attachments id         List comment and job-output attachments, sizes and availability
   task due id YYYY-MM-DD|-      Set or clear a due date
   board init|run|validate [--dir DIR]  Create config / run triggers / validate config
                                      board.yaml roles support agent, model, effort

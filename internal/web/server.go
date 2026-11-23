@@ -63,6 +63,8 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("POST /api/pane/action", s.agentAction)
 	mux.HandleFunc("POST /api/agents", s.newAgent)
 	mux.HandleFunc("POST /api/tasks", s.taskOp)
+	mux.HandleFunc("GET /api/tasks/{id}/attachments", s.attachments)
+	mux.HandleFunc("POST /api/tasks/{id}/attachments", s.attachments)
 	mux.HandleFunc("GET /api/config", s.settings)
 	mux.HandleFunc("POST /api/config", s.settings)
 	sub, _ := fs.Sub(dist, "dist")

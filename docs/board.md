@@ -1,5 +1,33 @@
 # Ticket boards
 
+## Attachments
+
+`tagent task attachments ID` lists comment files (including long comments,
+CI logs and `--diff`) and job file outputs. Existing
+`tagent task comment ID --attach path` supports files-only comments.
+
+The web ticket drawer lists all files together and beside their comments.
+Click a row for a lazy preview: markdown, text/logs, coloured diffs, JSON or
+raster images. Copy, Download, Open full screen and Load all are available;
+text previews initially read only 256 KiB. HTML/SVG are never rendered as active
+content. Use the paperclip picker, drag files onto the composer, or paste images.
+Remove queued files by clicking their names. Uploads allow four files, each at
+most 10 MiB (40 MiB total request, including multipart overhead). Errors retain
+the comment and file queue.
+
+In TUI ticket details, `a` opens the attachment selector (j/k, Enter, Escape),
+and `A` prompts for a local file path. Text opens in `$PAGER` (default `less`),
+with control characters removed and a 10 MiB snapshot limit. Binary files have
+a web-download fallback. Pager commands are split into arguments, not evaluated
+as shell scripts; less runs without raw-control options.
+
+Only recorded ticket files can be read. Stored files and all their ancestors
+must not be symlinks. Output paths resolve against the selected project checkout,
+not another worktree: absolute paths must remain inside that root. Missing or
+unsafe paths remain visible as unavailable. Outputs have unknown authorship and
+use filesystem modification time; comment files retain comment author/time.
+Uploads become ordinary ticket comments, visible in web, TUI and CLI.
+
 ## Replying to blocked tickets
 
 Blocked rows show the blocking question. `c` opens the existing comment editor

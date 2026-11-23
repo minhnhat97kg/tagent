@@ -25,11 +25,22 @@ func cmdTask(args []string, stdout, stderr io.Writer) int {
 		return exitOK
 	}
 	usage := func() int {
-		fmt.Fprintln(stderr, "usage: tagent task [ls] | add [--to name[,name]] [--needs id[,id]] <text> | done <id> [note] | move <id> <status> [comment] | retry <id> | start <id> <pane> | set <id> <configured-status> [note] | assign <id> <name[,name]|-> | show <id> | comment <id> [--attach path]... [--diff] <text> | due <id> <YYYY-MM-DD|-> | rm <id>")
+		fmt.Fprintln(stderr, "usage: tagent task [ls] | add [--to name[,name]] [--needs id[,id]] <text> | done <id> [note] | move <id> <status> [comment] | retry <id> | start <id> <pane> | set <id> <configured-status> [note] | assign <id> <name[,name]|-> | show <id> | attachments <id> | comment <id> [--attach path]... [--diff] <text> | due <id> <YYYY-MM-DD|-> | rm <id>")
 		return exitUsage
 	}
 	var err error
 	switch args[0] {
+	case "attachments":
+		if len(args) != 2 {
+			return usage()
+		}
+		var list []tasks.TicketAttachment
+		list, err = tasks.AttachmentList(scope, wd, args[1])
+		if err == nil {
+			for _, a := range list {
+				fmt.Fprintf(stdout, "%s\t%s/%s\t%s\t%d bytes\t%s\t%s\t%s\n", a.Ref, a.Source, a.Kind, a.Name, a.Size, a.Author, a.Time.Format("2006-01-02 15:04"), a.Error)
+			}
+		}
 	case "move", "retry":
 		retry := args[0] == "retry"
 		if retry {

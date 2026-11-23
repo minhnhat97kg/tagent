@@ -3,7 +3,6 @@ package tasks
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -44,17 +43,16 @@ func CommentBrief(c TaskComment) string {
 }
 
 func moveAttachments(scope, id string, c *TaskComment, paths []string) error {
-	dir := filepath.Join(boardDir(scope), id)
-	if e := os.MkdirAll(dir, 0700); e != nil {
-		return e
-	}
-	info, e := os.Lstat(dir)
-	if e != nil {
-		return e
-	}
-	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
-		return fmt.Errorf("invalid attachment directory")
-	}
+	start := len(c.Attachments)
+	success := false
+	defer func() {
+		if !success {
+			for _, a := range c.Attachments[start:] {
+				os.Remove(filepath.Join(boardDir(scope), id, a.File))
+			}
+			c.Attachments = c.Attachments[:start]
+		}
+	}()
 	for i, p := range paths {
 		info, e := os.Lstat(p)
 		if e != nil {
@@ -69,22 +67,14 @@ func moveAttachments(scope, id string, c *TaskComment, paths []string) error {
 		}
 		name := filepath.Base(p)
 		file := fmt.Sprintf("%s-%d-%s", c.ID, i, name)
-		out, e := os.OpenFile(filepath.Join(dir, file), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
-		if e != nil {
-			in.Close()
-			return e
-		}
-		_, e = io.Copy(out, in)
+		e = storeAttachment(scope, id, file, in)
 		in.Close()
-		ce := out.Close()
 		if e != nil {
 			return e
-		}
-		if ce != nil {
-			return ce
 		}
 		c.Attachments = append(c.Attachments, Attachment{Name: name, File: file})
 	}
+	success = true
 	return nil
 }
 
@@ -93,29 +83,9 @@ func compactBody(scope, id string, c *TaskComment) error {
 	if len([]rune(c.Body)) <= 600 {
 		return nil
 	}
-	dir := filepath.Join(boardDir(scope), id)
-	if e := os.MkdirAll(dir, 0700); e != nil {
-		return e
-	}
-	info, e := os.Lstat(dir)
-	if e != nil {
-		return e
-	}
-	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
-		return fmt.Errorf("invalid attachment directory")
-	}
 	name := c.ID + "-comment.md"
-	f, e := os.OpenFile(filepath.Join(dir, name), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
-	if e != nil {
+	if e := storeAttachment(scope, id, name, strings.NewReader(c.Body)); e != nil {
 		return e
-	}
-	_, e = f.WriteString(c.Body)
-	ce := f.Close()
-	if e != nil {
-		return e
-	}
-	if ce != nil {
-		return ce
 	}
 	c.Attachments = append(c.Attachments, Attachment{Name: "comment.md", File: name})
 	lines := strings.Split(string([]rune(c.Body)[:500]), "\n")

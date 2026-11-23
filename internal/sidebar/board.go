@@ -50,6 +50,7 @@ func (m Model) boardContext() Model {
 		m.notesScope = tasks.Scope(m.boardDir)
 		m.notes = tasks.List(m.notesScope)
 		m.boardHistory, _ = tasks.ReadEvents(m.notesScope, 0)
+		m.attachmentsKey = ""
 	}
 	m.boardConfig = tasks.BoardConfig{}
 	cfg, err := tasks.LoadBoardConfig(m.boardDir)
@@ -743,6 +744,16 @@ func (m Model) triggerSummary() string {
 
 // Returns handled=false only for the existing Tasks actions, routed to their forms.
 func (m Model) boardKey(key string) (Model, tea.Cmd, bool) {
+	if m.boardMode && (m.boardDrawer || m.boardWide()) && len(m.notes) > 0 && (key == "a" || key == "A") && !m.workflowFocus && m.workflowDelete == "" {
+		m.taskForm = "attachments"
+		if key == "A" {
+			m.taskForm = "attach"
+		}
+		m.taskStep = 0
+		m.taskInput = ""
+		m.attachmentsKey = ""
+		return m.syncAttachments(), nil, true
+	}
 	if m.boardMode && !m.boardFlow && !m.boardDrawer {
 		if m.workflowDelete != "" || m.workflowFocus {
 			return m.workflowPanelKey(key)

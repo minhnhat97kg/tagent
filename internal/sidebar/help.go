@@ -25,7 +25,7 @@ var helpSections = []shortcutSection{
 	{"Board · Tickets", ticketShortcuts([2]string{"Tab / esc", "focus workflows / back"})},
 	{"Board · Workflows", [][2]string{{"Tab", "focus tickets"}, {"j k ↑ ↓", "select workflow"}, {"enter w", "view selected workflow"}, {"a", "new workflow name, then $EDITOR"}, {"e", "edit selected workflow"}, {"x", "delete workflow (y/n confirm)"}, {"esc q b", "back to dashboard"}}},
 	{"Board · Workflow view", [][2]string{{"[ ]", "browse workflows"}, {"e c", "edit displayed workflow / board config"}, {"esc w q", "close workflow view"}, {"ctrl+c", "quit"}}},
-	{"Board · Task detail", [][2]string{{"j k ↑ ↓", "scroll task detail"}, {"pgup pgdn", "scroll page"}, {"g G", "top / bottom"}, {"esc", "close detail drawer"}, {"enter i", "toggle detail drawer"}, {"e", "edit task"}, {"c / C", "blocked: @role reply resumes; C: comment"}}},
+	{"Board · Task detail", [][2]string{{"j k ↑ ↓", "scroll task detail"}, {"pgup pgdn", "scroll page"}, {"g G", "top / bottom"}, {"esc", "close detail drawer"}, {"enter i", "toggle detail drawer"}, {"e", "edit task"}, {"c / C", "blocked: @role reply resumes; C: comment"}, {"a / A", "view attachments / attach file"}}},
 	{"Intake", [][2]string{{"enter", "submit request / answer; approve draft or command"}, {"r", "draft: create + start workflow"}, {"w", "draft: cycle workflow (including none)"}, {"e", "command: edit line; draft / malformed: $EDITOR"}, {"backspace", "delete input character"}, {"esc", "cancel intake"}}},
 	{"Standalone (outside tmux)", [][2]string{{"enter", "type into selected agent"}, {"ctrl+] ctrl+\\", "back to list (or click it)"}, {"N", "start a new agent here"}, {"z", "layout: split · half · agent · dashboard"}}},
 }

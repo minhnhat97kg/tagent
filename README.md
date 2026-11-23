@@ -106,6 +106,10 @@ you each time, allow it in the harness — for Claude, in
 
 ## Usage
 
+Ticket attachments: `tagent task attachments ID` lists comment files and job outputs.
+Attach with `task comment ID --attach path`, the web composer, or `A` in the TUI
+ticket detail (`a` opens the list). See [attachment limits and previews](docs/board.md#attachments).
+
 ### Keys
 
 | Key | Where | Does |
