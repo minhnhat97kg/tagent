@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from "vitest"
-import { getMode, runningTool, setMode, toRows, type Item } from "./transcript"
+import { getMode, runningTool, setMode, splitSystem, toRows, type Item } from "./transcript"
 
 afterEach(() => { vi.restoreAllMocks() })
 
@@ -31,4 +31,13 @@ test("mode defaults to chat on phones, remembers the choice, and survives blocke
   vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("blocked") })
   expect(() => setMode("%1", "chat")).not.toThrow()
   expect(getMode("%1", true)).toBe("chat")
+})
+
+test("a task notification becomes one note and reminders are dropped", () => {
+  const text = "<task-notification>\n<task-id>x</task-id>\n<summary>Background command \"tail -15\" completed (exit code 0)</summary>\n</task-notification>\n<system-reminder>ignore</system-reminder>"
+  expect(splitSystem(text)).toEqual({ text: "", notes: ['Background command "tail -15" completed (exit code 0)'] })
+})
+
+test("splitSystem keeps the person's own words", () => {
+  expect(splitSystem("hello <system-reminder>x</system-reminder>")).toEqual({ text: "hello", notes: [] })
 })

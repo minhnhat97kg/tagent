@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Bubble, Composer, Fold, Markup, chatColumn, composerInput, sendButton } from "@/components/ChatParts"
 import { paneInput } from "@/lib/paneInput"
-import { currentModel, runningTool, toRows, type Feed, type Item, type Row } from "@/lib/transcript"
+import { currentModel, runningTool, splitSystem, toRows, type Feed, type Item, type Row } from "@/lib/transcript"
 import { commandMatches, harnessModels } from "@/lib/harnessCommands"
 import { useAppState } from "@/state"
 import { applyMention, filterMentions, mentionItems, mentionQuery, type Mention } from "@/lib/mentions"
@@ -290,13 +290,16 @@ function Message({ item }: { item: Item }) {
   </Fold>
   if (item.role !== "user") return <Bubble who="assistant"><Markup text={item.text ?? ""} /></Bubble>
   // Uploaded files travel as paths; show images as thumbnails and other files as download cards.
-  const { text, files } = splitAttachments(item.text ?? "")
-  return <Bubble who="user">
+  const sys = splitSystem(item.text ?? "")
+  const { text, files } = splitAttachments(sys.text)
+  const notes = sys.notes.map((n, i) => <p key={i} className="px-2 py-0.5 text-center text-[11px] text-muted-foreground">{n}</p>)
+  if (!text && !files.length) return <>{notes}</>
+  return <>{notes}<Bubble who="user">
     {!!files.length && <span className="mb-1 flex flex-wrap gap-1.5">{files.map(f => f.image
       ? <a key={f.url} href={f.url} target="_blank" rel="noreferrer"><img src={f.url} alt={f.name} className="max-h-40 max-w-full rounded-lg border object-cover" /></a>
       : <a key={f.url} href={f.url} download={f.name} className="flex max-w-full items-center gap-2 rounded-lg border bg-background px-2.5 py-1.5 text-xs hover:bg-accent"><FileText className="size-4 shrink-0" /><span className="truncate font-medium">{f.name}</span></a>)}</span>}
     {text && <span className="whitespace-pre-wrap">{text}</span>}
-  </Bubble>
+  </Bubble></>
 }
 
 function toolIcon(name = ""): ReactNode {

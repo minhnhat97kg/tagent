@@ -81,3 +81,19 @@ export function currentModel(items: Item[]): string | undefined {
   for (let i = items.length - 1; i >= 0; i--) if (items[i]!.model) return items[i]!.model
   return undefined
 }
+
+// Harness-injected blocks that arrive as "user" messages: background-task notices and system reminders.
+// The notices become one muted line each; reminders are dropped; what remains is the person's own text.
+export function splitSystem(text: string): { text: string; notes: string[] } {
+  const unescape = (t: string) => t.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&amp;/g, "&")
+  const notes: string[] = []
+  const rest = text
+    .replace(/<task-notification>([\s\S]*?)<\/task-notification>/g, (_, body: string) => {
+      const summary = /<summary>([\s\S]*?)<\/summary>/.exec(body)?.[1]?.trim()
+      notes.push(unescape(summary ?? "Background task finished").replace(/\s+/g, " "))
+      return ""
+    })
+    .replace(/<system-reminder[^>]*>[\s\S]*?<\/system-reminder[^>]*>/g, "")
+    .trim()
+  return { text: rest, notes }
+}
