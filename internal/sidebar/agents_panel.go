@@ -43,19 +43,17 @@ func (m Model) agentStripLines(width int) []string {
 	}
 	dim := m.boardStyle(m.theme.TextMuted)
 	if a, ok := m.selectedAgent(); ok && m.agentDetail {
-		used := strings.Join(a.UsedBy, ", ")
-		if used == "" {
-			used = "nothing"
+		used := "used by " + strings.Join(a.UsedBy, ", ")
+		if len(a.UsedBy) == 0 {
+			used = "not used"
 		}
 		first, _, _ := strings.Cut(strings.TrimSpace(a.Instructions), "\n")
-		lines := []string{
-			boardFit(m.boardStyle(m.theme.TextPrimary).Bold(true).Render(a.Name)+"  "+dim.Render(agentSummary(a)), width),
-			boardFit(dim.Render("source "+a.Source+" · path "+a.Path), width),
-			boardFit(dim.Render("running "+fmt.Sprint(a.Running)+" · used by "+used), width),
-			boardFit(dim.Render("instructions: "+first), width),
-			boardFit(dim.Render("model changes apply to new panes"), width),
+		return []string{
+			boardFit(m.boardStyle(m.theme.TextPrimary).Bold(true).Render(a.Name), width),
+			boardFit(dim.Render(agentSummary(a)), width),
+			boardFit(dim.Render(used), width),
+			boardFit(dim.Render(first), width),
 		}
-		return lines
 	}
 	var lines []string
 	for i, a := range m.agents {
@@ -77,7 +75,7 @@ func agentSummary(a agents.Agent) string {
 	if model == "" {
 		model = "default model"
 	}
-	return a.Harness + " · " + model + " · " + a.Source
+	return a.Harness + " · " + model
 }
 
 // stripPanel is the bottom card's body: workflows, or agents while the agents panel is open.

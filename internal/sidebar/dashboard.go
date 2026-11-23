@@ -1,7 +1,6 @@
 package sidebar
 
 import (
-	"cmp"
 	"fmt"
 	"os"
 	"os/exec"
@@ -13,12 +12,9 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 
-	"tagent/internal/agents"
 	"tagent/internal/metrics"
 	"tagent/internal/quota"
-	"tagent/internal/roles"
 	"tagent/internal/tasks"
-	"tagent/internal/tmux"
 )
 
 type metricMsg struct {
@@ -101,15 +97,12 @@ func (m Model) dashboardView() string {
 	usageName, uw := m.cardName(paneNum(3), "▥ Usage")
 	rng, _ := m.tabStrip([]string{"1d", "7d", "30d"}, slices.Index([]int{1, 7, 30}, m.chartDaysOrDefault()), 3+uw+2)
 	agentsName, _ := m.cardName(paneNum(0), "Agents")
-	rolesName, _ := m.cardName(paneNum(1), "Agent definitions")
-	rolesLines, _ := m.roleLines(g.roles.w-4, g.roles.h-2)
 	card := func(r rect, title, pos string, lines []string, focused bool) string {
 		return m.boardPanel(title, pos, lines, r.w, r.h, focused)
 	}
 	cards := map[string]string{
 		"agents": card(g.agents, agentsName, position(m.cursor, paneRowCount(m.rows)), m.agentRows(g.agents.w-4, g.agents.h-2), focus(0)),
 		"usage":  card(g.usage, usageName+"  "+rng, "", g.usageLines, focus(3)),
-		"roles":  card(g.roles, rolesName, position(m.definitionCursor, m.roleCount()), rolesLines, focus(1)),
 		"tasks":  m.tasksCard(g.tasks.w, g.tasks.h, paneNum(2), focus(2)),
 		"wf":     m.workflowCard(g.wf.w, g.wf.h, paneNum(4)),
 	}
@@ -128,19 +121,19 @@ func (m Model) dashboardView() string {
 	}
 	var body string
 	if g.wide {
-		body = lipgloss.JoinHorizontal(lipgloss.Top, stack("agents", "usage", "roles", "comp"), stack("tasks", "wf"))
+		body = lipgloss.JoinHorizontal(lipgloss.Top, stack("agents", "usage", "comp"), stack("tasks", "wf"))
 	} else {
-		body = stack("agents", "usage", "roles", "tasks", "wf", "comp")
+		body = stack("agents", "usage", "tasks", "wf", "comp")
 	}
 	help := " Tab/S-Tab panel · ↑↓ select · Enter open · N new agent · l log · i prompt · b board"
 	if m.agentFocus == 3 {
 		help = " h/l or [ ] range · Tab/S-Tab panel"
 	}
-	if m.agentFocus == 1 {
-		help = " ↑↓ role · e edit instruction · Tab/S-Tab panel"
-	}
 	if m.agentFocus == 4 {
-		help = m.keyHints("j/k workflow", "enter view", "a add", "e edit", "x delete", "t agents", "Tab/S-Tab panel")
+		help = m.keyHints("t agents", "j/k select", "enter view", "a add", "e edit", "x delete", "Tab focus")
+		if m.agentsOpen {
+			help = m.keyHints("t workflows", "j/k select", "enter detail", "m model", "a add", "e edit", "x delete", "Tab focus")
+		}
 	}
 	if m.taskFocus {
 		help = m.ticketHints()
@@ -152,13 +145,12 @@ func (m Model) dashboardView() string {
 		help = " " + m.taskNotice
 	}
 	footer := lipgloss.NewStyle().Foreground(m.theme.Accent).Bold(true).Render(fitLine(help, max(6, w-1)))
-	result := strings.Split(bar+"\n"+body+"\n"+footer, "\n")
-	if len(result) > h {
-		result = append(result[:h-1], footer)
+	result := strings.Split(bar+"\n"+body, "\n")
+	result = result[:min(len(result), h-1)]
+	for len(result) < h-1 {
+		result = append(result, "") // spare rows stay empty above the footer
 	}
-	for len(result) < h {
-		result = append(result, "")
-	}
+	result = append(result, footer)
 	return strings.Join(result, "\n")
 }
 
@@ -338,62 +330,6 @@ func (m Model) agentRows(width, height int) []string {
 	return running.agentLines(width, height+1)[1:]
 }
 
-func (m Model) roleCount() int {
-	n := 0
-	for _, row := range m.rows {
-		if row.IsRepoAgent && row.RepoAgentName != "" {
-			n++
-		}
-	}
-	return n
-}
-
-// roleLines is the Roles card body (agent definitions) scrolled so the
-// selected one stays visible; start is the index of the first line shown.
-func (m Model) roleLines(width, visible int) ([]string, int) {
-	var defs []string
-	group := ""
-	for _, row := range m.rows {
-		if !row.IsRepoAgent {
-			continue
-		}
-		if row.RepoAgentName == "" {
-			group = row.Header
-			continue
-		}
-		mark, tag := "⌂ ", "local"
-		if group == "Global agents" {
-			mark, tag = "◇ ", "global"
-		}
-		if m.agentFocus == 1 && len(defs) == m.definitionCursor {
-			mark = "▶ "
-		}
-		left := mark + row.RepoAgentName
-		pad := max(1, width-lipgloss.Width(left)-lipgloss.Width(tag))
-		defs = append(defs, left+strings.Repeat(" ", pad)+tag)
-	}
-	start := 0
-	if visible > 0 && len(defs) > visible {
-		start = min(max(0, m.definitionCursor-visible+1), len(defs)-visible)
-	}
-	return defs[start:], start
-}
-
-func (m Model) focusedDefinitions() []roles.Definition {
-	harness, _ := tmux.GetOption(tmux.AgentOption)
-	selected, _ := paneIDAt(m.rows, m.cursor)
-	dir := m.focusDir(selected)
-	if dir == "" {
-		return roles.ListGlobal(harness)
-	}
-	var defs []roles.Definition
-	for _, a := range agents.List(dir, harness, nil) {
-		// Board-only roles have no instruction file; the dashboard opens board.yaml for those.
-		defs = append(defs, roles.Definition{Name: a.Name, Path: cmp.Or(a.Path, tasks.BoardConfigPath(dir)), Instructions: a.Instructions, Harness: a.Harness})
-	}
-	return defs
-}
-
 // companionPanel returns the Companion panel's height (0 when the avatar is
 // off) and its lines.
 func (m Model) companionPanel(width int) (int, []string) {
@@ -414,21 +350,20 @@ type rect struct{ x, y, w, h int }
 // dashGeom is every card's rectangle (h == 0: not shown), shared by the view
 // and mouse hit-testing. y counts from the top bar (row 0).
 type dashGeom struct {
-	wide                                  bool
-	agents, usage, comp, roles, tasks, wf rect
-	usageLines                            []string
+	wide                           bool
+	agents, usage, comp, tasks, wf rect
+	usageLines                     []string
 }
 
-// focusOrder is the Tab order (agentFocus values): Agents, Usage, Agent
-// definitions, Tasks, Workflows. Its index + 1 is the card's [n] number.
-var focusOrder = []int{0, 3, 1, 2, 4}
+// focusOrder is the Tab order (agentFocus values): Agents, Usage, Tasks,
+// Workflows. Its index + 1 is the card's [n] number.
+var focusOrder = []int{0, 3, 2, 4}
 
 func paneNum(focus int) int { return slices.Index(focusOrder, focus) + 1 }
 
-// dashGeometry: wide = left column (Agents, Usage, Agent definitions, Companion)
+// dashGeometry: wide = left column (Agents, Usage, Companion)
 // beside Tasks over Workflows; narrow or short = all cards stacked in Tab
-// order. Every card is always present; heights come from accordion (terminal
-// size and focus only), the focused card growing at the others' expense.
+// order. Every card is always present; heights follow content (fitHeights).
 func (m Model) dashGeometry() dashGeom {
 	w, h := m.width, m.height
 	if w <= 0 {
@@ -450,39 +385,55 @@ func (m Model) dashGeometry() dashGeom {
 	if compH > 0 && bh-compH < map[bool]int{true: 15, false: 24}[g.wide] {
 		compH = 0
 	}
-	// Per card: height at rest, height when focused.
-	type spec struct {
-		r          *rect
-		focus      int
-		rest, want int
+	// Every card is as tall as its content (+2 borders), at least 3; spare
+	// rows stay empty. Only when the column is too short do the cards shrink.
+	trim := func(l []string) int {
+		for len(l) > 0 && strings.TrimSpace(l[len(l)-1]) == "" {
+			l = l[:len(l)-1]
+		}
+		return len(l)
 	}
-	agentsS := spec{&g.agents, 0, 6, 14}
-	usageS := spec{&g.usage, 3, usageH, usageH}
-	rolesS := spec{&g.roles, 1, 3, 8}
-	tasksS := spec{&g.tasks, 2, 8, flexH}
-	wfS := spec{&g.wf, 4, 3, 8}
+	wfLines, _, _ := m.stripPanel(width - 4)
+	if g.wide {
+		wfLines, _, _ = m.stripPanel(width - left - 4)
+	}
+	tw := width - 4
+	if g.wide {
+		tw = width - left - 4
+	}
+	lanes, _ := m.laneLayout(tw)
+	type spec struct {
+		r     *rect
+		focus int
+		need  int
+	}
+	agentsS := spec{&g.agents, 0, trim(m.agentRows(left-4, 1000)) + 2}
+	usageS := spec{&g.usage, 3, usageH}
+	tasksS := spec{&g.tasks, 2, len(lanes) + 2}
+	wfS := spec{&g.wf, 4, len(wfLines) + 2}
 	column := func(x, w, y, total int, specs ...spec) {
-		rest, want := make([]int, len(specs)), make([]int, len(specs))
+		need := make([]int, len(specs))
 		fi := 0
 		for i, s := range specs {
-			rest[i], want[i] = s.rest, s.want
+			need[i] = max(3, s.need)
 			if s.focus == m.agentFocus {
 				fi = i
 			}
 		}
-		for i, hh := range accordion(total, rest, want, fi) {
+		for i, hh := range fitHeights(total, need, fi) {
 			*specs[i].r = rect{x, y, w, hh}
 			y += hh
 		}
 	}
 	if g.wide {
-		column(0, left, 1, bh-compH, agentsS, usageS, rolesS)
+		column(0, left, 1, bh-compH, agentsS, usageS)
 		if compH > 0 {
 			g.comp = rect{0, 1 + bh - compH, left, compH}
 		}
 		column(left, width-left, 1, bh, tasksS, wfS)
 	} else {
-		column(0, width, 1, bh-compH, agentsS, usageS, rolesS, tasksS, wfS)
+		agentsS.need = trim(m.agentRows(width-4, 1000)) + 2
+		column(0, width, 1, bh-compH, agentsS, usageS, tasksS, wfS)
 		if compH > 0 {
 			g.comp = rect{0, 1 + bh - compH, width, compH}
 		}

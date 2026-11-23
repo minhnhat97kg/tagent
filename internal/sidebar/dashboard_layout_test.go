@@ -125,7 +125,7 @@ func TestLanesHeaderText(t *testing.T) {
 // Every card is always drawn with a full rounded border, the title inside the
 // top edge, equal widths; the set of cards never changes with focus.
 func TestDashboardCardSetIsStable(t *testing.T) {
-	titles := []string{"Agents", "▥ Usage", "Agent definitions", "☷ Tasks", "[Workflows]"}
+	titles := []string{"Agents", "▥ Usage", "☷ Tasks", "[Workflows]"}
 	for _, size := range [][2]int{{140, 40}, {100, 30}, {60, 60}, {40, 60}, {60, 20}} {
 		for _, f := range focusOrder {
 			m := dashSample()
@@ -143,7 +143,7 @@ func TestDashboardCardSetIsStable(t *testing.T) {
 			tops, bottoms := 0, 0
 			for i, l := range strings.Split(plain, "\n")[1 : size[1]-1] {
 				r := []rune(l)
-				if len(r) == 0 {
+				if len(r) == 0 || r[0] == ' ' { // spare rows, footer
 					continue
 				}
 				first, last := r[0], r[len(r)-1]
@@ -160,37 +160,124 @@ func TestDashboardCardSetIsStable(t *testing.T) {
 					bottoms++
 				}
 			}
-			if tops < 5 || tops != bottoms {
+			if tops < 4 || tops != bottoms {
 				t.Fatalf("%v focus %d: %d tops %d bottoms", size, f, tops, bottoms)
 			}
 		}
 	}
 }
 
-// The focused card grows; unfocused ones keep their rest height instead of leaving empty rows.
-func TestAccordionFocusedCardGrows(t *testing.T) {
+// Cards are as tall as their content: Agents with 3 rows is 5 high even when
+// focused on a tall terminal; Tasks does not stretch either.
+func TestCardHeightFollowsContent(t *testing.T) {
 	m := dashSample()
-	m.width, m.height = 40, 60
+	m.width, m.height = 50, 60
 	for _, f := range focusOrder {
 		m.agentFocus, m.taskFocus, m.workflowFocus = f, f == 2, f == 4
 		g := m.dashGeometry()
-		if f == 0 && g.agents.h > 14 || g.agents.h < 3 || g.tasks.h < 6 || g.wf.h < 3 {
-			t.Fatalf("focus %d: agents %d tasks %d wf %d", f, g.agents.h, g.tasks.h, g.wf.h)
+		if g.agents.h != 5 {
+			t.Fatalf("focus %d: agents height %d, want 5", f, g.agents.h)
 		}
-		if total := g.agents.h + g.usage.h + g.roles.h + g.tasks.h + g.wf.h + g.comp.h; total != 58 {
-			t.Fatalf("focus %d: heights sum to %d, want 58", f, total)
+		if g.tasks.h > 12 {
+			t.Fatalf("focus %d: tasks stretched to %d", f, g.tasks.h)
+		}
+		if g.wf.h != 3 {
+			t.Fatalf("focus %d: workflows height %d, want 3", f, g.wf.h)
 		}
 	}
-	m.agentFocus, m.taskFocus = 2, true
-	if g := m.dashGeometry(); g.agents.h > 6 || g.roles.h != 3 || g.wf.h != 3 || g.tasks.h < 20 {
-		t.Fatalf("tasks focus: %+v", g)
+}
+
+func TestFitHeightsShrinksUnfocusedFirst(t *testing.T) {
+	if got := fitHeights(20, []int{10, 10, 10}, 0); got[0] != 10 || got[1] != 7 || got[2] != 3 {
+		t.Fatalf("got %v", got)
+	}
+	if got := fitHeights(50, []int{10, 10}, 0); got[0] != 10 || got[1] != 10 {
+		t.Fatalf("got %v", got)
+	}
+}
+
+func TestNoAgentDefinitionsCardAndFourStops(t *testing.T) {
+	m := dashSample()
+	for _, size := range [][2]int{{50, 60}, {100, 40}} {
+		m.width, m.height = size[0], size[1]
+		if p := ansi.Strip(m.dashboardView()); strings.Contains(p, "efinitions") {
+			t.Fatalf("%v: definitions card still drawn:\n%s", size, p)
+		}
+	}
+	if len(focusOrder) != 4 {
+		t.Fatalf("focusOrder %v", focusOrder)
+	}
+}
+
+// Closing the workflow view returns to where it was opened.
+func TestClosingWorkflowViewReturnsToDashboard(t *testing.T) {
+	m := dashSample()
+	m.width, m.height = 100, 40
+	m.agentFocus, m.workflowFocus = 4, true
+	m.boardWorkflows = []workflow.Workflow{{Name: "a", File: "a.yaml"}}
+	next, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyEnter})
+	m = next.(Model)
+	if !m.boardMode || !m.boardFlow {
+		t.Fatalf("view not open: board %v flow %v", m.boardMode, m.boardFlow)
+	}
+	next, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyEsc})
+	m = next.(Model)
+	if m.boardMode || m.boardFlow || m.agentFocus != 4 || !m.workflowFocus {
+		t.Fatalf("not back on dashboard: %+v", m.agentFocus)
+	}
+	// opened from the board screen: stays on the board
+	b := dashSample()
+	b.boardMode, b.boardFlow = true, true
+	next, _ = b.handleKey(tea.KeyMsg{Type: tea.KeyEsc})
+	if !next.(Model).boardMode {
+		t.Fatal("board screen left")
+	}
+}
+
+// t swaps Workflows <-> Agents on the dashboard, and clicking a tab name does too.
+func TestDashboardWorkflowsAgentsTab(t *testing.T) {
+	dir := agentsTestDir(t)
+	m := dashSample()
+	m.boardDir, m.width, m.height = dir, 100, 40
+	m.agentFocus, m.workflowFocus = 4, true
+	next, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("t")})
+	m = next.(Model)
+	if !m.agentsOpen || len(m.agents) == 0 {
+		t.Fatal("t did not open Agents")
+	}
+	if p := ansi.Strip(m.dashboardView()); !strings.Contains(p, "[Agents]") || !strings.Contains(p, "t workflows") || strings.Contains(p, "· local") {
+		t.Fatalf("agents tab render:\n%s", p)
+	}
+	next, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
+	m = next.(Model)
+	if m.agentCursor != 1 {
+		t.Fatalf("j not routed to agents: %d", m.agentCursor)
+	}
+	next, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("t")})
+	m = next.(Model)
+	if m.agentsOpen {
+		t.Fatal("t did not return to Workflows")
+	}
+	g := m.dashGeometry()
+	_, spans := m.tabStrip([]string{"Workflows", "Agents"}, 0, 3)
+	click := func(m Model, x int) Model {
+		n, _ := m.handleMouse(tea.MouseMsg{X: g.wf.x + x, Y: g.wf.y, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress})
+		return n.(Model)
+	}
+	m = click(m, spans[1].x0)
+	if !m.agentsOpen {
+		t.Fatal("click on Agents tab did nothing")
+	}
+	_, spans = m.tabStrip([]string{"Workflows", "Agents"}, 1, 3)
+	if m = click(m, spans[0].x0); m.agentsOpen {
+		t.Fatal("click on Workflows tab did nothing")
 	}
 }
 
 func TestTabCyclesEveryCardBothWays(t *testing.T) {
 	m := dashSample()
 	m.width, m.height = 100, 30
-	want := []int{3, 1, 2, 4, 0}
+	want := []int{3, 2, 4, 0}
 	for _, f := range want {
 		next, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyTab})
 		m = next.(Model)
