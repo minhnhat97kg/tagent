@@ -1,5 +1,5 @@
 import { useLayoutEffect, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react"
-import { ArrowRight, ArrowUp, Brain, ImagePlus, X, Check, ChevronDown, Cpu, ExternalLink, FileText, MessageCircleQuestion, Loader2, Pencil, Search, Terminal, Wrench } from "lucide-react"
+import { ArrowRight, ArrowUp, Brain, Paperclip, X, Check, ChevronDown, Cpu, ExternalLink, FileText, MessageCircleQuestion, Loader2, Pencil, Search, Terminal, Wrench } from "lucide-react"
 import { api, post } from "@/api"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -7,7 +7,7 @@ import { Bubble, Composer, Fold, Markup, chatColumn, composerInput, sendButton }
 import { paneInput } from "@/lib/paneInput"
 import { currentModel, runningTool, toRows, type Feed, type Item, type Row } from "@/lib/transcript"
 import { commandMatches, harnessModels } from "@/lib/harnessCommands"
-import { splitImages, uploadImage, type Upload } from "@/lib/uploads"
+import { humanSize, splitAttachments, uploadFile, type Upload } from "@/lib/uploads"
 
 const MAX_ITEMS = 1000
 const POLL_MS = 1500
@@ -21,7 +21,7 @@ export function AgentChat({ pane, onOpenTerminal, onUnavailable }: { pane: strin
   const [error, setError] = useState("")
   const [pick, setPick] = useState(0)
   const [picked, setPicked] = useState<number>()
-  const [images, setImages] = useState<Upload[]>([])
+  const [files, setFiles] = useState<Upload[]>([])
   const [uploading, setUploading] = useState(0)
   const fileInput = useRef<HTMLInputElement>(null)
   const cursor = useRef("")
@@ -76,15 +76,15 @@ export function AgentChat({ pane, onOpenTerminal, onUnavailable }: { pane: strin
   const tool = runningTool(rows)
 
   async function send() {
-    // Attached images go in as their file paths, one per line, which is how an agent opens them.
-    const text = [draft.trim(), ...images.map(i => i.path)].filter(Boolean).join("\n")
+    // Attached files go in as their paths, one per line, which is how an agent opens them.
+    const text = [draft.trim(), ...files.map(f => f.path)].filter(Boolean).join("\n")
     if (!text || sending || uploading) return
     setSending(true)
     setError("")
     try {
       const r = (await paneInput(pane, "send", text)) as { queued: boolean }
       setDraft("")
-      setImages([])
+      setFiles([])
       atBottom.current = true
       if (r.queued) setFeed(f => f && { ...f, queued: [...f.queued, text] })
     } catch (e) {
@@ -94,13 +94,12 @@ export function AgentChat({ pane, onOpenTerminal, onUnavailable }: { pane: strin
     }
   }
 
-  async function attach(files: File[]) {
-    const pics = files.filter(f => f.type.startsWith("image/"))
-    if (!pics.length) return
+  async function attach(picked: File[]) {
+    if (!picked.length) return
     setError("")
-    setUploading(n => n + pics.length)
-    for (const f of pics) {
-      try { const u = await uploadImage(f); setImages(prev => [...prev, u]) } catch (e) { setError((e as Error).message) } finally { setUploading(n => n - 1) }
+    setUploading(n => n + picked.length)
+    for (const f of picked) {
+      try { const u = await uploadFile(f); setFiles(prev => [...prev, u]) } catch (e) { setError((e as Error).message) } finally { setUploading(n => n - 1) }
     }
   }
 
@@ -194,25 +193,31 @@ export function AgentChat({ pane, onOpenTerminal, onUnavailable }: { pane: strin
           <button type="button" className={`flex w-full items-baseline gap-3 rounded-lg px-2.5 py-1.5 text-left text-xs ${i === pick % commands.length ? "bg-accent" : "hover:bg-accent/60"}`}
             onClick={() => setDraft(c)}><span className="font-mono">{c}</span><span className="truncate text-muted-foreground">{d}</span></button>
         </li>)}
-      </ul>}{(!!images.length || uploading > 0) && <div className="mb-1 flex flex-wrap gap-1.5">
-        {images.map(i => <span key={i.name} className="relative size-14 overflow-hidden rounded-lg border bg-muted">
-          <img src={i.url} alt="Attached" className="size-full object-cover" />
-          <button type="button" aria-label="Remove image" className="absolute right-0.5 top-0.5 flex size-5 items-center justify-center rounded-full bg-background/90 shadow max-md:size-6" onClick={() => setImages(prev => prev.filter(x => x !== i))}><X className="size-3" /></button>
-        </span>)}
+      </ul>}{(!!files.length || uploading > 0) && <div className="mb-1 flex flex-wrap gap-1.5">
+        {files.map(f => f.image
+          ? <span key={f.url} className="relative size-14 overflow-hidden rounded-lg border bg-muted">
+              <img src={f.url} alt="Attached" className="size-full object-cover" />
+              <button type="button" aria-label={`Remove ${f.name}`} className="absolute right-0.5 top-0.5 flex size-5 items-center justify-center rounded-full bg-background/90 shadow max-md:size-6" onClick={() => setFiles(prev => prev.filter(x => x !== f))}><X className="size-3" /></button>
+            </span>
+          : <span key={f.url} className="flex h-14 max-w-56 items-center gap-2 rounded-lg border bg-muted/50 pl-2.5 pr-1.5">
+              <FileText className="size-4 shrink-0 text-muted-foreground" />
+              <span className="min-w-0"><span className="block truncate text-xs font-medium">{f.name}</span><span className="block text-[11px] text-muted-foreground">{humanSize(f.size)}</span></span>
+              <button type="button" aria-label={`Remove ${f.name}`} className="flex size-6 shrink-0 items-center justify-center rounded-full hover:bg-accent" onClick={() => setFiles(prev => prev.filter(x => x !== f))}><X className="size-3" /></button>
+            </span>)}
         {uploading > 0 && <span role="status" aria-label="Uploading" className="flex size-14 items-center justify-center rounded-lg border bg-muted/50"><Loader2 className="size-4 animate-spin text-muted-foreground" /></span>}
       </div>}{!!feed?.queued.length && <div className="mb-1.5 rounded-lg border bg-muted/40 px-3 py-1.5 text-xs text-muted-foreground">
         <p>Queued until the agent is idle ({feed.queued.length}):</p>
         <ul className="mt-0.5 space-y-0.5 text-foreground">{feed.queued.map((q, i) => <li key={i} className="truncate">{q}</li>)}</ul>
       </div>}</>}>
-      <input ref={fileInput} type="file" accept="image/*" multiple hidden aria-label="Attach images" onChange={e => { void attach(Array.from(e.target.files ?? [])); e.target.value = "" }} />
-      <Button type="button" variant="ghost" size="icon" aria-label="Attach image" title="Attach image" className="size-7 shrink-0 self-end rounded-full text-muted-foreground max-md:size-9" onClick={() => fileInput.current?.click()}><ImagePlus /></Button>
+      <input ref={fileInput} type="file" multiple hidden aria-label="Attach files" onChange={e => { void attach(Array.from(e.target.files ?? [])); e.target.value = "" }} />
+      <Button type="button" variant="ghost" size="icon" aria-label="Attach file" title="Attach a file or image" className="size-7 shrink-0 self-end rounded-full text-muted-foreground max-md:size-9" onClick={() => fileInput.current?.click()}><Paperclip /></Button>
       <textarea aria-label="Message agent" rows={1} value={draft} placeholder="Message this agent"
-        onPaste={e => { const pics = Array.from(e.clipboardData.files).filter(f => f.type.startsWith("image/")); if (pics.length) { e.preventDefault(); void attach(pics) } }}
-        onDrop={e => { const pics = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith("image/")); if (pics.length) { e.preventDefault(); void attach(pics) } }}
+        onPaste={e => { const picked = Array.from(e.clipboardData.files); if (picked.length) { e.preventDefault(); void attach(picked) } }}
+        onDrop={e => { const picked = Array.from(e.dataTransfer.files); if (picked.length) { e.preventDefault(); void attach(picked) } }}
         onDragOver={e => { if (e.dataTransfer.types.includes("Files")) e.preventDefault() }}
         aria-autocomplete="list" aria-controls="agent-commands"
         onChange={e => { setDraft(e.target.value); setPick(0) }} onKeyDown={onKeyDown} className={composerInput} />
-      <Button type="submit" size="icon" aria-label="Send" className={sendButton} disabled={(!draft.trim() && !images.length) || sending || uploading > 0}><ArrowUp /></Button>
+      <Button type="submit" size="icon" aria-label="Send" className={sendButton} disabled={(!draft.trim() && !files.length) || sending || uploading > 0}><ArrowUp /></Button>
     </Composer>
   </div>
 }
@@ -240,10 +245,12 @@ function Message({ item }: { item: Item }) {
     <p className="whitespace-pre-wrap text-muted-foreground">{item.text}</p>
   </Fold>
   if (item.role !== "user") return <Bubble who="assistant"><Markup text={item.text ?? ""} /></Bubble>
-  // Uploaded images travel as file paths; show them as thumbnails.
-  const { text, images } = splitImages(item.text ?? "")
+  // Uploaded files travel as paths; show images as thumbnails and other files as download cards.
+  const { text, files } = splitAttachments(item.text ?? "")
   return <Bubble who="user">
-    {!!images.length && <span className="mb-1 flex flex-wrap gap-1.5">{images.map(u => <a key={u} href={u} target="_blank" rel="noreferrer"><img src={u} alt="Attached" className="max-h-40 max-w-full rounded-lg border object-cover" /></a>)}</span>}
+    {!!files.length && <span className="mb-1 flex flex-wrap gap-1.5">{files.map(f => f.image
+      ? <a key={f.url} href={f.url} target="_blank" rel="noreferrer"><img src={f.url} alt={f.name} className="max-h-40 max-w-full rounded-lg border object-cover" /></a>
+      : <a key={f.url} href={f.url} download={f.name} className="flex max-w-full items-center gap-2 rounded-lg border bg-background px-2.5 py-1.5 text-xs hover:bg-accent"><FileText className="size-4 shrink-0" /><span className="truncate font-medium">{f.name}</span></a>)}</span>}
     {text && <span className="whitespace-pre-wrap">{text}</span>}
   </Bubble>
 }

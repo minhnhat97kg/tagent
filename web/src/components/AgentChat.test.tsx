@@ -177,16 +177,34 @@ test("folds consecutive tool calls into one line and keeps the status in the bar
   expect((await screen.findAllByRole("table")).length).toBe(1)
 })
 
-test("an attached image uploads, shows a thumbnail, and its path is sent with the message", async () => {
-  const path = "/Users/x/.local/state/tagent/uploads/0123456789abcdef01234567.png"
-  mocks.api.mockReset().mockImplementation(async (p: string) => p.startsWith("/api/uploads") ? { path, url: "/api/uploads/0123456789abcdef01234567.png", name: "0123456789abcdef01234567.png" } : feed({ items: [{ id: "a.1", role: "assistant", text: "Done." }], cursor: "a.1" }))
+test("attached files upload, show a thumbnail or a file card, and their paths are sent with the message", async () => {
+  const dir = "/Users/x/.local/state/tagent/uploads/0123456789abcdef01234567"
+  const stored: Record<string, object> = {
+    "shot.png": { path: `${dir}/shot.png`, url: "/api/uploads/0123456789abcdef01234567/shot.png", name: "shot.png", size: 10, image: true },
+    "report.pdf": { path: `${dir}/report.pdf`, url: "/api/uploads/0123456789abcdef01234567/report.pdf", name: "report.pdf", size: 2048, image: false },
+  }
+  mocks.api.mockReset().mockImplementation(async (p: string, init?: RequestInit) => p.startsWith("/api/uploads")
+    ? stored[((init?.body as FormData).get("file") as File).name]
+    : feed({ items: [{ id: "a.1", role: "assistant", text: "Done." }], cursor: "a.1" }))
   mocks.post.mockReset().mockResolvedValue({ queued: false })
   mount()
   await screen.findByText("Done.")
-  const file = new File(["x"], "shot.png", { type: "image/png" })
-  await userEvent.upload(screen.getByLabelText("Attach images"), file)
+  await userEvent.upload(screen.getByLabelText("Attach files"), [new File(["x"], "shot.png", { type: "image/png" }), new File(["y"], "report.pdf", { type: "application/pdf" })])
   expect(await screen.findByAltText("Attached")).toBeTruthy()
+  expect(await screen.findByText("report.pdf")).toBeTruthy()
+  expect(screen.getByText("2.0 KB")).toBeTruthy()
   await userEvent.click(screen.getByRole("button", { name: "Send" }))
   await waitFor(() => expect(mocks.post).toHaveBeenCalled())
-  expect(mocks.post.mock.calls.at(-1)![1]).toMatchObject({ data: path })
+  expect((mocks.post.mock.calls.at(-1)![1] as { data: string }).data).toBe(`${dir}/shot.png\n${dir}/report.pdf`)
+})
+
+test("a sent message shows its uploaded files instead of their paths", async () => {
+  const dir = "/Users/x/.local/state/tagent/uploads/0123456789abcdef01234567"
+  mocks.api.mockReset().mockResolvedValue(feed({ items: [{ id: "u.0", role: "user", text: `look at these\n${dir}/shot.png\n${dir}/report.pdf` }], cursor: "u.0" }))
+  mount()
+  expect((await screen.findByAltText("shot.png")).getAttribute("src")).toBe("/api/uploads/0123456789abcdef01234567/shot.png")
+  const card = screen.getByRole("link", { name: /report\.pdf/ })
+  expect(card.getAttribute("download")).toBe("report.pdf")
+  expect(screen.queryByText(/uploads\/0123/)).toBeNull()
+  expect(screen.getByText("look at these")).toBeTruthy()
 })

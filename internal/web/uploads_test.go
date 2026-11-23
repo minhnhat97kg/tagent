@@ -26,47 +26,67 @@ func post(t *testing.T, s *server, name string, data []byte) *httptest.ResponseR
 	return w
 }
 
-func TestUploadImage(t *testing.T) {
+func serve(s *server, id, name string) *httptest.ResponseRecorder {
+	r := httptest.NewRequest("GET", "/api/uploads/x/y", nil)
+	r.SetPathValue("id", id)
+	r.SetPathValue("name", name)
+	rec := httptest.NewRecorder()
+	s.serveUpload(rec, r)
+	return rec
+}
+
+type uploaded struct {
+	Path, URL, Name string
+	Image           bool
+}
+
+func TestUploadImageAndFile(t *testing.T) {
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	s := &server{}
-	w := post(t, s, "../../evil.png", tinyPNG)
+	w := post(t, s, "../../evil shot.png", tinyPNG)
 	if w.Code != 200 {
 		t.Fatalf("png: %d %s", w.Code, w.Body)
 	}
-	var got struct{ Path, URL, Name string }
-	json.Unmarshal(w.Body.Bytes(), &got)
-	if !uploadName.MatchString(got.Name) || !strings.HasSuffix(got.Path, "/uploads/"+got.Name) || strings.Contains(got.Path, "evil") {
-		t.Fatalf("name must be generated, not the client's: %+v", got)
+	var img uploaded
+	json.Unmarshal(w.Body.Bytes(), &img)
+	if !img.Image || img.Name != "evil_shot.png" || !strings.Contains(img.Path, "/uploads/") || strings.Contains(img.Path, "..") {
+		t.Fatalf("name must be cleaned and kept: %+v", img)
 	}
-	if b, err := os.ReadFile(got.Path); err != nil || !bytes.Equal(b, tinyPNG) {
+	if b, err := os.ReadFile(img.Path); err != nil || !bytes.Equal(b, tinyPNG) {
 		t.Fatalf("stored file differs: %v", err)
 	}
-	// it is served back, with the right type
-	r := httptest.NewRequest("GET", got.URL, nil)
-	r.SetPathValue("name", got.Name)
-	rec := httptest.NewRecorder()
-	s.serveUpload(rec, r)
-	if rec.Code != 200 || !strings.HasPrefix(rec.Header().Get("Content-Type"), "image/png") {
-		t.Fatalf("serve: %d %s", rec.Code, rec.Header().Get("Content-Type"))
+	id := strings.Split(strings.TrimPrefix(img.URL, "/api/uploads/"), "/")[0]
+	if rec := serve(s, id, img.Name); rec.Code != 200 || !strings.HasPrefix(rec.Header().Get("Content-Type"), "image/png") || rec.Header().Get("Content-Disposition") != "" {
+		t.Fatalf("image should be inline: %d %v", rec.Code, rec.Header())
+	}
+
+	// any other file is stored under its own name but only ever served as a download
+	w = post(t, s, "report.html", []byte("<html><script>alert(1)</script></html>"))
+	var doc uploaded
+	json.Unmarshal(w.Body.Bytes(), &doc)
+	if w.Code != 200 || doc.Image || doc.Name != "report.html" {
+		t.Fatalf("file: %d %+v", w.Code, doc)
+	}
+	id = strings.Split(strings.TrimPrefix(doc.URL, "/api/uploads/"), "/")[0]
+	rec := serve(s, id, doc.Name)
+	if rec.Header().Get("Content-Type") != "application/octet-stream" || !strings.HasPrefix(rec.Header().Get("Content-Disposition"), "attachment") ||
+		rec.Header().Get("X-Content-Type-Options") != "nosniff" || rec.Header().Get("Content-Security-Policy") != "sandbox" {
+		t.Fatalf("html must download, not render: %v", rec.Header())
 	}
 }
 
-func TestUploadRejects(t *testing.T) {
+func TestUploadRejectsAndConfines(t *testing.T) {
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	s := &server{}
-	if w := post(t, s, "a.png", []byte("<html><script>alert(1)</script></html>")); w.Code != http.StatusUnsupportedMediaType {
-		t.Fatalf("non-image accepted: %d", w.Code)
-	}
-	if w := post(t, s, "big.png", append(append([]byte{}, tinyPNG...), make([]byte, maxUpload+10)...)); w.Code != http.StatusRequestEntityTooLarge {
+	if w := post(t, s, "big.bin", make([]byte, maxUpload+10)); w.Code != http.StatusRequestEntityTooLarge {
 		t.Fatalf("oversize accepted: %d", w.Code)
 	}
-	for _, name := range []string{"../../etc/passwd", "x.png", "0123456789abcdef01234567.png/../../x", "0123456789abcdef01234567.html"} {
-		r := httptest.NewRequest("GET", "/api/uploads/x", nil)
-		r.SetPathValue("name", name)
-		rec := httptest.NewRecorder()
-		s.serveUpload(rec, r)
-		if rec.Code != 404 {
-			t.Errorf("%q served: %d", name, rec.Code)
+	for _, c := range [][2]string{{"..", "x"}, {"0123456789abcdef01234567", "../../etc/passwd"}, {"0123456789abcdef01234567", ".hidden"}, {"../etc", "passwd"}, {"0123456789abcdef01234567", "a/b"}} {
+		if rec := serve(s, c[0], c[1]); rec.Code != 404 {
+			t.Errorf("%q served: %d", c, rec.Code)
 		}
+	}
+	if safeName("../../..") != "file" || safeName("  .env ") != "env" || len(safeName(strings.Repeat("a", 300)+".pdf")) > 100 {
+		t.Errorf("safeName: %q %q", safeName("../../.."), safeName("  .env "))
 	}
 }

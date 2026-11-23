@@ -10,15 +10,18 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	"tagent/internal/apppath"
 )
 
 const maxUpload = 10 << 20
 
-// Images only: what the chat attaches so an agent can open the file by its path.
-var uploadTypes = map[string]string{"image/png": ".png", "image/jpeg": ".jpg", "image/gif": ".gif", "image/webp": ".webp"}
-var uploadName = regexp.MustCompile(`^[0-9a-f]{24}\.(png|jpg|gif|webp)$`)
+// Images are shown inline; every other file is only ever offered as a download.
+var imageTypes = map[string]bool{"image/png": true, "image/jpeg": true, "image/gif": true, "image/webp": true}
+var uploadID = regexp.MustCompile(`^[0-9a-f]{24}$`)
+var uploadFile = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$`)
+var unsafeName = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
 
 func uploadsDir() string {
 	state := os.Getenv("XDG_STATE_HOME")
@@ -29,15 +32,32 @@ func uploadsDir() string {
 	return filepath.Join(apppath.Dir(state), "uploads")
 }
 
-// upload stores one image (multipart field "file") and returns its absolute path, which an agent on this
-// machine can read, and a URL the web page can show. The file name is random; the client's is never used.
+// safeName keeps the client's file name readable for the agent but never lets it steer the path.
+func safeName(name string) string {
+	name = filepath.Base(strings.ReplaceAll(name, "\\", "/"))
+	name = strings.Trim(unsafeName.ReplaceAllString(name, "_"), "._-")
+	if len(name) > 100 {
+		ext := filepath.Ext(name)
+		if len(ext) > 12 {
+			ext = ""
+		}
+		name = name[:100-len(ext)] + ext
+	}
+	if name == "" {
+		return "file"
+	}
+	return name
+}
+
+// upload stores one file (multipart field "file") as uploads/<random id>/<clean name> and returns its
+// absolute path, which an agent on this machine can read, and a URL for the web page.
 func (s *server) upload(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, maxUpload+(1<<20))
-	f, _, err := r.FormFile("file")
+	f, h, err := r.FormFile("file")
 	if err != nil {
 		var tooLarge *http.MaxBytesError
 		if errors.As(err, &tooLarge) {
-			http.Error(w, "image exceeds 10 MiB", 413)
+			http.Error(w, "file exceeds 10 MiB", 413)
 		} else {
 			http.Error(w, "expected a multipart field named file", 400)
 		}
@@ -46,19 +66,15 @@ func (s *server) upload(w http.ResponseWriter, r *http.Request) {
 	defer f.Close()
 	head := make([]byte, 512)
 	n, _ := io.ReadFull(f, head)
-	ext, ok := uploadTypes[http.DetectContentType(head[:n])]
-	if !ok {
-		http.Error(w, "only PNG, JPEG, GIF and WebP images are accepted", 415)
-		return
-	}
-	dir := uploadsDir()
+	image := imageTypes[http.DetectContentType(head[:n])]
+	idb := make([]byte, 12)
+	_, _ = rand.Read(idb)
+	id, name := hex.EncodeToString(idb), safeName(h.Filename)
+	dir := filepath.Join(uploadsDir(), id)
 	if err = os.MkdirAll(dir, 0o700); err != nil {
 		fail(w, err)
 		return
 	}
-	id := make([]byte, 12)
-	_, _ = rand.Read(id)
-	name := hex.EncodeToString(id) + ext
 	path := filepath.Join(dir, name)
 	out, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
 	if err != nil {
@@ -70,21 +86,45 @@ func (s *server) upload(w http.ResponseWriter, r *http.Request) {
 		err = cerr
 	}
 	if err != nil || size > maxUpload {
-		_ = os.Remove(path)
+		_ = os.RemoveAll(dir)
 		http.Error(w, "upload failed or exceeds 10 MiB", 413)
 		return
 	}
-	writeJSON(w, map[string]any{"path": path, "url": "/api/uploads/" + name, "name": name, "size": size})
+	writeJSON(w, map[string]any{"path": path, "url": "/api/uploads/" + id + "/" + name, "name": name, "size": size, "image": image})
 }
 
-// serveUpload shows an uploaded image. Only names this server generated are served, so no path can escape the folder.
+// serveUpload returns an uploaded file. Only names this server generated are served, so no path can escape
+// the folder; a file that is not an image is a download, never rendered by the browser.
 func (s *server) serveUpload(w http.ResponseWriter, r *http.Request) {
-	name := r.PathValue("name")
-	if !uploadName.MatchString(name) {
+	id, name := r.PathValue("id"), r.PathValue("name")
+	if !uploadID.MatchString(id) || !uploadFile.MatchString(name) {
 		http.NotFound(w, r)
 		return
 	}
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-	w.Header().Set("Cache-Control", "private, max-age=86400")
-	http.ServeFile(w, r, filepath.Join(uploadsDir(), name))
+	path := filepath.Join(uploadsDir(), id, name)
+	in, err := os.Open(path)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	defer in.Close()
+	head := make([]byte, 512)
+	n, _ := io.ReadFull(in, head)
+	kind := http.DetectContentType(head[:n])
+	h := w.Header()
+	h.Set("X-Content-Type-Options", "nosniff")
+	h.Set("Content-Security-Policy", "sandbox")
+	h.Set("Cache-Control", "private, max-age=86400")
+	if imageTypes[kind] {
+		h.Set("Content-Type", kind)
+	} else {
+		h.Set("Content-Type", "application/octet-stream")
+		h.Set("Content-Disposition", "attachment; filename=\""+name+"\"")
+	}
+	st, err := in.Stat()
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	http.ServeContent(w, r, name, st.ModTime(), in)
 }
