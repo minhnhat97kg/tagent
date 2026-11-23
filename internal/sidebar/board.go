@@ -113,31 +113,8 @@ func editBoardConfig(dir, pane string) tea.Cmd {
 	}
 }
 
-// boardColumns are the configured lanes plus any status tickets still carry
-// that the config no longer lists, so no ticket becomes unreachable.
-func (m Model) boardColumns() []string {
-	cols := slices.Clone(m.configuredColumns())
-	for _, t := range m.notes {
-		if !slices.Contains(cols, t.Status) {
-			cols = append(cols, t.Status)
-		}
-	}
-	return cols
-}
-
-func (m Model) configuredColumns() []string {
-	if len(m.boardConfig.Columns) > 0 {
-		return m.boardConfig.Columns
-	}
-	if len(m.boardConfig.Statuses) > 0 {
-		var columns []string
-		for _, s := range m.boardConfig.Statuses {
-			columns = append(columns, s.ID)
-		}
-		return columns
-	}
-	return tasks.DefaultColumns()
-}
+// boardColumns are the fixed lanes: todo, in progress, blocked, done.
+func (m Model) boardColumns() []string { return m.boardConfig.Lanes() }
 
 // boardGlyph: many statuses, four icons (todo, in progress, blocked, done).
 func (m Model) boardGlyph(status string) (string, lipgloss.Color) {
@@ -153,7 +130,6 @@ func (m Model) boardGlyph(status string) (string, lipgloss.Color) {
 }
 func (m Model) boardColor(status string) lipgloss.Color { _, c := m.boardGlyph(status); return c }
 
-	slices.SortStableFunc(cards, func(a, b int) int { return m.notes[b].Updated.Compare(m.notes[a].Updated) })
 func boardTitle(t tasks.Task) string {
 	if t.Title != "" {
 		return t.Title
@@ -162,16 +138,11 @@ func boardTitle(t tasks.Task) string {
 }
 func (m Model) boardStyle(c lipgloss.Color) lipgloss.Style { return lipgloss.NewStyle().Foreground(c) }
 
-// The board has three lanes however many statuses a workflow defines; a card
-// shows its real status.
-var boardLanes = []string{"todo", "in progress", "done"}
+// The board has four fixed lanes however many statuses a workflow defines; a
+// card shows its real status.
+var boardLanes = []string{"todo", "in progress", "blocked", "done"}
 
-func (m Model) laneOf(status string) string {
-	if l := m.boardConfig.Lane(status); l == "todo" || l == "done" {
-		return l
-	}
-	return "in progress"
-}
+func (m Model) laneOf(status string) string { return m.boardConfig.Lane(status) }
 
 // laneCards lists the ticket indexes in a lane, most recently updated first
 // (same order as the web board).
@@ -182,6 +153,7 @@ func (m Model) laneCards(lane string) []int {
 			cards = append(cards, i)
 		}
 	}
+	slices.SortStableFunc(cards, func(a, b int) int { return m.notes[b].Updated.Compare(m.notes[a].Updated) })
 	return cards
 }
 
@@ -340,7 +312,7 @@ func (m Model) boardCardLine(idx, width int) string {
 // boardCard: title, then "● status #id role worker"; a blocked card adds its question.
 func (m Model) boardCard(idx, width int) []string {
 	t := m.notes[idx]
-	if lane := m.laneOf(t.Status); lane == "done" || t.Status == lane { // todo and done cards: one line
+	if lane := m.laneOf(t.Status); lane == "done" || lane == "todo" { // todo and done cards: one line
 		return []string{m.boardCardLine(idx, width)}
 	}
 	mark := "  "
@@ -350,9 +322,11 @@ func (m Model) boardCard(idx, width int) []string {
 		style = style.Bold(true).Foreground(m.theme.Accent)
 	}
 	role := ""
-	for _, s := range m.boardConfig.Statuses {
-		if s.ID == t.Status {
-			role = s.Role
+	if cfg, err := tasks.ConfigForTask(m.boardDir, m.boardConfig, t); err == nil {
+		for _, s := range cfg.Statuses {
+			if s.ID == t.Status {
+				role = s.Role
+			}
 		}
 	}
 	if role == "" && len(t.Assignees) > 0 {
@@ -504,7 +478,7 @@ func (m Model) flowLines(width int) []string {
 	}
 	statuses := m.boardConfig.Statuses
 	if len(statuses) == 0 {
-		for _, id := range m.boardColumns() {
+		for _, id := range m.boardConfig.Columns {
 			statuses = append(statuses, tasks.Status{ID: id})
 		}
 	}
@@ -595,59 +569,26 @@ func (m Model) flowLines(width int) []string {
 	return lines
 }
 
+// boardConfigMaxScroll is the last scroll position of the config view.
+func (m Model) boardConfigMaxScroll() int {
+	return max(0, len(m.boardConfigLines(m.width-4))-max(0, m.height-5))
+}
+
 // boardConfigLines is the read-only config summary (B): the same
 // tasks.BoardSummary the web config page renders.
 func (m Model) boardConfigLines(width int) []string {
 	sum := m.boardConfig.Summary()
 	dim := m.boardStyle(m.theme.TextMuted)
 	title := m.boardStyle(m.theme.TextPrimary).Bold(true)
-	lines := []string{boardFit(title.Render("Statuses")+"  "+dim.Render(fmt.Sprintf("%d statuses · %d roles · %d triggers", len(sum.Statuses), len(sum.Roles), len(sum.Triggers))), width)}
-	roleInfo := map[string]string{}
-	for _, r := range sum.Roles {
-		roleInfo[r.Name] = strings.TrimSpace(r.Agent + " " + r.Model)
+	flow := sum.DefaultWorkflow
+	if flow == "" {
+		flow = "none (pick one when starting a ticket)"
 	}
-	for _, s := range sum.Statuses {
-		glyph, color := m.boardGlyph(s.ID)
-		who := "you move it"
-		switch {
-		case s.Role != "":
-			who = s.Role
-			if info := roleInfo[s.Role]; info != "" {
-				who += " · " + info
-			}
-		case s.Run != "":
-			who = "run: " + strings.SplitN(s.Run, "\n", 2)[0]
-		case s.ID == "blocked":
-			who = "waiting for you"
-		case m.boardConfig.Lane(s.ID) == "done":
-			who = "finished"
-		}
-		lines = append(lines, boardFit(m.boardStyle(color).Render(glyph)+" "+title.Render(s.ID)+"  "+who, width))
-		next := ""
-		switch {
-		case s.Run != "":
-			next = "pass → " + s.Pass + " · fail → " + s.Fail
-		case s.Next != nil && len(s.Next) == 0:
-			next = "end"
-		case s.Next != nil:
-			next = "→ " + strings.Join(s.Next, ", ")
-		case m.boardConfig.Lane(s.ID) == "done":
-			next = "end"
-		default:
-			next = "→ any status"
-		}
-		if s.MaxLoops > 0 {
-			next += fmt.Sprintf(" · max %d loops, then blocked", s.MaxLoops)
-		}
-		if s.FreshAfter != nil {
-			next += fmt.Sprintf(" · fresh after %d", *s.FreshAfter)
-		}
-		if s.Column != "" {
-			next += " · column " + s.Column
-		}
-		lines = append(lines, boardFit("  "+dim.Render(next), width))
+	lines := []string{
+		boardFit(title.Render("Default workflow")+"  "+dim.Render(flow), width),
+		boardFit(dim.Render(fmt.Sprintf("%d roles · %d triggers · lanes: todo, in progress, blocked, done", len(sum.Roles), len(sum.Triggers))), width),
+		"", title.Render("Roles"),
 	}
-	lines = append(lines, "", title.Render("Roles"))
 	if len(sum.Roles) == 0 {
 		lines = append(lines, dim.Render("  none"))
 	}
@@ -863,6 +804,14 @@ func (m Model) workflowCard(width, height, num int) string {
 	return m.boardPanel(name+tabs, position(cursor, n), lines[min(start, len(lines)):], width, height, m.workflowFocus)
 }
 
+func (m Model) boardHeader() string {
+	header := "Board · " + m.notesScope
+	if m.boardConfig.DefaultWorkflow != "" {
+		header += " · default: " + m.boardConfig.DefaultWorkflow
+	}
+	return header
+}
+
 func b2i(b bool) int {
 	if b {
 		return 1
@@ -876,7 +825,7 @@ func (m Model) boardView() string {
 	}
 	if m.width < 20 || m.height < 6 {
 		lines := make([]string, m.height)
-		lines[0] = "Board · " + m.notesScope
+		lines[0] = m.boardHeader()
 		if m.height > 3 {
 			lines[1] = "too small — widen the pane"
 		}
@@ -951,7 +900,7 @@ func (m Model) boardView() string {
 	for len(bodyLines) < h {
 		bodyLines = append(bodyLines, "")
 	}
-	out := []string{boardFit("Board · "+m.notesScope, m.width)}
+	out := []string{boardFit(m.boardHeader(), m.width)}
 	for _, line := range bodyLines[:h] {
 		out = append(out, boardFit(line, m.width))
 	}
@@ -1139,14 +1088,26 @@ func (m Model) boardKey(key string) (Model, tea.Cmd, bool) {
 		switch key {
 		case "esc", "w", "q", "b", "B":
 			m.boardFlow, m.boardConfigView = false, false
+			if m.flowFromDash { // back to the dashboard's Workflows card
+				m.flowFromDash, m.boardMode = false, false
+				m.agentFocus, m.taskFocus, m.workflowFocus = 4, false, true
+			}
 		case "j", "down":
-			m.boardConfigScroll++
+			m.boardConfigScroll = min(m.boardConfigScroll+1, m.boardConfigMaxScroll())
 		case "k", "up":
 			m.boardConfigScroll = max(0, m.boardConfigScroll-1)
 		case "g":
 			m.boardConfigScroll = 0
 		case "G":
-			m.boardConfigScroll = 1 << 20 // the renderer clamps to the last page
+			m.boardConfigScroll = m.boardConfigMaxScroll()
+		case "enter":
+			m.taskForm, m.taskStep = "default", len(m.boardWorkflows)
+			for i, w := range m.boardWorkflows {
+				if w.Name == m.boardConfig.DefaultWorkflow {
+					m.taskStep = i
+				}
+			}
+			return m, nil, true
 		case "e", "E":
 			return m, editBoardConfig(m.boardDir, m.tmuxPane), true
 		case "ctrl+c":

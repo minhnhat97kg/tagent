@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -18,7 +19,6 @@ import (
 	"time"
 
 	"tagent/internal/sharedctx"
-	"tagent/internal/workflow"
 )
 
 type Task struct {
@@ -204,7 +204,11 @@ func Add(scope, text string, assignees []string, opts ...MutationOptions) (Task,
 				if !ok {
 					return fmt.Errorf("unknown repository scope")
 				}
-				w, e := workflow.Find(dir.(string), t.Workflow)
+				base, e := configForScope(scope)
+				if e != nil {
+					return e
+				}
+				w, e := FindWorkflow(dir.(string), base, t.Workflow)
 				if e != nil {
 					return e
 				}
@@ -253,7 +257,11 @@ func SetWorkflow(scope, id, name string, given map[string]string) error {
 		if !ok {
 			return fmt.Errorf("unknown repository scope")
 		}
-		w, err := workflow.Find(root.(string), name)
+		base, err := configForScope(scope)
+		if err != nil {
+			return err
+		}
+		w, err := FindWorkflow(root.(string), base, name)
 		if err != nil {
 			return err
 		}
@@ -283,26 +291,55 @@ func SetWorkflow(scope, id, name string, given map[string]string) error {
 	})
 }
 
-func Update(scope, id, status string, assignees []string, opts ...MutationOptions) (Task, error) {
-	if status != "" {
-		existing, err := Get(scope, id)
+// AttachWorkflow assigns a workflow to a ticket that is already out of todo.
+// The migrate command uses it; normal starts go through SetWorkflow.
+func AttachWorkflow(scope, id, name string) error {
+	return withLock(scope, func() error {
+		t, err := Get(scope, id)
 		if err != nil {
-			return Task{}, err
+			return err
 		}
-		c, err := configForTaskScope(scope, existing)
+		// "board" is the implicit workflow of a deprecated board.yaml; migrate
+		// replaces it with the configured default_workflow.
+		if t.Workflow != "" && t.Workflow != "board" {
+			return fmt.Errorf("ticket already has workflow %q", t.Workflow)
+		}
+		root, ok := scopeRoots.Load(scope)
+		if !ok {
+			return fmt.Errorf("unknown repository scope")
+		}
+		base, err := configForScope(scope)
 		if err != nil {
-			return Task{}, err
+			return err
 		}
-		ok := false
-		for _, s := range c.Columns {
-			if s == status {
-				ok = true
+		w, err := FindWorkflow(root.(string), base, name)
+		if err != nil {
+			return err
+		}
+		values := map[string]string{}
+		var missing []string
+		for k, v := range w.Inputs {
+			if v.Required && v.Default == "" && values[k] == "" {
+				missing = append(missing, k)
 			}
 		}
-		if !ok {
-			return Task{}, fmt.Errorf("invalid status %q", status)
+		sort.Strings(missing)
+		if len(missing) > 1 {
+			return fmt.Errorf("missing inputs: %s", strings.Join(missing, ", "))
 		}
-	}
+		if len(missing) == 1 {
+			values[missing[0]] = t.Text
+		}
+		t.Inputs, err = w.Values(values)
+		if err != nil {
+			return err
+		}
+		t.Workflow, t.Updated = name, time.Now()
+		return write(scope, t)
+	})
+}
+
+func Update(scope, id, status string, assignees []string, opts ...MutationOptions) (Task, error) {
 	if assignees != nil {
 		for i := range assignees {
 			assignees[i] = strings.TrimSpace(assignees[i])
@@ -318,6 +355,20 @@ func Update(scope, id, status string, assignees []string, opts ...MutationOption
 		t, err = Get(scope, id)
 		if err != nil {
 			return err
+		}
+		if status != "" {
+			cfg, err := configForTaskScope(scope, t)
+			if err != nil {
+				return err
+			}
+			cfg, status, _, err = attachDefault(scope, &t, cfg, status)
+			if err != nil {
+				return err
+			}
+			status = jobStatus(cfg, status)
+			if !slices.Contains(cfg.Columns, status) {
+				return fmt.Errorf("invalid status %q", status)
+			}
 		}
 		from := t.Status
 		events := assignmentEvents(t.Assignees, assignees)

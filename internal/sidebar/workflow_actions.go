@@ -79,6 +79,10 @@ func (m Model) workflowPanelKey(key string) (Model, tea.Cmd, bool) {
 	case "a":
 		m.taskForm = "workflow-new"
 		m.taskInput = ""
+	case "B": // board config summary (same view as the board's B key)
+		m.workflowFocus = false
+		m.boardFlow, m.boardConfigView = true, true
+		m.flowWorkflow, m.boardConfigScroll = "", 0
 	case "esc", "q", "b":
 		m.workflowFocus = false
 		m.boardMode = false

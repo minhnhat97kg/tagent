@@ -5,7 +5,7 @@ import { api, send } from "@/api"
 import { usePoll } from "@/hooks/usePoll"
 import { enc } from "@/hooks/useRoute"
 import { Button } from "@/components/ui/button"
-import { editableKey, effortLevels, modelsIn, roleTemplate, usedBySummary } from "@/lib/roles"
+import { editableKey, effortLevels, modelsIn, readOnlySource, roleTemplate, usedBySummary } from "@/lib/roles"
 import type { Role } from "@/types"
 
 // AgentsPage edits the agent roles the board and the workflows use: harness, model, effort and instructions.
@@ -21,8 +21,8 @@ export function AgentsPage({ dir }: { dir: string }) {
   const saved = roles.find(r => r.name === draft?.name)
   const panes = saved?.panes ?? []
   const dirty = !!draft && !!saved && editableKey(draft) !== editableKey(saved)
-  const readOnly = !draft || draft.source === "global"
-  const instructionsOff = readOnly || draft?.harness === "pi"
+  const readOnly = !draft || readOnlySource(draft.source)
+  const copyable = !!draft && readOnlySource(draft.source)
 
   function open(r?: Role) {
     if (dirty && !confirm("Discard unsaved agent changes?")) return
@@ -35,9 +35,7 @@ export function AgentsPage({ dir }: { dir: string }) {
     finally { setBusy(false) }
   }
   async function save(body: Role) {
-    // pi agents have no instruction file, so the server refuses instructions for them.
-    const out = body.harness === "pi" ? { ...body, instructions: "" } : body
-    if (await mutate("POST", out)) setDraft({ ...out })
+    if (await mutate("POST", body)) setDraft({ ...body })
   }
   function create() {
     const name = prompt("Agent name (letters, numbers, - or _)")
@@ -71,7 +69,7 @@ export function AgentsPage({ dir }: { dir: string }) {
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-auto">
           <div className="flex shrink-0 flex-wrap items-center gap-2 border-b px-3 py-1.5">
             <h3 className="mr-auto truncate text-[13px] font-semibold">{draft.name}{dirty && <span className="ml-1 text-amber-600">•</span>}<span className="ml-2 text-[11px] font-normal text-muted-foreground">{draft.source === "global" ? "global" : "local"}{draft.path ? ` · ${draft.path}` : ""}</span></h3>
-            {draft.source === "global"
+            {copyable
               ? <Button size="xs" variant="outline" disabled={busy} onClick={() => void save({ ...draft, source: "repo", path: "" })}><Copy />Copy to repo</Button>
               : <>
                 <Button size="xs" variant="outline" disabled={busy || !dirty} onClick={() => void save(draft)}><Save />Save</Button>
@@ -79,7 +77,7 @@ export function AgentsPage({ dir }: { dir: string }) {
               </>}
           </div>
           {error && <p role="alert" className="shrink-0 whitespace-pre-wrap border-b bg-destructive/5 px-3 py-1.5 text-xs text-destructive">{error}</p>}
-          {draft.source === "global" && <p className="border-b px-3 py-1.5 text-xs text-muted-foreground">Global agent: read-only here. Copy it to the repo to change it.</p>}
+          {copyable && <p className="border-b px-3 py-1.5 text-xs text-muted-foreground">{draft.source === "legacy" ? `Legacy harness file (${draft.path}): read-only here. Copy it to .tasks/agents to change it.` : "Global agent: read-only here. Copy it to the repo to change it."}</p>}
           <div className="grid gap-3 p-3 sm:grid-cols-3">
             <label className="text-[12px] font-medium">Harness
               <select aria-label="Harness" className={fieldClass} disabled={readOnly} value={draft.harness} onChange={e => setDraft({ ...draft, harness: e.target.value, effort: effortLevels(e.target.value).includes(draft.effort) ? draft.effort : "" })}>
@@ -101,12 +99,12 @@ export function AgentsPage({ dir }: { dir: string }) {
           </div>
           <div className="flex min-h-0 flex-1 flex-col p-3">
             <div className="mb-1 flex items-center gap-2 text-[12px] font-medium">
-              Instructions{draft.harness === "pi" && <span className="font-normal text-muted-foreground">· pi agents have no instruction file</span>}
+              Instructions
               <Button size="xs" variant="ghost" className="ml-auto" onClick={() => setPreview(!preview)} aria-label={preview ? "Edit instructions" : "Preview instructions"}>{preview ? <><Pencil />Edit</> : <><Eye />Preview</>}</Button>
             </div>
             {preview
               ? <div className="min-h-40 flex-1 space-y-2 overflow-auto rounded border p-3 text-sm [&_code]:font-mono [&_pre]:overflow-auto [&_pre]:rounded [&_pre]:bg-muted [&_pre]:p-2"><Markdown skipHtml>{draft.instructions}</Markdown></div>
-              : <textarea aria-label="Instructions" spellCheck={false} disabled={instructionsOff} value={draft.instructions} onChange={e => setDraft({ ...draft, instructions: e.target.value })}
+              : <textarea aria-label="Instructions" spellCheck={false} disabled={readOnly} value={draft.instructions} onChange={e => setDraft({ ...draft, instructions: e.target.value })}
                 className="min-h-40 flex-1 resize-none rounded border bg-background p-3 font-mono text-[12px] leading-5 outline-none disabled:opacity-60" />}
           </div>
         </div>}

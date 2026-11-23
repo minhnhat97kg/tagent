@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { editableKey, effortLevels, modelsIn, roleTemplate, usedBySummary } from "@/lib/roles"
+import { editableKey, effortLevels, modelsIn, readOnlySource, roleTemplate, usedBySummary } from "@/lib/roles"
 import type { Role } from "@/types"
 
 const role = (over: Partial<Role>): Role => ({ name: "a", harness: "pi", model: "", effort: "", source: "board", path: "", instructions: "", running: 0, panes: null, usedBy: null, ...over })
@@ -21,7 +21,14 @@ describe("roles helpers", () => {
     expect(editableKey(role({ running: 2, usedBy: ["status plan"] }))).toBe(editableKey(role({})))
     expect(editableKey(role({ model: "n" }))).not.toBe(editableKey(role({})))
   })
-  it("builds a claude template with frontmatter", () => {
-    expect(roleTemplate("writer").startsWith("---\nname: writer\n")).toBe(true)
+  it("builds a plain markdown template without frontmatter", () => {
+    expect(roleTemplate("writer")).toBe("# writer\n\nDescribe how this agent works.\n")
+    expect(roleTemplate("writer").startsWith("---")).toBe(false)
+  })
+  it("marks global and legacy agents read-only", () => {
+    expect(readOnlySource("global")).toBe(true)
+    expect(readOnlySource("legacy")).toBe(true)
+    expect(readOnlySource("repo")).toBe(false)
+    expect(readOnlySource("board")).toBe(false)
   })
 })

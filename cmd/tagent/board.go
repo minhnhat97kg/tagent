@@ -15,19 +15,22 @@ import (
 
 	"tagent/internal/board"
 	"tagent/internal/queue"
+	"tagent/internal/roles"
 	"tagent/internal/tasks"
 	"tagent/internal/tmux"
+	"tagent/internal/workflow"
 )
 
 func cmdBoard(args []string, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
-		fmt.Fprintln(stderr, "usage: tagent board run|init|validate [--dir DIR]")
+		fmt.Fprintln(stderr, "usage: tagent board run|init|validate|migrate [--dir DIR] [--dry-run]")
 		return exitUsage
 	}
 	wd, _ := os.Getwd()
 	fs := flag.NewFlagSet("board", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	dir := fs.String("dir", wd, "repository directory")
+	dryRun := fs.Bool("dry-run", false, "migrate: print the mapping without changing tickets")
 	if fs.Parse(args[1:]) != nil || fs.NArg() != 0 {
 		return exitUsage
 	}
@@ -47,13 +50,31 @@ func cmdBoard(args []string, stdout, stderr io.Writer) int {
 				}
 				if err == nil {
 					fmt.Fprintln(stdout, path)
+					err = ensureStarterWorkflow(*dir)
 				}
 			}
 		}
 	case "validate":
-		_, err = tasks.LoadBoardConfig(*dir)
+		var cfg tasks.BoardConfig
+		cfg, err = tasks.LoadBoardConfig(*dir)
 		if err == nil {
+			for _, warning := range cfg.Warnings {
+				fmt.Fprintln(stdout, "warning:", warning)
+			}
 			fmt.Fprintln(stdout, "Board configuration valid.")
+		}
+	case "migrate":
+		var migrations []board.Migration
+		migrations, err = board.Migrate(*dir, *dryRun)
+		for _, m := range migrations {
+			switch {
+			case m.Skipped != "":
+				fmt.Fprintf(stdout, "%s: left in %s: %s\n", m.ID, m.From, m.Skipped)
+			case *dryRun:
+				fmt.Fprintf(stdout, "%s: %s -> %s/%s (%s)\n", m.ID, m.From, m.Workflow, m.To, m.Job)
+			default:
+				fmt.Fprintf(stdout, "%s: %s -> %s/%s (%s)\n", m.ID, m.From, m.Workflow, m.To, m.Job)
+			}
 		}
 	case "run":
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -67,6 +88,22 @@ func cmdBoard(args []string, stdout, stderr io.Writer) int {
 		return exitFailure
 	}
 	return exitOK
+}
+
+// ensureStarterWorkflow gives `board init`'s default_workflow a recipe to run.
+func ensureStarterWorkflow(dir string) error {
+	root := tasks.MainRoot(dir)
+	if _, err := workflow.Find(root, "feature"); err == nil {
+		return nil
+	}
+	path := filepath.Join(workflow.LocalDir(root), "feature.yml")
+	if _, err := os.Stat(path); err == nil {
+		return nil
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		return err
+	}
+	return os.WriteFile(path, []byte(workflow.Template("feature")), 0600)
 }
 
 var harnesses = map[string]bool{"claude": true, "codex": true, "pi": true, "opencode": true, "gemini": true, "copilot": true, "amp": true}
@@ -172,6 +209,18 @@ func dispatchBoardAction(a board.Action) error {
 		} else {
 			o.Role = target
 		}
+		// Instructions are app-owned, so only a legacy native file is loaded by
+		// the harness itself; every other role gets them in this prompt.
+		mainRoot := tasks.MainRoot(a.Dir)
+		harness := target
+		if !harnesses[harness] {
+			harness = roleHarness(mainRoot, target)
+		}
+		// Only a role started as o.Role can have its file handed to the harness
+		// (--agent, developer_instructions); a board entry starts o.Agent directly.
+		if text := roleInstructions(mainRoot, a.Agent, harness, !harnesses[target]); text != "" {
+			a.Prompt = withRoleInstructions(a.Agent, text, a.Prompt)
+		}
 		var warn string
 		var err error
 		pane, warn, err = spawnAgent(o)
@@ -213,6 +262,39 @@ func dispatchBoardAction(a board.Action) error {
 		tmux.SetPaneOption(pane, "@agent_role_entries", strconv.Itoa(entries+1))
 	}
 	return nil
+}
+
+// roleHarness resolves the harness a role runs on, mirroring spawnAgent: the
+// board.yaml agent, then the global profile, then the process harness.
+func roleHarness(dir, role string) string {
+	if cfg, err := tasks.LoadBoardConfig(dir); err == nil {
+		if r, ok := cfg.Roles[role]; ok && r.Agent != "" {
+			return roles.Harness(r.Agent)
+		}
+	}
+	if p := roles.ProfileFor(role); p.Harness != "" {
+		return roles.Harness(p.Harness)
+	}
+	h, _ := tmux.GetOption(tmux.AgentOption)
+	return roles.Harness(h)
+}
+
+// roleInstructions is the instructions to put in a dispatch prompt. It is empty
+// when the role has none, or when nativeLoad says spawn hands that very legacy
+// file to the harness itself (a native definition must not be sent twice).
+func roleInstructions(dir, role, harness string, nativeLoad bool) string {
+	def, ok := roles.GetIn(dir, role)
+	if !ok || strings.TrimSpace(def.Instructions) == "" {
+		return ""
+	}
+	if nativeLoad && def.Native && def.Harness == roles.Harness(harness) {
+		return ""
+	}
+	return strings.TrimSpace(def.Instructions)
+}
+
+func withRoleInstructions(role, instructions, prompt string) string {
+	return "Your role is " + role + ". Follow these instructions:\n\n" + instructions + "\n\n" + prompt
 }
 
 // Reuse the existing singleton scraper and its queue consumer.

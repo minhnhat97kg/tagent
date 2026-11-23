@@ -116,18 +116,17 @@ func run(args []string, stdout, stderr io.Writer) int {
 	case "config":
 		return config.Dispatch(rest, stdout, stderr)
 	case "roles", "agents":
-		harness, _ := tmux.GetOption(tmux.AgentOption)
 		wd, _ := os.Getwd()
 		if len(rest) > 0 { // roles <name>: print its prompt
-			def, ok := roles.GetIn(wd, harness, rest[0])
+			def, ok := roles.GetIn(wd, rest[0])
 			if !ok {
-				fmt.Fprintf(stderr, "agents: no %s agent %q (have: %v)\n", roles.Harness(harness), rest[0], roles.NamesIn(wd, harness))
+				fmt.Fprintf(stderr, "agents: no agent %q (have: %v)\n", rest[0], roles.NamesIn(wd))
 				return exitFailure
 			}
 			fmt.Fprintln(stdout, def.Instructions)
 			return exitOK
 		}
-		for _, n := range roles.NamesIn(wd, harness) {
+		for _, n := range roles.NamesIn(wd) {
 			fmt.Fprintln(stdout, n)
 		}
 		return exitOK

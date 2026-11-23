@@ -66,10 +66,16 @@ func move(scope, id, to, body string, seq int64, safety bool, opts ...MutationOp
 				body = "Stale result (ticket moved): " + body
 			}
 		}
+		var attached bool
+		cfg, to, attached, err = attachDefault(scope, &t, cfg, to)
+		if err != nil {
+			return err
+		}
+		to = jobStatus(cfg, to)
 		if !slices.Contains(cfg.Columns, to) {
 			return fmt.Errorf("invalid status %q", to)
 		}
-		if to != t.Status && !safety {
+		if to != t.Status && !safety && !attached {
 			for _, s := range cfg.Statuses {
 				if s.ID == t.Status && s.Next != nil && !slices.Contains(s.Next, to) {
 					return fmt.Errorf("move %s -> %s not allowed", t.Status, to)

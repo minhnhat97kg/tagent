@@ -664,34 +664,36 @@ type Model struct {
 
 	// notes/notesScope: the shared-context board of the project of the pane
 	// under the cursor, shown below the list when there's room (view.go).
-	notes          []tasks.Task
-	attachments    []tasks.TicketAttachment // selected ticket only; refreshed by syncAttachments
-	attachmentsKey string
-	notesScope     string
-	dashboard      bool
-	metricState    metrics.State
-	metricScope    string
-	metricBusy     bool
-	metricTick     int
-	taskFocus      bool
-	boardMode      bool
-	flowFromDash   bool // the workflow view was opened from the dashboard card
-	boardDrawer    bool
-	boardWorkflows []workflow.Workflow // listed under the board
-	boardFlow      bool                // workflow view: the configured statuses and who acts in each
-	detailScroll   int
-	detailTab      int  // the ticket panel's tab: Details, Chat, Activity or Run
-	detailDescOpen bool // the drawer shows the whole description
-	detailSysOpen  bool // the drawer shows the dispatch/system events
-	chat           ticketChat
-	chatBusy       bool // a chat read is in flight; do not start another
-	boardDir       string
-	flowWorkflow   string
-	boardHistory   []tasks.Event
-	boardConfig    tasks.BoardConfig
-	taskCursor     int
-	taskDelete     bool
-	chartDays      int
+	notes             []tasks.Task
+	attachments       []tasks.TicketAttachment // selected ticket only; refreshed by syncAttachments
+	attachmentsKey    string
+	notesScope        string
+	dashboard         bool
+	metricState       metrics.State
+	metricScope       string
+	metricBusy        bool
+	metricTick        int
+	taskFocus         bool
+	boardMode         bool
+	flowFromDash      bool // the workflow view was opened from the dashboard card
+	boardDrawer       bool
+	boardWorkflows    []workflow.Workflow // listed under the board
+	boardFlow         bool                // workflow view: the configured statuses and who acts in each
+	boardConfigView   bool                // read-only board config summary (B)
+	boardConfigScroll int
+	detailScroll      int
+	detailTab         int  // the ticket panel's tab: Details, Chat, Activity or Run
+	detailDescOpen    bool // the drawer shows the whole description
+	detailSysOpen     bool // the drawer shows the dispatch/system events
+	chat              ticketChat
+	chatBusy          bool // a chat read is in flight; do not start another
+	boardDir          string
+	flowWorkflow      string
+	boardHistory      []tasks.Event
+	boardConfig       tasks.BoardConfig
+	taskCursor        int
+	taskDelete        bool
+	chartDays         int
 
 	// tmuxPane is the sidebar pane's own $TMUX_PANE — for future operations
 	// that need to distinguish "my own pane" (task 3, selecting a pane other
@@ -985,7 +987,7 @@ func (m *Model) applyRows() {
 
 func repoAgentRows(dir, harness string) []Row {
 	rows := []Row{{IsRepoAgent: true, Header: "Global agents"}}
-	for _, d := range roles.ListGlobal(harness) {
+	for _, d := range roles.ListGlobal() {
 		rows = append(rows, Row{IsRepoAgent: true, RepoAgentName: d.Name})
 	}
 	if len(rows) == 1 {

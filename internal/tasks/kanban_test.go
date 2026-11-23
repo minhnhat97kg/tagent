@@ -171,7 +171,7 @@ func TestBoardConfigValidation(t *testing.T) {
 	}
 	SaveBoardConfig(dir, []byte("triggers: []\nroles: {planner: {agent: pi, effort: low}}"))
 	c, err = LoadBoardConfig(dir)
-	if err != nil || len(c.Triggers) != 0 || c.Columns[1] != "doing" || c.Roles["planner"].Effort != "low" {
+	if err != nil || len(c.Triggers) != 0 || c.Columns[1] != "blocked" || c.Roles["planner"].Effort != "low" {
 		t.Fatal(c, err)
 	}
 }

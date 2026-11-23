@@ -20,7 +20,10 @@ export function usedBySummary(role: Role): string {
   return used.length ? used.join(", ") : "not used by any status or workflow"
 }
 
-export const roleTemplate = (name: string) => `---\nname: ${name}\ndescription: \n---\n\nDescribe how this agent works.\n`
+export const roleTemplate = (name: string) => `# ${name}\n\nDescribe how this agent works.\n`
+
+// Legacy harness files and global files are read-only here; copy them to the repo to edit.
+export const readOnlySource = (source: string) => source === "global" || source === "legacy"
 
 // What the user edits: harness, model, effort and instructions. Live fields (running, usedBy) are left out.
 export const editableKey = (r: Role) => JSON.stringify([r.harness, r.model, r.effort, r.instructions])

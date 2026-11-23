@@ -47,7 +47,7 @@ func TestBoardScreenUsesColumnsAtEveryWidth(t *testing.T) {
 		m.width, m.height = size[0], size[1]
 		lines := strings.Split(m.View(), "\n")
 		view := ansi.Strip(strings.Join(lines, "\n"))
-		if !strings.Contains(view, "[todo 2]  doing 2  done 1") || !strings.Contains(view, "[Workflows]  Agents") {
+		if !strings.Contains(view, "[todo 2]  doing 1  blocked 1  done 1") || !strings.Contains(view, "[Workflows]  Agents") {
 			t.Errorf("%v: no columns/workflows card:\n%s", size, view)
 		}
 		for i, l := range lines {
@@ -365,8 +365,19 @@ func TestBoardConfigEditor(t *testing.T) {
 	}
 	next, _ = m.Update(reloadBoardConfig(dir, nil))
 	m = next.(Model)
-	if !strings.Contains(m.taskNotice, "columns must include todo and done") || len(m.boardConfig.Columns) != 2 {
+	if !strings.Contains(m.taskNotice, "line 1: columns must include todo and done") || len(m.boardConfig.Columns) != 2 {
 		t.Fatalf("validation error missing: %s", m.taskNotice)
+	}
+	if m.boardConfig.Columns[0] != "todo" || m.boardConfig.Columns[1] != "done" {
+		t.Fatalf("broken config replaced the loaded one: %+v", m.boardConfig)
+	}
+	if err := os.WriteFile(path, []byte("columns: [todo, done]\nstatuses:\n  - {id: todo\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	next, _ = m.Update(reloadBoardConfig(dir, nil))
+	m = next.(Model)
+	if !strings.Contains(m.taskNotice, "line 2") {
+		t.Fatalf("syntax error line missing: %s", m.taskNotice)
 	}
 }
 
@@ -495,5 +506,87 @@ func TestBoardColumnsAndNavigation(t *testing.T) {
 	view = ansi.Strip(m.View())
 	if !strings.Contains(view, "todo 2") || !strings.Contains(view, "Third card") {
 		t.Fatal("missing lanes at width 119")
+	}
+}
+
+func TestBoardConfigSummaryView(t *testing.T) {
+	m := boardTestModel()
+	cfg, err := tasks.ParseBoardConfig([]byte(`roles:
+  reviewer: {agent: claude}
+  planner: {agent: pi, model: gpt, effort: high}
+default_workflow: feature
+triggers:
+  - on: mention
+    when: {to: '*'}
+    agent: '{{event.name}}'
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	m.boardConfig = cfg
+	m, _ = boardPress(m, "B")
+	view := ansi.Strip(m.View())
+	for _, want := range []string{"Board config", "Default workflow", "feature", "2 roles · 1 triggers", "lanes: todo, in progress, blocked, done", "Roles", "planner  pi gpt · effort high", "reviewer  claude", "Triggers", "on mention to=* ▸ agent {{event.name}}", "max_fires_per_hour: 20", "E edit", "esc close"} {
+		if !strings.Contains(view, want) {
+			t.Errorf("config view lacks %q:\n%s", want, view)
+		}
+	}
+	m, _ = boardPress(m, "esc")
+	if m.boardFlow || m.boardConfigView || !m.boardMode {
+		t.Fatal("esc did not return to the board list")
+	}
+}
+
+func TestBoardConfigPicksDefaultWorkflow(t *testing.T) {
+	dir := t.TempDir()
+	wf := filepath.Join(dir, ".tasks", "workflows")
+	if err := os.MkdirAll(wf, 0700); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"feature", "review"} {
+		if err := os.WriteFile(filepath.Join(wf, name+".yml"), []byte("name: "+name+"\njobs:\n  build: {agent: implementer}\n"), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	path := filepath.Join(dir, ".tasks", "board.yaml")
+	if err := os.WriteFile(path, []byte("# keep this comment\ndefault_workflow: feature\nmax_fires_per_hour: 9\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := tasks.LoadBoardConfig(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := boardTestModel()
+	m.boardDir, m.boardConfig, m.boardWorkflows = dir, cfg, workflow.List(tasks.MainRoot(dir))
+	if view := ansi.Strip(m.View()); !strings.Contains(view, "default: feature") {
+		t.Fatalf("board header lacks the default:\n%s", view)
+	}
+	m, _ = boardPress(m, "B")
+	m, _ = boardPress(m, "enter")
+	if m.taskForm != "default" {
+		t.Fatalf("enter did not open the default picker: %q", m.taskForm)
+	}
+	for i, w := range m.boardWorkflows {
+		if w.Name == "review" {
+			m.taskStep = i
+		}
+	}
+	m, cmd := boardPress(m, "enter")
+	if cmd == nil {
+		t.Fatal("no save command")
+	}
+	next, _ := m.Update(cmd())
+	m = next.(Model)
+	if m.boardConfig.DefaultWorkflow != "review" {
+		t.Fatalf("config not reloaded: %+v", m.boardConfig)
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"# keep this comment", "default_workflow: review", "max_fires_per_hour: 9"} {
+		if !strings.Contains(string(b), want) {
+			t.Fatalf("missing %q:\n%s", want, b)
+		}
 	}
 }

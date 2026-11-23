@@ -64,7 +64,7 @@ func (m Model) agentStripLines(width int) []string {
 			first = "no instructions"
 		}
 		title := m.boardStyle(m.theme.TextPrimary).Bold(true).Render(a.Name) + "  " + dim.Render(agentScope(a))
-		if a.Source == "global" {
+		if agentReadOnly(a) {
 			title += dim.Render(" · read-only")
 		}
 		return []string{
@@ -105,12 +105,18 @@ func (m Model) agentStripLines(width int) []string {
 	return lines
 }
 
-// agentScope is "global" (~/.config/tmux-agent) or "local" (this repo / board).
+// agentScope is "global" (~/.config/tmux-agent) or "local" (.tasks/agents, a
+// legacy harness directory, or board.yaml).
 func agentScope(a agents.Agent) string {
 	if a.Source == "global" {
 		return "global"
 	}
 	return "local"
+}
+
+// agentReadOnly is a global file or a legacy harness file: shown, never written.
+func agentReadOnly(a agents.Agent) bool {
+	return a.Source == "global" || a.Source == "legacy"
 }
 
 func agentSummary(a agents.Agent) string {
@@ -172,17 +178,13 @@ func (m Model) agentPanelKey(key string) (Model, tea.Cmd, bool) {
 			return m, nil, true
 		}
 		switch {
-		case key == "x" && a.Source == "global", key == "m" && a.Source == "global":
-			m.taskNotice = "! " + a.Name + " is global: read-only · copy it to the repo first"
+		case (key == "x" || key == "m" || key == "e") && agentReadOnly(a):
+			m.taskNotice = "! " + a.Name + " is " + a.Source + ": read-only · copy it to the repo first"
 		case key == "m":
 			m.taskForm, m.taskInput = "agent-model", a.Model
 		case key == "x":
 			m.agentDelete = a.Name
 		case key == "e":
-			if a.Source == "global" {
-				m.taskNotice = "! " + a.Name + " is global: read-only"
-				return m, nil, true
-			}
 			edited, err := agents.EnsureFile(m.boardDir, m.agentHarness(), a)
 			if err != nil {
 				m.taskNotice = "! " + err.Error()
@@ -235,23 +237,13 @@ func (m Model) handleAgentForm(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		a := agents.Agent{Name: input, Harness: harness, Source: "board"}
-		var err error
-		if harness == "pi" {
-			err = agents.Save(m.boardDir, m.agentHarness(), a)
-		} else {
-			var created agents.Agent
-			created, err = agents.EnsureFile(m.boardDir, m.agentHarness(), a)
-			if err == nil {
-				m = m.loadAgents()
-				return m, editFile(m.tmuxPane, created.Path, func() tea.Msg { return agentsEditedMsg{} })
-			}
-		}
+		created, err := agents.EnsureFile(m.boardDir, m.agentHarness(), a)
 		if err != nil {
 			m.taskNotice = "! " + err.Error()
 			return m, nil
 		}
 		m = m.loadAgents()
-		m.taskNotice = "✓ Added " + input
+		return m, editFile(m.tmuxPane, created.Path, func() tea.Msg { return agentsEditedMsg{} })
 	}
 	return m, nil
 }

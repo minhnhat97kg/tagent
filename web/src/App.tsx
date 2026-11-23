@@ -8,6 +8,7 @@ import { AgentView } from "@/components/AgentView"
 import { Notifications } from '@/components/Notifications'
 import { notifications, nextNotice, type Notice } from '@/lib/notifications'
 import { Board, TaskDrawer } from "@/components/Board"
+import { BoardConfigPage } from "@/components/BoardConfigPage"
 import { HelpDialog } from "@/components/HelpDialog"
 import { NewAgentDialog } from "@/components/NewAgentDialog"
 import { ProjectSelect } from "@/components/ProjectSelect"
@@ -96,17 +97,19 @@ export default function App() {
 
   const proj = projPoll.data
   const boardRoute = route === '/board'
+  const boardConfigRoute = route === '/board/config'
   const flowRoute = /^\/workflows(?:\/([^/]+))?$/.exec(route)
   // Old ticket links (/workflows/<wf>/<ticket>) open the run page, not the editor.
   const runRoute = /^\/runs\/([^/]+)$/.exec(route) ?? /^\/workflows\/[^/]+\/([^/]+)$/.exec(route)
   const agentsRoute = route === "/agents"
-  const home = !sel && !boardRoute && !flowRoute && !runRoute && !agentsRoute
+  const home = !sel && !boardRoute && !boardConfigRoute && !flowRoute && !runRoute && !agentsRoute
   const board = <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border bg-card"><Board dir={dir} proj={proj} reload={projPoll.reload} /></section>
   const tasks = <TasksPanel proj={proj} dir={dir} reload={projPoll.reload} className="min-h-40 flex-1" />
 
 
   let main
   if (boardRoute) main = board
+  else if (boardConfigRoute) main = <BoardConfigPage key={dir} dir={dir} />
   else if (runRoute) main = <RunPage key={dir + runRoute[1]} dir={dir} id={decodeURIComponent(runRoute[1]!)} />
   else if (flowRoute) main = <WorkflowsPage key={dir + route} dir={dir} initial={decodeURIComponent(flowRoute[1] ?? '')} />
   else if (agentsRoute) main = <AgentsPage key={dir} dir={dir} />

@@ -5,7 +5,6 @@ import (
 	"io"
 	"os"
 	"tagent/internal/roles"
-	"tagent/internal/tmux"
 )
 
 const helpText = `tagent commands
@@ -33,13 +32,14 @@ task add --workflow NAME [--input k=v] title
 task move id status [--output k=v]... [comment]  Handoff along configured transitions
   task retry id               Fresh current-status dispatch after repairing a failure
   task set id status           Admin status change (bypasses next)
-  task start id workflow|board Start a ticket (or pass an idle pane to link it)
+  task start id [workflow]      Start a ticket (default_workflow when omitted; or pass an idle pane to link it)
   task assign id names         Assign comma-separated agent names (- clears)
   task show id [--brief|--all]  Compact agent context / full human history, including dispatch activity
   task comment id [--attach path]... [--diff] text  Comment / @mention an agent
   task attachments id         List comment and job-output attachments, sizes and availability
   task due id YYYY-MM-DD|-      Set or clear a due date
-  board init|run|validate [--dir DIR]  Create config / run triggers / validate config
+  board init|run|validate|migrate [--dir DIR] [--dry-run]
+                               Create config / run triggers / validate / move tickets to default_workflow
                                      board.yaml roles support agent, model, effort (edit in the board's Agents panel or the web Agents page)
   task rm id                   Delete a task
   task [ls] from a chat pane   Listing is read-only; a chat pane may only change its own ticket
@@ -75,12 +75,11 @@ UI and configuration
 
 func cmdHelp(stdout io.Writer) int {
 	fmt.Fprint(stdout, helpText)
-	harness, _ := tmux.GetOption(tmux.AgentOption)
 	wd, _ := os.Getwd()
-	names := roles.NamesIn(wd, harness)
-	fmt.Fprintf(stdout, "Agents defined in this repo (%s):\n", roles.Harness(harness))
+	names := roles.NamesIn(wd)
+	fmt.Fprintf(stdout, "Agents defined in this repo:\n")
 	if len(names) == 0 {
-		fmt.Fprintf(stdout, "  (none; see %s)\n", roles.DirFor(wd, harness))
+		fmt.Fprintf(stdout, "  (none; add %s/<name>.md)\n", roles.LocalDir(wd))
 	} else {
 		for _, name := range names {
 			fmt.Fprintf(stdout, "  %s\n", name)

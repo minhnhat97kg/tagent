@@ -22,7 +22,10 @@ func TestOldTaskJSON(t *testing.T) {
 }
 
 func TestFinishEntryStaleAndSameStatus(t *testing.T) {
-	_, scope := testBoard(t)
+	dir, scope := testBoard(t)
+	if err := SaveBoardConfig(dir, []byte("statuses: [{id: todo}, {id: doing}, {id: review}, {id: blocked}, {id: done}]")); err != nil {
+		t.Fatal(err)
+	}
 	task, _ := Add(scope, "ticket", nil)
 	Move(scope, task.ID, "doing", "")
 	events, _ := ReadEvents(scope, 0)
@@ -73,13 +76,17 @@ func TestMove(t *testing.T) {
 }
 
 func TestStatusConfig(t *testing.T) {
-	for _, raw := range []string{"", "columns: [todo, done]", "statuses: [{id: todo}, {id: done}]"} {
+	c, err := ParseBoardConfig(nil)
+	if err != nil || len(c.Columns) == 0 || len(c.Statuses) != 0 {
+		t.Fatalf("defaults: %+v %v", c, err)
+	}
+	for _, raw := range []string{"columns: [todo, done]", "statuses: [{id: todo}, {id: done}]"} {
 		c, err := ParseBoardConfig([]byte(raw))
 		if err != nil || len(c.Statuses) == 0 {
 			t.Fatalf("%q: %v", raw, err)
 		}
 	}
-	for _, raw := range []string{"statuses: []", "columns: [todo, done]\nstatuses: []", "statuses: [{id: todo, role: pi}, {id: done}]", "statuses: [{id: todo, run: echo}, {id: done}]", "statuses: [{id: todo, next: [missing]}, {id: done}]", "statuses: [{id: todo, max_loops: -1}, {id: done}]"} {
+	for _, raw := range []string{"columns: [todo]", "columns: [todo, done]\nstatuses: []", "statuses: [{id: todo, role: pi}, {id: done}]", "statuses: [{id: todo, run: echo}, {id: done}]", "statuses: [{id: todo, next: [missing]}, {id: done}]", "statuses: [{id: todo, max_loops: -1}, {id: done}]"} {
 		if _, err := ParseBoardConfig([]byte(raw)); err == nil {
 			t.Fatalf("accepted %q", raw)
 		}

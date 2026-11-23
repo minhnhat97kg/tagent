@@ -304,7 +304,7 @@ func (m model) previewBox(w, h int) []string {
 	case m.focus == focusRoles && len(m.roles) > 0:
 		return m.roleDetailBox(w, h)
 	case m.focus == focusRoles:
-		return m.box("Repo agent", "", "", []string{m.fg(m.theme.TextDim).Render("no agents in " + roles.DirFor(m.repoDir, m.harness))}, w, h, false)
+		return m.box("Repo agent", "", "", []string{m.fg(m.theme.TextDim).Render("no agents in " + roles.LocalDir(m.repoDir))}, w, h, false)
 	case m.focus == focusSettings:
 		return m.settingsDetailBox(w, h)
 	}
@@ -567,7 +567,7 @@ func (m model) rolesBox(w, h int) []string {
 // (bold, `code`, bullets), and what can be done with it.
 func (m model) roleDetailBox(w, h int) []string {
 	name := m.roles[m.cursor[focusRoles]]
-	def, _ := roles.GetIn(m.repoDir, m.harness, name)
+	def, _ := roles.GetIn(m.repoDir, name)
 	text := def.Instructions
 	dim, key := m.fg(m.theme.TextDim), m.fg(m.theme.Accent).Bold(true)
 	iw := w - 4

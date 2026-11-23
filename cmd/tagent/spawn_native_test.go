@@ -34,7 +34,7 @@ func TestWorkflowNativeRoleLaunchUsesLiveConfig(t *testing.T) {
 						t.Fatal(err)
 					}
 				}
-				role, ok := roles.GetIn(main, harness, "reviewer")
+				role, ok := roles.GetIn(main, "reviewer")
 				if !ok {
 					t.Fatal("missing main role")
 				}

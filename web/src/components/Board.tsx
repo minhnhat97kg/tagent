@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { KanbanSquare, MessageSquare, OctagonAlert, Search } from "lucide-react"
+import { KanbanSquare, MessageSquare, OctagonAlert, Search, Settings } from "lucide-react"
 import { Avatar, BoardDrawer, shortId, statusColor, title } from "./BoardDrawer"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { act, post } from "@/api"
@@ -28,8 +28,8 @@ export function TaskDrawer({ proj, dir, reload, id, onClose, origin, initialRepl
   </Dialog>
 }
 
-const LANES = ["todo", "in progress", "done"]
-const laneOf = (status: string) => (status === "todo" || status === "done" ? status : "in progress")
+const LANES = ["todo", "in progress", "blocked", "done"]
+const laneOf = (status: string) => (status === "todo" || status === "blocked" || status === "done" ? status : "in progress")
 
 export function Board({ dir, proj, reload }: { dir: string; proj?: Project; reload: () => void }) {
   const [query, setQuery] = useState("")
@@ -47,10 +47,12 @@ export function Board({ dir, proj, reload }: { dir: string; proj?: Project; relo
   return <section className={`task-board ${selectedID ? "has-drawer" : ""}`}>
     <header className="board-tools">
       <h2><span className="board-icon"><KanbanSquare /></span>Board</h2>
+      {proj?.defaultWorkflow && <a href="#/board/config" className="board-muted" title="Default workflow">default: {proj.defaultWorkflow}</a>}
       <label className="board-search"><Search /><input aria-label="Search tasks" placeholder="Search" value={query} onChange={e => setQuery(e.target.value)} /></label>
       <select aria-label="Filter role" value={role} onChange={e => setRole(e.target.value)}><option value="">All roles</option>{roles.map(r => <option key={r}>{r}</option>)}</select>
       <button aria-pressed={blocked} onClick={() => setBlocked(!blocked)}><OctagonAlert />Blocked</button>
       <Workflows workflows={proj?.workflows ?? []} />
+      <a href="#/board/config" className="board-settings" aria-label="Board settings" title="Board settings"><Settings /></a>
       <span className="board-muted ml-auto">{tasks.length === all.length ? `${all.length} tasks` : `${tasks.length} of ${all.length}`}</span>
     </header>
     {!statuses.length && <p className="board-empty">{proj ? "No board columns configured." : "Select a project to view tasks."}</p>}

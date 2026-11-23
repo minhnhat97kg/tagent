@@ -61,6 +61,9 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("GET /api/workflows", s.workflows)
 	mux.HandleFunc("POST /api/workflows", s.workflows)
 	mux.HandleFunc("DELETE /api/workflows", s.workflows)
+	mux.HandleFunc("GET /api/board/config", s.boardConfig)
+	mux.HandleFunc("PUT /api/board/config", s.boardConfig)
+	mux.HandleFunc("PUT /api/board/config/default-workflow", s.boardDefaultWorkflow)
 	mux.HandleFunc("GET /api/roles", s.roles)
 	mux.HandleFunc("POST /api/roles", s.roles)
 	mux.HandleFunc("DELETE /api/roles", s.roles)
@@ -423,35 +426,38 @@ func (s *server) project(w http.ResponseWriter, r *http.Request) {
 		fail(w, err)
 		return
 	}
+	// Lanes are fixed. The only extra statuses are workflow job statuses,
+	// which land in "in progress" but are what a run and a move name.
 	statuses := []map[string]string{}
 	seen := map[string]bool{}
-	for _, status := range cfg.Statuses {
-		seen[status.ID] = true
-		statuses = append(statuses, map[string]string{"id": status.ID, "role": status.Role, "run": status.Run})
-	}
-	// Workflow tickets move through their recipe's statuses (planning, building, ...), not the board's;
-	// give each one a column before "blocked" so those tickets show up and move.
-	at := len(statuses)
-	for i, st := range statuses {
-		if st["id"] == "blocked" {
-			at = i
-			break
+	add := func(id, role, run string) {
+		if id == "" || seen[id] {
+			return
 		}
+		seen[id] = true
+		statuses = append(statuses, map[string]string{"id": id, "role": role, "run": run})
 	}
-	extra := []map[string]string{}
-	for _, ticket := range t {
-		wcfg, err := tasks.ConfigForTask(dir, cfg, ticket)
-		if ticket.Workflow == "" || err != nil {
-			continue
+	add("todo", "", "")
+	addWorkflow := func(name string) {
+		if name == "" {
+			return
+		}
+		wcfg, err := tasks.ConfigForTask(dir, cfg, tasks.Task{Workflow: name})
+		if err != nil {
+			return
 		}
 		for _, status := range wcfg.Statuses {
-			if !seen[status.ID] {
-				seen[status.ID] = true
-				extra = append(extra, map[string]string{"id": status.ID, "role": status.Role, "run": status.Run})
+			if status.ID != "todo" && status.ID != "blocked" && status.ID != "done" {
+				add(status.ID, status.Role, status.Run)
 			}
 		}
 	}
-	statuses = append(statuses[:at], append(extra, statuses[at:]...)...)
+	addWorkflow(cfg.DefaultWorkflow)
+	for _, ticket := range t {
+		addWorkflow(ticket.Workflow)
+	}
+	add("blocked", "", "")
+	add("done", "", "")
 	workers := map[string]map[string]any{}
 	history, _ := tasks.ReadEvents(tasks.Scope(dir), 0)
 	reasons := map[string]string{}
@@ -515,7 +521,7 @@ func (s *server) project(w http.ResponseWriter, r *http.Request) {
 		}
 		flows = append(flows, map[string]any{"name": wf.Name, "description": wf.Description, "global": wf.Global, "file": wf.File, "jobs": jobs, "error": e})
 	}
-	writeJSON(w, map[string]any{"dir": dir, "tasks": t, "roles": defs, "statuses": statuses, "workers": workers, "blockedReasons": reasons, "workflows": flows})
+	writeJSON(w, map[string]any{"dir": dir, "tasks": t, "roles": defs, "statuses": statuses, "workers": workers, "blockedReasons": reasons, "workflows": flows, "defaultWorkflow": cfg.DefaultWorkflow})
 }
 
 func (s *server) taskOp(w http.ResponseWriter, r *http.Request) {

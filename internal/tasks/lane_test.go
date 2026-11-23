@@ -10,10 +10,11 @@ func TestLanes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := c.Lanes(); !slices.Equal(got, []string{"todo", "in progress", "done"}) {
+	if got := c.Lanes(); !slices.Equal(got, []string{"todo", "in progress", "blocked", "done"}) {
 		t.Fatalf("lanes %v", got)
 	}
-	if c.Lane("plan") != "todo" || c.Lane("review") != "in progress" || c.Lane("done") != "done" {
+	// Lanes are fixed: job statuses land in progress and column: is ignored.
+	if c.Lane("plan") != "in progress" || c.Lane("build") != "in progress" || c.Lane("blocked") != "blocked" || c.Lane("done") != "done" {
 		t.Fatal("lane mapping")
 	}
 }

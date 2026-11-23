@@ -223,9 +223,13 @@ Press `?` in the sidebar or dashboard for contextual help.
 
 ### Tickets and status handoffs
 
-The ticket is the workflow: `.tasks/board.yaml` defines ordered statuses and
-optional roles. Entering a role-owned status dispatches its agent; returning to
-that status reuses the same role/task pane and context. Comments carry handoffs.
+Workflows are the only flow definition: `.tasks/workflows/*.yml` lists jobs
+(agent or `run:` check) and their statuses. `.tasks/board.yaml` holds roles,
+triggers, `max_fires_per_hour` and `default_workflow`; board lanes are fixed at
+todo, in progress, blocked, done. A ticket without a workflow starts
+`default_workflow` when it leaves todo. Entering a role-owned job status
+dispatches its agent; returning to that status reuses the same role/task pane and
+context. Comments carry handoffs.
 
 ```sh
 tagent board init
@@ -239,12 +243,13 @@ tagent task retry ID
 tagent task move ID build "Plan and verification strategy"
 ```
 
-`run:` statuses execute shell checks asynchronously and comment as `ci`, then
-move to their pass/fail status. `max_loops` stops repeated entries at `blocked`, counting since the last exit from blocked.
+Jobs with `run:` execute shell checks asynchronously and comment as `ci`, then
+move to their next/on-failure status. `max-loops` stops repeated entries at
+`blocked`, counting since the last exit from blocked.
 
 Agent roles refresh their pane on entry 3 by default (entries 1–2 reuse, 3 replaces,
-4 reuses, 5 replaces). Set `fresh_after` on a board status to override its role
-setting, or on a role to override the default 3. Explicit `0` disables refresh;
+4 reuses, 5 replaces). Set `fresh_after` on a role to override the default 3
+(deprecated board statuses may also set it). Explicit `0` disables refresh;
 negative values are invalid. Counts are per pane and ticket across all statuses
 using the same logical role, including workflow statuses matched by ID. Mentions
 and shell jobs do not count. Replacement loses agent context, comment cursor, and
@@ -282,7 +287,7 @@ not in the screen: `tagent config list` shows all of them, and
 
 ### Repo agents and task board
 
-Define agents using the selected harness's own files: `.claude/agents/<name>.md`, `.codex/agents/<name>.toml`, or `.opencode/agents/<name>.md`. `tagent agents`, the sidebar below running panes, and the dashboard's left pane read those definitions from the repo. The Repo agents tab shows each native file and can open it in `$EDITOR`. To see and edit every agent in one place (repo, global and board.yaml roles), use the Agents page on the web (`#/agents`) or the board's Agents panel (`t`); see `docs/board.md`. Claude and OpenCode launch with their native `--agent` option. Codex does not expose a standalone agent selector, so tagent passes the TOML `developer_instructions` to a new Codex session.
+Agent metadata is owned by tmux-agent: `roles:` in `.tasks/board.yaml` names the harness, model and effort (optionally defaulted by `~/.config/tmux-agent/agents/profiles.toml`). Instructions are plain markdown in `.tasks/agents/<name>.md`, or `~/.config/tmux-agent/agents/<name>.md` for global agents; a harness directory implies neither. `tagent agents`, the sidebar below running panes, and the dashboard read every agent regardless of the process harness. To edit them in one place (repo, global and board.yaml roles), use the Agents page on the web (`#/agents`) or the board's Agents panel (`t`); see `docs/board.md`. When a role starts a pane its instructions ride in the dispatch prompt on every harness, so pi gets them too. Legacy `.claude/agents`, `.codex/agents` and `.opencode/agents` files are still read but never written; only those native files are loaded by their harness itself (Claude/OpenCode `--agent`, Codex `developer_instructions`) and are not repeated in the prompt.
 
 Choose how they run in tagent configuration:
 
@@ -441,6 +446,7 @@ This project is licensed under the [MIT License](LICENSE). See [NOTICE](NOTICE) 
 
 README structure adapted from [readme-md-generator](https://github.com/kefranabg/readme-md-generator).
 
-Tasks panel and board share ticket controls: `s` workflow start picker,
-`enter` detail, `e` edit, `C` comment, `H`/`L` status, `x` delete with confirmation,
-`w` workflow, `?` help. Dashboard `Tab` changes focus; `b` opens the board.
+Tasks panel and board share ticket controls: `s` workflow start picker
+(last row: `default_workflow`), `enter` detail, `e` edit, `C` comment, `H`/`L`
+status, `x` delete with confirmation, `w` workflow, `B` board config, `?` help.
+Dashboard `Tab` changes focus; `b` opens the board.

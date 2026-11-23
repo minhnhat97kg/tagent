@@ -35,7 +35,7 @@ func TestBoardAssignAndAdvance(t *testing.T) {
 	}
 	m.handleKey(tea.KeyMsg{Type: tea.KeySpace})
 	updated, err := tasks.Get("project", task.ID)
-	if err != nil || updated.Status != "doing" {
+	if err != nil || updated.Status != "blocked" {
 		t.Fatalf("status: %+v %v", updated, err)
 	}
 	m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("d")})
@@ -122,7 +122,7 @@ func TestRolesPanel(t *testing.T) {
 	os.MkdirAll(filepath.Join(repo, ".claude", "agents"), 0755)
 	os.WriteFile(filepath.Join(repo, ".claude", "agents", "reviewer.md"), []byte("---\nname: reviewer\n---\nReview changes"), 0644)
 	os.WriteFile(filepath.Join(repo, ".claude", "agents", "tester.md"), []byte("---\nname: tester\n---\nRun tests"), 0644)
-	m := model{repoDir: repo, harness: "claude", repoAgents: roles.ListIn(repo, "claude"), theme: sidebar.DefaultTheme(), icons: sidebar.DefaultIcons(), width: 120, height: 30, last: map[string]paneState{}}
+	m := model{repoDir: repo, harness: "claude", repoAgents: roles.ListLocal(repo), theme: sidebar.DefaultTheme(), icons: sidebar.DefaultIcons(), width: 120, height: 30, last: map[string]paneState{}}
 	left := ansi.Strip(strings.Join(m.agentsBox(42, 20), "\n"))
 	if !strings.Contains(left, "Repo agents · claude") || !strings.Contains(left, "reviewer") || !strings.Contains(left, "tester") {
 		t.Fatalf("agents left pane lacks native definitions: %s", left)

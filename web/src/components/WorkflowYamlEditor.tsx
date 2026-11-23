@@ -18,6 +18,7 @@ type Props = {
   errorMessage: string
   goto?: Goto
   onCursor?: (line: number) => void
+  label?: string
 }
 
 const highlight = HighlightStyle.define([
@@ -61,11 +62,11 @@ function build(view: EditorView): DecorationSet {
   return Decoration.set(ranges, true)
 }
 
-export default function WorkflowYamlEditor({ value, onChange, readOnly, errorLine, errorMessage, goto, onCursor }: Props) {
+export default function WorkflowYamlEditor({ value, onChange, readOnly, errorLine, errorMessage, goto, onCursor, label = 'Workflow YAML' }: Props) {
   const host = useRef<HTMLDivElement>(null)
   const view = useRef<EditorView>(undefined)
   const callbacks = useRef({ onChange, onCursor })
-  const start = useRef({ value, readOnly })
+  const start = useRef({ value, readOnly, label })
   useEffect(() => { callbacks.current = { onChange, onCursor } })
 
   // Mounted once per workflow: the parent remounts it with a key when another workflow is opened.
@@ -80,7 +81,7 @@ export default function WorkflowYamlEditor({ value, onChange, readOnly, errorLin
           keymap.of([indentWithTab, { key: 'Escape', run: x => { x.contentDOM.blur(); return true } }, ...defaultKeymap, ...historyKeymap]),
           yaml(), syntaxHighlighting(highlight), shapes, theme,
           EditorState.readOnly.of(start.current.readOnly), EditorView.editable.of(!start.current.readOnly),
-          EditorView.contentAttributes.of({ 'aria-label': 'Workflow YAML', autocorrect: 'off', autocapitalize: 'off', spellcheck: 'false' }),
+          EditorView.contentAttributes.of({ 'aria-label': start.current.label, autocorrect: 'off', autocapitalize: 'off', spellcheck: 'false' }),
           EditorView.updateListener.of(u => {
             if (u.docChanged) callbacks.current.onChange(u.state.doc.toString())
             if (u.selectionSet) callbacks.current.onCursor?.(u.state.doc.lineAt(u.state.selection.main.head).number)

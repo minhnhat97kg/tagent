@@ -10,7 +10,10 @@ import (
 )
 
 func TestStatusNotifications(t *testing.T) {
-	_, scope := testBoard(t)
+	dir, scope := testBoard(t)
+	if err := SaveBoardConfig(dir, []byte("statuses: [{id: todo}, {id: doing}, {id: blocked}, {id: done}]")); err != nil {
+		t.Fatal(err)
+	}
 	fake := tmux.NewFake()
 	defer tmux.SetRunner(fake)()
 	var messages []string
@@ -66,7 +69,10 @@ func TestStatusNotifications(t *testing.T) {
 }
 
 func TestBlockedNoticeAsksAndSaysHowToAnswer(t *testing.T) {
-	_, scope := testBoard(t)
+	dir, scope := testBoard(t)
+	if err := SaveBoardConfig(dir, []byte("statuses: [{id: todo}, {id: doing}, {id: blocked}, {id: done}]")); err != nil {
+		t.Fatal(err)
+	}
 	fake := tmux.NewFake()
 	defer tmux.SetRunner(fake)()
 	var body string

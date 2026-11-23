@@ -252,7 +252,7 @@ func load(selected string) snapshot {
 	}
 	snap.tasks = tasks.List(snap.scope)
 	snap.harness, _ = tmux.GetOption(tmux.AgentOption)
-	snap.repoAgents = roles.ListIn(snap.repoDir, snap.harness)
+	snap.repoAgents = roles.ListLocal(snap.repoDir)
 	return snap
 }
 
@@ -368,7 +368,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.boardTaskID = ""
 		}
 		m.harness, m.repoAgents = msg.harness, msg.repoAgents
-		m.roles = roles.NamesIn(m.repoDir, m.harness)
+		m.roles = roles.NamesIn(m.repoDir)
 		m.preview, m.git = msg.preview, msg.git
 		m.tokens, m.hasTok, m.summary = msg.tokens, msg.hasTok, msg.summary
 		m.clampCursor()
@@ -380,7 +380,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.poll()
 	case roleEditedMsg:
 		m.flash = msg.flash
-		m.roles = roles.NamesIn(m.repoDir, m.harness)
+		m.roles = roles.NamesIn(m.repoDir)
 		for i, r := range m.roles {
 			if r == msg.name {
 				m.cursor[focusRoles] = i
@@ -450,7 +450,7 @@ func (m model) setTab(f focus) model {
 	m.focus = f
 	switch f {
 	case focusRoles:
-		m.roles = roles.NamesIn(m.repoDir, m.harness)
+		m.roles = roles.NamesIn(m.repoDir)
 	case focusSettings:
 		if m.editor == nil {
 			m.editor = config.NewEditor()
@@ -598,7 +598,7 @@ func (m model) updateKeys(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	case "e":
 		if m.focus == focusRoles && len(m.roles) > 0 {
-			return m, editRole(m.repoDir, m.harness, m.roles[m.cursor[focusRoles]])
+			return m, editRole(m.repoDir, m.roles[m.cursor[focusRoles]])
 		}
 	case "a":
 		if m.focus == focusRoles {
@@ -755,8 +755,8 @@ type roleEditedMsg struct{ name, flash string }
 
 // editRole opens the role's file in $VISUAL / $EDITOR (vi without either),
 // in this pane. A new name starts from a template in the repository.
-func editRole(dir, harness, name string) tea.Cmd {
-	def, ok := roles.GetIn(dir, harness, name)
+func editRole(dir, name string) tea.Cmd {
+	def, ok := roles.GetIn(dir, name)
 	if !ok {
 		return func() tea.Msg { return flashMsg("agent not found") }
 	}

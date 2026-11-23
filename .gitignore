@@ -13,4 +13,5 @@ bin/
 *.key
 *.p12
 .tasks/reports/
-.tasks/
+.tasks/*
+!.tasks/agents/

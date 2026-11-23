@@ -2,15 +2,20 @@ package tasks
 
 import (
 	"fmt"
+	"slices"
+	"sort"
+	"strings"
 	"tagent/internal/workflow"
 )
 
 // ConfigForTask is the single per-ticket configuration boundary.
 func ConfigForTask(dir string, base BoardConfig, t Task) (BoardConfig, error) {
-	if t.Workflow == "" {
+	if t.Workflow == "" || (base.Legacy && t.Workflow == "board") {
+		// The implicit board workflow is the legacy status table itself, so
+		// old next/pass/fail semantics survive exactly.
 		return base, nil
 	}
-	w, e := workflow.Find(MainRoot(dir), t.Workflow)
+	w, e := FindWorkflow(dir, base, t.Workflow)
 	if e != nil {
 		return base, e
 	}
@@ -75,4 +80,112 @@ func configForTaskScope(scope string, t Task) (BoardConfig, error) {
 		return base, fmt.Errorf("unknown repository scope")
 	}
 	return ConfigForTask(dir.(string), base, t)
+}
+
+// FindWorkflow resolves a workflow by name, with the implicit "board" workflow
+// of a deprecated statuses-based board.yaml as a fallback.
+func FindWorkflow(dir string, base BoardConfig, name string) (workflow.Workflow, error) {
+	w, err := workflow.Find(MainRoot(dir), name)
+	if err == nil {
+		return w, nil
+	}
+	if base.Legacy && name == "board" {
+		if lw := legacyWorkflow(base); len(lw.Jobs) > 0 {
+			return lw, nil
+		}
+	}
+	return workflow.Workflow{}, err
+}
+
+// legacyWorkflow converts old board.yaml statuses into a linear workflow with
+// the same status ids, so running tickets keep their exact status names.
+func legacyWorkflow(c BoardConfig) workflow.Workflow {
+	w := workflow.Workflow{Name: "board", Description: "implicit workflow from board.yaml statuses (deprecated)"}
+	index := map[string]int{}
+	for i, s := range c.Statuses {
+		index[s.ID] = i
+	}
+	prev := ""
+	for _, s := range c.Statuses {
+		if s.ID == "todo" || s.ID == "blocked" || s.ID == "done" {
+			continue
+		}
+		j := workflow.Job{ID: s.ID, Status: s.ID, Agent: s.Role, Model: s.Model, Prompt: s.Prompt, Run: s.Run, MaxLoops: s.MaxLoops}
+		if prev != "" {
+			j.Needs = []string{prev}
+		}
+		if s.Run != "" {
+			j.OnFailure = s.Fail
+		} else {
+			for _, n := range s.Next {
+				if at, ok := index[n]; ok && at < index[s.ID] && n != "blocked" && n != "todo" && n != "done" {
+					j.OnFailure = n
+					break
+				}
+			}
+		}
+		w.Jobs = append(w.Jobs, j)
+		prev = s.ID
+	}
+	return w
+}
+
+// jobStatus maps a workflow job id onto the status that job lands in.
+func jobStatus(cfg BoardConfig, to string) string {
+	if to == "" || slices.Contains(cfg.Columns, to) {
+		return to
+	}
+	for _, s := range cfg.Statuses {
+		if s.Job != "" && s.Job == to {
+			return s.ID
+		}
+	}
+	return to
+}
+
+// attachDefault gives a ticket without a workflow the board's default workflow
+// when it leaves todo. The initial entry may name any job id or job status; the
+// caller skips the next-status check for that first move.
+func attachDefault(scope string, t *Task, cfg BoardConfig, to string) (BoardConfig, string, bool, error) {
+	if t.Workflow != "" || t.Status != "todo" || to == "todo" || to == "blocked" || to == "done" || cfg.DefaultWorkflow == "" {
+		return cfg, to, false, nil
+	}
+	dir, ok := scopeRoots.Load(scope)
+	if !ok {
+		return cfg, to, false, fmt.Errorf("unknown repository scope")
+	}
+	w, err := FindWorkflow(dir.(string), cfg, cfg.DefaultWorkflow)
+	if err != nil {
+		return cfg, to, false, err
+	}
+	if len(w.Jobs) == 0 {
+		return cfg, to, false, fmt.Errorf("workflow %q has no jobs", cfg.DefaultWorkflow)
+	}
+	values := map[string]string{}
+	var missing []string
+	for k, v := range w.Inputs {
+		if v.Required && v.Default == "" && values[k] == "" {
+			missing = append(missing, k)
+		}
+	}
+	sort.Strings(missing)
+	if len(missing) > 1 {
+		return cfg, to, false, fmt.Errorf("missing inputs: %s; use workflow run %s --input name=value", strings.Join(missing, ", "), cfg.DefaultWorkflow)
+	}
+	if len(missing) == 1 {
+		values[missing[0]] = t.Text
+	}
+	inputs, err := w.Values(values)
+	if err != nil {
+		return cfg, to, false, err
+	}
+	t.Workflow, t.Inputs = cfg.DefaultWorkflow, inputs
+	cfg, err = ConfigForTask(dir.(string), cfg, *t)
+	if err != nil {
+		return cfg, to, false, err
+	}
+	if to == "" {
+		return cfg, w.Jobs[0].Status, true, nil
+	}
+	return cfg, jobStatus(cfg, to), true, nil
 }

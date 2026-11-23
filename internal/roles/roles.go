@@ -1,4 +1,7 @@
-// Package roles discovers repository agents in the selected harness's native format.
+// Package roles discovers agent instructions. tmux-agent owns the files: plain
+// markdown in .tasks/agents (repo) and ~/.config/tmux-agent/agents (global).
+// Legacy harness directories (.claude/.codex/.opencode) are still read, but the
+// app never writes there, and their harness is no longer implied by the process.
 package roles
 
 import (
@@ -12,7 +15,18 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-type Definition struct{ Name, Description, Instructions, Path, Harness string }
+// Definition is one instruction file. Harness is empty for app-owned files
+// (the role's board.yaml entry or the process harness decides) and names the
+// harness for legacy files.
+type Definition struct {
+	Name, Description, Instructions, Path, Harness string
+	// Native means the file lives in the harness's own agents directory, so
+	// that harness loads it itself and it must not be injected again.
+	Native bool
+}
+
+// legacyHarnesses are the directories read for compatibility, in priority order.
+var legacyHarnesses = []string{"claude", "codex", "opencode"}
 
 func Harness(command string) string {
 	fields := strings.Fields(command)
@@ -29,6 +43,18 @@ func Root(dir string) string {
 	return dir
 }
 
+// LocalDir is the app-owned instruction directory of a repo checkout.
+func LocalDir(dir string) string {
+	return filepath.Join(Root(dir), ".tasks", "agents")
+}
+
+// LocalPath is where the app keeps the instructions of agent name.
+func LocalPath(dir, name string) string {
+	return filepath.Join(LocalDir(dir), name+".md")
+}
+
+// DirFor is a harness's own agents directory. It is read for legacy files and
+// used when handing a native definition to a harness; the app never writes here.
 func DirFor(dir, harness string) string {
 	switch Harness(harness) {
 	case "claude":
@@ -41,9 +67,14 @@ func DirFor(dir, harness string) string {
 	return ""
 }
 
-func ListIn(dir, harness string) []Definition {
-	harness = Harness(harness)
-	return listDir(DirFor(dir, harness), harness)
+// ListLocal is every instruction file in the repo: .tasks/agents first, then the
+// legacy harness directories. It is not filtered by the process harness.
+func ListLocal(dir string) []Definition {
+	defs := listDir(LocalDir(dir), "", false)
+	for _, h := range legacyHarnesses {
+		defs = append(defs, listDir(DirFor(dir, h), h, true)...)
+	}
+	return sortUnique(defs)
 }
 
 func GlobalDir() string {
@@ -54,19 +85,33 @@ func GlobalDir() string {
 	}
 	return filepath.Join(apppath.Dir(base), "agents")
 }
-func ListGlobal(harness string) []Definition {
-	defs := listDir(filepath.Join(GlobalDir(), Harness(harness)), Harness(harness))
-	files, _ := filepath.Glob(filepath.Join(GlobalDir(), "*.md"))
-	for _, f := range files {
-		name := strings.TrimSuffix(filepath.Base(f), ".md")
-		if d, ok := Universal(name); ok {
-			defs = append(defs, d)
-		}
+
+// ListGlobal is every global instruction file: ~/.config/tmux-agent/agents/*.md
+// first, then the legacy per-harness subdirectories.
+func ListGlobal() []Definition {
+	defs := listDir(GlobalDir(), "", false)
+	for _, h := range legacyHarnesses {
+		defs = append(defs, listDir(filepath.Join(GlobalDir(), h), h, false)...)
 	}
-	return defs
+	return sortUnique(defs)
 }
 
-func listDir(base, harness string) []Definition {
+// sortUnique drops later duplicates (so the first list wins) and sorts by name.
+func sortUnique(defs []Definition) []Definition {
+	seen := map[string]bool{}
+	out := make([]Definition, 0, len(defs))
+	for _, d := range defs {
+		if seen[d.Name] {
+			continue
+		}
+		seen[d.Name] = true
+		out = append(out, d)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out
+}
+
+func listDir(base, harness string, native bool) []Definition {
 	if base == "" {
 		return nil
 	}
@@ -91,8 +136,9 @@ func listDir(base, harness string) []Definition {
 		if err != nil {
 			return nil
 		}
-		d := Definition{Name: name, Path: path, Harness: harness, Instructions: strings.TrimSpace(string(b))}
-		if harness == "codex" {
+		d := Definition{Name: name, Path: path, Harness: harness, Native: native, Instructions: strings.TrimSpace(string(b))}
+		switch harness {
+		case "codex":
 			var c struct {
 				Name         string `toml:"name"`
 				Description  string `toml:"description"`
@@ -102,43 +148,74 @@ func listDir(base, harness string) []Definition {
 				return nil
 			}
 			d.Name, d.Description, d.Instructions = c.Name, c.Description, c.Instructions
-		} else if strings.HasPrefix(d.Instructions, "---\n") {
-			if front, _, ok := strings.Cut(d.Instructions[4:], "\n---"); ok {
-				for _, line := range strings.Split(front, "\n") {
-					key, value, found := strings.Cut(line, ":")
-					if !found {
-						continue
-					}
-					value = strings.Trim(strings.TrimSpace(value), `"'`)
-					if key == "description" {
-						d.Description = value
-					}
-					if key == "name" && harness == "claude" && value != "" {
-						d.Name = value
-					}
+		case "claude", "opencode":
+			d.Description = frontmatter(d.Instructions, "description")
+			if harness == "claude" {
+				if n := frontmatter(d.Instructions, "name"); n != "" {
+					d.Name = n
 				}
 			}
+		default:
+			// App-owned instructions are plain markdown; only tolerate a
+			// frontmatter block, never hand it to a harness or the web UI.
+			d.Description, d.Instructions = stripFrontmatter(d.Instructions)
 		}
 		defs = append(defs, d)
 		return nil
 	})
-	sort.Slice(defs, func(i, j int) bool { return defs[i].Name < defs[j].Name })
 	return defs
 }
 
-func NamesIn(dir, harness string) []string {
+// frontmatter returns one key of a leading --- block, "" when there is none.
+func frontmatter(text, key string) string {
+	if !strings.HasPrefix(text, "---\n") {
+		return ""
+	}
+	front, _, ok := strings.Cut(text[4:], "\n---")
+	if !ok {
+		return ""
+	}
+	for _, line := range strings.Split(front, "\n") {
+		k, value, found := strings.Cut(line, ":")
+		if found && k == key {
+			return strings.Trim(strings.TrimSpace(value), `"'`)
+		}
+	}
+	return ""
+}
+
+// stripFrontmatter drops a leading --- block, returning its description and the
+// plain markdown body.
+func stripFrontmatter(text string) (description, body string) {
+	if !strings.HasPrefix(text, "---\n") {
+		return "", text
+	}
+	front, rest, ok := strings.Cut(text[4:], "\n---")
+	if !ok {
+		return "", text
+	}
+	for _, line := range strings.Split(front, "\n") {
+		k, value, found := strings.Cut(line, ":")
+		if found && k == "description" {
+			description = strings.Trim(strings.TrimSpace(value), `"'`)
+		}
+	}
+	return description, strings.TrimSpace(strings.TrimPrefix(rest, "\n"))
+}
+
+func NamesIn(dir string) []string {
 	var names []string
-	for _, d := range ListIn(dir, harness) {
+	for _, d := range ListLocal(dir) {
 		names = append(names, d.Name)
 	}
 	return names
 }
 
-func GetIn(dir, harness, name string) (Definition, bool) {
-	for _, d := range append(ListIn(dir, harness), ListGlobal(harness)...) {
+func GetIn(dir, name string) (Definition, bool) {
+	for _, d := range append(ListLocal(dir), ListGlobal()...) {
 		if d.Name == name {
 			return d, true
 		}
 	}
-	return Universal(name)
+	return Definition{}, false
 }

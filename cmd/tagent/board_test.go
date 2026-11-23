@@ -61,8 +61,12 @@ func TestBoardAgentLaunchReuseAndQueue(t *testing.T) {
 		}
 		time.Sleep(20 * time.Millisecond)
 	}
+	// The role's app-owned instructions ride in the dispatch prompt for claude.
+	if got, _ := os.ReadFile(received); !strings.Contains(string(got), "Plan carefully.") {
+		t.Fatalf("instructions not dispatched: %s", got)
+	}
 	b, err := os.ReadFile(launches)
-	if err != nil || !strings.Contains(string(b), "--effort high") {
+	if err != nil || !strings.Contains(string(b), "--effort high") || strings.Contains(string(b), "Plan carefully.") {
 		t.Fatalf("launch arguments: %s (%v)", b, err)
 	}
 	a.Effort = "low" // Reuse must not reconfigure or relaunch the pane.
@@ -269,8 +273,14 @@ func TestBoardValidate(t *testing.T) {
 				t.Fatalf("code %d, want %d: %s", code, tc.code, &stderr)
 			}
 			if code == exitOK {
-				if out.String() != "Board configuration valid.\n" || stderr.Len() != 0 {
+				lines := strings.Split(strings.TrimSuffix(out.String(), "\n"), "\n")
+				if lines[len(lines)-1] != "Board configuration valid." || stderr.Len() != 0 {
 					t.Fatalf("stdout=%q stderr=%q", &out, &stderr)
+				}
+				for _, line := range lines[:len(lines)-1] {
+					if !strings.HasPrefix(line, "warning: ") {
+						t.Fatalf("unexpected output line %q", line)
+					}
 				}
 			} else if out.Len() != 0 || (code == exitFailure && !strings.HasPrefix(stderr.String(), "board:")) {
 				t.Fatalf("stdout=%q stderr=%q", &out, &stderr)
@@ -307,5 +317,51 @@ func TestBoardValidateWorktree(t *testing.T) {
 	}
 	if !reflect.DeepEqual(before, boardValidateSnapshot(t, root)) {
 		t.Fatal("validation changed files")
+	}
+}
+
+// Role instructions are injected for every harness; only a legacy native file in
+// the harness's own directory is loaded by the harness itself.
+func TestRoleInstructionsPerHarness(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(dir, "xdg"))
+	if err := os.MkdirAll(filepath.Join(dir, ".tasks"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, ".tasks", "board.yaml"), []byte("roles:\n  pirole: {agent: pi}\n  clauderole: {agent: claude}\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	os.MkdirAll(roles.LocalDir(dir), 0755)
+	if err := os.WriteFile(filepath.Join(roles.LocalDir(dir), "shared.md"), []byte("Shared instructions."), 0644); err != nil {
+		t.Fatal(err)
+	}
+	for _, harness := range []string{"pi", "claude", "codex", "opencode"} {
+		if got := roleInstructions(dir, "shared", harness, true); got != "Shared instructions." {
+			t.Fatalf("%s: %q", harness, got)
+		}
+	}
+	if got := roleInstructions(dir, "nobody", "pi", true); got != "" {
+		t.Fatalf("unknown role: %q", got)
+	}
+	legacy := filepath.Join(roles.DirFor(dir, "claude"), "native.md")
+	os.MkdirAll(filepath.Dir(legacy), 0755)
+	if err := os.WriteFile(legacy, []byte("Native."), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if got := roleInstructions(dir, "native", "claude", true); got != "" {
+		t.Fatalf("native file sent twice: %q", got)
+	}
+	if got := roleInstructions(dir, "native", "claude", false); got != "Native." {
+		t.Fatalf("board entry starts the harness directly, so the file is not loaded: %q", got)
+	}
+	if got := roleInstructions(dir, "native", "pi", true); got != "Native." {
+		t.Fatalf("legacy file on another harness: %q", got)
+	}
+	if got := roleHarness(dir, "pirole"); got != "pi" {
+		t.Fatalf("board harness: %q", got)
+	}
+	prompt := withRoleInstructions("shared", "Shared instructions.", "Ticket 1")
+	if !strings.HasPrefix(prompt, "Your role is shared.") || !strings.Contains(prompt, "Shared instructions.") || !strings.HasSuffix(prompt, "Ticket 1") {
+		t.Fatalf("prompt: %q", prompt)
 	}
 }

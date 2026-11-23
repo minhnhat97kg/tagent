@@ -35,21 +35,30 @@ func TestRolesAPI(t *testing.T) {
 	call("POST", `{"name":"","harness":"pi"}`, 400)
 	call("POST", `{"name":"x","harness":"opencode"}`, 400)
 	call("POST", `{"name":"../x","harness":"claude","instructions":"hi"}`, 400)
-	call("POST", `{"name":"writer","harness":"claude","instructions":"---\nname: writer\n---\nWrite."}`, 200)
+	call("POST", `{"name":"writer","harness":"claude","instructions":"Write."}`, 200)
 	call("DELETE", `{"name":"nobody"}`, 400)
 	call("DELETE", `{"name":"writer"}`, 200)
 	b, _ := os.ReadFile(filepath.Join(dir, ".tasks", "board.yaml"))
 	if !strings.Contains(string(b), "# keep me") || !strings.Contains(string(b), "model: m2") || strings.Contains(string(b), "writer") {
 		t.Fatalf("board:\n%s", b)
 	}
-	if _, err := os.Stat(filepath.Join(dir, ".claude", "agents", "writer.md")); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(dir, ".tasks", "agents", "writer.md")); !os.IsNotExist(err) {
 		t.Fatal("repo file not deleted")
 	}
-	os.MkdirAll(filepath.Join(roles.GlobalDir(), "claude"), 0755)
-	os.WriteFile(filepath.Join(roles.GlobalDir(), "claude", "gl.md"), []byte("---\nname: gl\n---\nglobal\n"), 0644)
+	os.MkdirAll(roles.GlobalDir(), 0755)
+	os.WriteFile(filepath.Join(roles.GlobalDir(), "gl.md"), []byte("global\n"), 0644)
 	call("DELETE", `{"name":"gl"}`, 400)
 	call("POST", `{"name":"gl","harness":"claude","instructions":"x","source":"global"}`, 400)
-	if _, err := os.Stat(filepath.Join(roles.GlobalDir(), "claude", "gl.md")); err != nil {
+	if _, err := os.Stat(filepath.Join(roles.GlobalDir(), "gl.md")); err != nil {
 		t.Fatal("global file removed")
+	}
+	// Legacy agent files are read but never written by the API.
+	legacy := filepath.Join(roles.DirFor(dir, "claude"), "old.md")
+	os.MkdirAll(filepath.Dir(legacy), 0755)
+	os.WriteFile(legacy, []byte("old\n"), 0644)
+	call("POST", `{"name":"old","harness":"claude","instructions":"new"}`, 400)
+	call("DELETE", `{"name":"old"}`, 400)
+	if b, _ := os.ReadFile(legacy); string(b) != "old\n" {
+		t.Fatalf("legacy file changed: %q", b)
 	}
 }

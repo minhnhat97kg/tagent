@@ -58,6 +58,7 @@ export interface Task {
 }
 
 export interface Project {
+  defaultWorkflow?: string
   statuses: { id: string; role: string; run: string }[]
   workers?: Record<string, { role: string; pane: string; live: boolean }>
   blockedReasons?: Record<string, string>

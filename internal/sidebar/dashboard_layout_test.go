@@ -80,8 +80,8 @@ func TestDashboardShowsLanesAtEveryWidth(t *testing.T) {
 		m.taskFocus, m.agentFocus, m.taskCursor = true, 2, 2
 		m.width, m.height = size[0], size[1]
 		plain := ansi.Strip(m.dashboardView())
-		// ticket 3 is "doing": in progress lane with 3 tickets (doing, review, blocked).
-		for _, want := range []string{"☷ Tasks  todo 2  [doing 3]  done 1", "Ticket number 3", "● doing"} {
+		// ticket 3 is "doing": in progress holds doing and review; blocked has its own lane.
+		for _, want := range []string{"☷ Tasks  todo 2  [doing 2]  blocked 1  done 1", "Ticket number 3", "● doing"} {
 			if !strings.Contains(plain, want) {
 				t.Fatalf("%v: lacks %q:\n%s", size, want, plain)
 			}
@@ -116,7 +116,7 @@ func TestLanesHeaderText(t *testing.T) {
 		m := dashSample()
 		m.width, m.height = w, 40
 		title, _ := m.tasksTitle(4)
-		if got := ansi.Strip(title); got != "☷ Tasks  todo 2  [doing 3]  done 1" {
+		if got := ansi.Strip(title); got != "☷ Tasks  todo 2  [doing 2]  blocked 1  done 1" {
 			t.Fatalf("width %d: %q", w, got)
 		}
 	}

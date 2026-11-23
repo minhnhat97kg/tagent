@@ -41,28 +41,33 @@ prefill cancels. Resumed agents receive only the reply, not old comment history.
 exactly one concrete question in their blocking move comment.
 
 A ticket is the work state. Status entry dispatches work; comments carry handoffs.
-Run `tagent board init` to exclusively create the example in the main
-worktree's `.tasks/board.yaml`:
+Flows are defined only by workflows (`.tasks/workflows/*.yml`, see [Workflows](#workflows)).
+`board.yaml` holds agents and triggers. Run `tagent board init` to exclusively
+create the example in the main worktree's `.tasks/board.yaml`:
 
 ```yaml
 roles:
   planner: {agent: pi, model: openai-codex/gpt-6.1-sol, effort: high}
   implementer: {agent: pi, model: openai-codex/gpt-6.1-sol}
   reviewer: {agent: claude}
-statuses:
-  - {id: todo, next: [plan]}
-  - {id: plan, role: planner, next: [build, blocked]}
-  - {id: build, role: implementer, next: [test, blocked]}
-  - {id: test, run: "go test ./...", pass: review, fail: build}
-  - {id: review, role: reviewer, next: [done, build, blocked], max_loops: 3}
-  - {id: blocked}
-  - {id: done}
+default_workflow: feature
 max_fires_per_hour: 20
 triggers:
   - on: mention
     when: {to: '*'}
     agent: '{{event.name}}'
 ```
+
+`board init` also writes a starter `.tasks/workflows/feature.yml` when no
+`feature` workflow exists, so `default_workflow` resolves immediately.
+
+The board lanes are fixed: **todo, in progress, blocked, done**. Every workflow
+job status lands in *in progress*; its card shows the job's real status
+(`planning`, `building`, `testing`, ...). A ticket with no workflow gets
+`default_workflow` when it leaves todo — `s` in the TUI, `task start ID`, or any
+move out of todo. Moving to a job id also works: `task move ID test` enters that
+job's `status` (`testing` by default; jobs can set `status:`). Lanes stay fixed
+even when a workflow has many statuses.
 
 Run `tagent board validate [--dir DIR]` to check the effective configuration
 without creating or modifying files or running triggers. Like runtime, it reads
@@ -74,9 +79,13 @@ invalid or unreadable configuration prints `board:` errors to stderr and exits 1
 Bad flags or extra arguments exit 2. This checks parser acceptance, not agent
 availability or executable/trigger success.
 
-## Board columns vs workflows
+## Workflows vs board.yaml
 
-`board.yaml` columns define the default flow. A workflow overrides that flow for one ticket, attached with `s`/start. Choose board flow for routine work; choose a workflow when a ticket needs a special sequence of roles or checks.
+Workflows are the only flow definition. `board.yaml` keeps `roles`, `triggers`,
+`max_fires_per_hour` and `default_workflow`. Start a ticket with `s` (default
+workflow or another from the picker) or `task start ID [WORKFLOW]`; the default
+runs when you pass no name. Editing a workflow changes existing tickets too
+(recipes resolve live), so there is one place to edit a flow.
 ## Board UI
 
 `?` opens help for the focused panel or view only (tickets, Workflows, workflow
@@ -93,10 +102,11 @@ the main worktree's `.tasks/workflows/<name>.yml`; existing files are never over
 The list reloads after the editor exits (including errors) or a deletion. Editing
 and deleting target the selected file, including global workflows marked `global`.
 
-The sidebar opens on tickets grouped by configured status order. At pane widths of 120 columns or more it shows status columns, windowed around
-the selection when necessary. `h/l` selects a column; `j/k` selects a card within
-it. Narrow panes retain the list with status group headers. `H/L` still moves
-the ticket's status. Enter opens the detail drawer; Escape closes it. At 100
+The sidebar opens on the four fixed lanes: todo, in progress, blocked, done. At
+pane widths of 120 columns or more it shows those lanes, windowed around the
+selection when necessary. `h/l` selects a lane; `j/k` selects a card within it.
+Narrow panes retain the list with lane headers. `H/L` still moves the ticket's
+status within its flow. Enter opens the detail drawer; Escape closes it. At 100
  columns or more it is a right pane beside the tickets, narrower panes show it
  full width. The drawer has four tabs: **Details** (description, attachments, note, agent runs),
  **Chat** (the ticket's own agent conversation), **Activity** (comments and the
@@ -130,20 +140,39 @@ waiting for human input are highlighted. Pane matching uses the exact
 Local configuration replaces the global file in full. When absent, load
 `$XDG_CONFIG_HOME/tagent/board.yaml` (default `~/.config/tagent/board.yaml`).
 An invalid local file disables dispatch; it does not fall back. Linked worktrees
-share the main worktree config and ticket store. With neither file, default
-statuses are todo, doing, review, blocked, done, all roleless, with no triggers.
+share the main worktree config and ticket store. With neither file the board has
+the fixed lanes, no roles, no triggers and no default workflow: set
+`default_workflow` (and a workflow) before moving tickets out of todo.
 
-`columns: [todo, doing, done]` is accepted as roleless statuses. Do not combine it
-with statuses. IDs must be unique; todo/done are required. Role or max_loops
-statuses require blocked for escalation. A status cannot have both role and run.
-Next, pass and fail must name existing statuses. Run requires both pass and fail.
-Max_loops is nonnegative (0/omitted is unlimited); the fire cap must be positive.
-Omitted next permits any move; explicit `next: []` permits none.
+`default_workflow` must name a local or global workflow with at least one job;
+an unknown name is an error at its line. The fire cap must be positive. A
+configured role requires an agent; a trigger requires an agent and valid
+template variables (see below).
 
-The TUI board uses one column per configured status, in configuration order.
-Headers show the status, ticket count and role/run. Cards use two title lines
-and one metadata line; blocked cards show the question. Done cards collapse to
-one line.
+The TUI board always shows the four fixed lanes. Headers show the lane and
+ticket count; a card shows its real status. Blocked cards show the question;
+done cards collapse to one line.
+
+### Deprecated statuses and migration
+
+Old `board.yaml` files with `statuses` (or `columns`) still load. They become an
+implicit workflow named `board` with the same status ids, so running tickets keep
+their exact status names and `next`/`pass`/`fail` semantics. `columns` and
+`status:`'s `column:` are ignored (lanes are fixed). `tagent board validate`
+prints a deprecation warning; `board init` and the web editor write the new
+format only. Non-linear edges a linear workflow cannot express are reported as
+warnings.
+
+`tagent board migrate [--dry-run]` moves in-flight tickets onto
+`default_workflow`: each old status maps to the job with that **id** first, then
+to the job whose `status` matches. For the `feature` recipe, `plan -> planning`,
+`build -> building`, `test -> testing`, `review -> reviewing`. The ticket gets the
+workflow's inputs and a normal `migrated to workflow X` move event. Unmatched
+tickets are listed and left untouched. Migration is idempotent and explicit;
+`--dry-run` prints the mapping without changing tickets. Run it before removing
+`statuses` from `board.yaml`, then restart `board run` (a long-running dispatcher
+keeps the config it started with). Loop counters restart after migration because
+status ids change (`build` -> `building`).
 
 A configured role requires agent, with optional model. Agent resolves as a
 harness name or an existing agent definition. Unlisted roles resolve as their own
@@ -157,11 +186,34 @@ remain independent of the status role. System events are suppressed; ci events
 are not. Explicit trigger self-target guards remain; built-in role dispatch does
 not skip a role just because that role made the transition.
 
+### Editing the configuration
+
+`#/board/config` (the Settings icon in the Board header) edits the raw
+`.tasks/board.yaml`. The readable half previews the draft as-is: the default
+workflow, roles with harness and model, and triggers. A **Default workflow**
+select lists local and global workflows and writes only the `default_workflow`
+key (comments and key order survive); the YAML half reloads from the response.
+Workflow pages edit flows; this page never lists statuses. The board header shows
+`default: <name>`.
+The right half is the YAML editor with line numbers; an error is marked on its
+line and can be clicked to jump there. Save validates first and writes atomically,
+so comments and key order survive. Revert discards the draft and **Restore
+defaults** loads the `board init` template. A `run:` command executes locally on
+the machine when that status is entered.
+
+In the TUI board, `B` opens the same summary from the same parsed config (default
+workflow, roles, triggers); `j`/`k` scroll. `Enter` on the Default workflow row
+opens the same workflow picker as `s` and saves the choice to `board.yaml`
+(comments and key order survive; the last row removes the default). `E` opens
+`.tasks/board.yaml` in `$EDITOR`. After the editor exits, the file is validated;
+an error keeps the loaded config and shows the line in the notice bar instead of
+reloading a broken config. The board header shows `default: <name>`.
+
 ## Working a ticket
 
 ```sh
 tagent task add "Implement the feature"  # prints ID
-tagent task move ID plan "Acceptance criteria"
+tagent task move ID plan "Acceptance criteria"   # job id: enters planning
 tagent task show ID                     # description and all comments
 tagent task move ID build "Plan, files and verification strategy"
 ```
@@ -170,9 +222,11 @@ Move writes the optional comment and changed status under one task lock and one
 event batch. It checks next; rejection writes nothing. Same-status moves may add
 a comment but do not create a new entry. `task set ID STATUS [note]` is the admin
 bypass used by TUI; `task done ID [note]` is admin shorthand for set done.
-`task start ID WORKFLOW` attaches a workflow to a todo ticket and enters its first job.
-`task start ID board` advances to the next board status. Board `s` opens a workflow
-picker (j/k select, Enter start, Esc cancel). Existing pane names/IDs still select
+`task start ID [WORKFLOW]` attaches a workflow to a todo ticket and enters its
+first job; no name uses `default_workflow`. Board `s` opens a workflow picker
+(j/k select, Enter start, Esc cancel); its last row starts the default workflow.
+For a deprecated board, `task start ID board` attaches the implicit `board`
+workflow. Existing pane names/IDs still select
 legacy manual dispatch, which requires a doing status; Tasks panel shares the board ticket actions.
 Needs (“blocked by”) and assignees are informational, never readiness gates.
 
@@ -186,7 +240,7 @@ explicitly if desired. Web/TUI discover repositories as before.
 
 ## Shell checks and limits
 
-Run statuses execute `sh -c` asynchronously at the main repository root. Combined
+Workflow jobs with `run:` execute `sh -c` asynchronously at the main repository root. Combined
 stdout/stderr retains approximately 40 lines, bounded to 64 KiB. A ci comment
 records exit code (startup errors use -1) and the tail, then ci moves to pass on
 0 or fail otherwise; the next role dispatches normally. CI follows next too, so
@@ -195,8 +249,8 @@ re-entered meanwhile, record a stale-result comment without overwriting it.
 No execution timeout or cancellation scheduler is provided. Commands run with
 local user privileges: only trust board configs you intend to execute.
 
-Max_loops counts persisted status-change events into that status for the ticket,
-through the current event (all actors), across restarts. Entry N+1 moves to blocked
+`max-loops` on a workflow job counts persisted status-change events into that
+status for the ticket, through the current event (all actors), across restarts. Entry N+1 moves to blocked
 with a system explanation instead of dispatching or running configured triggers
 for that entry. Safety blocking bypasses next and the fire cap.
 
@@ -218,20 +272,32 @@ transaction or WAL. One-lock batches prevent interleaving concurrent mutations.
 
 ### Agents
 
-One list of agent roles, in the TUI board and on the web (`#/agents`). Each row shows
-the harness and model, whether the role is repo, global or board-only, the live panes
-running it, and the statuses and workflow steps that use it.
+tmux-agent owns agent metadata. A role's harness, model and effort live only in
+`.tasks/board.yaml` (`roles:`); the global default is
+`~/.config/tmux-agent/agents/profiles.toml`, and the board entry wins. A harness
+directory never implies any of it. Instructions are separate: plain markdown
+without frontmatter, in `.tasks/agents/<name>.md` (repo) or
+`~/.config/tmux-agent/agents/<name>.md` (global). Repo files shadow global ones.
+
+One list of agent roles, in the TUI board and on the web (`#/agents`), merges
+`roles:` entries and instruction files. It is never filtered by the process
+harness: every agent shows under claude, pi, codex and opencode. An agent with no
+`roles:` entry shows the process harness as its current harness.
 
 - TUI: `t` in the board opens the Agents panel. `enter` shows detail, `e` edits the
   instructions in `$EDITOR`, `m` changes the model, `a` adds an agent, `x` deletes one (`y` confirms), `t` closes the panel.
 - Web: harness, model, effort and instructions (with preview) save together. Global
-  agents are read-only; **Copy to repo** makes an editable copy.
+  and legacy agents are read-only; **Copy to repo** makes an editable `.tasks/agents` copy.
 
-Harness, model and effort are written to the role's `board.yaml` entry, and comments
-and other keys in that file are kept. Instructions go to the agent's file:
-`.claude/agents/<name>.md` (the whole file, frontmatter included) or
-`.codex/agents/<name>.toml` (only `developer_instructions` changes). Pi roles have no
-file. Model and effort apply to new panes only. Running panes keep theirs.
+Everything the TUI, web and CLI write goes to `board.yaml` and
+`.tasks/agents/<name>.md`; a new agent starts from a plain markdown template. A
+legacy `.claude/agents`, `.codex/agents` or `.opencode/agents` file is still read
+(shown as local) but never written or deleted. Model and effort apply to new panes
+only. Running panes keep theirs.
+
+When a role starts a pane, its instructions are included in the dispatch prompt for
+every harness. A legacy file in the running harness's own directory is the only
+case where the harness already loads the same file natively; it is not sent twice.
 
 ## Workflows
 
@@ -308,8 +374,9 @@ appear in the CI comment. Agents finish with
 source job; stale command results cannot overwrite them. Completing a repeated
 job replaces its output map.
 
-Ticket rows include workflow names. `w` opens the selected workflow (or board
-statuses), `[`/`]` browse recipes, and `e`/`c` edit the displayed recipe.
+Ticket rows include workflow names. `w` opens the selected workflow (or the
+fixed lanes when the ticket has none), `[`/`]` browse recipes, and `e`/`c` edit
+the displayed recipe.
 Legacy flat outputs still load but are not converted into job outputs.
 Old assigned todo tickets do not auto-run; move them deliberately.
 

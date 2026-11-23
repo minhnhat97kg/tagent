@@ -29,15 +29,25 @@ Never delete tickets or send prompts to your own `$TMUX_PANE`.
 
 ## How work runs
 
-Tickets are the only work state. `.tasks/board.yaml` defines statuses with roles
-or shell `run:` checks. Entering a role dispatches `<role>#<ticket>`; re-entry
-reuses its context and includes only new non-system comments. New panes receive
-the description, handoff and outputs. Busy/approval/unknown panes queue until idle.
-A role's harness, model and effort come from its `board.yaml` entry; a model or effort
-change applies to panes started afterwards, not to running ones.
+Tickets are the only work state. `.tasks/workflows/*.yml` defines every flow
+(jobs with an agent or shell `run:` check). `.tasks/board.yaml` holds roles,
+triggers, `max_fires_per_hour` and `default_workflow`; board lanes are fixed at
+todo, in progress, blocked, done. A ticket without a workflow starts
+`default_workflow` when it leaves todo (`s`, `task start ID`, or a move).
+Entering a role dispatches `<role>#<ticket>`; re-entry reuses its context and
+includes only new non-system comments. New panes receive the description, handoff
+and outputs. Busy/approval/unknown panes queue until idle.
+A role's harness, model and effort come from its `board.yaml` entry (never from a
+harness directory); a model or effort change applies to panes started afterwards,
+not to running ones. Instructions are plain markdown in `.tasks/agents/<role>.md`
+(or `~/.config/tmux-agent/agents/<role>.md`) and are included in the dispatch prompt
+on every harness.
 The scraper dispatches (`@agent_scrape` on); `board run` runs in the foreground.
-Roles map to harness/agent definitions and optional models; models affect new
-panes only. Assignees and ticket `needs` are informational, not prerequisites.
+Edit the board from the web Board header (Settings, `#/board/config`) or the TUI
+board: `B` shows the default workflow, roles and triggers, `E` opens `$EDITOR`. Saves are
+validated; an error names its line and keeps the loaded config.
+Roles map to harness/agent instructions and optional models; models affect new
+panes only. Legacy `.claude`/`.codex`/`.opencode` agent files are read-only. Assignees and ticket `needs` are informational, not prerequisites.
 
 ## Delegating
 
@@ -52,9 +62,11 @@ Use the board's actual entry status, not necessarily plan. `move` validates next
 omitted next allows any status, empty next allows none. `task set ID STATUS [note]`
 and `task done ID [note]` bypass next for admin repair. `task start ID PANE` is
 legacy manual dispatch requiring idle pane and configured doing status.
-`task start ID WORKFLOW` attaches a workflow to a todo ticket and enters its first job;
-`task start ID board` advances one board status. In the board, `s` opens this picker
-(j/k select, Enter start, Esc cancel); Tasks panel uses the same ticket keys as the board.
+`task start ID [WORKFLOW]` attaches a workflow to a todo ticket and enters its
+first job; omit the name to use `default_workflow`. On a deprecated board,
+`task start ID board` attaches the implicit `board` workflow. In the board, `s`
+opens this picker (j/k select, Enter start, Esc cancel; the last row starts the
+default). Tasks panel uses the same ticket keys as the board.
 
 ## Worker handoffs
 

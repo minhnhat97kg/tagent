@@ -36,7 +36,7 @@ func TestPanelUsesBoardActions(t *testing.T) {
 				got := tasks.List(scope)
 				want := "todo"
 				if key == "L" {
-					want = "doing"
+					want = "blocked" // no workflow: todo, blocked, done are the only statuses
 				}
 				if len(got) != 1 || got[0].Status != want {
 					t.Fatalf("move: %v", got)

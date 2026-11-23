@@ -67,6 +67,26 @@ func (m Model) handleTaskForm(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.taskForm = ""
 		return m, nil
 	}
+	if m.taskForm == "default" {
+		switch key.String() {
+		case "j", "down":
+			m.taskStep = min(len(m.boardWorkflows), m.taskStep+1)
+		case "k", "up":
+			m.taskStep = max(0, m.taskStep-1)
+		case "enter":
+			name := ""
+			if m.taskStep < len(m.boardWorkflows) {
+				name = m.boardWorkflows[m.taskStep].Name
+			}
+			dir := m.boardDir
+			m.taskForm = ""
+			return m, func() tea.Msg {
+				err := tasks.SetDefaultWorkflow(dir, name)
+				return reloadBoardConfig(dir, err)
+			}
+		}
+		return m, nil
+	}
 	if m.taskForm == "start" {
 		switch key.String() {
 		case "j", "down":
@@ -74,7 +94,7 @@ func (m Model) handleTaskForm(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case "k", "up":
 			m.taskStep = max(0, m.taskStep-1)
 		case "enter":
-			name := "board"
+			name := "" // the board's default_workflow
 			if m.taskStep < len(m.boardWorkflows) {
 				name = m.boardWorkflows[m.taskStep].Name
 			}
@@ -159,6 +179,20 @@ func (m Model) taskFormView() string {
 			}
 			body += prefix + choice + "\n"
 		}
+	case "default":
+		title, hint = "Default workflow", m.keyHints("j/k select", "enter save", "esc cancel")
+		for i, w := range m.boardWorkflows {
+			prefix := "  "
+			if i == m.taskStep {
+				prefix = "› "
+			}
+			body += boardFit(prefix+w.Name+" · "+w.Description, width) + "\n"
+		}
+		prefix := "  "
+		if m.taskStep == len(m.boardWorkflows) {
+			prefix = "› "
+		}
+		body += prefix + "none (no default)"
 	case "start":
 		title, hint = "Start "+m.notes[m.taskCursor].Title, m.keyHints("j/k select", "enter start", "esc cancel")
 		for i, w := range m.boardWorkflows {
@@ -172,7 +206,10 @@ func (m Model) taskFormView() string {
 		if m.taskStep == len(m.boardWorkflows) {
 			prefix = "› "
 		}
-		body += prefix + "board flow (board.yaml)"
+		body += prefix + "default workflow"
+		if m.boardConfig.DefaultWorkflow != "" {
+			body += " (" + m.boardConfig.DefaultWorkflow + ")"
+		}
 	case "agent-model":
 		title, hint = "Model for "+m.selectedAgentName(), "Enter save · Esc cancel · applies to new panes"
 	case "agent-new":
@@ -189,7 +226,7 @@ func (m Model) taskFormView() string {
 		title, hint = "✎ Message the chat", "Enter send · ctrl+s save to ticket · Esc cancel"
 
 	}
-	if m.taskForm != "start" && m.taskForm != "attachments" {
+	if m.taskForm != "start" && m.taskForm != "default" && m.taskForm != "attachments" {
 		body += "\n" + wrappedInput(m.taskInput, width, m.height)
 	}
 	return lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(m.theme.Accent).Width(width).Render(lipgloss.NewStyle().Bold(true).Foreground(m.theme.Accent).Render(title) + "\n\n" + lipgloss.NewStyle().Width(width).Render(body) + "\n\n" + hint)

@@ -96,13 +96,17 @@ func TestAgentsPanelEditCreatesFileForBoardRole(t *testing.T) {
 	if cmd == nil {
 		t.Fatalf("no editor: %q", m.taskNotice)
 	}
-	if _, err := os.Stat(filepath.Join(dir, ".claude", "agents", "reviewer.md")); err != nil {
-		t.Fatalf("file not created: %v", err)
+	path := filepath.Join(dir, ".tasks", "agents", "reviewer.md")
+	if b, err := os.ReadFile(path); err != nil || strings.HasPrefix(string(b), "---") {
+		t.Fatalf("file not created: %v %q", err, b)
 	}
 	m, _, _ = m.boardKey("k")
 	m, cmd, _ = m.boardKey("e")
-	if cmd != nil || !strings.Contains(m.taskNotice, "pi agents have no instruction file") {
+	if cmd == nil {
 		t.Fatalf("pi edit: %q", m.taskNotice)
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".tasks", "agents", "planner.md")); err != nil {
+		t.Fatalf("pi file not created: %v", err)
 	}
 }
 
