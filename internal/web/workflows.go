@@ -1,6 +1,7 @@
 package web
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -81,7 +82,7 @@ func (s *server) workflows(w http.ResponseWriter, r *http.Request) {
 					last = t.Created
 				}
 			}
-			out = append(out, map[string]any{"name": f.Name, "key": strings.TrimSuffix(filepath.Base(f.File), filepath.Ext(f.File)), "global": f.Global, "yaml": string(b), "description": f.Description, "jobs": f.Jobs, "inputs": f.Inputs, "total": total, "running": running, "lastUsed": last, "error": message})
+			out = append(out, map[string]any{"name": f.Name, "key": strings.TrimSuffix(filepath.Base(f.File), filepath.Ext(f.File)), "global": f.Global, "yaml": string(b), "description": f.Description, "jobs": f.Jobs, "inputs": f.Inputs, "total": total, "running": running, "lastUsed": last, "error": message, "errorLine": workflow.ErrorLine(f.Err)})
 		}
 		writeJSON(w, out)
 		return
@@ -99,7 +100,9 @@ func (s *server) workflows(w http.ResponseWriter, r *http.Request) {
 	if o.Op == "validate" || o.Op == "patch" {
 		source, preview, err := patchWorkflow(o.YAML, o.Patch)
 		if err != nil {
-			fail(w, err)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]any{"error": err.Error(), "line": workflow.ErrorLine(err)})
 			return
 		}
 		writeJSON(w, map[string]any{"yaml": source, "preview": preview})

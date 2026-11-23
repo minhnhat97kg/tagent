@@ -262,6 +262,8 @@ live: editing affects existing tickets; missing or broken recipes report errors.
 ID and optionally waits (done exits 0, blocked exits 1).
 `task add --workflow NAME --input goal=value "Title"` leaves the ticket in todo.
 
+The web Workflows page edits YAML with line numbers, syntax colours and soft wrap. A validation error is marked on its line; click the error bar to jump there. Clicking a flow card jumps to that job in the YAML, and moving the cursor into a job highlights its card. Global workflows are read-only there.
+
 Jobs form one needs chain; parallel jobs are not supported. Each job has `run`
 or `agent` with optional `prompt`, optional `status` (defaults to job ID),
 `on-failure` (job/status, default blocked), `max-loops`, `model`, and `outputs`.
