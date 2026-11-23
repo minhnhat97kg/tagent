@@ -1490,7 +1490,16 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 		}
-		if g.tasks.contains(msg.X, msg.Y) && msg.Y > g.tasks.y && msg.Y < g.tasks.y+g.tasks.h-1 {
+		if g.columns && g.tasks.contains(msg.X, msg.Y) && msg.Y > g.tasks.y {
+			if idx, ok := m.boardColumnAt(msg.X-g.tasks.x, msg.Y-g.tasks.y-1, g.tasks.w, g.tasks.h-1); ok {
+				m.taskCursor = idx
+				m.taskTitle = false
+				m.taskFocus, m.agentFocus = true, 2
+				m = m.openBoard()
+				m, cmd, _ := m.boardKey("enter")
+				return m, cmd
+			}
+		} else if g.tasks.contains(msg.X, msg.Y) && msg.Y > g.tasks.y && msg.Y < g.tasks.y+g.tasks.h-1 {
 			order := m.boardOrder()
 			pos := slices.Index(order, m.taskCursor)
 			// One row per ticket; the same window as taskLines (height g.tasks.h-2).
@@ -1679,6 +1688,9 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 			if key == "k" || key == "up" {
 				order := m.boardOrder()
+				if m.width >= 120 && len(m.notes) > 0 {
+					order = m.boardStatusCards(m.notes[m.taskCursor].Status)
+				}
 				if len(order) == 0 || order[0] == m.taskCursor {
 					m.taskTitle = true
 					return m, nil

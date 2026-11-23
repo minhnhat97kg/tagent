@@ -110,7 +110,14 @@ func (m Model) dashboardView() string {
 	if m.taskTitle {
 		taskTitle += " · Enter board"
 	}
-	tasksCard := m.dashboardPanel(taskTitle, m.taskLines(g.tasks.w-4, g.tasks.h-2)[1:], g.tasks.w, g.tasks.h, m.taskFocus)
+	var tasksCard string
+	if g.columns {
+		// Same kanban columns as the board, under a one-line header.
+		head := m.boardStyle(m.theme.TextPrimary).Bold(true).Render(boardFit(" "+taskTitle, g.tasks.w))
+		tasksCard = head + "\n" + m.boardColumnView(g.tasks.w, g.tasks.h-1, m.taskFocus, m.theme.BorderFocus, m.theme.Border)
+	} else {
+		tasksCard = m.dashboardPanel(taskTitle, m.taskLines(g.tasks.w-4, g.tasks.h-2)[1:], g.tasks.w, g.tasks.h, m.taskFocus)
+	}
 	if g.preview.h > 0 {
 		title, lines := m.ticketPreview(g.preview.w - 4)
 		tasksCard += "\n" + m.dashboardPanel(title, lines, g.preview.w, g.preview.h, false)
@@ -541,7 +548,7 @@ type rect struct{ x, y, w, h int }
 // dashGeom is every card's rectangle (h == 0: not shown), shared by the view
 // and mouse hit-testing. y counts from the top bar (row 0).
 type dashGeom struct {
-	wide                                       bool
+	wide, columns                              bool
 	agents, usage, comp, roles, tasks, preview rect
 	usageLines                                 []string
 }
@@ -561,7 +568,7 @@ func (m Model) dashGeometry() dashGeom {
 	}
 	width := max(6, w-1)
 	bh := max(6, h-2) // minus top bar and footer
-	g := dashGeom{wide: w >= 90}
+	g := dashGeom{wide: w >= 90, columns: w >= 120}
 	left := width
 	if g.wide {
 		left = min(44, max(38, width*40/100))
@@ -625,7 +632,7 @@ func (m Model) dashGeometry() dashGeom {
 		}
 	}
 	// Quick preview of the selected ticket when the list leaves 8+ spare rows.
-	if len(m.notes) > 0 && g.tasks.h-(len(m.notes)+2) >= 8 {
+	if !g.columns && len(m.notes) > 0 && g.tasks.h-(len(m.notes)+2) >= 8 {
 		g.preview = rect{g.tasks.x, g.tasks.y + g.tasks.h - previewHeight, g.tasks.w, previewHeight}
 		g.tasks.h -= previewHeight
 	}

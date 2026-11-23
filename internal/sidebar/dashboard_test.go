@@ -48,7 +48,7 @@ func TestDashboardFitsBothWidthsAndKeepsTaskSelection(t *testing.T) {
 	if !m.taskFocus {
 		t.Fatal("tab did not focus tasks")
 	}
-	updated, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
+	updated, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("l")}) // wide: next column
 	m = updated.(Model)
 	if m.taskCursor != 1 || !strings.Contains(m.taskDetail(80)[1], "Second task") {
 		t.Fatal("task selection did not update detail")

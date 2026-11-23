@@ -291,19 +291,61 @@ func (m Model) boardCard(idx, width int) []string {
 	return []string{boardFit(style.Render(mark+title[0]), width), boardFit(style.Render("  "+title[1]), width), boardFit(m.boardStyle(m.theme.TextMuted).Render("  "+meta), width)}
 }
 
-func (m Model) boardColumnView(height int) string {
-	columns := m.boardColumns()
-	if len(columns) == 0 {
-		return ""
+// boardColumnScroll is the first visible line of a column, keeping the selected card in view.
+func (m Model) boardColumnScroll(status string, cards []int, height int) int {
+	selectedLine, line := 0, 0
+	for _, idx := range cards {
+		if idx == m.taskCursor {
+			selectedLine = line
+		}
+		line += m.boardCardHeight(status)
 	}
-	// Window wide workflows around the selected status, retaining readable cards.
-	visible := min(len(columns), max(1, m.width/24))
-	selected := 0
+	return min(max(0, selectedLine+m.boardCardHeight(status)-max(1, height-2)), line)
+}
+
+func (m Model) boardCardHeight(status string) int {
+	if m.boardConfig.Lane(status) == "done" {
+		return 1
+	}
+	return 3
+}
+
+// boardColumnSpan windows wide workflows around the selected status, retaining readable cards.
+func (m Model) boardColumnSpan(width int) (columns []string, start, visible, selected, colWidth int) {
+	columns = m.boardColumns()
+	if len(columns) == 0 {
+		return
+	}
+	visible = min(len(columns), max(1, width/24))
 	if len(m.notes) > 0 {
 		selected = max(0, slices.Index(columns, m.notes[m.taskCursor].Status))
 	}
-	start := min(max(0, selected-visible+1), len(columns)-visible)
-	width := m.width / visible
+	start = min(max(0, selected-visible+1), len(columns)-visible)
+	return columns, start, visible, selected, width / visible
+}
+
+// boardColumnAt maps a click (x, y relative to the column view) to a ticket index.
+func (m Model) boardColumnAt(x, y, width, height int) (int, bool) {
+	columns, start, visible, _, colWidth := m.boardColumnSpan(width)
+	if len(columns) == 0 || x < 0 || y < 1 || y >= height-1 {
+		return 0, false
+	}
+	status := columns[start+min(x/colWidth, visible-1)]
+	cards := m.boardStatusCards(status)
+	n := m.boardColumnScroll(status, cards, height) + y - 1
+	if i := n / m.boardCardHeight(status); i < len(cards) && n >= 0 {
+		return cards[i], true
+	}
+	return 0, false
+}
+
+// boardColumnView is the kanban columns in a width x height box; the selected
+// column's border is focus when focused, the others idle.
+func (m Model) boardColumnView(width, height int, focused bool, focus, idle lipgloss.Color) string {
+	columns, start, visible, selected, colWidth := m.boardColumnSpan(width)
+	if len(columns) == 0 {
+		return ""
+	}
 	var panels []string
 	for col := start; col < start+visible; col++ {
 		status := columns[col]
@@ -320,23 +362,19 @@ func (m Model) boardColumnView(height int) string {
 			}
 		}
 		var lines []string
-		selectedLine := 0
-		cardHeight := 3
-		if m.boardConfig.Lane(status) == "done" {
-			cardHeight = 1
-		}
 		for _, idx := range cards {
-			if idx == m.taskCursor {
-				selectedLine = len(lines)
-			}
-			lines = append(lines, m.boardCard(idx, width-4)...)
+			lines = append(lines, m.boardCard(idx, colWidth-4)...)
 		}
-		offset := max(0, selectedLine+cardHeight-max(1, height-2))
-		panelWidth := width
+		offset := m.boardColumnScroll(status, cards, height)
+		panelWidth := colWidth
 		if col == start+visible-1 {
-			panelWidth = m.width - width*(visible-1)
+			panelWidth = width - colWidth*(visible-1)
 		}
-		panels = append(panels, m.boardPanel(m.boardStyle(m.boardColor(status)).Render(label), lines[min(offset, len(lines)):], panelWidth, height, !m.workflowFocus && col == selected))
+		color := idle
+		if focused && col == selected {
+			color = focus
+		}
+		panels = append(panels, m.boardPanelColor(m.boardStyle(m.boardColor(status)).Render(label), lines[min(offset, len(lines)):], panelWidth, height, color))
 	}
 	return lipgloss.JoinHorizontal(lipgloss.Top, panels...)
 }
@@ -511,6 +549,10 @@ func (m Model) boardPanel(title string, lines []string, width, height int, focus
 	if focused {
 		color = m.theme.Accent
 	}
+	return m.boardPanelColor(title, lines, width, height, color)
+}
+
+func (m Model) boardPanelColor(title string, lines []string, width, height int, color lipgloss.Color) string {
 	border := m.boardStyle(color)
 	label := " " + title + " "
 	label = ansi.Truncate(label, max(0, width-3), "…")
@@ -565,7 +607,7 @@ func (m Model) boardView() string {
 		if m.workflowFocus {
 			wfStart = max(0, m.workflowCursor-max(1, wh-2)+1)
 		}
-		body = m.boardColumnView(h-wh) + "\n" + m.boardPanel(fmt.Sprintf("Workflows %d · a add · e edit", len(m.boardWorkflows)), wfLines[min(wfStart, len(wfLines)):], m.width, wh, m.workflowFocus)
+		body = m.boardColumnView(m.width, h-wh, !m.workflowFocus, m.theme.Accent, m.theme.TextDim) + "\n" + m.boardPanel(fmt.Sprintf("Workflows %d · a add · e edit", len(m.boardWorkflows)), wfLines[min(wfStart, len(wfLines)):], m.width, wh, m.workflowFocus)
 	} else {
 		lw := m.width
 		if m.boardWide() {
@@ -905,7 +947,7 @@ func (m Model) boardKey(key string) (Model, tea.Cmd, bool) {
 		return m, nil, true
 	}
 	order := m.boardOrder()
-	if m.boardMode && m.width >= 120 {
+	if (m.boardMode || m.dashboard) && m.width >= 120 {
 		order = m.boardStatusCards(m.notes[m.taskCursor].Status)
 	}
 	pos := slices.Index(order, m.taskCursor)

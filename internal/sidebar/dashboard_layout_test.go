@@ -72,3 +72,31 @@ func TestNewTicketKeyOpensEditor(t *testing.T) {
 		t.Fatal("n did not start the add flow")
 	}
 }
+
+func TestDashboardWideShowsBoardColumns(t *testing.T) {
+	m := dashSample()
+	m.taskFocus, m.agentFocus = true, 2
+	m.width, m.height = 140, 40
+	out := m.dashboardView()
+	plain := ansi.Strip(out)
+	for _, h := range []string{"todo · 2", "doing · 1", "review · 1"} {
+		if !strings.Contains(plain, h) {
+			t.Fatalf("missing column header %q:\n%s", h, plain)
+		}
+	}
+	for i, l := range strings.Split(out, "\n")[1:39] {
+		if lipgloss.Width(l) != 139 && lipgloss.Width(l) != 140 {
+			t.Fatalf("line %d is %d cells", i, lipgloss.Width(l))
+		}
+	}
+	g := m.dashGeometry()
+	// click on the first card of the doing column
+	_, start, _, _, cw := m.boardColumnSpan(g.tasks.w)
+	if idx, ok := m.boardColumnAt(cw*(1-start)+2, 2, g.tasks.w, g.tasks.h-1); !ok || idx != 2 {
+		t.Fatalf("hit-test got %d %v", idx, ok)
+	}
+	m.width = 100
+	if p := ansi.Strip(m.dashboardView()); strings.Contains(p, "doing · 1") || !strings.Contains(p, "Ticket number 1") {
+		t.Fatalf("narrow dashboard changed:\n%s", p)
+	}
+}
