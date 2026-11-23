@@ -286,7 +286,7 @@ func (m Model) cardName(num int, name string) (string, int) {
 	return s, ansi.StringWidth(s) // num is unused: cards are not numbered
 }
 
-// tasksTitle is "☷ Tasks  [todo 1] · in progress 2 · done 32".
+// tasksTitle is "☷ Tasks  [todo 1]  doing 2  done 32" (short lane names so it fits narrow cards).
 func (m Model) tasksTitle(num int) (string, []tabSpan) {
 	name, w := m.cardName(num, "☷ Tasks")
 	labels := make([]string, len(boardLanes))
@@ -320,7 +320,7 @@ func (m Model) boardCardLine(idx, width int) string {
 	if idx == m.taskCursor {
 		mark, style = "▌ ", style.Bold(true).Foreground(m.theme.Accent)
 	}
-	status := "●"
+	status := "●" // a lane's own name (todo, done) would repeat the tab: show the status only when it adds something
 	if t.Status != m.laneOf(t.Status) {
 		status += " " + t.Status
 	}
@@ -330,7 +330,7 @@ func (m Model) boardCardLine(idx, width int) string {
 // boardCard: title, then "● status #id role worker"; a blocked card adds its question.
 func (m Model) boardCard(idx, width int) []string {
 	t := m.notes[idx]
-	if lane := m.laneOf(t.Status); lane == "done" || t.Status == lane {
+	if lane := m.laneOf(t.Status); lane == "done" || t.Status == lane { // todo and done cards: one line
 		return []string{m.boardCardLine(idx, width)}
 	}
 	mark := "  "
@@ -866,6 +866,8 @@ func (m Model) boardWorker(t tasks.Task) string {
 	return "○ " + name + " " + string(pick.Status)
 }
 
+// boardDetail is the drawer: a summary that never scrolls, the scrolling body
+// and a sticky footer, exactly rows lines wide-as-w.
 func (m Model) boardDetail(w, rows int) []string {
 	if w <= 0 || rows <= 0 {
 		return nil
@@ -873,7 +875,22 @@ func (m Model) boardDetail(w, rows int) []string {
 	if len(m.notes) == 0 {
 		return []string{boardFit("No tasks yet", w)}
 	}
-	return m.detailViewport(m.taskDetailLines(m.notes[m.taskCursor], w), w, rows, m.detailScroll)
+	summary, body, bodyRows := m.detailLayout(m.notes[m.taskCursor], w, rows)
+	out := append([]string{}, summary...)
+	out = append(out, m.detailViewport(body, w, bodyRows, m.detailScroll)...)
+	if rows >= 6 {
+		out = append(out, m.detailFooter(w))
+	}
+	if len(out) > rows {
+		out = out[:rows]
+	}
+	for len(out) < rows {
+		out = append(out, "")
+	}
+	for i := range out {
+		out[i] = boardFit(out[i], w)
+	}
+	return out
 }
 
 func (m Model) triggerSummary() string {
@@ -917,6 +934,14 @@ func (m Model) boardKey(key string) (Model, tea.Cmd, bool) {
 		}
 	}
 	if m.boardMode && m.boardDrawer {
+		switch key {
+		case "s": // the dispatch noise stays folded until asked for
+			m.detailSysOpen = !m.detailSysOpen
+			return m, nil, true
+		case "enter", " ": // expand or collapse a long description in place
+			m.detailDescOpen = !m.detailDescOpen
+			return m, nil, true
+		}
 		if m.scrollDetail(key) {
 			return m, nil, true
 		}
@@ -988,6 +1013,7 @@ func (m Model) boardKey(key string) (Model, tea.Cmd, bool) {
 		m.boardMode = true
 		m.boardDrawer = !m.boardDrawer
 		m.detailScroll = 0
+		m.detailDescOpen, m.detailSysOpen = false, false
 		return m, nil, true
 	case "esc":
 		if m.boardDrawer {
@@ -1071,12 +1097,15 @@ func (m Model) boardKey(key string) (Model, tea.Cmd, bool) {
 	return m.laneStep(step), nil, true
 }
 
+// detailMaxScroll is how far the drawer body can scroll: the summary and the
+// footer take their rows off the top of the window.
 func (m Model) detailMaxScroll() int {
 	if len(m.notes) == 0 {
 		return 0
 	}
 	w, rows := m.width-4, max(0, m.height-5)
-	return max(0, len(m.taskDetailLines(m.notes[m.taskCursor], w))-max(0, rows-2))
+	_, body, bodyRows := m.detailLayout(m.notes[m.taskCursor], w, rows)
+	return max(0, len(body)-max(0, bodyRows-2))
 }
 
 func (m Model) ticketHints() string {

@@ -111,9 +111,10 @@ func TestBoardDetailDrawerAndFields(t *testing.T) {
 		if closed.boardDrawer || !closed.boardMode {
 			t.Fatal("Esc did not return to Board")
 		}
-		closed, _ = boardPress(next, key)
+		// Enter belongs to the description now; i and Esc close the drawer.
+		closed, _ = boardPress(next, "i")
 		if closed.boardDrawer || !closed.boardMode {
-			t.Fatal("detail key did not toggle drawer closed")
+			t.Fatal("i did not toggle drawer closed")
 		}
 	}
 	m.notes = []tasks.Task{{Title: "Only title", Text: "Only title\nThe description", Status: "todo"}}
