@@ -279,7 +279,17 @@ export function Terminal({ pane, onConnection, keyboardInputRef, onKeyboardChang
       wrap.parentElement!.appendChild(box)
       let last = ""
       const sendKeys = (data: string) => { if (data && ws.readyState === WebSocket.OPEN) void paneInput(pane, "input", data).catch(e => toast.error(e.message)) }
-      box.addEventListener("input", () => { sendKeys(typedDiff(last, box!.value)); last = box!.value })
+      box.setAttribute("autocorrect", "off")
+      box.setAttribute("autocomplete", "off")
+      // The diff assumes typing at the end; keep the caret there and start each word fresh so
+      // stale text or an iOS caret move can't make whole runs be retyped.
+      const toEnd = () => { const n = box!.value.length; if (box!.selectionStart !== n) box!.setSelectionRange(n, n) }
+      box.addEventListener("select", toEnd)
+      box.addEventListener("input", e => {
+        sendKeys(typedDiff(last, box!.value)); last = box!.value
+        if (!(e as InputEvent).isComposing && /\s$/.test(last)) box!.value = last = ""
+        toEnd()
+      })
       box.addEventListener("keydown", e => {
         if (e.isComposing) return
         if (e.key === "Enter") { e.preventDefault(); sendKeys("\r"); box!.value = last = "" }
