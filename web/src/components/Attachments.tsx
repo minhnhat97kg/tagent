@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { createPortal } from "react-dom"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Copy, Download, File, FileDiff, FileImage, FileJson, FileText, X } from "lucide-react"
 import { previewText } from "@/lib/attachments"
 import { Md } from "./BoardDrawer"
@@ -44,16 +44,12 @@ export function AttachmentViewer({ a, url, close }: { a: Attachment; url: string
     return () => controller.abort()
   }, [src, all])
   const rendered = previewText(a.name, text, truncated)
-  useEffect(() => {
-    const key = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); close() } }
-    window.addEventListener("keydown", key, true); return () => window.removeEventListener("keydown", key, true)
-  }, [close])
   const btn = "inline-flex h-7 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
-  // Portal: the drawer is a containing block, so a fixed overlay inside it would not cover the screen.
-  return createPortal(<div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-3" onClick={close}>
-  <section role="dialog" aria-modal="true" aria-label={`Preview ${a.name}`} onClick={e => e.stopPropagation()} className="attachment-viewer flex max-h-full w-full max-w-4xl flex-col overflow-hidden rounded-lg border bg-card shadow-xl">
+  // A nested Radix dialog: the task drawer is modal, so anything outside a dialog of its own cannot be clicked.
+  return <Dialog open onOpenChange={o => { if (!o) close() }}>
+  <DialogContent showCloseButton={false} aria-describedby={undefined} className="attachment-viewer flex max-h-[calc(100dvh-24px)] w-[calc(100vw-24px)] max-w-4xl flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl">
     <header className="flex shrink-0 items-center gap-1 border-b px-3 py-1.5">
-      <h3 className="mr-auto truncate text-[13px] font-semibold">{label(a)}</h3>
+      <DialogTitle className="mr-auto truncate text-[13px] font-semibold">{label(a)}</DialogTitle>
       {!image && <button type="button" className={btn} onClick={() => navigator.clipboard.writeText(text).catch(e => setError(String(e)))}><Copy className="size-3.5" />Copy</button>}
       <a className={btn} href={src + "&download=1"} download={a.name}><Download className="size-3.5" />Download</a>
       <button type="button" className={btn} aria-label="Close preview" onClick={close}><X className="size-4" /></button>
@@ -62,5 +58,5 @@ export function AttachmentViewer({ a, url, close }: { a: Attachment; url: string
     {error ? <p role="alert">{error}</p> : loading ? <p>Loading…</p> : image ? <img src={src} alt={a.name} loading="lazy" /> : type(a) === "markdown" ? <Md text={text} /> : <pre>{/\.(diff|patch)$/.test(a.name) ? rendered.split("\n").map((l, i) => <span key={i} style={{ display: "block", color: l.startsWith("+") ? "#15803d" : l.startsWith("-") ? "#b91c1c" : undefined }}>{l}{"\n"}</span>) : rendered}</pre>}
     {truncated && <p className="mt-2 text-xs text-muted-foreground">Preview truncated · {human(a.size)} <button type="button" className="underline" onClick={() => { setLoading(true); setAll(true) }}>Load all</button></p>}
     </div>
-  </section></div>, document.body)
+  </DialogContent></Dialog>
 }
