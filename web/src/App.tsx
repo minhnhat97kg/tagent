@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { bindVisualViewport } from '@/lib/touchViewport'
-import { ArrowLeft, Bot, Kanban, Maximize2, Minimize2, PanelLeftClose, PanelLeftOpen, Plus, Settings, SquareTerminal, Workflow } from "lucide-react"
+import { ArrowLeft, Bot, Kanban, Maximize2, Minimize2, Monitor, Moon, PanelLeftClose, PanelLeftOpen, Plus, Settings, SquareTerminal, Sun, Workflow } from "lucide-react"
+import { nextTheme, useWebTheme } from "@/lib/theme"
 import { SettingsDialog } from "@/components/SettingsDialog"
 import { api } from "@/api"
 import { AgentView } from "@/components/AgentView"
@@ -49,7 +50,7 @@ export default function App() {
     document.addEventListener("fullscreenchange", sync)
     return () => document.removeEventListener("fullscreenchange", sync)
   }, [])
-  useEffect(() => { document.documentElement.classList.toggle("dark", state?.theme === "dark") }, [state?.theme])
+  const [webTheme, setWebTheme] = useWebTheme()
   const canFull = typeof document.documentElement.requestFullscreen === "function"
   const toggleFull = () => (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()).catch(() => {})
 
@@ -138,6 +139,7 @@ export default function App() {
             <Notifications items={notices} onOpen={openNotice} onReply={n => openNotice(n, true)} />
             <Button size="sm" onClick={() => setNewOpen(true)}><Plus /> <span className="hidden sm:inline">New agent</span></Button>
             {canFull && <Button className="hidden sm:inline-flex" variant="ghost" size="icon-xs" aria-label={full ? "Exit full screen" : "Full screen"} title={full ? "Exit full screen" : "Full screen"} onClick={() => void toggleFull()}>{full ? <Minimize2 /> : <Maximize2 />}</Button>}
+            <Button variant="ghost" size="icon-xs" aria-label={`Web theme: ${webTheme}`} title={`Web theme: ${webTheme} (this browser only)`} onClick={() => setWebTheme(nextTheme[webTheme])}>{webTheme === "dark" ? <Moon /> : webTheme === "light" ? <Sun /> : <Monitor />}</Button>
             <Button variant="ghost" size="icon-xs" aria-label="Settings" title="Settings" onClick={() => setSettings(true)}><Settings /></Button>
             <Button variant="ghost" size="icon-xs" aria-label="Shortcuts" onClick={() => setHelp(true)}>?</Button>
           </div>

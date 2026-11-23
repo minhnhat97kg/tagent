@@ -4,7 +4,7 @@ import App from "./App"
 
 vi.mock("@/api", () => ({ api: vi.fn().mockResolvedValue(undefined), act: vi.fn(), post: vi.fn() }))
 vi.mock("@/state", () => ({
-  useAppState: () => ({ state: { host: "box", projects: ["/p"], theme: "light", agents: [], statuses: {} }, error: undefined }),
+  useAppState: () => ({ state: { host: "box", projects: ["/p"], agents: [], statuses: {} }, error: undefined }),
 }))
 vi.mock("@/components/Board", () => ({ Board: () => <div data-testid="board" />, TaskDrawer: () => null }))
 vi.mock("@/components/AgentView", () => ({ AgentView: () => null }))

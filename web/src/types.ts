@@ -29,7 +29,7 @@ export interface Role {
   harness: string
   model: string
   effort: string
-  source: "repo" | "global" | "board"
+  source: "repo" | "legacy" | "global" | "board"
   path: string
   instructions: string
   running: number
@@ -41,7 +41,6 @@ export interface State {
   agents: Agent[]
   harnesses: string[] | null
   host: string
-  theme?: string
   projects: string[] | null
 }
 
