@@ -28,7 +28,7 @@ func TestAgentKeyFHandoff(t *testing.T) {
 		m.rows = pane3Rows()
 		m.cursor = 0
 		m.dashboard = dashboard
-		m.agentFocus = 0
+		m.focus = 0
 		_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("f")})
 		if cmd == nil {
 			restore()

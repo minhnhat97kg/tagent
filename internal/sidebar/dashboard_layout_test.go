@@ -19,7 +19,7 @@ import (
 
 func dashSample() Model {
 	m := boardTestModel()
-	m.boardMode, m.taskFocus, m.agentFocus, m.taskCursor = false, false, 0, 2
+	m.boardMode, m.focus, m.taskCursor = false, cardAgents, 2
 	m.notesScope = "tmux-agent-12345678"
 	m.notes = nil
 	for i, st := range []string{"todo", "todo", "doing", "review", "blocked", "done"} {
@@ -68,7 +68,7 @@ func TestDashboardRenders(t *testing.T) {
 
 func TestNewTicketKeyOpensEditor(t *testing.T) {
 	m := dashSample()
-	m.taskFocus, m.agentFocus = true, 2
+	m.focus = cardTasks
 	if _, cmd := boardPress(m, "n"); cmd == nil {
 		t.Fatal("n did not start the add flow")
 	}
@@ -77,7 +77,7 @@ func TestNewTicketKeyOpensEditor(t *testing.T) {
 func TestDashboardShowsLanesAtEveryWidth(t *testing.T) {
 	for _, size := range [][2]int{{60, 40}, {100, 30}, {140, 40}} {
 		m := dashSample()
-		m.taskFocus, m.agentFocus, m.taskCursor = true, 2, 2
+		m.focus, m.taskCursor = cardTasks, 2
 		m.width, m.height = size[0], size[1]
 		plain := ansi.Strip(m.dashboardView())
 		// ticket 3 is "doing": in progress holds doing and review; blocked has its own lane.
@@ -129,7 +129,7 @@ func TestDashboardCardSetIsStable(t *testing.T) {
 	for _, size := range [][2]int{{140, 40}, {100, 30}, {60, 60}, {40, 60}, {60, 20}} {
 		for _, f := range focusOrder {
 			m := dashSample()
-			m.agentFocus, m.taskFocus, m.workflowFocus = f, f == 2, f == 4
+			m.focus = f
 			m.width, m.height = size[0], size[1]
 			plain := ansi.Strip(m.dashboardView())
 			for _, title := range titles {
@@ -176,7 +176,7 @@ func TestDashboardCardsFillTheBody(t *testing.T) {
 		for _, f := range focusOrder {
 			m := dashSample()
 			m.width, m.height = size[0], size[1]
-			m.agentFocus, m.taskFocus, m.workflowFocus = f, f == 2, f == 4
+			m.focus = f
 			g := m.dashGeometry()
 			bh := max(6, m.height-2)
 			if g.wide {
@@ -243,48 +243,6 @@ func TestCardHeightsGrowTasksAndWorkflowsFirst(t *testing.T) {
 	}
 }
 
-func TestFitHeightsFillsTheColumn(t *testing.T) {
-	low := []int{minAgentsH, minUsageH, minTasksH, minWfH}
-	need := []int{8, 10, 12, 5}
-	weight := []int{0, 0, 3, 2}
-	check := func(got []int, want int) []int {
-		t.Helper()
-		if sum(got) != want {
-			t.Fatalf("filled %d of %d rows: %v", sum(got), want, got)
-		}
-		return got
-	}
-	// Tall: the content needs are met top to bottom, all spare rows go to
-	// Tasks and Workflows.
-	tall := check(fitHeights(60, low, need, weight, 0), 60)
-	if tall[0] != 8 || tall[1] != 10 || tall[2] <= 12 || tall[3] <= minWfH || tall[2]+tall[3] != 60-18 {
-		t.Fatalf("tall column: %v", tall)
-	}
-	// A column with just the fixed cards grows both of them.
-	if got := check(fitHeights(40, low[:2], need[:2], weight[:2], 0), 40); got[0] <= 8 || got[1] <= 10 {
-		t.Fatalf("fixed column: %v", got)
-	}
-	// Want rows run out: the top card keeps its content, the lower ones wait.
-	if got := check(fitHeights(36, low, []int{8, 20, 6, 8}, weight, 0), 36); got[0] != 8 || got[1] != 14 {
-		t.Fatalf("short of want: %v", got)
-	}
-	// Too short for the minimums: never a gap, the tallest unfocused card
-	// shrinks first and the focused one shrinks last.
-	short := check(fitHeights(18, low, need, weight, 0), 18)
-	if short[0] != minAgentsH || short[2] < 3 || short[3] < 3 {
-		t.Fatalf("short column: %v", short)
-	}
-	focused := check(fitHeights(12, low, need, weight, 3), 12)
-	if focused[3] != minWfH {
-		t.Fatalf("focused card shrank before the others: %v", focused)
-	}
-	for _, h := range focused {
-		if h < 1 {
-			t.Fatalf("card vanished: %v", focused)
-		}
-	}
-}
-
 func TestNoAgentDefinitionsCardAndFourStops(t *testing.T) {
 	m := dashSample()
 	for _, size := range [][2]int{{50, 60}, {100, 40}} {
@@ -302,7 +260,7 @@ func TestNoAgentDefinitionsCardAndFourStops(t *testing.T) {
 func TestClosingWorkflowViewReturnsToDashboard(t *testing.T) {
 	m := dashSample()
 	m.width, m.height = 100, 40
-	m.agentFocus, m.workflowFocus = 4, true
+	m.focus = cardWorkflows
 	m.boardWorkflows = []workflow.Workflow{{Name: "a", File: "a.yaml"}}
 	next, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyEnter})
 	m = next.(Model)
@@ -311,8 +269,8 @@ func TestClosingWorkflowViewReturnsToDashboard(t *testing.T) {
 	}
 	next, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyEsc})
 	m = next.(Model)
-	if m.boardMode || m.boardFlow || m.agentFocus != 4 || !m.workflowFocus {
-		t.Fatalf("not back on dashboard: %+v", m.agentFocus)
+	if m.boardMode || m.boardFlow || m.focus != cardWorkflows {
+		t.Fatalf("not back on dashboard: %+v", m.focus)
 	}
 	// opened from the board screen: stays on the board
 	b := dashSample()
@@ -328,7 +286,7 @@ func TestDashboardWorkflowsAgentsTab(t *testing.T) {
 	dir := agentsTestDir(t)
 	m := dashSample()
 	m.boardDir, m.width, m.height = dir, 100, 40
-	m.agentFocus, m.workflowFocus = 4, true
+	m.focus = cardWorkflows
 	next, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("t")})
 	m = next.(Model)
 	if !m.agentsOpen || len(m.agents) == 0 {
@@ -374,15 +332,15 @@ func TestTabCyclesEveryCardBothWays(t *testing.T) {
 	for _, f := range want {
 		next, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyTab})
 		m = next.(Model)
-		if m.agentFocus != f || m.taskFocus != (f == 2) || m.workflowFocus != (f == 4) {
-			t.Fatalf("Tab: focus %d, want %d", m.agentFocus, f)
+		if m.focus != f {
+			t.Fatalf("Tab: focus %d, want %d", m.focus, f)
 		}
 	}
 	for i := len(want) - 2; i >= -1; i-- {
 		next, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyShiftTab})
 		m = next.(Model)
-		if got := want[(i+len(want))%len(want)]; m.agentFocus != got {
-			t.Fatalf("Shift+Tab: focus %d, want %d", m.agentFocus, got)
+		if got := want[(i+len(want))%len(want)]; m.focus != got {
+			t.Fatalf("Shift+Tab: focus %d, want %d", m.focus, got)
 		}
 	}
 }
@@ -403,9 +361,9 @@ func TestCursorsKeepIdentityAfterResort(t *testing.T) {
 	if m.boardWorkflows[m.workflowCursor].Name != "b" {
 		t.Fatalf("workflow cursor on %s", m.boardWorkflows[m.workflowCursor].Name)
 	}
-	before := m.agentFocus
+	before := m.focus
 	m.setNotes(nil)
-	if m.agentFocus != before || m.taskCursor != 0 {
+	if m.focus != before || m.taskCursor != 0 {
 		t.Fatal("refresh changed focus or cursor")
 	}
 }
@@ -413,7 +371,7 @@ func TestCursorsKeepIdentityAfterResort(t *testing.T) {
 func TestPositionIndicators(t *testing.T) {
 	m := dashSample()
 	m.width, m.height, m.taskCursor = 100, 40, 2
-	m.taskFocus, m.agentFocus = true, 2
+	m.focus = cardTasks
 	plain := ansi.Strip(m.dashboardView())
 	for _, want := range []string{"1 of 3 ─╯", "1 of 3 ─╯"} { // agents (3 rows), in-progress lane (doing is first of 3)
 		if !strings.Contains(plain, want) {

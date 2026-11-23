@@ -97,7 +97,7 @@ func (m Model) agentStripLines(width int) []string {
 	var lines []string
 	for i, a := range m.agents {
 		mark := "  "
-		if m.workflowFocus && i == m.agentCursor {
+		if m.focus == cardWorkflows && i == m.agentCursor {
 			mark = "❯ "
 		}
 		model := short(a)
@@ -159,7 +159,7 @@ func (m Model) agentPanelKey(key string) (Model, tea.Cmd, bool) {
 	}
 	switch key {
 	case "tab", "shift+tab":
-		m.workflowFocus, m.agentsOpen, m.agentDetail = false, false, false
+		m.focus, m.agentsOpen, m.agentDetail = cardTasks, false, false
 	case "j", "down":
 		m.agentCursor = min(max(0, len(m.agents)-1), m.agentCursor+1)
 	case "k", "up":
@@ -169,16 +169,14 @@ func (m Model) agentPanelKey(key string) (Model, tea.Cmd, bool) {
 	case "a":
 		m.taskForm, m.taskInput = "agent-new", ""
 	case "t":
-		m.agentsOpen, m.workflowFocus, m.agentDetail = false, false, false
+		m.agentsOpen, m.focus, m.agentDetail = false, cardTasks, false
 	case "esc", "q", "b":
 		if m.agentDetail {
 			m.agentDetail = false
 			return m, nil, true
 		}
-		m.workflowFocus, m.agentsOpen = false, false
+		m.focus, m.agentsOpen = cardTasks, false
 		m.boardMode = false
-	case "ctrl+c":
-		return m, tea.Quit, true
 	case "m", "e", "x":
 		a, ok := m.selectedAgent()
 		if !ok {
@@ -199,6 +197,8 @@ func (m Model) agentPanelKey(key string) (Model, tea.Cmd, bool) {
 			}
 			return m, editFile(m.tmuxPane, edited.Path, func() tea.Msg { return agentsEditedMsg{} }), true
 		}
+	default:
+		return m, nil, false
 	}
 	return m, nil, true
 }

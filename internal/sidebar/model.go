@@ -9,7 +9,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -620,8 +619,7 @@ type repoFilterSavedMsg struct{ Success bool }
 
 // Model is the sidebar's TUI state.
 type Model struct {
-	agentFocus     int
-	workflowFocus  bool
+	focus          int // the focused card (cardAgents...cardWorkflows)
 	workflowCursor int
 	workflowDelete string
 	agentsOpen     bool
@@ -675,7 +673,6 @@ type Model struct {
 	metricScope       string
 	metricBusy        bool
 	metricTick        int
-	taskFocus         bool
 	boardMode         bool
 	flowFromDash      bool // the workflow view was opened from the dashboard card
 	boardDrawer       bool
@@ -1533,9 +1530,9 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 			th, _ := m.boardSplit(m.height - 3)
 			if msg.Y >= 1 && msg.Y <= th {
 				m, _ = m.tasksCardClick(msg.X, msg.Y-1, m.width, th, 0)
-				m.workflowFocus = false
+				m.focus = cardTasks
 			} else if msg.Y > th {
-				m.workflowFocus = true
+				m.focus = cardWorkflows
 			}
 		}
 		return m, nil // Dashboard hit targets are not valid while an overlay replaces it.
@@ -1545,7 +1542,7 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		// A click on an unfocused card only focuses it (it grows under the pointer);
 		// on the focused card it selects the row, lane tab or ticket.
 		focusCard := func(f int) Model {
-			m.agentFocus, m.taskFocus, m.workflowFocus = f, f == 2, f == 4
+			m.focus = f
 			return m
 		}
 		switch {
@@ -1554,7 +1551,7 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		case g.usage.contains(msg.X, msg.Y):
 			return focusCard(3), nil
 		case g.tasks.contains(msg.X, msg.Y):
-			wasFocused := m.agentFocus == 2
+			wasFocused := m.focus == cardTasks
 			m = focusCard(2)
 			var card bool
 			m, card = m.tasksCardClick(msg.X-g.tasks.x, msg.Y-g.tasks.y, g.tasks.w, g.tasks.h, paneNum(2))
@@ -1565,7 +1562,7 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		case g.wf.contains(msg.X, msg.Y):
-			wasFocused := m.agentFocus == 4
+			wasFocused := m.focus == cardWorkflows
 			m = focusCard(4)
 			if msg.Y == g.wf.y {
 				name, w := m.cardName(paneNum(4), "")
@@ -1696,108 +1693,6 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	}
-	if m.dashboard && !m.popup.IsRepoOpen() && !m.removeConfirmOpen && !m.filterEditing {
-		if m.boardMode {
-			var cmd tea.Cmd
-			var handled bool
-			m, cmd, handled = m.boardKey(msg.String())
-			if handled {
-				return m, cmd
-			}
-		}
-		if m.agentFocus == 4 && !m.boardMode {
-			switch key := msg.String(); key {
-			case "esc", "backspace":
-				if m.agentsOpen && m.agentDetail { // back from an agent's detail to the list
-					m.agentDetail = false
-					return m, nil
-				}
-				if key == "backspace" {
-					return m, nil
-				}
-				m.agentFocus, m.taskFocus, m.workflowFocus = 2, true, false
-				return m, nil
-			case "t", "h", "l", "[", "]": // swap Workflows <-> Agents (same keys as the other cards' tabs)
-				m.agentsOpen, m.agentDetail, m.agentCursor = !m.agentsOpen, false, 0
-				if m.agentsOpen {
-					m = m.loadAgents()
-				}
-				return m, nil
-			case "j", "k", "up", "down", "a", "e", "x", "w", "enter", "y", "n", "m":
-				m, cmd, _ := m.workflowPanelKey(key)
-				if m.boardFlow {
-					m.boardMode, m.boardDrawer, m.workflowFocus, m.flowFromDash = true, false, false, true
-				}
-				return m, cmd
-			}
-		}
-		switch msg.String() {
-		case "tab", "shift+tab":
-			step := 1
-			if msg.String() == "shift+tab" {
-				step = len(focusOrder) - 1
-			}
-			m.agentFocus = focusOrder[(slices.Index(focusOrder, m.agentFocus)+step)%len(focusOrder)]
-			m.taskFocus = m.agentFocus == 2
-			m.workflowFocus = m.agentFocus == 4
-			return m, nil
-		case "B": // board config, from any dashboard card; esc returns here
-			m.boardMode, m.boardFlow, m.boardConfigView, m.boardDrawer = true, true, true, false
-			m.flowWorkflow, m.boardConfigScroll, m.flowFromDash = "", 0, true
-			return m, nil
-		case "[", "h", "left":
-			if m.agentFocus != 3 && msg.String() != "[" {
-				break
-			}
-			if m.chartDays == 30 {
-				m.chartDays = 7
-			} else if m.chartDays == 7 {
-				m.chartDays = 1
-			}
-			return m, nil
-		case "]", "l", "right":
-			if m.agentFocus != 3 && msg.String() != "]" {
-				break
-			}
-			if m.chartDays == 1 {
-				m.chartDays = 7
-			} else if m.chartDays == 7 {
-				m.chartDays = 30
-			}
-			return m, nil
-		}
-		if m.agentFocus == 3 { // Usage owns the keys: the Agents list must not move under it
-			switch msg.String() {
-			case "j", "k", "up", "down", "enter", " ", "p", "u", "S", "x", "v", "n", "N", "i", "l", "/", "1", "2", "3", "4", "5", "6", "7", "8", "9":
-				return m, nil
-			}
-		}
-		if m.agentFocus == 0 {
-			if id, ok := paneIDAt(m.rows, m.cursor); ok {
-				switch msg.String() {
-				case "l": // the agent's recent output, without leaving the dashboard
-					return m, popup(m.tmuxPane, "tmux capture-pane -p -e -S -300 -t "+shellQuote(id)+" | less -R +G", func() tea.Msg { return nil })
-				case "i": // type a prompt into the agent
-					m.taskForm, m.taskInput, m.promptPane = "i", "", id
-					return m, nil
-				}
-			}
-		}
-		if m.taskFocus {
-			key := msg.String()
-			if key == "b" {
-				return m.openBoard(), nil
-			}
-			if key != "q" && key != "ctrl+c" && key != "," {
-				if m.boardDir == "" || m.boardDir != m.repoDir && m.repoDir != "" {
-					m = m.boardContext()
-				}
-				m.boardDrawer, m.boardFlow, m.workflowFocus = false, false, false
-				m, cmd, _ := m.boardKey(key)
-				return m, cmd
-			}
-		}
-	}
 	if m.removeConfirmOpen {
 		return m.handleRemoveConfirmKey(msg)
 	}
@@ -1808,243 +1703,12 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleFilterKey(msg)
 	}
 
-	// Approval inbox: on a waiting agent, its prompt's keys answer it.
-	if id, ok := paneIDAt(m.rows, m.cursor); ok {
-		if d, ok := m.dialogs[id]; ok && m.dialogOpen[id] {
-			for _, o := range d.Options {
-				if msg.String() == o.Key {
-					key := o.Key
-					delete(m.dialogs, id) // gone once answered; refresh confirms
-					m.applyRows()
-					return m, func() tea.Msg {
-						scrape.Answer(id, key)
-						return refreshRequestMsg{}
-					}
-				}
-			}
-		}
+	key := msg.String()
+	next, cmd, ok := panes[m.focused()].Key(m, key)
+	if !ok {
+		next, cmd, _ = m.globalKey(key)
 	}
-
-	switch msg.String() {
-	case "N":
-		m.taskForm, m.taskStep = "new-agent", 0
-		return m, nil
-	case "q", "ctrl+c":
-		// cursorDirty still being set means the most recent @sidebar_cursor
-		// write is still waiting for the next AnimTick (debounce ~200ms) —
-		// quitting right here would lose it. Flush that write first, then
-		// Quit.
-		if m.cursorDirty {
-			return m, tea.Sequence(saveCursorCmd(m.cursor), tea.Quit)
-		}
-		return m, tea.Quit
-
-	case "n":
-		// Jump to the next agent that needs the user (waiting or error).
-		n := paneRowCount(m.rows)
-		for i := 1; i <= n; i++ {
-			idx := (m.cursor + i) % n
-			if r, ok := paneRowAt(m.rows, idx); ok && (r.Status == tmux.StatusWaiting || r.Status == tmux.StatusError) {
-				m.cursor, m.cursorDirty = idx, true
-				m.syncViewport()
-				return m, m.detailRefreshCmd()
-			}
-		}
-		return m, nil
-
-	case "j", "down":
-		if next, moved := moveCursor(m.cursor, 1, paneRowCount(m.rows)); moved {
-			m.cursor = next
-			m.cursorDirty = true
-			m.syncViewport()
-			// The bottom summary panel tracks the cursor (part 6, replacing
-			// the "i" popup — real user feedback: "show it directly at the
-			// root") — moving panes must refetch git/activity RIGHT AWAY,
-			// not wait for the periodic tick.
-			if _, ok := paneIDAt(m.rows, m.cursor); ok {
-				return m, m.detailRefreshCmd()
-			}
-		}
-		return m, nil
-
-	case "k", "up":
-		if next, moved := moveCursor(m.cursor, -1, paneRowCount(m.rows)); moved {
-			m.cursor = next
-			m.cursorDirty = true
-			m.syncViewport()
-			if _, ok := paneIDAt(m.rows, m.cursor); ok {
-				return m, m.detailRefreshCmd()
-			}
-		}
-		return m, nil
-
-	case " ":
-		return m.quickAction()
-
-	case ",":
-		return m, OpenSettings(m.tmuxPane)
-
-	case "o":
-		// Expand this pane into the full dashboard (expand.go). The respawn
-		// replaces this process, so nothing after it matters.
-		if m.tmuxPane == "" {
-			return m, nil
-		}
-		pane := m.tmuxPane
-		expand := func() tea.Msg { SetExpanded(pane, true); return nil }
-		if m.cursorDirty {
-			return m, tea.Sequence(saveCursorCmd(m.cursor), expand)
-		}
-		return m, expand
-
-	case "r":
-		m.popup.ToggleRepo(m.allRepoNames(), m.repoFilter)
-		m.syncViewport()
-		return m, nil
-
-	case "enter":
-		// No row at all (empty list or cursor out of range) does nothing.
-		// The jump fires tmux's after-select-pane hook, which clears
-		// @pane_unseen (agent-sidebar.conf).
-		if paneID, ok := paneIDAt(m.rows, m.cursor); ok {
-			// A pending approval: the first Enter shows its answers, the
-			// next one jumps to the pane.
-			if _, pending := m.dialogs[paneID]; pending && !m.dialogOpen[paneID] {
-				m.dialogOpen = map[string]bool{paneID: true}
-				m.applyRows()
-				return m, nil
-			}
-			return m, selectPaneCmd(paneID, m.tmuxPane)
-		}
-		return m, nil
-
-	case "v":
-		// Toggle multi-select on the pane under the cursor (bulk delete via
-		// "x" below). Any row can be selected; ineligible ones (not
-		// SidebarSpawned) are simply skipped when "x" collects the list —
-		// same silent-ignore behavior as the single-row case.
-		if row, ok := paneRowAt(m.rows, m.cursor); ok {
-			if m.selectedPanes == nil {
-				m.selectedPanes = map[string]bool{}
-			}
-			if m.selectedPanes[row.PaneID] {
-				delete(m.selectedPanes, row.PaneID)
-			} else {
-				m.selectedPanes[row.PaneID] = true
-			}
-			m.applyRows()
-		}
-		return m, nil
-
-	case "x":
-		// Bulk path: if anything is selected, "x" collects the SELECTED rows
-		// eligible for delete (SidebarSpawned) and opens the confirm popup
-		// in bulk mode — takes priority over the single-row path below, even
-		// if the cursor also happens to sit on an eligible row.
-		if len(m.selectedPanes) > 0 {
-			var ids []string
-			for _, r := range m.rows {
-				// Reads m.selectedPanes directly (the source of truth)
-				// rather than r.Selected (a copy synced by buildRows) — a
-				// pane that was selected then disappeared from the list is
-				// simply absent from m.rows, so this loop never has to
-				// special-case it.
-				if m.selectedPanes[r.PaneID] && r.SidebarSpawned {
-					ids = append(ids, r.PaneID)
-				}
-			}
-			if len(ids) > 0 {
-				m.removeConfirmOpen = true
-				m.removeConfirmPaneIDs = ids
-				m.removeConfirmPaneID = ""
-				m.removeConfirmBranch = ""
-				m.removeConfirmError = ""
-				m.syncViewport()
-				return m, nil
-			}
-		}
-		// Only a row created by the sidebar's own spawn flow (SidebarSpawned)
-		// can open the delete confirmation popup — this is the project's
-		// only destructive path, silently ignored on a regular row instead
-		// of reporting an error (the reference implementation has a flash
-		// message here; the Go sidebar has no flash mechanism yet, see the
-		// report).
-		if row, ok := paneRowAt(m.rows, m.cursor); ok && row.SidebarSpawned {
-			m.removeConfirmOpen = true
-			m.removeConfirmPaneID = row.PaneID
-			m.removeConfirmBranch = row.Branch
-			m.removeConfirmError = ""
-			m.syncViewport()
-		}
-		return m, nil
-
-	case "1", "2", "3", "4", "5", "6", "7", "8", "9":
-		// Jump straight to the Nth pane row (1-indexed, matching what the
-		// user counts on screen) — same cursor-move-and-refetch as j/k
-		// above, just landing directly on an index instead of stepping.
-		n := int(msg.String()[0] - '1')
-		if n < paneRowCount(m.rows) {
-			m.cursor = n
-			m.cursorDirty = true
-			m.syncViewport()
-			if _, ok := paneIDAt(m.rows, m.cursor); ok {
-				return m, m.detailRefreshCmd()
-			}
-		}
-		return m, nil
-
-	case "f": // free in the Agents keymap: reclaim sizing from a browser
-		if m.dashboard && m.agentFocus != 0 {
-			return m, nil
-		}
-		if row, ok := paneRowAt(m.rows, m.cursor); ok {
-			return m, handoffCmd(row.PaneID)
-		}
-		return m, nil
-	case "p":
-		// Pin/unpin the pane under the cursor — process-memory only (see
-		// Model.pinnedPanes). Pinned panes float to a "Pinned" group right
-		// after "Needs you" (buildRows).
-		if row, ok := paneRowAt(m.rows, m.cursor); ok {
-			if m.pinnedPanes == nil {
-				m.pinnedPanes = map[string]bool{}
-			}
-			if m.pinnedPanes[row.PaneID] {
-				delete(m.pinnedPanes, row.PaneID)
-			} else {
-				m.pinnedPanes[row.PaneID] = true
-			}
-			m.applyRows()
-		}
-		return m, nil
-
-	case "S":
-		// Manually clear a stuck subagent tree — the normal cleanup path
-		// (OnSubagentStop) only fires when a subagent finishes NORMALLY; a
-		// force-killed or crashed subagent leaves its entry orphaned
-		// forever with no other way to clear it. ponytail: a real fix would
-		// track per-entry liveness/TTL; this manual escape hatch is the
-		// lazy version, upgrade if orphaned entries turn out to be common.
-		if row, ok := paneRowAt(m.rows, m.cursor); ok {
-			return m, clearSubagentsCmd(row.PaneID)
-		}
-		return m, nil
-
-	case "/":
-		m.filterEditing = true
-		return m, nil
-
-	case "u":
-		// Undo the most recently removed worktree+branch (detail.go:
-		// removeCmd/undoRemoveCmd) — single-slot, consumed on use.
-		if m.lastRemoved != nil {
-			w := *m.lastRemoved
-			m.lastRemoved = nil
-			return m, tea.Sequence(undoRemoveCmd(w), refreshCmd())
-		}
-		return m, nil
-	}
-	return m, nil
+	return next, cmd
 }
 
 // clearSubagentsCmd unsets @pane_subagents for paneID (a subprocess) inside

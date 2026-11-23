@@ -1,0 +1,996 @@
+=== dash 32x22 focus 0
+tagent · tmux-agent
+┏━ Agents ━━━━━━━━━━━━━━━━━━━━┓
+┃ ▌ claude-main     main   ┃
+┃   codex-fix              ▲  ┃
+┃   plain                     ┃
+┃                             ┃
+┃                             ┃
+┃                             ┃
+┗━━━━━━━━━━━━━━━━━━━━ 1 of 3 ━┛
+╭─ ▥ Usage  1d  [7d]  30d ────╮
+│  1 blocked                 │
+│ Now                         │
+╰─────────────────────────────╯
+╭─ ☷ Tasks  todo 2  [doing 2…╮
+│ ▌ Ticket number 3 with a l… │
+│   ● doing #3 builder 1     │
+╰──────────────────── 1 of 2 ─╯
+╭─ [Workflows]  Agents ───────╮
+│ No workflows · tagent work… │
+│                             │
+╰─────────────────────────────╯
+Tab/S-Tab panel  ↑↓ select  en…
+=== dash 32x22 focus 3
+tagent · tmux-agent
+╭─ Agents ────────────────────╮
+│ ▌ claude-main     main   │
+│   codex-fix              ▲  │
+╰──────────────────── 1 of 3 ─╯
+┏━ ▥ Usage  1d  [7d]  30d ━━━━┓
+┃  1 blocked                 ┃
+┃ Now                         ┃
+┃ Tokens today 0              ┃
+┃  ·······                    ┃
+┃                             ┃
+┃                             ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+╭─ ☷ Tasks  todo 2  [doing 2…╮
+│ ▌ Ticket number 3 with a l… │
+│   ● doing #3 builder 1     │
+╰──────────────────── 1 of 2 ─╯
+╭─ [Workflows]  Agents ───────╮
+│ No workflows · tagent work… │
+│                             │
+╰─────────────────────────────╯
+h/l or [ ] range  Tab/S-Tab pa…
+=== dash 32x22 focus 2
+tagent · tmux-agent
+╭─ Agents ────────────────────╮
+│   claude-main     main   │
+│   codex-fix              ▲  │
+╰──────────────────── 1 of 3 ─╯
+╭─ ▥ Usage  1d  [7d]  30d ────╮
+│  1 blocked                 │
+│ Now                         │
+│ Tokens today 0              │
+╰─────────────────────────────╯
+┏━ ☷ Tasks  todo 2  [doing 2…┓
+┃ ▌ Ticket number 3 with a l… ┃
+┃   ● doing #3 builder 1     ┃
+┃   Ticket number 4 with a l… ┃
+┃   ● review #4 builder       ┃
+┗━━━━━━━━━━━━━━━━━━━━ 1 of 2 ━┛
+╭─ [Workflows]  Agents ───────╮
+│ No workflows · tagent work… │
+│                             │
+│                             │
+╰─────────────────────────────╯
+h/l lane  j/k card  n new  s s…
+=== dash 32x22 focus 4
+tagent · tmux-agent
+╭─ Agents ────────────────────╮
+│ ▌ claude-main     main   │
+│   codex-fix              ▲  │
+╰──────────────────── 1 of 3 ─╯
+╭─ ▥ Usage  1d  [7d]  30d ────╮
+│  1 blocked                 │
+│ Now                         │
+╰─────────────────────────────╯
+╭─ ☷ Tasks  todo 2  [doing 2…╮
+│ ▌ Ticket number 3 with a l… │
+│   ● doing #3 builder 1     │
+╰──────────────────── 1 of 2 ─╯
+┏━ [Workflows]  Agents ━━━━━━━┓
+┃ No workflows · tagent work… ┃
+┃                             ┃
+┃                             ┃
+┃                             ┃
+┃                             ┃
+┃                             ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+h/l agents  enter view  a add …
+=== board 32x22 wf false
+Board · kanban                  
+┏━ ☷ Tasks  [todo 2]  doing 0…┓
+┃ ▌ ● #1 First card            ┃
+┃   ● #2 Second card           ┃
+┃                              ┃
+┃                              ┃
+┃                              ┃
+┃                              ┃
+┃                              ┃
+┃                              ┃
+┃                              ┃
+┃                              ┃
+┃                              ┃
+┃                              ┃
+┃                              ┃
+┃                              ┃
+┗━━━━━━━━━━━━━━━━━━━━━ 1 of 2 ━┛
+╭─ [Workflows]  Agents ────────╮
+│ No workflows · tagent workf… │
+╰──────────────────────────────╯
+h/l lane  j/k card  n new  s st…
+                                
+=== board 32x22 wf true
+Board · kanban                  
+╭─ ☷ Tasks  [todo 2]  doing 0…╮
+│ ▌ ● #1 First card            │
+│   ● #2 Second card           │
+│                              │
+│                              │
+│                              │
+│                              │
+│                              │
+│                              │
+│                              │
+╰───────────────────── 1 of 2 ─╯
+┏━ [Workflows]  Agents ━━━━━━━━┓
+┃ No workflows · tagent workf… ┃
+┃                              ┃
+┃                              ┃
+┃                              ┃
+┃                              ┃
+┃                              ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+enter view  a add  e edit  x de…
+                                
+=== dash 60x40 focus 0
+tagent · tmux-agent                     ? help · , settings
+┏━ Agents ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ ▌ claude-main                                 main   ┃
+┃   codex-fix                                          ▲  ┃
+┃   plain                                                 ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1 of 3 ━┛
+╭─ ▥ Usage  1d  [7d]  30d ────────────────────────────────╮
+│  1 blocked                                             │
+│ Now                                                     │
+│ Claude 5h ~ │
+│        7d ~ │
+│ Codex  5h ~ │
+│        7d ~ │
+│ Tokens today 0                                          │
+│  ·······  0 in 7d                                       │
+╰─────────────────────────────────────────────────────────╯
+╭─ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1 ────────╮
+│ ▌ Ticket number 3 with a longer title                   │
+│   ● doing #3 builder 1                                 │
+│   Ticket number 4 with a longer title                   │
+│   ● review #4 builder                                   │
+╰──────────────────────────────────────────────── 1 of 2 ─╯
+╭─ [Workflows]  Agents ───────────────────────────────────╮
+│ No workflows · tagent workflow new <name>               │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+╰─────────────────────────────────────────────────────────╯
+╭─ ◈ Companion ───────────────────────────────────────────╮
+│ ~~~~~~~~~~~~~~ All quiet…                               │
+│ ~~~~~~~~~~~~~~ call me if you need anything             │
+│ ~~~~~~~~~~~~~~                                          │
+╰─────────────────────────────────────────────────────────╯
+Tab/S-Tab panel  ↑↓ select  enter open  N new agent  l log…
+=== dash 60x40 focus 3
+tagent · tmux-agent                     ? help · , settings
+╭─ Agents ────────────────────────────────────────────────╮
+│ ▌ claude-main                                 main   │
+│   codex-fix                                          ▲  │
+│   plain                                                 │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+╰──────────────────────────────────────────────── 1 of 3 ─╯
+┏━ ▥ Usage  1d  [7d]  30d ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  1 blocked                                             ┃
+┃ Now                                                     ┃
+┃ Claude 5h ~ ┃
+┃        7d ~ ┃
+┃ Codex  5h ~ ┃
+┃        7d ~ ┃
+┃ Tokens today 0                                          ┃
+┃  ·······  0 in 7d                                       ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+╭─ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1 ────────╮
+│ ▌ Ticket number 3 with a longer title                   │
+│   ● doing #3 builder 1                                 │
+│   Ticket number 4 with a longer title                   │
+│   ● review #4 builder                                   │
+╰──────────────────────────────────────────────── 1 of 2 ─╯
+╭─ [Workflows]  Agents ───────────────────────────────────╮
+│ No workflows · tagent workflow new <name>               │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+╰─────────────────────────────────────────────────────────╯
+╭─ ◈ Companion ───────────────────────────────────────────╮
+│ ~~~~~~~~~~~~~~ All quiet…                               │
+│ ~~~~~~~~~~~~~~ call me if you need anything             │
+│ ~~~~~~~~~~~~~~                                          │
+╰─────────────────────────────────────────────────────────╯
+h/l or [ ] range  Tab/S-Tab panel  ? help                 …
+=== dash 60x40 focus 2
+tagent · tmux-agent                     ? help · , settings
+╭─ Agents ────────────────────────────────────────────────╮
+│   claude-main                                 main   │
+│   codex-fix                                          ▲  │
+│   plain                                                 │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+╰──────────────────────────────────────────────── 1 of 3 ─╯
+╭─ ▥ Usage  1d  [7d]  30d ────────────────────────────────╮
+│  1 blocked                                             │
+│ Now                                                     │
+│ Claude 5h ~ │
+│        7d ~ │
+│ Codex  5h ~ │
+│        7d ~ │
+│ Tokens today 0                                          │
+│  ·······  0 in 7d                                       │
+╰─────────────────────────────────────────────────────────╯
+┏━ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1 ━━━━━━━━┓
+┃ ▌ Ticket number 3 with a longer title                   ┃
+┃   ● doing #3 builder 1                                 ┃
+┃   Ticket number 4 with a longer title                   ┃
+┃   ● review #4 builder                                   ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1 of 2 ━┛
+╭─ [Workflows]  Agents ───────────────────────────────────╮
+│ No workflows · tagent workflow new <name>               │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+╰─────────────────────────────────────────────────────────╯
+╭─ ◈ Companion ───────────────────────────────────────────╮
+│ ~~~~~~~~~~~~~~ All quiet…                               │
+│ ~~~~~~~~~~~~~~ call me if you need anything             │
+│ ~~~~~~~~~~~~~~                                          │
+╰─────────────────────────────────────────────────────────╯
+h/l lane  j/k card  n new  s start  enter detail  B config…
+=== dash 60x40 focus 4
+tagent · tmux-agent                     ? help · , settings
+╭─ Agents ────────────────────────────────────────────────╮
+│ ▌ claude-main                                 main   │
+│   codex-fix                                          ▲  │
+│   plain                                                 │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+╰──────────────────────────────────────────────── 1 of 3 ─╯
+╭─ ▥ Usage  1d  [7d]  30d ────────────────────────────────╮
+│  1 blocked                                             │
+│ Now                                                     │
+│ Claude 5h ~ │
+│        7d ~ │
+│ Codex  5h ~ │
+│        7d ~ │
+│ Tokens today 0                                          │
+│  ·······  0 in 7d                                       │
+╰─────────────────────────────────────────────────────────╯
+╭─ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1 ────────╮
+│ ▌ Ticket number 3 with a longer title                   │
+│   ● doing #3 builder 1                                 │
+│   Ticket number 4 with a longer title                   │
+│   ● review #4 builder                                   │
+╰──────────────────────────────────────────────── 1 of 2 ─╯
+┏━ [Workflows]  Agents ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ No workflows · tagent workflow new <name>               ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+╭─ ◈ Companion ───────────────────────────────────────────╮
+│ ~~~~~~~~~~~~~~ All quiet…                               │
+│ ~~~~~~~~~~~~~~ call me if you need anything             │
+│ ~~~~~~~~~~~~~~                                          │
+╰─────────────────────────────────────────────────────────╯
+h/l agents  enter view  a add  B board config  Tab focus  …
+=== board 60x40 wf false
+Board · kanban                                              
+┏━ ☷ Tasks  [todo 2]  doing 0  blocked 0  done 1 ━━━━━━━━━┓
+┃ ▌ ● #1 First card                                        ┃
+┃   ● #2 Second card                                       ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1 of 2 ━┛
+╭─ [Workflows]  Agents ────────────────────────────────────╮
+│ No workflows · tagent workflow new <name>                │
+╰──────────────────────────────────────────────────────────╯
+h/l lane  j/k card  n new  s start  enter detail  B config …
+                                                            
+=== board 60x40 wf true
+Board · kanban                                              
+╭─ ☷ Tasks  [todo 2]  doing 0  blocked 0  done 1 ─────────╮
+│ ▌ ● #1 First card                                        │
+│   ● #2 Second card                                       │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+╰───────────────────────────────────────────────── 1 of 2 ─╯
+┏━ [Workflows]  Agents ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ No workflows · tagent workflow new <name>                ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+enter view  a add  e edit  x delete  t agents  B config  Ta…
+                                                            
+=== dash 60x55 focus 0
+tagent · tmux-agent                     ? help · , settings
+┏━ Agents ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ ▌ claude-main                                 main   ┃
+┃   codex-fix                                          ▲  ┃
+┃   plain                                                 ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1 of 3 ━┛
+╭─ ▥ Usage  1d  [7d]  30d ────────────────────────────────╮
+│  1 blocked                                             │
+│ Now                                                     │
+│ Claude 5h ~ │
+│        7d ~ │
+│ Codex  5h ~ │
+│        7d ~ │
+│ Tokens today 0                                          │
+│  ·······  0 in 7d                                       │
+╰─────────────────────────────────────────────────────────╯
+╭─ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1 ────────╮
+│ ▌ Ticket number 3 with a longer title                   │
+│   ● doing #3 builder 1                                 │
+│   Ticket number 4 with a longer title                   │
+│   ● review #4 builder                                   │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+╰──────────────────────────────────────────────── 1 of 2 ─╯
+╭─ [Workflows]  Agents ───────────────────────────────────╮
+│ No workflows · tagent workflow new <name>               │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+╰─────────────────────────────────────────────────────────╯
+╭─ ◈ Companion ───────────────────────────────────────────╮
+│ ~~~~~~~~~~~~~~ All quiet…                               │
+│ ~~~~~~~~~~~~~~ call me if you need anything             │
+│ ~~~~~~~~~~~~~~                                          │
+╰─────────────────────────────────────────────────────────╯
+Tab/S-Tab panel  ↑↓ select  enter open  N new agent  l log…
+=== dash 60x55 focus 3
+tagent · tmux-agent                     ? help · , settings
+╭─ Agents ────────────────────────────────────────────────╮
+│ ▌ claude-main                                 main   │
+│   codex-fix                                          ▲  │
+│   plain                                                 │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+╰──────────────────────────────────────────────── 1 of 3 ─╯
+┏━ ▥ Usage  1d  [7d]  30d ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  1 blocked                                             ┃
+┃ Now                                                     ┃
+┃ Claude 5h ~ ┃
+┃        7d ~ ┃
+┃ Codex  5h ~ ┃
+┃        7d ~ ┃
+┃ Tokens today 0                                          ┃
+┃  ·······  0 in 7d                                       ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+╭─ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1 ────────╮
+│ ▌ Ticket number 3 with a longer title                   │
+│   ● doing #3 builder 1                                 │
+│   Ticket number 4 with a longer title                   │
+│   ● review #4 builder                                   │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+╰──────────────────────────────────────────────── 1 of 2 ─╯
+╭─ [Workflows]  Agents ───────────────────────────────────╮
+│ No workflows · tagent workflow new <name>               │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+╰─────────────────────────────────────────────────────────╯
+╭─ ◈ Companion ───────────────────────────────────────────╮
+│ ~~~~~~~~~~~~~~ All quiet…                               │
+│ ~~~~~~~~~~~~~~ call me if you need anything             │
+│ ~~~~~~~~~~~~~~                                          │
+╰─────────────────────────────────────────────────────────╯
+h/l or [ ] range  Tab/S-Tab panel  ? help                 …
+=== dash 60x55 focus 2
+tagent · tmux-agent                     ? help · , settings
+╭─ Agents ────────────────────────────────────────────────╮
+│   claude-main                                 main   │
+│   codex-fix                                          ▲  │
+│   plain                                                 │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+╰──────────────────────────────────────────────── 1 of 3 ─╯
+╭─ ▥ Usage  1d  [7d]  30d ────────────────────────────────╮
+│  1 blocked                                             │
+│ Now                                                     │
+│ Claude 5h ~ │
+│        7d ~ │
+│ Codex  5h ~ │
+│        7d ~ │
+│ Tokens today 0                                          │
+│  ·······  0 in 7d                                       │
+╰─────────────────────────────────────────────────────────╯
+┏━ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1 ━━━━━━━━┓
+┃ ▌ Ticket number 3 with a longer title                   ┃
+┃   ● doing #3 builder 1                                 ┃
+┃   Ticket number 4 with a longer title                   ┃
+┃   ● review #4 builder                                   ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1 of 2 ━┛
+╭─ [Workflows]  Agents ───────────────────────────────────╮
+│ No workflows · tagent workflow new <name>               │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+╰─────────────────────────────────────────────────────────╯
+╭─ ◈ Companion ───────────────────────────────────────────╮
+│ ~~~~~~~~~~~~~~ All quiet…                               │
+│ ~~~~~~~~~~~~~~ call me if you need anything             │
+│ ~~~~~~~~~~~~~~                                          │
+╰─────────────────────────────────────────────────────────╯
+h/l lane  j/k card  n new  s start  enter detail  B config…
+=== dash 60x55 focus 4
+tagent · tmux-agent                     ? help · , settings
+╭─ Agents ────────────────────────────────────────────────╮
+│ ▌ claude-main                                 main   │
+│   codex-fix                                          ▲  │
+│   plain                                                 │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+╰──────────────────────────────────────────────── 1 of 3 ─╯
+╭─ ▥ Usage  1d  [7d]  30d ────────────────────────────────╮
+│  1 blocked                                             │
+│ Now                                                     │
+│ Claude 5h ~ │
+│        7d ~ │
+│ Codex  5h ~ │
+│        7d ~ │
+│ Tokens today 0                                          │
+│  ·······  0 in 7d                                       │
+╰─────────────────────────────────────────────────────────╯
+╭─ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1 ────────╮
+│ ▌ Ticket number 3 with a longer title                   │
+│   ● doing #3 builder 1                                 │
+│   Ticket number 4 with a longer title                   │
+│   ● review #4 builder                                   │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+│                                                         │
+╰──────────────────────────────────────────────── 1 of 2 ─╯
+┏━ [Workflows]  Agents ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ No workflows · tagent workflow new <name>               ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+╭─ ◈ Companion ───────────────────────────────────────────╮
+│ ~~~~~~~~~~~~~~ All quiet…                               │
+│ ~~~~~~~~~~~~~~ call me if you need anything             │
+│ ~~~~~~~~~~~~~~                                          │
+╰─────────────────────────────────────────────────────────╯
+h/l agents  enter view  a add  B board config  Tab focus  …
+=== board 60x55 wf false
+Board · kanban                                              
+┏━ ☷ Tasks  [todo 2]  doing 0  blocked 0  done 1 ━━━━━━━━━┓
+┃ ▌ ● #1 First card                                        ┃
+┃   ● #2 Second card                                       ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1 of 2 ━┛
+╭─ [Workflows]  Agents ────────────────────────────────────╮
+│ No workflows · tagent workflow new <name>                │
+╰──────────────────────────────────────────────────────────╯
+h/l lane  j/k card  n new  s start  enter detail  B config …
+                                                            
+=== board 60x55 wf true
+Board · kanban                                              
+╭─ ☷ Tasks  [todo 2]  doing 0  blocked 0  done 1 ─────────╮
+│ ▌ ● #1 First card                                        │
+│   ● #2 Second card                                       │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+╰───────────────────────────────────────────────── 1 of 2 ─╯
+┏━ [Workflows]  Agents ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ No workflows · tagent workflow new <name>                ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+enter view  a add  e edit  x delete  t agents  B config  Ta…
+                                                            
+=== dash 130x45 focus 0
+tagent · tmux-agent                                                                                           ? help · , settings
+┏━ Agents ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭─ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1 ──────────────────────────────────╮
+┃ ▌ claude-main                  main   ┃│ ▌ Ticket number 3 with a longer title                                             │
+┃   codex-fix                           ▲  ┃│   ● doing #3 builder 1                                                           │
+┃   plain                                  ┃│   Ticket number 4 with a longer title                                             │
+┃                                          ┃│   ● review #4 builder                                                             │
+┃                                          ┃│                                                                                   │
+┃                                          ┃│                                                                                   │
+┃                                          ┃│                                                                                   │
+┃                                          ┃│                                                                                   │
+┃                                          ┃│                                                                                   │
+┃                                          ┃│                                                                                   │
+┃                                          ┃│                                                                                   │
+┃                                          ┃│                                                                                   │
+┃                                          ┃│                                                                                   │
+┃                                          ┃│                                                                                   │
+┃                                          ┃│                                                                                   │
+┃                                          ┃│                                                                                   │
+┃                                          ┃│                                                                                   │
+┃                                          ┃│                                                                                   │
+┃                                          ┃│                                                                                   │
+┃                                          ┃│                                                                                   │
+┃                                          ┃│                                                                                   │
+┃                                          ┃│                                                                                   │
+┃                                          ┃│                                                                                   │
+┃                                          ┃│                                                                                   │
+┃                                          ┃│                                                                                   │
+┃                                          ┃│                                                                                   │
+┃                                          ┃│                                                                                   │
+┃                                          ┃│                                                                                   │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1 of 3 ━┛│                                                                                   │
+╭─ ▥ Usage  1d  [7d]  30d ─────────────────╮│                                                                                   │
+│  1 blocked                              ││                                                                                   │
+│ Now                                      ││                                                                                   │
+│ Claude 5h ~ ││                                                                                   │
+│        7d ~ │╰────────────────────────────────────────────────────────────────────────── 1 of 2 ─╯
+│ Codex  5h ~ │╭─ [Workflows]  Agents ─────────────────────────────────────────────────────────────╮
+│        7d ~ ││ No workflows · tagent workflow new <name>                                         │
+╰──────────────────────────────────────────╯│                                                                                   │
+╭─ ◈ Companion ────────────────────────────╮│                                                                                   │
+│ ~~~~~~~~~~~~~~ All quiet…                ││                                                                                   │
+│ ~~~~~~~~~~~~~~ call me if you need       ││                                                                                   │
+│ ~~~~~~~~~~~~~~ anything                  ││                                                                                   │
+╰──────────────────────────────────────────╯╰───────────────────────────────────────────────────────────────────────────────────╯
+Tab/S-Tab panel  ↑↓ select  enter open  N new agent  l log  i prompt  ? help                                                    …
+=== dash 130x45 focus 3
+tagent · tmux-agent                                                                                           ? help · , settings
+╭─ Agents ─────────────────────────────────╮╭─ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1 ──────────────────────────────────╮
+│ ▌ claude-main                  main   ││ ▌ Ticket number 3 with a longer title                                             │
+│   codex-fix                           ▲  ││   ● doing #3 builder 1                                                           │
+│   plain                                  ││   Ticket number 4 with a longer title                                             │
+│                                          ││   ● review #4 builder                                                             │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+╰───────────────────────────────── 1 of 3 ─╯│                                                                                   │
+┏━ ▥ Usage  1d  [7d]  30d ━━━━━━━━━━━━━━━━━┓│                                                                                   │
+┃  1 blocked                              ┃│                                                                                   │
+┃ Now                                      ┃│                                                                                   │
+┃ Claude 5h ~ ┃│                                                                                   │
+┃        7d ~ ┃╰────────────────────────────────────────────────────────────────────────── 1 of 2 ─╯
+┃ Codex  5h ~ ┃╭─ [Workflows]  Agents ─────────────────────────────────────────────────────────────╮
+┃        7d ~ ┃│ No workflows · tagent workflow new <name>                                         │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛│                                                                                   │
+╭─ ◈ Companion ────────────────────────────╮│                                                                                   │
+│ ~~~~~~~~~~~~~~ All quiet…                ││                                                                                   │
+│ ~~~~~~~~~~~~~~ call me if you need       ││                                                                                   │
+│ ~~~~~~~~~~~~~~ anything                  ││                                                                                   │
+╰──────────────────────────────────────────╯╰───────────────────────────────────────────────────────────────────────────────────╯
+h/l or [ ] range  Tab/S-Tab panel  ? help                                                                                       …
+=== dash 130x45 focus 2
+tagent · tmux-agent                                                                                           ? help · , settings
+╭─ Agents ─────────────────────────────────╮┏━ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+│   claude-main                  main   │┃ ▌ Ticket number 3 with a longer title                                             ┃
+│   codex-fix                           ▲  │┃   ● doing #3 builder 1                                                           ┃
+│   plain                                  │┃   Ticket number 4 with a longer title                                             ┃
+│                                          │┃   ● review #4 builder                                                             ┃
+│                                          │┃                                                                                   ┃
+│                                          │┃                                                                                   ┃
+│                                          │┃                                                                                   ┃
+│                                          │┃                                                                                   ┃
+│                                          │┃                                                                                   ┃
+│                                          │┃                                                                                   ┃
+│                                          │┃                                                                                   ┃
+│                                          │┃                                                                                   ┃
+│                                          │┃                                                                                   ┃
+│                                          │┃                                                                                   ┃
+│                                          │┃                                                                                   ┃
+│                                          │┃                                                                                   ┃
+│                                          │┃                                                                                   ┃
+│                                          │┃                                                                                   ┃
+│                                          │┃                                                                                   ┃
+│                                          │┃                                                                                   ┃
+│                                          │┃                                                                                   ┃
+│                                          │┃                                                                                   ┃
+│                                          │┃                                                                                   ┃
+│                                          │┃                                                                                   ┃
+│                                          │┃                                                                                   ┃
+│                                          │┃                                                                                   ┃
+│                                          │┃                                                                                   ┃
+│                                          │┃                                                                                   ┃
+╰───────────────────────────────── 1 of 3 ─╯┃                                                                                   ┃
+╭─ ▥ Usage  1d  [7d]  30d ─────────────────╮┃                                                                                   ┃
+│  1 blocked                              │┃                                                                                   ┃
+│ Now                                      │┃                                                                                   ┃
+│ Claude 5h ~ │┃                                                                                   ┃
+│        7d ~ │┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1 of 2 ━┛
+│ Codex  5h ~ │╭─ [Workflows]  Agents ─────────────────────────────────────────────────────────────╮
+│        7d ~ ││ No workflows · tagent workflow new <name>                                         │
+╰──────────────────────────────────────────╯│                                                                                   │
+╭─ ◈ Companion ────────────────────────────╮│                                                                                   │
+│ ~~~~~~~~~~~~~~ All quiet…                ││                                                                                   │
+│ ~~~~~~~~~~~~~~ call me if you need       ││                                                                                   │
+│ ~~~~~~~~~~~~~~ anything                  ││                                                                                   │
+╰──────────────────────────────────────────╯╰───────────────────────────────────────────────────────────────────────────────────╯
+h/l lane  j/k card  n new  s start  enter detail  B config  p priority  D deps  e edit  C comment  H/L status  a files  x delete…
+=== dash 130x45 focus 4
+tagent · tmux-agent                                                                                           ? help · , settings
+╭─ Agents ─────────────────────────────────╮╭─ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1 ──────────────────────────────────╮
+│ ▌ claude-main                  main   ││ ▌ Ticket number 3 with a longer title                                             │
+│   codex-fix                           ▲  ││   ● doing #3 builder 1                                                           │
+│   plain                                  ││   Ticket number 4 with a longer title                                             │
+│                                          ││   ● review #4 builder                                                             │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+│                                          ││                                                                                   │
+╰───────────────────────────────── 1 of 3 ─╯│                                                                                   │
+╭─ ▥ Usage  1d  [7d]  30d ─────────────────╮│                                                                                   │
+│  1 blocked                              ││                                                                                   │
+│ Now                                      ││                                                                                   │
+│ Claude 5h ~ ││                                                                                   │
+│        7d ~ │╰────────────────────────────────────────────────────────────────────────── 1 of 2 ─╯
+│ Codex  5h ~ │┏━ [Workflows]  Agents ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+│        7d ~ │┃ No workflows · tagent workflow new <name>                                         ┃
+╰──────────────────────────────────────────╯┃                                                                                   ┃
+╭─ ◈ Companion ────────────────────────────╮┃                                                                                   ┃
+│ ~~~~~~~~~~~~~~ All quiet…                │┃                                                                                   ┃
+│ ~~~~~~~~~~~~~~ call me if you need       │┃                                                                                   ┃
+│ ~~~~~~~~~~~~~~ anything                  │┃                                                                                   ┃
+╰──────────────────────────────────────────╯┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+h/l agents  enter view  a add  B board config  Tab focus  ? help                                                                …
+=== board 130x45 wf false
+Board · kanban                                                                                                                    
+┏━ ☷ Tasks  [todo 2]  doing 0  blocked 0  done 1 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ ▌ ● #1 First card                                                                                                              ┃
+┃   ● #2 Second card                                                                                                             ┃
+┃                                                                                                                                ┃
+┃                                                                                                                                ┃
+┃                                                                                                                                ┃
+┃                                                                                                                                ┃
+┃                                                                                                                                ┃
+┃                                                                                                                                ┃
+┃                                                                                                                                ┃
+┃                                                                                                                                ┃
+┃                                                                                                                                ┃
+┃                                                                                                                                ┃
+┃                                                                                                                                ┃
+┃                                                                                                                                ┃
+┃                                                                                                                                ┃
+┃                                                                                                                                ┃
+┃                                                                                                                                ┃
+┃                                                                                                                                ┃
+┃                                                                                                                                ┃
+┃                                                                                                                                ┃
+┃                                                                                                                                ┃
+┃                                                                                                                                ┃
+┃                                                                                                                                ┃
+┃                                                                                                                                ┃
+┃                                                                                                                                ┃
+┃                                                                                                                                ┃
+┃                                                                                                                                ┃
+┃                                                                                                                                ┃
+┃                                                                                                                                ┃
+┃                                                                                                                                ┃
+┃                                                                                                                                ┃
+┃                                                                                                                                ┃
+┃                                                                                                                                ┃
+┃                                                                                                                                ┃
+┃                                                                                                                                ┃
+┃                                                                                                                                ┃
+┃                                                                                                                                ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1 of 2 ━┛
+╭─ [Workflows]  Agents ──────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ No workflows · tagent workflow new <name>                                                                                      │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+h/l lane  j/k card  n new  s start  enter detail  B config  p priority  D deps  e edit  C comment  H/L status  a files  x delete …
+                                                                                                                                  
+=== board 130x45 wf true
+Board · kanban                                                                                                                    
+╭─ ☷ Tasks  [todo 2]  doing 0  blocked 0  done 1 ───────────────────────────────────────────────────────────────────────────────╮
+│ ▌ ● #1 First card                                                                                                              │
+│   ● #2 Second card                                                                                                             │
+│                                                                                                                                │
+│                                                                                                                                │
+│                                                                                                                                │
+│                                                                                                                                │
+│                                                                                                                                │
+│                                                                                                                                │
+│                                                                                                                                │
+│                                                                                                                                │
+│                                                                                                                                │
+│                                                                                                                                │
+│                                                                                                                                │
+│                                                                                                                                │
+│                                                                                                                                │
+│                                                                                                                                │
+│                                                                                                                                │
+│                                                                                                                                │
+│                                                                                                                                │
+│                                                                                                                                │
+│                                                                                                                                │
+│                                                                                                                                │
+│                                                                                                                                │
+│                                                                                                                                │
+│                                                                                                                                │
+│                                                                                                                                │
+│                                                                                                                                │
+│                                                                                                                                │
+│                                                                                                                                │
+│                                                                                                                                │
+│                                                                                                                                │
+│                                                                                                                                │
+╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── 1 of 2 ─╯
+┏━ [Workflows]  Agents ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ No workflows · tagent workflow new <name>                                                                                      ┃
+┃                                                                                                                                ┃
+┃                                                                                                                                ┃
+┃                                                                                                                                ┃
+┃                                                                                                                                ┃
+┃                                                                                                                                ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+enter view  a add  e edit  x delete  t agents  B config  Tab tickets  ? help                                                      
+                                                                                                                                  

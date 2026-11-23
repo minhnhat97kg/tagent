@@ -44,18 +44,18 @@ func TestDashboardFitsBothWidthsAndKeepsTaskSelection(t *testing.T) {
 	}
 	updated, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyTab}) // agents → usage
 	m = updated.(Model)
-	if m.agentFocus != 3 {
+	if m.focus != cardUsage {
 		t.Fatal("tab did not focus usage")
 	}
 	updated, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyTab}) // usage → tasks
 	m = updated.(Model)
-	if !m.taskFocus {
+	if m.focus != cardTasks {
 		t.Fatal("tab did not focus tasks")
 	}
 	updated, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("l")}) // wide: next column
 	m = updated.(Model)
 	if m.taskCursor != 1 || !strings.Contains(m.taskDetail(80)[1], "Second task") {
-		t.Fatalf("sel %d focus %d/%v cols %v w %d", m.taskCursor, m.agentFocus, m.taskFocus, m.boardColumns(), m.width)
+		t.Fatalf("sel %d focus %d cols %v w %d", m.taskCursor, m.focus, m.boardColumns(), m.width)
 	}
 	updated, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("x")})
 	m = updated.(Model)
@@ -65,7 +65,7 @@ func TestDashboardFitsBothWidthsAndKeepsTaskSelection(t *testing.T) {
 }
 
 func TestUsageFocusChangesRange(t *testing.T) {
-	m := Model{dashboard: true, width: 100, height: 30, agentFocus: 3, chartDays: 7}
+	m := Model{dashboard: true, width: 100, height: 30, focus: cardUsage, chartDays: 7}
 	for _, c := range []struct {
 		key  string
 		want int
@@ -76,7 +76,7 @@ func TestUsageFocusChangesRange(t *testing.T) {
 			t.Fatalf("after %q chartDays=%d, want %d", c.key, m.chartDays, c.want)
 		}
 	}
-	m.agentFocus = 0 // h/l must not change the range outside the Usage card
+	m.focus = 0 // h/l must not change the range outside the Usage card
 	next, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("l")})
 	if got := next.(Model).chartDays; got != 7 {
 		t.Fatalf("l outside Usage changed range to %d", got)
@@ -92,20 +92,20 @@ func TestNarrowClickFocusesTheCardClicked(t *testing.T) {
 		next, _ := m.handleMouse(tea.MouseMsg{X: x, Y: y, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress})
 		return next.(Model)
 	}
-	if got := click(g.agents.x+5, g.agents.y+g.agents.h/2); got.taskFocus || got.agentFocus != 0 {
-		t.Fatalf("click in Agents: focus=%d taskFocus=%v", got.agentFocus, got.taskFocus)
+	if got := click(g.agents.x+5, g.agents.y+g.agents.h/2); got.focus != cardAgents {
+		t.Fatalf("click in Agents: focus=%d", got.focus)
 	}
-	if got := click(g.usage.x+5, g.usage.y+g.usage.h/2); got.agentFocus != 3 || got.taskFocus {
-		t.Fatalf("click in Usage: focus=%d taskFocus=%v", got.agentFocus, got.taskFocus)
+	if got := click(g.usage.x+5, g.usage.y+g.usage.h/2); got.focus != cardUsage {
+		t.Fatalf("click in Usage: focus=%d", got.focus)
 	}
-	if got := click(g.tasks.x+5, g.tasks.y); got.agentFocus != 2 || !got.taskFocus {
-		t.Fatalf("click on the Tasks header: focus=%d taskFocus=%v", got.agentFocus, got.taskFocus)
+	if got := click(g.tasks.x+5, g.tasks.y); got.focus != cardTasks {
+		t.Fatalf("click on the Tasks header: focus=%d", got.focus)
 	}
 }
 
 func TestUsageFocusDoesNotMoveAgents(t *testing.T) {
 	m := dashSample()
-	m.agentFocus = 3
+	m.focus = 3
 	before := m.cursor
 	for _, k := range []string{"j", "k"} {
 		next, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(k)})
@@ -123,7 +123,7 @@ func TestUsageFocusDoesNotMoveAgents(t *testing.T) {
 func TestFocusedCardHasHeavyBorder(t *testing.T) {
 	m := dashSample()
 	m.width, m.height = 100, 40
-	m.agentFocus = 3
+	m.focus = 3
 	out := ansi.Strip(m.dashboardView())
 	if !strings.Contains(out, "┏━") || !strings.Contains(out, "┗━") {
 		t.Fatal("focused card has no heavy border")

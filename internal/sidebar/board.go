@@ -13,7 +13,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 
-	"tagent/internal/metrics"
 	"tagent/internal/tasks"
 	"tagent/internal/tmux"
 	"tagent/internal/workflow"
@@ -25,7 +24,7 @@ type boardConfigMsg struct {
 }
 
 func (m Model) openBoard() Model {
-	m.boardMode, m.taskFocus, m.agentFocus = true, true, 2
+	m.boardMode, m.focus = true, cardTasks
 	m.boardDrawer = false
 	return m.boardContext()
 }
@@ -491,7 +490,7 @@ func (m Model) workflowLines(width int) []string {
 			run = "  " + m.boardStyle(m.theme.StatusRunning).Render(fmt.Sprintf("● %d running", active))
 		}
 		mark := "▸ "
-		if m.workflowFocus && i == m.workflowCursor {
+		if m.focus == cardWorkflows && i == m.workflowCursor {
 			mark = "❯ "
 		}
 		lines = append(lines, boardFit(mark+m.boardStyle(m.theme.TextPrimary).Bold(true).Render(w.Name)+"  "+dim.Render(info)+run, width))
@@ -711,131 +710,11 @@ func (m Model) boardPanel(title, pos string, lines []string, width, height int, 
 	return strings.Join(append(out, bottom), "\n")
 }
 
-// Card heights: every card has a fixed height at rest and a larger one when
-// focused. Only terminal size and focus decide them, never ticket counts.
-const flexH = 1 << 20
-
-// accordion splits total rows among cards: all at their rest height, the focused
-// one grown to want, the leftover to the first flex card (else the focused one).
-// Short terminals shrink the unfocused cards (last first) down to 3 rows.
-func accordion(total int, rest, want []int, focus int) []int {
-	n := len(rest)
-	h := slices.Clone(rest)
-	over := slices.Max([]int{0, sum(h) - total})
-	for pass := 0; pass < 2 && over > 0; pass++ {
-		for i := n - 1; i >= 0 && over > 0; i-- {
-			if (i != focus) == (pass == 0) {
-				cut := min(over, max(0, h[i]-3))
-				h[i] -= cut
-				over -= cut
-			}
-		}
-	}
-	rem := total - sum(h)
-	short := rem <= 0
-	if rem > 0 {
-		grow := min(rem, want[focus]-h[focus])
-		h[focus] += grow
-		rem -= grow
-	}
-	// Portrait mode: a focused card still short of its height borrows from the
-	// others, down to 3 rows each (not when a flex card already took the leftover).
-	if need := want[focus] - h[focus]; need > 0 && (short || want[focus] < flexH) {
-		for i := n - 1; i >= 0 && need > 0; i-- {
-			if i != focus {
-				cut := min(need, max(0, h[i]-3))
-				h[i] -= cut
-				h[focus] += cut
-				need -= cut
-			}
-		}
-	}
-	if rem > 0 {
-		to := focus
-		for i := range want {
-			if want[i] >= flexH {
-				to = i
-				break
-			}
-		}
-		h[to] += rem
-	}
-	return h
-}
-
-// fitHeights fills exactly total rows with the cards of one column, so no gap
-// is ever left above the footer. Every card starts at its min height, grows
-// toward its need in column order (fixed content is not clipped just because a
-// lower card wants the rows) and the spare rows left are split by weight, with
-// Tasks and Workflows (weight > 0) taking them first. A column too short for
-// the minimums shrinks the unfocused cards first, always the tallest one, down
-// to a row.
-func fitHeights(total int, low, need, weight []int, focus int) []int {
-	h := make([]int, len(low))
-	for i := range h {
-		h[i] = max(1, low[i])
-	}
-	left := total - sum(h)
-	if left < 0 {
-		for pass := 0; pass < 2 && left < 0; pass++ { // unfocused cards, then the focused one
-			for left < 0 {
-				pick := -1
-				for i := range h {
-					if (i != focus) == (pass == 1) || h[i] <= 1 {
-						continue
-					}
-					if pick < 0 || h[i] > h[pick] {
-						pick = i
-					}
-				}
-				if pick < 0 {
-					break
-				}
-				h[pick]--
-				left++
-			}
-		}
-		return h
-	}
-	for i := range h {
-		grow := min(left, max(0, need[i]-h[i]))
-		h[i] += grow
-		left -= grow
-	}
-	if left > 0 { // spare rows: Tasks and Workflows first, in proportion to weight
-		var slots []int
-		for i, w := range weight {
-			for k := 0; k < w; k++ {
-				slots = append(slots, i)
-			}
-		}
-		if len(slots) == 0 { // a column of fixed cards only: they still fill it
-			for i := range h {
-				slots = append(slots, i)
-			}
-		}
-		for k := 0; left > 0; k++ {
-			h[slots[k%len(slots)]]++
-			left--
-		}
-	}
-	return h
-}
-
-func sum(v []int) (n int) {
-	for _, x := range v {
-		n += x
-	}
-	return
-}
-
 // boardSplit is the board screen's Tasks and Workflows card heights.
 func (m Model) boardSplit(h int) (tasksH, wfH int) {
-	focus := 0
-	if m.workflowFocus {
-		focus = 1
-	}
-	hs := accordion(h, []int{6, 3}, []int{flexH, 8}, focus)
+	// Only terminal size and focus decide card heights, never ticket counts:
+	// Workflows rests at 3 rows and grows to 8 when focused; tickets take the rest.
+	hs := split(h, Fill(1).AtLeast(6), Fixed(3+5*b2i(m.focus == cardWorkflows)).AtLeast(3))
 	return hs[0], hs[1]
 }
 
@@ -849,7 +728,7 @@ func (m Model) workflowCard(width, height, num int) string {
 	if !(m.agentsOpen && m.agentDetail) {
 		start = max(0, cursor-max(1, height-2)+1)
 	}
-	return m.boardPanel(name+tabs, position(cursor, n), lines[min(start, len(lines)):], width, height, m.workflowFocus)
+	return m.boardPanel(name+tabs, position(cursor, n), lines[min(start, len(lines)):], width, height, m.focus == cardWorkflows)
 }
 
 func (m Model) boardHeader() string {
@@ -911,24 +790,13 @@ func (m Model) boardView() string {
 		body = m.boardPanel("Task · esc close", "", m.boardDetail(m.width-4, h-2), m.width, h, true)
 	} else {
 		th, wh := m.boardSplit(h)
-		body = m.tasksCard(m.width, th, 0, !m.workflowFocus) + "\n" + m.workflowCard(m.width, wh, 0)
+		body = m.tasksCard(m.width, th, 0, m.focus != cardWorkflows) + "\n" + m.workflowCard(m.width, wh, 0)
 	}
-	hint := m.ticketHints()
+	hint := m.footerHints()
 	if m.workflowDelete != "" {
 		hint = "Delete workflow " + m.workflowDelete + "? y / n"
 	} else if m.agentDelete != "" {
 		hint = "Delete agent " + m.agentDelete + "? y / n"
-	} else if m.workflowFocus && m.agentsOpen && !m.boardFlow && !m.boardDrawer {
-		hint = m.keyHints("enter detail", "m model", "e edit", "a add", "x delete", "t close", "Tab tickets", "? help")
-	} else if m.workflowFocus && !m.boardFlow && !m.boardDrawer {
-		hint = m.keyHints("enter view", "a add", "e edit", "x delete", "t agents", "B config", "Tab tickets", "? help")
-	}
-	if m.boardConfigView {
-		hint = m.keyHints("esc close", "enter default", "j/k scroll", "E edit", "? help")
-	} else if m.boardFlow {
-		hint = m.keyHints("esc close", "[/] browse", "e edit", "? help")
-	} else if m.boardDrawer {
-		hint = m.keyHints("esc close", "tab/1-4 tabs", "j/k scroll", "e edit", "c comment", "? help")
 	}
 	if m.taskDelete {
 		hint = "Delete task? y confirm · n cancel"
@@ -1071,269 +939,9 @@ func (m Model) triggerSummary() string {
 }
 
 // Returns handled=false only for the existing Tasks actions, routed to their forms.
+// boardKey routes a key to the focused pane (the same call handleKey makes).
 func (m Model) boardKey(key string) (Model, tea.Cmd, bool) {
-	if key == "o" {
-		return m, nil, false // the global expand key and button still work from the board
-	}
-	if len(m.notes) > 0 && (key == "a" || key == "A") && !m.workflowFocus && m.workflowDelete == "" {
-		m.taskForm = "attachments"
-		if key == "A" {
-			m.taskForm = "attach"
-		}
-		m.taskStep = 0
-		m.taskInput = ""
-		m.attachmentsKey = ""
-		return m.syncAttachments(), nil, true
-	}
-	if m.boardMode && !m.boardFlow && !m.boardDrawer {
-		if m.workflowDelete != "" || m.workflowFocus {
-			return m.workflowPanelKey(key)
-		}
-		if key == "tab" || key == "shift+tab" {
-			m.workflowFocus = true
-			return m, nil, true
-		}
-	}
-	if m.boardMode && m.boardDrawer {
-		if m.detailTabKey(key) {
-			return m, nil, true
-		}
-		switch key {
-		case "s": // the dispatch noise stays folded until asked for
-			if m.detailTab == detailTabActivity {
-				m.detailSysOpen = !m.detailSysOpen
-			}
-			return m, nil, true
-		case "enter", " ": // expand a long description in place, or start the ticket's chat
-			switch m.detailTab {
-			case detailTabDetails:
-				m.detailDescOpen = !m.detailDescOpen
-			case detailTabChat:
-				if m.chat.Pane == "" && m.chat.available() && len(m.notes) > 0 {
-					dir, id := m.boardDir, m.notes[m.taskCursor].ID
-					m.taskNotice = "Starting the chat…"
-					return m, startTicketChat(dir, id), true
-				}
-			}
-			return m, nil, true
-		case "i": // message the chat's agent; the form's footer says how to save it
-			if m.detailTab == detailTabChat {
-				if m.chat.started() {
-					m.taskForm, m.taskInput = "chat", ""
-				}
-				return m, nil, true
-			}
-		case "c", "C": // the Activity tab's inline composer
-			if m.detailTab == detailTabActivity {
-				return m.commentBoxOpen(), nil, true
-			}
-		case "S": // save the newest reply to the ticket as a comment
-			if m.detailTab == detailTabChat {
-				return m.saveChatReply(), nil, true
-			}
-		}
-		if m.scrollDetail(key) {
-			return m, nil, true
-		}
-	}
-	if m.boardFlow && m.boardConfigView {
-		switch key {
-		case "esc", "w", "q", "b", "B":
-			m.boardFlow, m.boardConfigView = false, false
-			if m.flowFromDash { // back to the dashboard's Workflows card
-				m.flowFromDash, m.boardMode = false, false
-				m.agentFocus, m.taskFocus, m.workflowFocus = 4, false, true
-			}
-		case "j", "down":
-			m.boardConfigScroll = min(m.boardConfigScroll+1, m.boardConfigMaxScroll())
-		case "k", "up":
-			m.boardConfigScroll = max(0, m.boardConfigScroll-1)
-		case "g":
-			m.boardConfigScroll = 0
-		case "G":
-			m.boardConfigScroll = m.boardConfigMaxScroll()
-		case "enter":
-			m.taskForm, m.taskStep = "default", len(m.boardWorkflows)
-			for i, w := range m.boardWorkflows {
-				if w.Name == m.boardConfig.DefaultWorkflow {
-					m.taskStep = i
-				}
-			}
-			return m, nil, true
-		case "e", "E":
-			return m, editBoardConfig(m.boardDir, m.tmuxPane), true
-		case "ctrl+c":
-			return m, tea.Quit, true
-		}
-		return m, nil, true
-	}
-	if m.boardFlow {
-		switch key {
-		case "[", "]":
-			ws := workflow.List(tasks.MainRoot(m.boardDir))
-			if len(ws) > 0 {
-				i := -1
-				for n, w := range ws {
-					if w.File == m.flowWorkflow || (m.flowWorkflow == "" && len(m.notes) > 0 && w.Name == m.notes[m.taskCursor].Workflow) {
-						i = n
-						break
-					}
-				}
-				if i < 0 {
-					if key == "]" {
-						i = len(ws) - 1
-					} else {
-						i = 0
-					}
-				}
-				if key == "]" {
-					i = (i + 1) % len(ws)
-				} else {
-					i = (i + len(ws) - 1) % len(ws)
-				}
-				m.flowWorkflow = ws[i].File
-			}
-			return m, nil, true
-		case "e", "E":
-			path := m.flowWorkflow
-			if path == "" && len(m.notes) > 0 && m.notes[m.taskCursor].Workflow != "" {
-				w, e := workflow.Find(tasks.MainRoot(m.boardDir), m.notes[m.taskCursor].Workflow)
-				if e != nil {
-					m.taskNotice = e.Error()
-					return m, nil, true
-				}
-				path = w.File
-			}
-			if path != "" {
-				dir := m.boardDir
-				return m, editFile(m.tmuxPane, path, func() tea.Msg { return reloadBoardConfig(dir, nil) }), true
-			}
-			return m, editBoardConfig(m.boardDir, m.tmuxPane), true
-		case "ctrl+c":
-			return m, tea.Quit, true
-		case "esc", "w", "q":
-			m.boardFlow = false
-			if m.flowFromDash { // back to the dashboard's Workflows card
-				m.flowFromDash, m.boardMode = false, false
-				m.agentFocus, m.taskFocus, m.workflowFocus = 4, false, true
-			}
-		}
-		return m, nil, true
-	}
-	switch key {
-	case "t":
-		m.boardMode = true
-		m.agentsOpen = !m.agentsOpen
-		m.workflowFocus, m.agentDetail, m.agentCursor = m.agentsOpen, false, 0
-		if m.agentsOpen {
-			m = m.loadAgents()
-		}
-		return m, nil, true
-	case "w":
-		m.boardMode = true
-		m.boardFlow, m.boardConfigView, m.boardDrawer = true, false, false
-		m.flowWorkflow = ""
-		return m, nil, true
-	case "B": // read-only board config summary; E edits, like the workflow view
-		m.boardMode = true
-		m.boardFlow, m.boardConfigView, m.boardDrawer = true, true, false
-		m.flowWorkflow, m.boardConfigScroll = "", 0
-		return m, nil, true
-	case "enter", "i":
-		m.boardMode = true
-		m.boardDrawer = !m.boardDrawer
-		m.detailScroll = 0
-		m.detailTab = detailTabDetails
-		m.detailDescOpen, m.detailSysOpen = false, false
-		return m, nil, true
-	case "esc":
-		if m.boardDrawer {
-			m.boardDrawer = false
-			return m, nil, true
-		}
-		m.boardMode = false
-		return m, nil, true
-	case "q", "b":
-		m.boardMode, m.boardDrawer = false, false
-		return m, nil, true
-	case "c", "C": // comment on the selected ticket (a blocked one prefills the @role)
-		if len(m.notes) > 0 {
-			return m, editTaskText(m.notesScope, m.notes[m.taskCursor], m.tmuxPane, true), true
-		}
-		return m, nil, true
-	case "E": // edit .tasks/board.yaml
-		return m, editBoardConfig(m.boardDir, m.tmuxPane), true
-	case "n":
-		return m, editTaskText(m.notesScope, tasks.Task{}, m.tmuxPane, false), true
-	case "s":
-		if len(m.notes) > 0 {
-			m.taskForm, m.taskStep = "start", 0
-		}
-		return m, nil, true
-	case "p": // priority cycle: normal -> high -> low -> normal
-		if len(m.notes) > 0 {
-			scope, id, next := m.notesScope, m.notes[m.taskCursor].ID, tasks.NextPriority(m.notes[m.taskCursor].Priority)
-			return m, func() tea.Msg { return actionResult("Priority "+next, tasks.SetPriority(scope, id, next)) }, true
-		}
-		return m, nil, true
-	case "D": // dependencies: ticket picker, space toggles, Enter saves
-		if len(m.notes) > 0 {
-			m.taskForm, m.taskStep, m.taskInput = "needs", 0, strings.Join(m.notes[m.taskCursor].Needs, ",")
-		}
-		return m, nil, true
-	case "e":
-		if len(m.notes) > 0 {
-			return m, editTaskText(m.notesScope, m.notes[m.taskCursor], m.tmuxPane, false), true
-		}
-		return m, nil, true
-	case "x":
-		m.taskDelete = len(m.notes) > 0
-		return m, nil, true
-	case "ctrl+c":
-		return m, tea.Quit, true
-	}
-	step, move := 0, false
-	switch key {
-	case "j", "down":
-		step = 1
-	case "k", "up":
-		step = -1
-	case "h", "l":
-		if !m.boardDrawer {
-			m = m.boardNavigateColumn(key)
-		}
-		return m, nil, true
-	case "H":
-		step, move = -1, true
-	case "L":
-		step, move = 1, true
-	default:
-		return m, nil, true // Never let Board keys act on agents or Git.
-	}
-	if len(m.notes) == 0 {
-		return m, nil, true
-	}
-	if move {
-		cfg, e := tasks.ConfigForTask(m.boardDir, m.boardConfig, m.notes[m.taskCursor])
-		if e != nil {
-			m.taskNotice = e.Error()
-			return m, nil, true
-		}
-		columns := cfg.Columns
-		target := slices.Index(columns, m.notes[m.taskCursor].Status) + step
-		if target >= 0 && target < len(columns) {
-			scope, id, status := m.notesScope, m.notes[m.taskCursor].ID, columns[target]
-			return m, func() tea.Msg {
-				_, err := tasks.Update(scope, id, status, nil, tasks.MutationOptions{Actor: "user"})
-				if err == nil && status != "doing" {
-					err = metrics.End(scope, id)
-				}
-				return actionResult("Task moved to "+status, err)
-			}, true
-		}
-		return m, nil, true
-	}
-	return m.laneStep(step), nil, true
+	return panes[m.focused()].Key(m, key)
 }
 
 // detailMaxScroll is how far the drawer body can scroll: the summary and the
@@ -1345,10 +953,6 @@ func (m Model) detailMaxScroll() int {
 	w, rows := m.width-4, max(0, m.height-5)
 	_, body, bodyRows := m.detailLayout(m.notes[m.taskCursor], w, rows)
 	return max(0, len(body)-max(0, bodyRows-2))
-}
-
-func (m Model) ticketHints() string {
-	return m.keyHints("h/l lane", "j/k card", "n new", "s start", "enter detail", "B config", "p priority", "D deps", "e edit", "C comment", "H/L status", "a files", "x delete", "w workflow", "? help")
 }
 
 // needCandidates lists the tickets the selected one may wait for (every ticket
