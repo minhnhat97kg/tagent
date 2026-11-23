@@ -61,7 +61,7 @@ func spawnAgent(o spawnOpts) (pane, warn string, err error) {
 	if o.Role != "" {
 		if cfg, err := tasks.LoadBoardConfig(o.ConfigDir); err == nil {
 			if br, ok := cfg.Roles[o.Role]; ok {
-				if _, def := roles.GetIn(o.ConfigDir, br.Agent, o.Role); !def {
+				if _, def := roles.GetIn(o.ConfigDir, o.Role); !def {
 					o.Agent, o.Model, o.Effort = cmp.Or(o.Agent, br.Agent), cmp.Or(o.Model, br.Model), cmp.Or(o.Effort, br.Effort)
 					if o.Name == "" {
 						o.Name = freeName(o.Role)
@@ -93,8 +93,8 @@ func spawnAgent(o spawnOpts) (pane, warn string, err error) {
 	var role roles.Definition
 	if o.Role != "" {
 		var ok bool
-		if role, ok = roles.GetIn(o.ConfigDir, o.Agent, o.Role); !ok {
-			return "", "", fmt.Errorf("unknown %s repo agent %q (have: %s)", roles.Harness(o.Agent), o.Role, strings.Join(roles.NamesIn(o.ConfigDir, o.Agent), ", "))
+		if role, ok = roles.GetIn(o.ConfigDir, o.Role); !ok {
+			return "", "", fmt.Errorf("unknown repo agent %q (have: %s)", o.Role, strings.Join(roles.NamesIn(o.ConfigDir), ", "))
 		}
 		if o.Name == "" {
 			o.Name = freeName(strings.ReplaceAll(o.Role, "/", "-"))
@@ -134,8 +134,11 @@ func spawnAgent(o spawnOpts) (pane, warn string, err error) {
 	}
 
 	args := append(append([]string(nil), o.Args...), effortArgs...)
+	// Only a legacy file in the running harness's own agents directory is loaded by
+	// that harness natively. App-owned instructions arrive in the dispatch prompt.
+	native := o.Role != "" && role.Native && role.Harness == roles.Harness(o.Agent)
 	roleEnv := ""
-	if o.Role != "" && o.ConfigDir != o.Cwd && (role.Harness == "claude" || role.Harness == "opencode") {
+	if native && o.ConfigDir != o.Cwd && (role.Harness == "claude" || role.Harness == "opencode") {
 		config, e := nativeRoleConfig(role)
 		if e != nil {
 			return "", "", e
@@ -150,18 +153,11 @@ func spawnAgent(o spawnOpts) (pane, warn string, err error) {
 	if o.Model != "" {
 		args = append([]string{"--model", o.Model}, args...)
 	}
-	if o.Role != "" {
+	if native {
 		switch roles.Harness(o.Agent) {
 		case "claude":
-			if role.Harness == "global" {
-				args = append(args, "--append-system-prompt", role.Instructions)
-			} else {
-				args = append(args, "--agent", o.Role)
-			}
+			args = append(args, "--agent", o.Role)
 		case "opencode":
-			if role.Harness == "global" {
-				return "", "", fmt.Errorf("global OpenCode agents require a native definition in %s", roles.DirFor(o.ConfigDir, o.Agent))
-			}
 			args = append([]string{"mini", "--agent", o.Role}, args...)
 		case "codex":
 			// Codex has no standalone --agent flag; pass the repo agent's developer instructions.
@@ -302,7 +298,11 @@ func placePane(session, cwd, command string) (string, error) {
 	}
 	list, _ := tmux.RunTmux("list-panes", "-s", "-t", session, "-F",
 		"#{window_id}|#{"+poolOption+"}|#{"+tmux.PaneRole+"}|#{pane_id}|#{pane_width}|#{pane_height}")
-	if p := planPlacement(list, maxPanes); p.splitTarget != "" {
+	// The background session is only seen through a viewer (standalone, web),
+	// which shows one pane at full size: give each agent its own window so a
+	// new agent never splits, and shrinks, the pane someone is watching.
+	hidden := tmux.DisplayMessage(session+":", "#{session_name}") == sidebar.HiddenSession
+	if p := planPlacement(list, maxPanes); p.splitTarget != "" && !hidden {
 		return tmux.RunTmuxCapture("split-window", "-d", p.splitDir, "-t", p.splitTarget, "-c", cwd, "-P", "-F", "#{pane_id}", command)
 	}
 	out, err := tmux.RunTmuxCapture("new-window", "-d", "-t", session+":", "-n", poolWindowName, "-c", cwd, "-P", "-F", "#{pane_id} #{window_id}", command)
