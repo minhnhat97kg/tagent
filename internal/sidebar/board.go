@@ -265,8 +265,8 @@ func (m Model) tabStrip(labels []string, active, x int) (string, []tabSpan) {
 	var spans []tabSpan
 	for i, l := range labels {
 		if i > 0 {
-			b.WriteString(muted.Render(" · "))
-			x += 3
+			b.WriteString("  ")
+			x += 2
 		}
 		st, txt := muted, l
 		if i == active {
@@ -291,10 +291,18 @@ func (m Model) tasksTitle(num int) (string, []tabSpan) {
 	name, w := m.cardName(num, "☷ Tasks")
 	labels := make([]string, len(boardLanes))
 	for i, l := range boardLanes {
-		labels[i] = fmt.Sprintf("%s %d", l, len(m.laneCards(l)))
+		labels[i] = fmt.Sprintf("%s %d", laneShort(l), len(m.laneCards(l)))
 	}
 	tabs, spans := m.tabStrip(labels, slices.Index(boardLanes, m.activeLane()), 3+w+2)
 	return name + "  " + tabs, spans
+}
+
+// laneShort is the lane's name on its tab.
+func laneShort(lane string) string {
+	if lane == "in progress" {
+		return "doing"
+	}
+	return lane
 }
 
 // position is lazygit's "3 of 32", empty for an empty list.
@@ -312,13 +320,17 @@ func (m Model) boardCardLine(idx, width int) string {
 	if idx == m.taskCursor {
 		mark, style = "▌ ", style.Bold(true).Foreground(m.theme.Accent)
 	}
-	return boardFit(style.Render(mark)+m.boardStyle(m.boardColor(t.Status)).Render("● "+t.Status)+m.boardStyle(m.theme.TextMuted).Render(" #"+t.ID+" ")+style.Render(boardTitle(t)), width)
+	status := "●"
+	if t.Status != m.laneOf(t.Status) {
+		status += " " + t.Status
+	}
+	return boardFit(style.Render(mark)+m.boardStyle(m.boardColor(t.Status)).Render(status)+m.boardStyle(m.theme.TextMuted).Render(" #"+t.ID+" ")+style.Render(boardTitle(t)), width)
 }
 
 // boardCard: title, then "● status #id role worker"; a blocked card adds its question.
 func (m Model) boardCard(idx, width int) []string {
 	t := m.notes[idx]
-	if m.laneOf(t.Status) == "done" {
+	if lane := m.laneOf(t.Status); lane == "done" || t.Status == lane {
 		return []string{m.boardCardLine(idx, width)}
 	}
 	mark := "  "

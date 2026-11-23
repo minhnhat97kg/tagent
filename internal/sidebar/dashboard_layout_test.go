@@ -81,7 +81,7 @@ func TestDashboardShowsLanesAtEveryWidth(t *testing.T) {
 		m.width, m.height = size[0], size[1]
 		plain := ansi.Strip(m.dashboardView())
 		// ticket 3 is "doing": in progress lane with 3 tickets (doing, review, blocked).
-		for _, want := range []string{"☷ Tasks  todo 2 · [in progress 3] · done 1", "Ticket number 3", "● doing"} {
+		for _, want := range []string{"☷ Tasks  todo 2  [doing 3]  done 1", "Ticket number 3", "● doing"} {
 			if !strings.Contains(plain, want) {
 				t.Fatalf("%v: lacks %q:\n%s", size, want, plain)
 			}
@@ -90,7 +90,7 @@ func TestDashboardShowsLanesAtEveryWidth(t *testing.T) {
 			t.Fatalf("%v: raw status columns:\n%s", size, plain)
 		}
 		g := m.dashGeometry()
-		if g.wf.h == 0 || !strings.Contains(plain, "[Workflows] · Agents") {
+		if g.wf.h == 0 || !strings.Contains(plain, "[Workflows]  Agents") {
 			t.Fatalf("%v: no Workflows card", size)
 		}
 		next, card := m.tasksCardClick(5, 2, g.tasks.w, g.tasks.h, 4)
@@ -104,7 +104,7 @@ func TestDashboardShowsLanesAtEveryWidth(t *testing.T) {
 		}
 		// the tab spans sit exactly under the title text of the top border
 		top := strings.Split(plain, "\n")[g.tasks.y]
-		if got := ansi.Cut(top, g.tasks.x+spans[1].x0, g.tasks.x+spans[1].x0+3); got != "[in" {
+		if got := ansi.Cut(top, g.tasks.x+spans[1].x0, g.tasks.x+spans[1].x0+3); got != "[do" {
 			t.Fatalf("%v: span 1 starts at %q in %q", size, got, top)
 		}
 	}
@@ -116,7 +116,7 @@ func TestLanesHeaderText(t *testing.T) {
 		m := dashSample()
 		m.width, m.height = w, 40
 		title, _ := m.tasksTitle(4)
-		if got := ansi.Strip(title); got != "☷ Tasks  todo 2 · [in progress 3] · done 1" {
+		if got := ansi.Strip(title); got != "☷ Tasks  todo 2  [doing 3]  done 1" {
 			t.Fatalf("width %d: %q", w, got)
 		}
 	}

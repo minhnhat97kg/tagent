@@ -47,7 +47,7 @@ func TestBoardScreenUsesColumnsAtEveryWidth(t *testing.T) {
 		m.width, m.height = size[0], size[1]
 		lines := strings.Split(m.View(), "\n")
 		view := ansi.Strip(strings.Join(lines, "\n"))
-		if !strings.Contains(view, "[todo 2] · in progress 2 · done 1") || !strings.Contains(view, "[Workflows] · Agents") {
+		if !strings.Contains(view, "[todo 2]  doing 2  done 1") || !strings.Contains(view, "[Workflows]  Agents") {
 			t.Errorf("%v: no columns/workflows card:\n%s", size, view)
 		}
 		for i, l := range lines {
@@ -365,14 +365,14 @@ func TestBoardScrollAndRecentComments(t *testing.T) {
 	m := boardTestModel()
 	m.width = 70
 	m.notes, m.height = nil, 20
-	for i := 0; i < 12; i++ {
+	for i := 0; i < 40; i++ { // todo cards are one line each: enough of them to scroll
 		m.notes = append(m.notes, tasks.Task{Title: fmt.Sprintf("Card %02d", i), Status: "todo"})
 	}
 	m.notes = append(m.notes, tasks.Task{Title: "Completed", Status: "done"})
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 36; i++ {
 		m, _ = boardPress(m, "j")
 	}
-	if view := ansi.Strip(m.View()); !strings.Contains(view, "Card 10") || strings.Contains(view, "Card 00") {
+	if view := ansi.Strip(m.View()); !strings.Contains(view, "Card 36") || strings.Contains(view, "Card 00") {
 		t.Fatalf("selected card not visible: %s", view)
 	}
 	m.height, m.taskCursor = 24, 0
@@ -438,7 +438,7 @@ func TestBoardListsWorkflowsBelow(t *testing.T) {
 	for _, w := range []int{160, 45} {
 		m.width = w
 		view := ansi.Strip(m.View())
-		for _, want := range []string{"[Workflows] · Agents", "1 of 2", "❯ research", "local · 1 jobs", "● 1 running", "▸ deploy", "global · 3 jobs"} {
+		for _, want := range []string{"[Workflows]  Agents", "1 of 2", "❯ research", "local · 1 jobs", "● 1 running", "▸ deploy", "global · 3 jobs"} {
 			if !strings.Contains(view, want) {
 				t.Errorf("width %d lacks %q:\n%s", w, want, view)
 			}
@@ -478,7 +478,7 @@ func TestBoardColumnsAndNavigation(t *testing.T) {
 			t.Fatalf("%s no status mutation", key)
 		}
 	}
-	if len(m.boardCard(2, 40)) != 1 || len(m.boardCard(0, 40)) != 2 {
+	if len(m.boardCard(2, 40)) != 1 || len(m.boardCard(0, 40)) != 1 { // todo and done cards are one line
 		t.Fatal("card heights")
 	}
 	m.width = 119
