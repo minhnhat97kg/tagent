@@ -52,20 +52,19 @@ func TestContextForRendersTicketState(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, want := range []string{
-		"Ticket " + ticket.ID + ": Fix the export",
-		"Status: doing (role builder); next: done, blocked",
-		"Assignees: alice, bob",
-		"Note: started on the parser",
-		"Longer description of the bug",
-		"Comments: 1",
-		"] planner ",
-		"handing off to @implementer",
-		"attachment: ",
-		"fix.patch",
-		filepath.Join(boardDir(scope), ticket.ID),
+		ticket.ID + ": Fix the export",
+		"Status: doing",
+		"Step: doing (role builder); next: done, blocked",
+		"task show " + ticket.ID,
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("context missing %q:\n%s", want, got)
+		}
+	}
+	// The brief is a summary: no per-field dump beyond Brief.
+	for _, bad := range []string{"Assignees:", "Note:", "Due:", "Input "} {
+		if strings.Contains(got, bad) {
+			t.Fatalf("context should not contain %q:\n%s", bad, got)
 		}
 	}
 	if _, err = ContextFor(scope, "does-not-exist"); err == nil {
@@ -103,7 +102,7 @@ jobs:
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"Workflow: ship", "Input env: prod", "Status: build (role builder) (job build); next: done, blocked"} {
+	for _, want := range []string{"Status: build", "Step: build (role builder) (job build); next: done, blocked"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("context missing %q:\n%s", want, got)
 		}

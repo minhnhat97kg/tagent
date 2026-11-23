@@ -36,6 +36,9 @@ var detailTabs = []string{"Details", "Chat", "Activity", "Run"}
 // that work where the cursor is.
 func (m Model) detailFooter(w int) string {
 	ladder := []string{"tab/1-4 tabs · j/k scroll · e edit · C comment · a files · s events · esc close", "tab tabs · j/k scroll · e edit · C · a files · s · esc", "tab · j/k · esc"}
+	if m.commentBox {
+		ladder = []string{"enter send · tab @role · esc cancel", "enter · tab · esc"}
+	}
 	if m.detailTab == detailTabChat {
 		ladder = []string{"i message · S save reply · tab/1-4 tabs · j/k scroll · esc close", "i message · S save · tab · j/k · esc", "i · S · esc"}
 	}
@@ -304,6 +307,10 @@ func (m Model) taskDetailActivity(t tasks.Task, w int) []string {
 		return nil
 	}
 	lines := m.detailSection(fmt.Sprintf("Activity · %d", m.detailCommentCount(t)), w)
+	if m.commentBox {
+		lines = append(lines, m.commentBoxLines(w)...)
+	}
+	lines = append(lines, m.replyingLines(t, w)...)
 	return append(lines, m.detailActivity(t, w, time.Now())...)
 }
 

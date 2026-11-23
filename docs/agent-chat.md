@@ -47,10 +47,11 @@ endpoint, and the pane keeps running in tmux.
   It is stored in the pane option `@pane_ticket`.
 - **Spawn and reuse**: `tagent chat [--dir DIR] [--agent claude|pi] [--model M] [--clear] <id>`
   reuses the pane bound to the key, or starts one with the normal spawn path. The
-  first message is `tasks.ContextFor(scope, id)`: ticket title, description,
-  status and workflow step/next, assignees, due, note, inputs/outputs, comments
-  and attachment paths. Reusing a pane never re-sends the context; `--clear`
-  closes the pane, drops its queue and starts again from the context.
+  first message is `tasks.ContextFor(scope, id)`: a brief, the ticket summary
+  (`tasks.Brief`: id, title, status, description, outputs, last comments), its
+  workflow step and next statuses, and a line to run `tagent task show <id>` for
+  the rest. No full comment history is injected. Reusing a pane never re-sends the
+  context; `--clear` closes the pane, drops its queue and starts again from the brief.
 - **API**: `GET /api/tickets/<id>/chat?dir=<repo>` reports the pane
   (`{key,pane,harness,status,available,reason}`) without starting anything;
   `POST` with optional `{agent,clear}` starts or reuses it and returns the same

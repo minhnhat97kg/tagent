@@ -364,6 +364,13 @@ func Actions(dir string, cfg tasks.BoardConfig, ev tasks.Event, t tasks.Task) ([
 			if a.Prompt == "" {
 				a.Prompt = fmt.Sprintf("Task %s (%s): %s changed by %s. Read `tagent task show %s` and reply with `tagent task comment %s <text>`.", t.ID, t.Title, ev.Kind, ev.Actor, t.ID, t.ID)
 			}
+			if ev.Kind == "mention" {
+				// A reused pane gets only what it has not seen; a fresh one gets the brief first.
+				tail := a.Prompt
+				a.Prompt = tasks.Brief(t) + tail + "\n"
+				a.CommentCount = len(t.Comments)
+				a.ResumePrompt = func(since int) string { return mentionPrompt(t, since, tail) }
+			}
 			out = append(out, a)
 		}
 	}

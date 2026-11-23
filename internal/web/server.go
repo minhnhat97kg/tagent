@@ -21,6 +21,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -459,6 +460,8 @@ func (s *server) project(w http.ResponseWriter, r *http.Request) {
 	add("blocked", "", "")
 	add("done", "", "")
 	workers := map[string]map[string]any{}
+	// running lists the roles whose pane is working on each ticket (the replying indicator).
+	running := map[string][]string{}
 	history, _ := tasks.ReadEvents(tasks.Scope(dir), 0)
 	reasons := map[string]string{}
 	panes := tmux.QuerySessions()
@@ -485,6 +488,9 @@ func (s *server) project(w http.ResponseWriter, r *http.Request) {
 						continue
 					}
 					name, id, _ := strings.Cut(pane.BoardTarget, "#")
+					if id != "" && name != "" && pane.Status.IsActive() && !slices.Contains(running[id], name) {
+						running[id] = append(running[id], name)
+					}
 					rank := 0
 					if id == ticket.ID {
 						rank = 2
@@ -521,7 +527,7 @@ func (s *server) project(w http.ResponseWriter, r *http.Request) {
 		}
 		flows = append(flows, map[string]any{"name": wf.Name, "description": wf.Description, "global": wf.Global, "file": wf.File, "jobs": jobs, "error": e})
 	}
-	writeJSON(w, map[string]any{"dir": dir, "tasks": t, "roles": defs, "statuses": statuses, "workers": workers, "blockedReasons": reasons, "workflows": flows, "defaultWorkflow": cfg.DefaultWorkflow})
+	writeJSON(w, map[string]any{"dir": dir, "tasks": t, "roles": defs, "statuses": statuses, "workers": workers, "running": running, "blockedReasons": reasons, "workflows": flows, "defaultWorkflow": cfg.DefaultWorkflow})
 }
 
 func (s *server) taskOp(w http.ResponseWriter, r *http.Request) {

@@ -252,7 +252,7 @@ func (m Model) taskDetailChat(t tasks.Task, w int) []string {
 	}
 	if c.Pane == "" {
 		lines := m.detailBlock("No chat for this ticket yet.", "  ", "", w)
-		lines = append(lines, m.detailBlock(dim.Render("A claude or pi agent starts with the ticket's description, status, comments and workflow step. enter starts it."), "  ", "", w)...)
+		lines = append(lines, m.detailBlock(dim.Render("A claude or pi agent starts with a brief (summary, status, workflow step) and reads more with tagent task show. enter starts it."), "  ", "", w)...)
 		return lines
 	}
 	now := time.Now()

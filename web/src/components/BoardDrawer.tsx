@@ -3,12 +3,13 @@ import { toast } from "sonner"
 import { AttachmentRows, AttachmentViewer, type Attachment } from "./Attachments"
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react"
 import { DialogTitle, DialogDescription } from "@/components/ui/dialog"
-import { act, post } from "@/api"
-import { ArrowRight, Check, Paperclip, Pencil, Play, Reply, Trash2, TriangleAlert } from "lucide-react"
+import { act, api, post } from "@/api"
+import { ArrowRight, Check, ChevronDown, Paperclip, Pencil, Play, Reply, Trash2, TriangleAlert } from "lucide-react"
 import { RunView } from "./RunPage"
 import { TicketChat } from "./TicketChat"
 import { useTicketChat } from "@/hooks/useTicketChat"
-import type { Project, Task, Workflow } from "@/types"
+import { enc } from "@/hooks/useRoute"
+import type { Project, RunEntry, RunView as RunData, Task, Workflow } from "@/types"
 
 // TABS splits the ticket panel: the facts, the ticket's chat, the conversation
 // on the ticket, and what actually ran. Chat is disabled with a reason when the
@@ -64,6 +65,25 @@ export function Md({ text }: { text: string }) {
   })}</div>
 }
 
+// Activity filters: what the timeline shows.
+const FILTERS = [{ id: "all", label: "All" }, { id: "comments", label: "Comments" }, { id: "history", label: "History" }] as const
+type FilterID = (typeof FILTERS)[number]["id"]
+const SORT_KEY = "board.activitySort"
+const stamp = (iso?: string) => { const t = iso ? Date.parse(iso) : NaN; return Number.isNaN(t) ? 0 : t }
+// mentions reports whether a comment body tags the role, as the board's mention trigger reads it.
+const mentions = (body: string, role: string) => new RegExp(`@${role.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w-])`).test(body)
+
+// History rows are the ticket's moves and dispatches, read from its run (the same data as the Run tab).
+type Row = { key: string; when?: string; comment?: NonNullable<Task["comments"]>[number]; icon?: ReactNode; text?: string }
+function historyRows(entries: RunEntry[]): Row[] {
+  return entries.flatMap((e, i) => {
+    const prev = entries[i - 1]
+    const rows: Row[] = [{ key: `m${e.seq}`, when: e.start, icon: <ArrowRight />, text: prev ? `${prev.role || "system"} moved ${prev.step} → ${e.step}` : `started ${e.step}` }]
+    if (e.role) rows.push({ key: `d${e.seq}`, when: e.start, icon: <Play />, text: `dispatched ${e.role}${e.harness ? ` (${e.harness}${e.model ? `, ${e.model}` : ""})` : ""}` })
+    return rows
+  })
+}
+
 export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, workflows, project, initialReply = '' }: { initialReply?: string; project?: Project; task: Task; statuses: string[]; roles: string[]; role: string; reason?: string; dir: string; reload: () => void; workflows: Workflow[] }) {
   // The ticket's chat pane: the tab needs to know before it is opened whether Chat can be shown at all.
   const chat = useTicketChat(dir, task.id)
@@ -92,6 +112,12 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
     fetch(url, { signal: controller.signal }).then(r => { if (!r.ok) throw new Error("Cannot list attachments"); return r.json() }).then(setAttachments).catch(e => { if (!controller.signal.aborted) setUploadError(String(e)) })
     return () => controller.abort()
   }, [url, task.updated])
+  // History comes from the run: only a ticket with a workflow has one.
+  const [history, setHistory] = useState<RunEntry[]>([])
+  useEffect(() => {
+    if (!task.workflow) return
+    api<RunData>(`/api/tasks/${enc(task.id)}/run?dir=${enc(dir)}`).then(r => setHistory(r.entries ?? [])).catch(() => setHistory([]))
+  }, [dir, task.id, task.workflow, task.updated])
   const enqueue = (incoming: File[]) => {
     const error = validateUpload([...files, ...incoming]); if (error) { setUploadError(error); return }
     setFiles([...files, ...incoming]); setUploadError("")
@@ -102,19 +128,21 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
       const data = new FormData(); data.set("text", body); files.forEach(f => data.append("files", f))
       const r = await fetch(url, { method: "POST", body: data }); if (!r.ok) throw new Error(await r.text())
       const res: { notice?: string } = await r.json().catch(() => ({}))
-      setBody(""); setFiles([]); reload()
+      setBody(""); setFiles([]); setComposerOpen(false); reload()
       if (res.notice) toast(res.notice)
     } catch (e) { setUploadError(String(e)) } finally { setSending(false) }
   }
-  const [cursor, setCursor] = useState(0)
+  const [composerOpen, setComposerOpen] = useState(!!initialReply)
   const [index, setIndex] = useState(0)
+  const [cursor, setCursor] = useState(0)
   const [dismissed, setDismissed] = useState(false)
   const input = useRef<HTMLTextAreaElement>(null)
+  // Opening the composer puts the caret at the end of whatever is drafted.
   useEffect(() => {
-    if (!initialReply) return
-    const frame = requestAnimationFrame(() => { input.current?.focus({ preventScroll: true }); input.current?.setSelectionRange(initialReply.length, initialReply.length) })
+    if (!composerOpen) return
+    const frame = requestAnimationFrame(() => { const el = input.current; if (!el) return; el.focus({ preventScroll: true }); el.setSelectionRange(el.value.length, el.value.length) })
     return () => cancelAnimationFrame(frame)
-  }, [initialReply])
+  }, [composerOpen])
   const mention = body.slice(0, cursor).match(/(?:^|\s)@([\w-]*)$/)
   const suggestions = !dismissed && mention ? roles.filter(r => r.toLowerCase().startsWith(mention[1].toLowerCase())) : []
   const choose = (r: string) => {
@@ -126,11 +154,28 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
   const desc = task.text && task.text.trim() !== title(task) ? task.text : ""
   const [editing, setEditing] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const [flow, setFlow] = useState(workflows.find(w => !w.error)?.name ?? "board")
+  // Start runs the chosen flow: the board's next column, or one of the workflows.
+  const [flow, setFlow] = useState("board")
+  const [startMenu, setStartMenu] = useState(false)
+  const startLabel = flow === "board" ? "Next board column" : flow
+  const [filter, setFilter] = useState<FilterID>("all")
+  const [newest, setNewest] = useState(() => { try { return localStorage.getItem(SORT_KEY) !== "oldest" } catch { return true } })
+  const toggleSort = () => { setNewest(v => { try { localStorage.setItem(SORT_KEY, v ? "oldest" : "newest") } catch { /* private mode: the choice just is not remembered */ } return !v }) }
   // A notification that offers to reply opens the conversation, not the facts.
   const [tab, setTab] = useState<TabID>(initialReply ? "activity" : "details")
   // Chat can turn unavailable under an open panel (its pane's harness changed): leave it rather than show a dead tab.
   useEffect(() => { if (tab === "chat" && chatOff) setTab("details") }, [tab, chatOff])
+  // M opens the composer from anywhere on Activity, as in Jira; typing elsewhere is left alone.
+  useEffect(() => {
+    if (tab !== "activity") return
+    const key = (e: KeyboardEvent) => {
+      const el = document.activeElement as HTMLElement | null
+      if (e.key !== "m" || e.metaKey || e.ctrlKey || e.altKey || composerOpen || (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)))) return
+      e.preventDefault(); setComposerOpen(true)
+    }
+    document.addEventListener("keydown", key)
+    return () => document.removeEventListener("keydown", key)
+  }, [tab, composerOpen])
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([])
   // Walking the tabs skips a disabled Chat in the direction of travel, so the key
   // moves the cursor the way the reader expects.
@@ -141,27 +186,41 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
     setTab(TABS[next]!.id); tabRefs.current[next]?.focus()
   }
   const op = (body: Record<string, string>) => act(post("/api/tasks", { Dir: dir, ID: task.id, ...body }).then(reload))
-  // Replying belongs to the conversation, so the reply lands in the Activity tab.
-  const reply = () => { const who = role || roles[0] || ""; setTab("activity"); setBody(`@${who} `); requestAnimationFrame(() => { input.current?.focus(); input.current?.setSelectionRange(who.length + 2, who.length + 2) }) }
+  // Replying belongs to the conversation: the composer opens prefilled with the @mention.
+  const replyTo = (who: string) => { setTab("activity"); setFilter("all"); setBody(`@${who} `); setComposerOpen(true) }
+  const reply = () => replyTo(role || roles[0] || "")
+  const startOptions = [{ value: "board", label: "Next board column", disabled: false }, ...workflows.map(w => ({ value: w.name, label: `${w.name}${w.global ? " (global)" : ""}${w.error ? " — invalid" : ""}`, disabled: !!w.error }))]
+  const canSend = !sending && (!!body.trim() || files.length > 0)
+  const canStart = (task.status === "todo" || !task.workflow) && task.status !== "done"
+  // Roles still working on this ticket after being @mentioned: no reply comment from them since.
+  const comments = task.comments ?? []
+  const replying = (project?.running?.[task.id] ?? []).filter(r => {
+    const asked = comments.findLastIndex(c => mentions(c.body, r))
+    return asked >= 0 && asked > comments.findLastIndex(c => c.author === r)
+  })
+  const rows: Row[] = [
+    ...comments.map(c => ({ key: `c${c.id}`, when: c.created, comment: c })),
+    ...historyRows(task.workflow ? history : []),
+  ].filter(r => filter === "all" || (filter === "comments") === !!r.comment).sort((a, b) => stamp(a.when) - stamp(b.when))
+  if (newest) rows.reverse()
   return <>
     <div className="drawer-actions">
       <span className="board-key" title={task.id}>{shortId(task.id)}</span>
-      <button type="button" onClick={() => setEditing(editing === null ? task.text : null)}><Pencil />Edit</button>
+      {canStart && <div className="start-split">
+        <button type="button" className="start-main" title={`Start · ${startLabel}`} onClick={() => op({ Op: "start", Status: flow })}><Play />Start</button>
+        <button type="button" className="start-caret" aria-label="Choose workflow" aria-haspopup="menu" aria-expanded={startMenu} onClick={() => setStartMenu(!startMenu)}><ChevronDown /></button>
+        {startMenu && <ul role="menu" aria-label="Start with" className="start-menu">
+          {startOptions.map(o => <li key={o.value}><button type="button" role="menuitemradio" aria-checked={flow === o.value} disabled={o.disabled} onClick={() => { setFlow(o.value); setStartMenu(false) }}>{o.label}</button></li>)}
+        </ul>}
+      </div>}
+      <button type="button" aria-label="Edit" title="Edit" onClick={() => setEditing(editing === null ? task.text : null)}><Pencil /></button>
       {confirmDelete
         ? <><button type="button" className="danger" onClick={() => op({ Op: "rm" })}><Trash2 />Delete for good</button><button type="button" onClick={() => setConfirmDelete(false)}>Cancel</button></>
-        : <button type="button" onClick={() => setConfirmDelete(true)}><Trash2 />Delete</button>}
+        : <button type="button" aria-label="Delete" title="Delete" onClick={() => setConfirmDelete(true)}><Trash2 /></button>}
     </div>
     <DialogTitle className="drawer-title">{title(task)}</DialogTitle>
     <DialogDescription className="sr-only">Task details, status and activity</DialogDescription>
     {task.status === "blocked" && <div className="blocked-reason">{reason || task.note || "Blocked — awaiting a decision"}<button type="button" className="board-send" onClick={reply}><Reply />Reply to unblock</button></div>}
-    {(task.status === "todo" || !task.workflow) && task.status !== "done" && <div className="drawer-start">
-      <Play />
-      <select aria-label="Start with" value={flow} onChange={e => setFlow(e.target.value)}>
-        <option value="board">Next board column</option>
-        {workflows.map(w => <option key={w.name} value={w.name} disabled={!!w.error}>{w.name}{w.global ? " (global)" : ""}{w.error ? " — invalid" : ""}</option>)}
-      </select>
-      <button type="button" className="board-send" onClick={() => op({ Op: "start", Status: flow })}>Start</button>
-    </div>}
     {editing !== null && <form className="drawer-edit" onSubmit={e => { e.preventDefault(); if (editing.trim()) op({ Op: "edit", Text: editing }).then(() => setEditing(null)) }}>
       <textarea aria-label="Task text" value={editing} onChange={e => setEditing(e.target.value)} rows={8} />
       <div><button className="board-send">Save</button><button type="button" onClick={() => setEditing(null)}>Cancel</button></div>
@@ -198,22 +257,32 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
       <TicketChat info={chat.info} error={chat.error} starting={chat.starting} onStart={() => void chat.start()} onReload={() => void chat.reload()} onSave={saveToTicket} project={project} />
     </div>}
     {tab === "activity" && <div role="tabpanel" id="task-panel-activity" aria-labelledby="task-tab-activity" className="drawer-panel">
-      <section>
-      <h3>Activity <span className="board-muted">{task.comments?.length ?? 0}</span></h3>
-      <ul className="board-activity">{task.comments?.map((c, i) => <li key={c.id ?? i}><Avatar role={c.author} /><div className="comment"><header><b>{c.author}</b><time className="board-muted" title={c.created}>{rel(c.created)}</time></header><Md text={c.body} /><AttachmentRows items={attachments.filter(a => a.commentId === c.id)} open={setSelected} /></div></li>)}</ul>
-      {!task.comments?.length && <p className="board-muted">No activity yet.</p>}
-    </section>
-    <form className="comment-form" onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); enqueue(Array.from(e.dataTransfer.files)) }} onPaste={e => { const images = Array.from(e.clipboardData.files).filter(f => f.type.startsWith("image/")); if (images.length) { e.preventDefault(); enqueue(images) } }} onSubmit={e => { e.preventDefault(); if ((!body.trim() && !files.length) || sending) return; void submitComment() }}>
-      <label className="inline-flex items-center gap-1"><Paperclip className="size-3.5" />Attach files <input type="file" multiple disabled={sending} onChange={e => { enqueue(Array.from(e.target.files ?? [])); e.target.value = "" }} /></label>
-      {files.map((f, i) => <button type="button" key={i} onClick={() => setFiles(files.filter((_, j) => i !== j))}>{f.name} ×</button>)}
-      {uploadError && <p role="alert">{uploadError}</p>}
-      <label htmlFor="task-comment" className="sr-only">Comment</label>
-      <textarea id="task-comment" ref={input} value={body} placeholder="Comment… type @role to hand off" aria-autocomplete="list" aria-controls={suggestions.length ? "role-suggestions" : undefined} aria-activedescendant={suggestions.length ? `role-option-${index % suggestions.length}` : undefined}
-        onSelect={e => setCursor(e.currentTarget.selectionStart)} onChange={e => { setBody(e.target.value); setCursor(e.target.selectionStart); setIndex(0); setDismissed(false) }}
-        onKeyDown={e => { if (!suggestions.length) return; if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setDismissed(true) } else if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); setIndex((index + (e.key === "ArrowDown" ? 1 : suggestions.length - 1)) % suggestions.length) } else if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); choose(suggestions[index % suggestions.length]) } }} />
-      {!!suggestions.length && <ul id="role-suggestions" role="listbox" aria-label="Mention role">{suggestions.map((r, i) => <li role="option" aria-selected={i === index % suggestions.length} id={`role-option-${i}`} key={r} onMouseDown={e => e.preventDefault()} onClick={() => choose(r)}>@{r}</li>)}</ul>}
-      <button className="board-send" disabled={sending || (!body.trim() && !files.length)}>{sending ? "Sending…" : "Comment"}</button>
-      </form>
+      {composerOpen
+        ? <form className="comment-form" onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); enqueue(Array.from(e.dataTransfer.files)) }} onPaste={e => { const images = Array.from(e.clipboardData.files).filter(f => f.type.startsWith("image/")); if (images.length) { e.preventDefault(); enqueue(images) } }} onSubmit={e => { e.preventDefault(); if (canSend) void submitComment() }}>
+          <label htmlFor="task-comment" className="sr-only">Comment</label>
+          <textarea id="task-comment" ref={input} value={body} placeholder="Add a comment… type @ to hand off to a role" aria-autocomplete="list" aria-controls={suggestions.length ? "role-suggestions" : undefined} aria-activedescendant={suggestions.length ? `role-option-${index % suggestions.length}` : undefined}
+            onSelect={e => setCursor(e.currentTarget.selectionStart)} onChange={e => { setBody(e.target.value); setCursor(e.target.selectionStart); setIndex(0); setDismissed(false) }}
+            onKeyDown={e => {
+              if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); if (canSend) void submitComment(); return }
+              if (suggestions.length) { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setDismissed(true) } else if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); setIndex((index + (e.key === "ArrowDown" ? 1 : suggestions.length - 1)) % suggestions.length) } else if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); choose(suggestions[index % suggestions.length]) } return }
+              if (e.key === "Escape" && !body.trim() && !files.length) { e.preventDefault(); setComposerOpen(false) }
+            }} />
+          {!!suggestions.length && <ul id="role-suggestions" role="listbox" aria-label="Mention role">{suggestions.map((r, i) => <li role="option" aria-selected={i === index % suggestions.length} id={`role-option-${i}`} key={r} onMouseDown={e => e.preventDefault()} onClick={() => choose(r)}>@{r}</li>)}</ul>}
+          <label className="inline-flex items-center gap-1"><Paperclip className="size-3.5" />Attach files <input type="file" multiple disabled={sending} onChange={e => { enqueue(Array.from(e.target.files ?? [])); e.target.value = "" }} /></label>
+          {files.map((f, i) => <button type="button" key={i} onClick={() => setFiles(files.filter((_, j) => i !== j))}>{f.name} ×</button>)}
+          {uploadError && <p role="alert">{uploadError}</p>}
+          <div className="composer-actions"><button className="board-send" disabled={!canSend}>{sending ? "Sending…" : "Save"}</button><button type="button" onClick={() => setComposerOpen(false)}>Cancel</button></div>
+        </form>
+        : <button type="button" className="composer-collapsed" onClick={() => setComposerOpen(true)}>Add a comment…</button>}
+      <div className="activity-tools">
+        <div role="group" aria-label="Filter activity">{FILTERS.map(f => <button key={f.id} type="button" aria-pressed={filter === f.id} className="chip" onClick={() => setFilter(f.id)}>{f.label}</button>)}</div>
+        <button type="button" className="sort-toggle" onClick={toggleSort}>{newest ? "Newest first" : "Oldest first"}</button>
+      </div>
+      {replying.map(r => <p key={r} role="status" className="replying"><Avatar role={r} />{r} replying…</p>)}
+      <ul className="board-activity">{rows.map(r => r.comment
+        ? <li key={r.key}><Avatar role={r.comment.author} /><div className="comment"><header><b>{r.comment.author}</b><time className="board-muted" title={r.comment.created}>{rel(r.comment.created)}</time>{roles.includes(r.comment.author) && <button type="button" className="reply-link" onClick={() => replyTo(r.comment!.author)}>Reply</button>}</header><Md text={r.comment.body} /><AttachmentRows items={attachments.filter(a => a.commentId === r.comment!.id)} open={setSelected} /></div></li>
+        : <li key={r.key} className="history-row">{r.icon}<span>{r.text}</span><time className="board-muted" title={r.when}>{rel(r.when)}</time></li>)}</ul>
+      {!rows.length && <p className="board-muted">{filter === "history" ? "No history yet." : "No activity yet."}</p>}
     </div>}
     {tab === "run" && <div role="tabpanel" id="task-panel-run" aria-labelledby="task-tab-run" className="drawer-panel">
       {task.workflow

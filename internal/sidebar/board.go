@@ -880,7 +880,7 @@ func (m Model) boardView() string {
 	} else if m.boardFlow {
 		hint = m.keyHints("esc close", "[/] browse", "e edit", "? help")
 	} else if m.boardDrawer {
-		hint = m.keyHints("esc close", "j/k scroll", "e edit", "C comment", "? help")
+		hint = m.keyHints("esc close", "j/k scroll", "e edit", "c comment", "? help")
 	}
 	if m.taskDelete {
 		hint = "Delete task? y confirm · n cancel"
@@ -1074,6 +1074,10 @@ func (m Model) boardKey(key string) (Model, tea.Cmd, bool) {
 					m.taskForm, m.taskInput = "chat", ""
 				}
 				return m, nil, true
+			}
+		case "c", "C": // the Activity tab's inline composer
+			if m.detailTab == detailTabActivity {
+				return m.commentBoxOpen(), nil, true
 			}
 		case "S": // save the newest reply to the ticket as a comment
 			if m.detailTab == detailTabChat {

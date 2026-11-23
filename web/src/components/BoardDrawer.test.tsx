@@ -63,14 +63,106 @@ test("opens on Details with the ticket facts", async () => {
   expect(within(details).queryByRole("textbox", { name: "Comment" })).toBeNull()
 })
 
-test("Activity holds the conversation and the comment form", async () => {
+test("Activity holds the conversation with a collapsed composer on top", async () => {
   mount()
   await userEvent.click(screen.getByRole("tab", { name: "Activity" }))
   const activity = screen.getByRole("tabpanel")
-  expect(screen.getByRole("tab", { name: "Activity" }).getAttribute("aria-selected")).toBe("true")
   expect(within(activity).getByText("first comment")).toBeTruthy()
+  expect(within(activity).queryByRole("textbox", { name: "Comment" })).toBeNull()
+  await userEvent.click(within(activity).getByRole("button", { name: "Add a comment…" }))
   expect(within(activity).getByRole("textbox", { name: "Comment" })).toBeTruthy()
   expect(within(activity).queryByText("Goal")).toBeNull()
+})
+
+test("Ctrl+Enter saves the comment; Escape collapses an empty composer", async () => {
+  mocks.post.mockResolvedValue({})
+  const reload = vi.fn()
+  render(<BoardDrawer task={task} statuses={["todo", "build", "done"]} roles={["builder"]} role="builder" dir="/repo" reload={reload} workflows={[workflow]} />)
+  await userEvent.click(screen.getByRole("tab", { name: "Activity" }))
+  await userEvent.click(screen.getByRole("button", { name: "Add a comment…" }))
+  const box = screen.getByRole("textbox", { name: "Comment" })
+  await userEvent.type(box, "looks good{Control>}{Enter}{/Control}")
+  await waitFor(() => expect(screen.queryByRole("textbox", { name: "Comment" })).toBeNull())
+  expect(reload).toHaveBeenCalled()
+  expect(vi.mocked(fetch).mock.calls.some(([, init]) => (init as RequestInit | undefined)?.method === "POST")).toBe(true)
+  await userEvent.click(screen.getByRole("button", { name: "Add a comment…" }))
+  await userEvent.click(screen.getByRole("textbox", { name: "Comment" }))
+  await userEvent.keyboard("{Escape}")
+  expect(screen.queryByRole("textbox", { name: "Comment" })).toBeNull()
+})
+
+test("the M key opens the composer on Activity", async () => {
+  mount()
+  await userEvent.click(screen.getByRole("tab", { name: "Activity" }))
+  await userEvent.click(document.body)
+  await userEvent.keyboard("m")
+  expect(screen.getByRole("textbox", { name: "Comment" })).toBeTruthy()
+})
+
+test("typing @ in the composer suggests roles and inserts the one picked", async () => {
+  mount()
+  await userEvent.click(screen.getByRole("tab", { name: "Activity" }))
+  await userEvent.click(screen.getByRole("button", { name: "Add a comment…" }))
+  await userEvent.type(screen.getByRole("textbox", { name: "Comment" }), "@bu")
+  const list = screen.getByRole("listbox", { name: "Mention role" })
+  await userEvent.click(within(list).getByRole("option", { name: "@builder" }))
+  expect((screen.getByRole("textbox", { name: "Comment" }) as HTMLTextAreaElement).value).toBe("@builder ")
+})
+
+test("Activity filters hide history or comments, and sort order is remembered", async () => {
+  mount()
+  await userEvent.click(screen.getByRole("tab", { name: "Activity" }))
+  const activity = screen.getByRole("tabpanel")
+  expect(await within(activity).findByText("started build")).toBeTruthy()
+  await userEvent.click(within(activity).getByRole("button", { name: "Comments" }))
+  expect(within(activity).queryByText("started build")).toBeNull()
+  expect(within(activity).getByText("first comment")).toBeTruthy()
+  await userEvent.click(within(activity).getByRole("button", { name: "History" }))
+  expect(within(activity).queryByText("first comment")).toBeNull()
+  await userEvent.click(within(activity).getByRole("button", { name: "All" }))
+  // Newest first by default: the comment (10:00) is above the history (09:10).
+  const texts = within(activity).getAllByRole("listitem").map(li => li.textContent ?? "")
+  expect(texts[0]).toContain("first comment")
+  await userEvent.click(within(activity).getByRole("button", { name: "Newest first" }))
+  expect(localStorage.getItem("board.activitySort")).toBe("oldest")
+  expect(within(activity).getAllByRole("listitem")[0]!.textContent).toContain("started build")
+  localStorage.removeItem("board.activitySort")
+})
+
+test("a role that is working on a mention shows 'replying…' until its reply lands", async () => {
+  const mention = { ...task, comments: [{ id: "c1", author: "user", body: "@builder take a look", created: "2026-11-23T10:00:00Z" }] }
+  const { rerender } = render(<BoardDrawer task={mention} statuses={["todo", "build", "done"]} roles={["builder"]} role="builder" dir="/repo" reload={() => {}} workflows={[workflow]} project={{ dir: "/repo", tasks: [], roles: [], statuses: [], running: { "30": ["builder"] } }} />)
+  await userEvent.click(screen.getByRole("tab", { name: "Activity" }))
+  expect(screen.getByText("builder replying…")).toBeTruthy()
+  rerender(<BoardDrawer task={{ ...mention, comments: [...mention.comments, { id: "c2", author: "builder", body: "done", created: "2026-11-23T10:05:00Z" }] }} statuses={["todo", "build", "done"]} roles={["builder"]} role="builder" dir="/repo" reload={() => {}} workflows={[workflow]} project={{ dir: "/repo", tasks: [], roles: [], statuses: [], running: { "30": ["builder"] } }} />)
+  await waitFor(() => expect(screen.queryByText(/replying/)).toBeNull())
+})
+
+test("Reply on a role's comment opens the composer with the mention", async () => {
+  mount()
+  await userEvent.click(screen.getByRole("tab", { name: "Activity" }))
+  await userEvent.click(screen.getByRole("button", { name: "Reply" }))
+  expect((screen.getByRole("textbox", { name: "Comment" }) as HTMLTextAreaElement).value).toBe("@builder ")
+})
+
+test("the header puts Start, Edit and Delete in one row and Start runs the chosen flow", async () => {
+  mount()
+  const row = document.querySelector(".drawer-actions") as HTMLElement
+  expect(within(row).getByRole("button", { name: "Edit" })).toBeTruthy()
+  expect(within(row).getByRole("button", { name: "Delete" })).toBeTruthy()
+  expect(document.querySelector(".drawer-start")).toBeNull()
+  // The task is in build with a workflow, so there is nothing to start.
+  expect(within(row).queryByRole("button", { name: "Start" })).toBeNull()
+})
+
+test("Start on a todo ticket runs the chosen workflow", async () => {
+  const todo = { ...task, status: "todo", comments: [] }
+  render(<BoardDrawer task={todo} statuses={["todo", "build", "done"]} roles={["builder"]} role="" dir="/repo" reload={() => {}} workflows={[workflow]} />)
+  const row = document.querySelector(".drawer-actions") as HTMLElement
+  await userEvent.click(within(row).getByRole("button", { name: "Choose workflow" }))
+  await userEvent.click(screen.getByRole("menuitemradio", { name: "feature" }))
+  await userEvent.click(within(row).getByRole("button", { name: "Start" }))
+  expect(mocks.post).toHaveBeenCalledWith("/api/tasks", { Dir: "/repo", ID: "30", Op: "start", Status: "feature" })
 })
 
 test("Run reuses the run view inside the panel", async () => {
