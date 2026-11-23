@@ -37,11 +37,12 @@ type standaloneModel struct {
 	preparedW  int
 	preparedH  int
 	capturing  bool
-	cx, cy     int    // the agent's cursor, in screen cells
-	cursorOn   bool   // and whether it is visible
-	layout     int    // layoutSplit…
-	leftView   string // rendered dashboard, reused across screen polls
-	borrowed   string // window of the user's own session we resized
+	cx, cy     int      // the agent's cursor, in screen cells
+	cursorOn   bool     // and whether it is visible
+	layout     int      // layoutSplit…
+	leftView   string   // rendered dashboard, reused across screen polls
+	borrowed   string   // window of the user's own session we resized
+	idlePanes  []string // idle shells seen by the last cleanup sweep
 }
 
 type paneShotMsg struct {
@@ -138,7 +139,7 @@ func (m standaloneModel) rightSize() (int, int) {
 }
 
 func (m standaloneModel) Init() tea.Cmd {
-	return tea.Batch(m.left.Init(), shotTick(false))
+	return tea.Batch(m.left.Init(), shotTick(false), cleanupTick())
 }
 
 // shotTick polls the agent's screen: fast while typing into it, slower when
@@ -206,6 +207,13 @@ func (m standaloneModel) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.capturing = true
 		return m, tea.Batch(shotTick(m.focusRight), capture(m.paneID))
+
+	case cleanupTickMsg:
+		return m, tea.Batch(cleanupTick(), sweepIdlePanes(m.idlePanes, []string{m.paneID, m.shell}))
+
+	case cleanupMsg:
+		m.idlePanes = msg.idle
+		return m, nil
 
 	case shotNowMsg: // right after a key: show the echo without waiting a tick
 		if m.capturing || m.paneID == "" {
