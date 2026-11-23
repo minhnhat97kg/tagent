@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"tagent/internal/metrics"
 	"tagent/internal/quota"
 	"tagent/internal/tmux"
@@ -11,7 +12,7 @@ import (
 )
 
 func request(s *server, method, path, body string, auth bool) *httptest.ResponseRecorder {
-	r := httptest.NewRequest(method, path, stringsReader(body))
+	r := httptest.NewRequest(method, path, strings.NewReader(body))
 	if auth {
 		r.AddCookie(&http.Cookie{Name: "tmux_agent", Value: s.token})
 	}

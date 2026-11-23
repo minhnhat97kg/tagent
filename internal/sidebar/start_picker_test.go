@@ -60,16 +60,6 @@ func TestWrappedPopupInput(t *testing.T) {
 	if got := strings.Count(ansi.Strip(m.taskFormView()), "x"); got != 300 {
 		t.Fatalf("task: %d", got)
 	}
-	m.taskForm = "intake"
-	m.intakeState = &intakeState{}
-	if got := strings.Count(ansi.Strip(m.intakeView()), "x"); got != 300 {
-		t.Fatalf("intake: %d", got)
-	}
-	for _, line := range strings.Split(ansi.Strip(m.intakeView()), "\n") {
-		if ansi.StringWidth(line) > 40 {
-			t.Fatal(line)
-		}
-	}
 	hints := m.keyHints("enter detail", "s start", "? help")
 	if !strings.Contains(hints, "\x1b[") || !strings.Contains(ansi.Strip(hints), "s start") || ansi.StringWidth(hints) > 40 {
 		t.Fatal(hints)

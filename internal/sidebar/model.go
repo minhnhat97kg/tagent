@@ -12,7 +12,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"tagent/internal/intake"
 	"time"
 
 	"github.com/charmbracelet/bubbles/viewport"
@@ -625,8 +624,6 @@ type Model struct {
 	workflowFocus    bool
 	workflowCursor   int
 	workflowDelete   string
-	intakeState      *intakeState
-	inlineIntake     bool
 	taskForm         string
 	taskInput        string
 	taskStep         int
@@ -1098,7 +1095,6 @@ func (m *Model) applyDetailMsg(msg detailMsg) {
 	m.aheadBehindByPane[msg.PaneID] = aheadBehindLabel(msg.GitData.AheadBehind)
 	if m.notesScope != msg.Scope || m.repoDir != msg.Dir {
 		m.boardDir = ""
-		m.intakeState = nil
 	}
 	m.notes, m.notesScope = msg.Notes, msg.Scope
 	m.taskCursor = max(0, min(m.taskCursor, len(m.notes)-1))
@@ -1180,45 +1176,6 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.taskNotice = msg.err.Error()
 		}
 		return m, nil
-	case intakeEditReply:
-		if m.intakeState != nil && m.intakeState.Shared.Revision != msg.Revision {
-			m.taskNotice = "Conversation changed; reopen the draft editor."
-			m.reloadIntake()
-			return m, nil
-		}
-		if !m.intakeValid(msg.Token) {
-			return m, nil
-		}
-		if msg.Err != nil {
-			s := *m.intakeState
-			s.Busy = false
-			m.intakeState = &s
-			m.taskNotice = msg.Err.Error()
-			return m, nil
-		}
-		q, _, err := intakeParseEdited(msg.Raw)
-		if err != nil || q != "" {
-			s := *m.intakeState
-			s.Busy = false
-			m.intakeState = &s
-			m.taskNotice = "Editor must contain a valid TICKET"
-			return m, nil
-		}
-		if m.intakeState.Shared.Revision != 0 {
-			s := m.intakeState
-			_, draft, _ := intake.Parse(msg.Raw)
-			result := s.Shared.Response
-			result.Draft = draft
-			_, err := intake.EditProposal(s.Scope, s.Shared.Revision, result)
-			m.reloadIntake()
-			if err != nil {
-				m.taskNotice = err.Error()
-			}
-			return m, nil
-		}
-		return m.intakeReply(msg.intakeReply)
-	case intakeReply:
-		return m.intakeReply(msg)
 	case taskActionMsg:
 		m.taskNotice = msg.Text
 		m.notes = tasks.List(m.notesScope)
@@ -1237,7 +1194,6 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case RefreshMsg:
-		m.reloadIntake()
 		m.sessions = msg.Sessions
 		m.sizeOwners = msg.SizeOwners
 		m.theme = msg.Theme
@@ -1520,17 +1476,6 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil // Dashboard hit targets are not valid while an overlay replaces it.
 	}
-	if m.dashboard && (msg.Button == tea.MouseButtonWheelDown || msg.Button == tea.MouseButtonWheelUp) {
-		rows, _ := m.companionPanel(max(6, m.width-1))
-		g := m.dashGeometry(rows)
-		x, y := g.left, g.top+g.second
-		if m.width < 90 {
-			x, y = 0, g.top+g.first+g.second
-		}
-		if msg.X >= x && msg.Y >= y && msg.Y < y+g.chat {
-			return m, nil
-		}
-	}
 	if m.dashboard && msg.Button == tea.MouseButtonLeft && msg.Action == tea.MouseActionPress {
 		rows, _ := m.companionPanel(max(6, m.width-1))
 		g := m.dashGeometry(rows)
@@ -1540,15 +1485,6 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		}
 		if msg.X >= taskX && msg.Y == taskY {
 			m.agentFocus, m.taskFocus, m.taskTitle = 2, true, true
-			return m, nil
-		}
-		// Chat panel: right column under tasks, or below them on narrow screens.
-		gitX, gitY := g.left, g.top+g.second
-		if m.width < 90 {
-			gitX, gitY = 0, g.top+g.first+g.second
-		}
-		if msg.X >= gitX && msg.Y >= gitY && msg.Y < gitY+g.chat {
-			m.agentFocus, m.taskFocus = 3, false
 			return m, nil
 		}
 		// Agent definitions panel: the lower part of the agents column
@@ -1568,7 +1504,8 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		if msg.X >= taskX && msg.Y >= taskY+1 && msg.Y < taskY+g.second-1 {
 			order := m.boardOrder()
 			pos := slices.Index(order, m.taskCursor)
-			idx := taskStart(pos, len(order), 1+(g.second-3)/2) + (msg.Y-taskY-1)/2
+			// One row per ticket; the same window as taskLines (height g.second-2).
+			idx := max(0, pos-max(1, g.second-2-3)) + (msg.Y - taskY - 1)
 			if idx >= 0 && idx < len(order) {
 				m.taskCursor = order[idx]
 				m.taskTitle = false
@@ -1660,34 +1597,6 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	}
-	if m.dashboard && m.agentFocus == 3 && !m.boardMode && !m.taskDelete && m.taskForm == "" && !m.popup.IsRepoOpen() && !m.removeConfirmOpen && !m.filterEditing {
-		if msg.String() == "tab" && (m.intakeState == nil || m.intakeState.DismissCompletion || len(intake.Completions(m.intakeState.Input, intake.Recipients(m.intakeState.Dir, m.sessions))) == 0) {
-			m.agentFocus, m.taskFocus = 0, false
-			return m, nil
-		}
-		if m.boardDir == "" || m.repoDir != "" && m.boardDir != m.repoDir {
-			m = m.boardContext()
-		}
-		saved := m.taskInput
-		if !m.intakeValidCurrent() {
-			m.intakeState = nil
-			m.inlineIntake = true
-			m, _ = m.openIntake()
-		}
-		m.taskInput = ""
-		if m.intakeState != nil {
-			m.taskInput = m.intakeState.Input
-		}
-		model, cmd := m.handleIntake(msg)
-		m = model.(Model)
-		if m.intakeState != nil {
-			s := *m.intakeState
-			s.Input = m.taskInput
-			m.intakeState = &s
-		}
-		m.taskInput = saved
-		return m, cmd
-	}
 	if msg.String() == "?" && !m.popup.IsRepoOpen() && !m.removeConfirmOpen && !m.filterEditing {
 		m.helpOpen, m.helpAll, m.helpScroll = true, false, 0
 		return m, nil
@@ -1719,7 +1628,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		switch msg.String() {
 		case "tab":
-			m.agentFocus = (m.agentFocus + 1) % 4
+			m.agentFocus = (m.agentFocus + 1) % 3
 			m.taskFocus = m.agentFocus == 2
 			m.definitionCursor = 0
 			return m, nil

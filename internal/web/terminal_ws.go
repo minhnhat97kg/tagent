@@ -298,6 +298,9 @@ func (s *server) paneWS(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			if ready {
+				if f.Resizable {
+					s.sizeOwners.keepZoomed(pane, viewer)
+				}
 				if writeOwner(f) != nil {
 					return
 				}

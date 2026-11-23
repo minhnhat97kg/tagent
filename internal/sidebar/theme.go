@@ -37,6 +37,9 @@ type Theme struct {
 	// filter, the Unknown status.
 	TextDim lipgloss.Color
 
+	// Border/BorderFocus draw the dashboard cards (web: border token).
+	Border, BorderFocus lipgloss.Color
+
 	// SelectionBg paints the background of the row the keyboard cursor is
 	// currently pointing at.
 	SelectionBg lipgloss.Color
@@ -87,20 +90,22 @@ func idx(n int) lipgloss.Color {
 // see herdr reference report section 3).
 func DarkTheme() Theme {
 	return Theme{
-		Accent:            idx(153),
-		TextPrimary:       idx(255),
-		TextMuted:         idx(252),
-		TextDim:           idx(244),
-		SelectionBg:       idx(239),
-		StatusAll:         idx(111),
-		StatusRunning:     idx(114),
-		StatusBackground:  idx(108),
-		StatusConfirm:     idx(203),
-		StatusWaiting:     idx(221),
-		StatusDone:        idx(80),
-		StatusIdle:        idx(110),
-		StatusError:       idx(167),
-		StatusUnknown:     idx(244),
+		Accent:            lipgloss.Color("#e4e4e7"),
+		TextPrimary:       lipgloss.Color("#fafafa"),
+		TextMuted:         lipgloss.Color("#a1a1aa"),
+		TextDim:           lipgloss.Color("#71717a"),
+		SelectionBg:       lipgloss.Color("#27272a"),
+		Border:            lipgloss.Color("#2e2e33"),
+		BorderFocus:       lipgloss.Color("#71717a"),
+		StatusAll:         lipgloss.Color("#e4e4e7"),
+		StatusRunning:     lipgloss.Color("#10b981"),
+		StatusBackground:  lipgloss.Color("#4aa383"),
+		StatusConfirm:     lipgloss.Color("#f97316"),
+		StatusWaiting:     lipgloss.Color("#f59e0b"),
+		StatusDone:        lipgloss.Color("#22c55e"),
+		StatusIdle:        lipgloss.Color("#d4d4d8"),
+		StatusError:       lipgloss.Color("#ef4444"),
+		StatusUnknown:     lipgloss.Color("#71717a"),
 		AgentClaude:       idx(174),
 		AgentCodex:        idx(141),
 		AgentOpenCode:     idx(117),
@@ -111,13 +116,13 @@ func DarkTheme() Theme {
 		AgentCursor:       idx(250),
 		AgentAider:        idx(114),
 		AgentAmp:          idx(215),
-		Branch:            idx(109),
-		Port:              idx(246),
-		DiffAdded:         idx(114),
-		DiffDeleted:       idx(174),
-		SectionTitle:      idx(109),
-		ActivityTimestamp: idx(109),
-		PRLink:            idx(117),
+		Branch:            lipgloss.Color("#a1a1aa"),
+		Port:              lipgloss.Color("#71717a"),
+		DiffAdded:         lipgloss.Color("#10b981"),
+		DiffDeleted:       lipgloss.Color("#ef4444"),
+		SectionTitle:      lipgloss.Color("#a1a1aa"),
+		ActivityTimestamp: lipgloss.Color("#a1a1aa"),
+		PRLink:            lipgloss.Color("#e4e4e7"),
 	}
 }
 
@@ -129,20 +134,22 @@ func DarkTheme() Theme {
 // contrast stable across terminals with customized 256-color palettes.
 func LightTheme() Theme {
 	return Theme{
-		Accent:            lipgloss.Color("#005a9c"),
-		TextPrimary:       lipgloss.Color("#1f2328"),
-		TextMuted:         lipgloss.Color("#3d444d"),
-		TextDim:           lipgloss.Color("#59636e"),
-		SelectionBg:       lipgloss.Color("#e8eef5"),
-		StatusAll:         lipgloss.Color("#005a9c"),
-		StatusRunning:     lipgloss.Color("#1a7f37"),
-		StatusBackground:  lipgloss.Color("#4b6eaf"),
-		StatusConfirm:     lipgloss.Color("#9a3412"),
-		StatusWaiting:     lipgloss.Color("#7a4b00"),
-		StatusDone:        lipgloss.Color("#006b5e"),
-		StatusIdle:        lipgloss.Color("#276749"),
-		StatusError:       lipgloss.Color("#b42318"),
-		StatusUnknown:     lipgloss.Color("#59636e"),
+		Accent:            lipgloss.Color("#18181b"),
+		TextPrimary:       lipgloss.Color("#09090b"),
+		TextMuted:         lipgloss.Color("#71717a"),
+		TextDim:           lipgloss.Color("#a1a1aa"),
+		SelectionBg:       lipgloss.Color("#f0f0f1"),
+		Border:            lipgloss.Color("#e4e4e7"),
+		BorderFocus:       lipgloss.Color("#a1a1aa"),
+		StatusAll:         lipgloss.Color("#18181b"),
+		StatusRunning:     lipgloss.Color("#059669"),
+		StatusBackground:  lipgloss.Color("#4f9a82"),
+		StatusConfirm:     lipgloss.Color("#ea580c"),
+		StatusWaiting:     lipgloss.Color("#d97706"),
+		StatusDone:        lipgloss.Color("#16a34a"),
+		StatusIdle:        lipgloss.Color("#a1a1aa"),
+		StatusError:       lipgloss.Color("#dc2626"),
+		StatusUnknown:     lipgloss.Color("#a1a1aa"),
 		AgentClaude:       lipgloss.Color("#6f42c1"),
 		AgentCodex:        lipgloss.Color("#6639ba"),
 		AgentOpenCode:     lipgloss.Color("#0969da"),
@@ -153,13 +160,13 @@ func LightTheme() Theme {
 		AgentCursor:       lipgloss.Color("#3d444d"),
 		AgentAider:        lipgloss.Color("#1a7f37"),
 		AgentAmp:          lipgloss.Color("#9a3412"),
-		Branch:            lipgloss.Color("#0550ae"),
-		Port:              lipgloss.Color("#59636e"),
-		DiffAdded:         lipgloss.Color("#1a7f37"),
-		DiffDeleted:       lipgloss.Color("#b42318"),
-		SectionTitle:      lipgloss.Color("#0550ae"),
-		ActivityTimestamp: lipgloss.Color("#0550ae"),
-		PRLink:            lipgloss.Color("#0969da"),
+		Branch:            lipgloss.Color("#71717a"),
+		Port:              lipgloss.Color("#a1a1aa"),
+		DiffAdded:         lipgloss.Color("#059669"),
+		DiffDeleted:       lipgloss.Color("#dc2626"),
+		SectionTitle:      lipgloss.Color("#71717a"),
+		ActivityTimestamp: lipgloss.Color("#71717a"),
+		PRLink:            lipgloss.Color("#18181b"),
 	}
 }
 
@@ -182,6 +189,8 @@ func (t *Theme) themeColorTokens() []struct {
 		{"text_muted", &t.TextMuted},
 		{"text_dim", &t.TextDim},
 		{"selection_bg", &t.SelectionBg},
+		{"border", &t.Border},
+		{"border_focus", &t.BorderFocus},
 		{"status_all", &t.StatusAll},
 		{"status_running", &t.StatusRunning},
 		{"status_background", &t.StatusBackground},

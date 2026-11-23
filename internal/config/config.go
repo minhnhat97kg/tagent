@@ -45,10 +45,6 @@ type Setting struct {
 // Settings is what the settings screen shows: the few options worth
 // changing by hand, in display order.
 var Settings = []Setting{
-	{Key: "@agent_chat_harness", Group: "Board", Label: "Chat backend", Kind: Choice, Default: "ollama", Choices: []string{"ollama", "openai"}, Help: "ollama = local; openai = any OpenAI-compatible API, key from $TAGENT_CHAT_API_KEY or $OPENAI_API_KEY"},
-	{Key: "@agent_chat_model", Group: "Board", Label: "Chat model", Kind: Preset, Default: "bonsai-2:9b", Choices: []string{"bonsai-2:9b", "off"}, Help: "the receptionist's model on the chosen backend; off disables Chat"},
-	{Key: "@agent_chat_endpoint", Group: "Board", Label: "Chat endpoint", Kind: Text, Default: "http://127.0.0.1:11434", Help: "backend URL; openai defaults to https://api.openai.com/v1 when this is left as the Ollama default"},
-	{Key: "@agent_intake_llm", Group: "Board", Label: "Ticket intake LLM", Kind: Preset, Default: "ollama run --nowordwrap --think=false bonsai-2:9b", Choices: []string{"ollama run --nowordwrap --think=false bonsai-2:9b", "off"}},
 	{Key: "@agent_theme", Group: "Look", Label: "Theme", Kind: Choice, Default: "light", Choices: []string{"dark", "light"}},
 	{Key: "@agent_avatar", Group: "Look", Label: "Character", Kind: Choice, Default: "off",
 		Choices: []string{"slime", "cat", "sprout", "ghost", "robot", "off"}, Help: "the sidebar avatar; off hides it"},

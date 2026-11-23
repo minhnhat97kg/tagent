@@ -153,7 +153,7 @@ func TestRenderRowsCursorOutOfRangeNoRowMarked(t *testing.T) {
 
 // Selected list rows stay transparent; selection is shown by the cursor
 // marker and bold text rather than a painted row background.
-func TestRenderPaneText_SelectedRowHasNoBackground(t *testing.T) {
+func TestRenderPaneText_SelectedRowHasBackground(t *testing.T) {
 	orig := lipgloss.ColorProfile()
 	lipgloss.SetColorProfile(termenv.ANSI256)
 	defer lipgloss.SetColorProfile(orig)
@@ -164,8 +164,8 @@ func TestRenderPaneText_SelectedRowHasNoBackground(t *testing.T) {
 	if !strings.Contains(got, "\x1b[") {
 		t.Fatalf("with ColorProfile ANSI256, ANSI codes must be emitted, but no escape was found in %q", got)
 	}
-	if strings.Contains(got, "\x1b[48;") || strings.Contains(got, "\x1b[49m") {
-		t.Fatalf("the selected row must not paint a background: %q", got)
+	if !strings.Contains(got, "\x1b[48;") {
+		t.Fatalf("the selected row must paint SelectionBg: %q", got)
 	}
 }
 
@@ -435,7 +435,8 @@ func TestRenderPaneText_NameThenStatusMarker(t *testing.T) {
 		{Row{Status: tmux.StatusRunning, Base: "lead"}, icons.Clock},
 		{Row{Status: tmux.StatusIdle, JustDone: true, Base: "lead"}, icons.Done},
 		{Row{Status: tmux.StatusIdle, Base: "lead"}, ""},
-		{Row{Status: tmux.StatusWaiting, Base: "lead"}, ""},
+		{Row{Status: tmux.StatusWaiting, Base: "lead"}, icons.Waiting},
+		{Row{Status: tmux.StatusError, Base: "lead"}, icons.Error},
 	}
 	for _, c := range cases {
 		got := strings.TrimRight(renderPaneText(c.row, 20, DefaultTheme(), icons, false, 0), " ")

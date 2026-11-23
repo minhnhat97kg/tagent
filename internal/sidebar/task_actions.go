@@ -14,7 +14,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-var newAgentChoices = []string{"claude", "codex", "opencode", "receptionist"}
+var newAgentChoices = []string{"claude", "codex", "opencode"}
 
 type taskActionMsg struct{ Text string }
 
@@ -42,9 +42,6 @@ func (m Model) handleTaskForm(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	}
-	if m.taskForm == "intake" {
-		return m.handleIntake(key)
-	}
 	if m.taskForm == "workflow-new" {
 		return m.handleWorkflowName(key)
 	}
@@ -59,10 +56,6 @@ func (m Model) handleTaskForm(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case "enter":
 			choice := newAgentChoices[m.taskStep]
 			m.taskForm = ""
-			if choice == "receptionist" {
-				m.agentFocus, m.taskFocus, m.inlineIntake = 3, false, true
-				return m.openIntake()
-			}
 			return m, func() tea.Msg { return spawnChosenAgent(choice) }
 		}
 		return m, nil
@@ -129,9 +122,6 @@ func (m Model) handleTaskForm(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 func (m Model) taskFormView() string {
-	if m.taskForm == "intake" {
-		return m.intakeView()
-	}
 	width := max(10, m.width-4)
 	title, hint := "Task detail", "Esc close"
 	body := ""

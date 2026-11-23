@@ -43,9 +43,6 @@ func (m Model) boardContext() Model {
 	if m.boardDir == "" {
 		m.boardDir, _ = os.Getwd()
 	}
-	if oldDir != "" && oldDir != m.boardDir {
-		m.intakeState = nil
-	}
 	if m.notesScope == "" || oldDir != "" && oldDir != m.boardDir {
 		m.notesScope = tasks.Scope(m.boardDir)
 		m.notes = tasks.List(m.notesScope)
@@ -818,10 +815,6 @@ func (m Model) boardKey(key string) (Model, tea.Cmd, bool) {
 		return m, nil, true
 	}
 	switch key {
-	case "n":
-		m.inlineIntake = false
-		m, cmd := m.openIntake()
-		return m, cmd, true
 	case "w":
 		m.boardMode = true
 		m.boardFlow, m.boardDrawer = true, false

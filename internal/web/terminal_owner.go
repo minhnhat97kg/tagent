@@ -108,3 +108,19 @@ func (o *terminalOwners) release(pane, viewer string) error {
 	}
 	return nil
 }
+
+// keepZoomed re-zooms the pane its owner is viewing. In a window shared with other agents, tmux drops the
+// zoom whenever a pane is added, which leaves this pane tiled to a fraction of the width the browser asked for.
+func (o *terminalOwners) keepZoomed(pane, viewer string) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if owner, ok := o.option(pane, "@agent_size_owner"); !ok || owner != "web:"+viewer {
+		return
+	}
+	info, ok := o.command("display-message", "-p", "-t", pane, "#{window_panes} #{window_zoomed_flag}")
+	if f := strings.Fields(info); ok && len(f) == 2 && f[0] != "1" && f[1] == "0" {
+		if _, ok := o.command("resize-pane", "-Z", "-t", pane); ok {
+			o.command("set-option", "-p", "-t", pane, "@agent_size_zoomed", "1")
+		}
+	}
+}

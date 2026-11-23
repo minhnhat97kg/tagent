@@ -69,7 +69,7 @@ Re-entering a limited status beyond its cap blocks with an explanation.
   `@role` notifies when a mention trigger is configured.
 - `task due ID YYYY-MM-DD` (`-` clears): edits trigger, not passage of time.
 - `task assign ID role[,role]` (`-` clears): metadata unless triggers configured.
-- Humans can use board `n`, `do "request"` (local approved quick commands), or `task add -i`; agents keep using plain `task add`.
+- Create tickets with plain `task add`.
 - `task add [--to names] [--needs ids] "text"`; `task rm ID` for human cleanup.
 - `board init|run [--dir DIR]`: shared config/dispatcher.
 
@@ -114,6 +114,6 @@ and retain its handle. Detached processes cannot wake a finished turn. If no
 notifications exist, say so and check when asked; do not simulate them with sleeps.
 `events --json` is sampled, silent initially and has no replay; reconcile list/read.
 
-Tasks panel and board share ticket controls: `n` intake, `s` workflow start picker,
+Tasks panel and board share ticket controls: `s` workflow start picker,
 `enter` detail, `e` edit, `C` comment, `H`/`L` status, `x` delete with confirmation,
 `w` workflow, `?` help. Dashboard `Tab` changes focus; `b` opens the board.

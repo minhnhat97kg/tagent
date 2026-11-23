@@ -10,12 +10,12 @@ func TestTasksPanelGroupsInBoardOrder(t *testing.T) {
 	m := boardTestModel()
 	m.boardMode = false
 	view := ansi.Strip(strings.Join(m.taskLines(90, 15), "\n"))
-	for _, want := range []string{"todo 2", "done 1", "TA-1 First card", "TA-3 Third card"} {
+	for _, want := range []string{"#1 ", "First card", "#3 ", "Third card"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("missing %q: %s", want, view)
 		}
 	}
-	if strings.Index(view, "todo 2") > strings.Index(view, "done 1") {
+	if strings.Index(view, "First card") > strings.Index(view, "Third card") {
 		t.Fatal("incorrect board order")
 	}
 }

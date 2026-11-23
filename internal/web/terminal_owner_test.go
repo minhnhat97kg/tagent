@@ -1,6 +1,7 @@
 package web
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -115,5 +116,38 @@ func TestTerminalAutoOwnerAndFailedClaim(t *testing.T) {
 	bad := terminalOwners{run: func(...string) (string, bool) { return "", false }}
 	if err := bad.resize("%1", "v", size, true, false); err == nil || bad.owns("%1", "v") {
 		t.Fatal("failed claim accepted")
+	}
+}
+
+func TestKeepZoomedRezoomsOwnerPane(t *testing.T) {
+	var calls []string
+	zoom := "0"
+	o := &terminalOwners{run: func(args ...string) (string, bool) {
+		calls = append(calls, strings.Join(args, " "))
+		switch {
+		case args[0] == "display-message" && strings.HasSuffix(args[len(args)-1], "@agent_size_owner}"):
+			return "web:v1\n", true
+		case args[0] == "display-message":
+			return "3 " + zoom + "\n", true
+		}
+		return "", true
+	}}
+	o.keepZoomed("%1", "other") // not the owner: nothing happens
+	if len(calls) != 1 {
+		t.Fatalf("a viewer that is not the owner must not touch zoom: %v", calls)
+	}
+	calls = nil
+	zoom = "1"
+	o.keepZoomed("%1", "v1") // already zoomed
+	for _, c := range calls {
+		if strings.HasPrefix(c, "resize-pane") {
+			t.Fatalf("already zoomed pane toggled off: %v", calls)
+		}
+	}
+	calls = nil
+	zoom = "0"
+	o.keepZoomed("%1", "v1")
+	if !slices.Contains(calls, "resize-pane -Z -t %1") || !slices.Contains(calls, "set-option -p -t %1 @agent_size_zoomed 1") {
+		t.Fatalf("lost zoom was not restored: %v", calls)
 	}
 }

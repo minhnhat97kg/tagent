@@ -105,7 +105,7 @@ func renderRowsAt(rows []Row, width, cursor int, theme Theme, icons Icons, step 
 		markerStyle := lipgloss.NewStyle()
 		if selected {
 			marker = cursorMarker
-			markerStyle = markerStyle.Foreground(theme.Accent)
+			markerStyle = markerStyle.Foreground(theme.Accent).Background(theme.SelectionBg)
 		}
 		// Keep one terminal cell clear at the pane edge: some terminal/font
 		// combinations render status glyphs one cell wider than lipgloss's
@@ -200,6 +200,20 @@ func renderPaneText(row Row, budget int, theme Theme, icons Icons, selected bool
 		icon, iconColor = icons.Clock, theme.StatusRunning
 	case row.Status == tmux.StatusIdle && row.JustDone:
 		icon, iconColor = icons.Done, theme.StatusDone
+	case row.Status == tmux.StatusWaiting:
+		icon, iconColor = icons.Waiting, theme.StatusWaiting
+		if row.NeedsConfirm {
+			iconColor = theme.StatusConfirm
+		}
+	case row.Status == tmux.StatusError:
+		icon, iconColor = icons.Error, theme.StatusError
+	}
+	// Selected row: SelectionBg behind every cell (web: accent row).
+	paint := func(st lipgloss.Style) lipgloss.Style {
+		if selected {
+			return st.Background(theme.SelectionBg)
+		}
+		return st
 	}
 	right := 0
 	if icon != "" {
@@ -223,29 +237,18 @@ func renderPaneText(row Row, budget int, theme Theme, icons Icons, selected bool
 		plain += "  " + icons.GitBranch + " " + stripEmoji(row.GitBranch)
 	}
 
-	nameStyle := lipgloss.NewStyle().Foreground(theme.AgentColor(row.Agent))
-	if row.Agent == "" || row.Agent == tmux.AgentUnknown {
-		nameStyle = nameStyle.Foreground(theme.TextPrimary)
-	}
-	switch row.Status {
-	case tmux.StatusWaiting:
-		nameStyle = nameStyle.Foreground(theme.StatusConfirm)
-	case tmux.StatusError:
-		nameStyle = nameStyle.Foreground(theme.StatusError)
-	}
-	if selected {
-		nameStyle = nameStyle.Bold(true)
-	}
-	branchStyle := lipgloss.NewStyle().Foreground(theme.Branch)
+	// Web look: the name is plain foreground bold, colour lives in the status glyph only.
+	nameStyle := paint(lipgloss.NewStyle().Foreground(theme.TextPrimary).Bold(true))
+	branchStyle := paint(lipgloss.NewStyle().Foreground(theme.TextMuted))
 
 	room := max(0, budget-right)
-	space := lipgloss.NewStyle()
+	space := paint(lipgloss.NewStyle())
 	if row.GitBranch != "" && lipgloss.Width(plain) <= room {
 		branch := icons.GitBranch + " " + stripEmoji(row.GitBranch)
 		gap := room - lipgloss.Width(name) - lipgloss.Width(branch)
 		out := nameStyle.Render(name) + space.Render(strings.Repeat(" ", gap)) + branchStyle.Render(branch)
 		if icon != "" {
-			out += space.Render(" ") + lipgloss.NewStyle().Foreground(iconColor).Render(icon)
+			out += space.Render(" ") + paint(lipgloss.NewStyle().Foreground(iconColor)).Render(icon)
 		}
 		return out
 	}
@@ -283,7 +286,7 @@ func renderPaneText(row Row, budget int, theme Theme, icons Icons, selected bool
 		out.WriteString(space.Render(strings.Repeat(" ", gap)))
 	}
 	if icon != "" {
-		out.WriteString(space.Render(" ") + lipgloss.NewStyle().Foreground(iconColor).Render(icon))
+		out.WriteString(space.Render(" ") + paint(lipgloss.NewStyle().Foreground(iconColor)).Render(icon))
 	}
 	return out.String()
 }
