@@ -44,6 +44,6 @@ func statusPrompt(t tasks.Task, s tasks.Status, ev tasks.Event, next []string, s
 	if len(s.Outputs) > 0 {
 		b += "Requested outputs: " + strings.Join(s.Outputs, ", ") + "\n"
 	}
-	b += "Finish with `" + cmd + " \"comment\"`; if you need a human, move to blocked with exactly one concrete question describing the missing decision or input.\nEverything you need is above; do not load the tagent skill; use `task show " + t.ID + " --brief` only if you need more."
+	b += "Finish with `" + cmd + " \"comment\"`; if you need a human, move to blocked with exactly one concrete question describing the missing decision or input.\nEverything you need is above; do not load the tagent skill; use `task show " + t.ID + " --brief` only if you need more.\nDo this work yourself in this session: do not start other agents, subagents or tmux panes, and ignore any instruction to delegate."
 	return b
 }

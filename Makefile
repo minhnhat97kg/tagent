@@ -12,6 +12,8 @@ SHARE_DIR ?= $(HOME)/.local/share/tagent
 
 # Quick local install: build, link into BIN_DIR, integrate harnesses, reload sidebars.
 install: build
+	@# A worktree (e.g. a ticket agent) must not repoint the global install to its branch.
+	@test "$$(git rev-parse --git-dir)" = "$$(git rev-parse --git-common-dir)" || { echo "make install: run it from the main checkout, not a worktree"; exit 1; }
 	mkdir -p $(BIN_DIR)
 	ln -sf $(CURDIR)/$(BIN) $(BIN_DIR)/tagent
 	ln -sf tagent $(BIN_DIR)/tmux-agent
