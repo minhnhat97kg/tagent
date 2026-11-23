@@ -132,10 +132,12 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
   // Chat can turn unavailable under an open panel (its pane's harness changed): leave it rather than show a dead tab.
   useEffect(() => { if (tab === "chat" && chatOff) setTab("details") }, [tab, chatOff])
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([])
-  const pickTab = (i: number) => {
-    if (!TABS.some((_, n) => tabAllowed(n))) return
+  // Walking the tabs skips a disabled Chat in the direction of travel, so the key
+  // moves the cursor the way the reader expects.
+  const pickTab = (i: number, dir: 1 | -1 = 1) => {
     let next = ((i % TABS.length) + TABS.length) % TABS.length
-    while (!tabAllowed(next)) next = (next + 1) % TABS.length
+    for (let n = 0; n < TABS.length && !tabAllowed(next); n++) next = ((next + dir) % TABS.length + TABS.length) % TABS.length
+    if (!tabAllowed(next)) return
     setTab(TABS[next]!.id); tabRefs.current[next]?.focus()
   }
   const op = (body: Record<string, string>) => act(post("/api/tasks", { Dir: dir, ID: task.id, ...body }).then(reload))
@@ -169,7 +171,7 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
         disabled={!tabAllowed(i)} title={t.id === "chat" && chatOff ? chat.info?.reason : undefined}
         onClick={() => setTab(t.id)}
         onKeyDown={e => {
-          if (e.key === "ArrowRight" || e.key === "ArrowLeft") { e.preventDefault(); pickTab(i + (e.key === "ArrowRight" ? 1 : -1)) }
+          if (e.key === "ArrowRight" || e.key === "ArrowLeft") { e.preventDefault(); pickTab(i + (e.key === "ArrowRight" ? 1 : -1), e.key === "ArrowRight" ? 1 : -1) }
           if (e.key === "Home" || e.key === "End") { e.preventDefault(); pickTab(e.key === "Home" ? 0 : TABS.length - 1) }
         }}>{t.label}</button>)}
     </div>

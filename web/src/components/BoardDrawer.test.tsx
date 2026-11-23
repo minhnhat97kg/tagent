@@ -103,6 +103,9 @@ test("arrow keys walk the tabs, skip a disabled Chat, and only the active tab is
   expect(screen.getByRole("tab", { name: "Run" }).getAttribute("aria-selected")).toBe("true")
   await userEvent.keyboard("{ArrowRight}")
   expect(screen.getByRole("tab", { name: "Details" }).getAttribute("aria-selected")).toBe("true")
+  // Backwards also skips the disabled Chat: the cursor goes where the key points.
+  await userEvent.keyboard("{ArrowLeft}")
+  expect(screen.getByRole("tab", { name: "Run" }).getAttribute("aria-selected")).toBe("true")
   await userEvent.keyboard("{End}")
   expect(screen.getByRole("tab", { name: "Run" }).getAttribute("aria-selected")).toBe("true")
   await waitFor(() => expect(within(tablist).getAllByRole("tab")).toHaveLength(4))
