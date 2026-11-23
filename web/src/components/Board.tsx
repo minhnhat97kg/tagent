@@ -1,5 +1,5 @@
 import { useRef, useState } from "react"
-import { KanbanSquare, OctagonAlert, Search } from "lucide-react"
+import { KanbanSquare, MessageSquare, OctagonAlert, Search } from "lucide-react"
 import { Avatar, BoardDrawer, shortId, statusColor, title } from "./BoardDrawer"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { act, post } from "@/api"
@@ -68,7 +68,7 @@ export function Board({ dir, proj, reload }: { dir: string; proj?: Project; relo
               <span className="board-key" title={t.id}>{shortId(t.id)}</span>
               {lane === "in progress" && <span className="card-label" style={{ color: statusColor(t.status) }}>● {t.status}</span>}
               {t.workflow && <span className="card-label">{t.workflow}</span>}
-              {!!t.comments?.length && <span aria-label={`${t.comments.length} comments`}>💬 {t.comments.length}</span>}
+              {!!t.comments?.length && <span className="inline-flex items-center gap-0.5" aria-label={`${t.comments.length} comments`}><MessageSquare className="size-3" />{t.comments.length}</span>}
               {working && <span className="board-live">● working</span>}
               <Avatar role={taskRole(t)} />
             </span>

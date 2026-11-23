@@ -4,7 +4,7 @@ import { AttachmentRows, AttachmentViewer, type Attachment } from "./Attachments
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react"
 import { DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { act, post } from "@/api"
-import { Pencil, Play, Reply, Trash2 } from "lucide-react"
+import { Check, Paperclip, Pencil, Play, Reply, Trash2 } from "lucide-react"
 import type { Task, Workflow } from "@/types"
 
 // Status colours are reserved and always sit next to a text label.
@@ -136,13 +136,13 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
         const jobs = workflows.find(w => w.name === task.workflow || w.file === task.workflow)?.jobs ?? []
         const at = task.status === "done" ? jobs.length : jobs.findIndex(j => j.status === task.status)
         return jobs.map((j, i) => <span key={j.id} title={j.agent || j.run || ""} className={`rounded px-1.5 py-px text-[11px] ${i === at ? "bg-foreground text-background" : i < at ? "text-emerald-600" : "text-muted-foreground"}`}>
-          {i > 0 && <span className="mr-1 text-muted-foreground">›</span>}{i < at ? "✓ " : ""}{j.status}</span>)
+          {i > 0 && <span className="mr-1 text-muted-foreground">›</span>}{i < at && <Check className="mr-0.5 inline size-3" />}{j.status}</span>)
       })()}</dd></>}
       {!!task.assignees?.length && <><dt>Assignees</dt><dd>{task.assignees.join(", ")}</dd></>}
       <dt>Updated</dt><dd title={task.updated}>{rel(task.updated) || "—"}</dd>
     </dl>
     {desc && <section><h3>Description</h3><Md text={desc} /></section>}
-    <section><h3>Attachments</h3><AttachmentRows items={attachments} open={setSelected} /></section>
+    {!!attachments.length && <section><h3>Attachments <span className="board-muted">{attachments.length}</span></h3><AttachmentRows items={attachments} open={setSelected} /></section>}
     {selected && <AttachmentViewer key={selected.ref} a={selected} url={url} close={() => setSelected(null)} />}
     <section>
       <h3>Activity <span className="board-muted">{task.comments?.length ?? 0}</span></h3>
@@ -150,7 +150,7 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
       {!task.comments?.length && <p className="board-muted">No activity yet.</p>}
     </section>
     <form className="comment-form" onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); enqueue(Array.from(e.dataTransfer.files)) }} onPaste={e => { const images = Array.from(e.clipboardData.files).filter(f => f.type.startsWith("image/")); if (images.length) { e.preventDefault(); enqueue(images) } }} onSubmit={e => { e.preventDefault(); if ((!body.trim() && !files.length) || sending) return; void submitComment() }}>
-      <label>📎 Attach files <input type="file" multiple disabled={sending} onChange={e => { enqueue(Array.from(e.target.files ?? [])); e.target.value = "" }} /></label>
+      <label className="inline-flex items-center gap-1"><Paperclip className="size-3.5" />Attach files <input type="file" multiple disabled={sending} onChange={e => { enqueue(Array.from(e.target.files ?? [])); e.target.value = "" }} /></label>
       {files.map((f, i) => <button type="button" key={i} onClick={() => setFiles(files.filter((_, j) => i !== j))}>{f.name} ×</button>)}
       {uploadError && <p role="alert">{uploadError}</p>}
       <label htmlFor="task-comment" className="sr-only">Comment</label>
