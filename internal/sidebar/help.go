@@ -19,7 +19,7 @@ var helpSections = []shortcutSection{
 		{"N", "new agent"}, {"j k ↑ ↓", "select agent"}, {"n", "next agent needing you"}, {"enter", "on ! row: answers; again: jump to pane"}, {"1-4", "answer open approval"}, {"space", "quick action on first alert"}, {"1-9", "jump to window"}, {"/", "filter"}, {"r", "switch repo"}, {"p", "pin"}, {"f", "handoff sizing to this terminal"}, {"v x", "select / delete worktrees"}, {"S", "clear subagents"}, {"u", "undo"}, {"l", "agent log"}, {"i", "send prompt"},
 	}},
 	{"Board columns vs workflows", [][2]string{{"board.yaml", "columns define the default flow"}, {"s / start", "attach a workflow to override one ticket's flow"}, {"choose", "board for routine work; workflow for a special sequence"}}},
-	{"Roles", [][2]string{{"j k", "move"}, {"e enter", "edit instruction file"}, {"Tab", "next panel"}}},
+	{"Agent definitions", [][2]string{{"j k", "move"}, {"e enter", "edit instruction file"}, {"Tab", "next panel"}}},
 	{"Tasks", ticketShortcuts([2]string{"Tab / b", "focus next panel / open board"})},
 	{"Board · Tickets", ticketShortcuts([2]string{"Tab / esc", "focus workflows / back"})},
 	{"Board · Workflows", [][2]string{{"Tab", "focus tickets"}, {"j k ↑ ↓", "select workflow"}, {"enter w", "view selected workflow"}, {"a", "new workflow name, then $EDITOR"}, {"e", "edit selected workflow"}, {"x", "delete workflow (y/n confirm)"}, {"esc q b", "back to dashboard"}}},
@@ -42,7 +42,7 @@ func (m Model) helpSection() shortcutSection {
 	case m.taskForm != "":
 		title = "Tasks"
 	case m.dashboard && m.agentFocus == 1:
-		title = "Roles"
+		title = "Agent definitions"
 	case m.taskFocus || m.dashboard && m.agentFocus == 2:
 		title = "Tasks"
 	case m.standalone:

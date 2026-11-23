@@ -104,7 +104,7 @@ func (m Model) dashboardView() string {
 	}
 	if g.roles.h > 0 {
 		lines, _ := m.roleLines(g.roles.w-4, g.roles.h-2)
-		left = append(left, m.dashboardPanel("Roles", lines, g.roles.w, g.roles.h, m.agentFocus == 1))
+		left = append(left, m.dashboardPanel("Agent definitions", lines, g.roles.w, g.roles.h, m.agentFocus == 1))
 	}
 	taskTitle := fmt.Sprintf("☷ Tasks · %d", len(m.notes))
 	if m.taskTitle {
