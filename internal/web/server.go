@@ -526,8 +526,9 @@ func (s *server) project(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) taskOp(w http.ResponseWriter, r *http.Request) {
 	var o struct {
-		Dir, Op, ID, Text, Status string
-		Assignees                 []string
+		Dir, Op, ID, Text, Status, Priority string
+		Assignees                           []string
+		Needs                               []string
 	}
 	if err := readBody(r, &o); err != nil {
 		fail(w, err)
@@ -544,6 +545,10 @@ func (s *server) taskOp(w http.ResponseWriter, r *http.Request) {
 		_, err = tasks.Add(scope, o.Text, o.Assignees, tasks.MutationOptions{Actor: "user"})
 	case "set":
 		_, err = tasks.Update(scope, o.ID, o.Status, nil, tasks.MutationOptions{Actor: "user"})
+	case "priority":
+		err = tasks.SetPriority(scope, o.ID, o.Priority)
+	case "needs":
+		err = tasks.SetNeeds(scope, o.ID, o.Needs)
 	case "comment":
 		if strings.TrimSpace(o.Text) == "" {
 			err = fmt.Errorf("comment must not be empty")

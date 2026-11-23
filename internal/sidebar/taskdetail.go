@@ -172,6 +172,9 @@ func (m Model) taskDetailSummary(t tasks.Task, w int) []string {
 		}
 		field("Due", due)
 	}
+	if mark := tasks.PriorityMark(t.Priority); mark != "" {
+		field("Priority", m.boardStyle(m.theme.TextPrimary).Render(mark+" "+tasks.NormalizePriority(t.Priority)))
+	}
 	if t.Workflow != "" {
 		step := ""
 		cfg, _ := tasks.ConfigForTask(m.boardDir, m.boardConfig, t)
@@ -208,6 +211,17 @@ func (m Model) taskDetailSummary(t tasks.Task, w int) []string {
 	}
 	field("Created", age)
 	return lines
+}
+
+// dependents is the tickets waiting for id, in ticket order.
+func (m Model) dependents(id string) []tasks.Task {
+	var out []tasks.Task
+	for _, t := range m.notes {
+		if slices.Contains(t.Needs, id) {
+			out = append(out, t)
+		}
+	}
+	return out
 }
 
 // detailQuestion is the pending question of a blocked ticket on one line.
@@ -274,6 +288,29 @@ func (m Model) taskDetailDetails(t tasks.Task, w int) []string {
 	if t.Note != "" {
 		section("Note")
 		lines = append(lines, m.detailBlock(t.Note, "  ", "", w)...)
+	}
+	if len(t.Needs) > 0 {
+		section("Dependencies · D edits")
+		for _, id := range t.Needs {
+			status, name := "missing", ""
+			for _, n := range m.notes {
+				if n.ID == id {
+					status, name = n.Status, boardTitle(n)
+					break
+				}
+			}
+			line := m.boardStyle(m.boardColor(status)).Render("#" + id + " " + status)
+			if name != "" {
+				line += dim.Render(" · ") + name
+			}
+			lines = append(lines, m.detailBlock(line, "  ", "", w)...)
+		}
+	}
+	if dependents := m.dependents(t.ID); len(dependents) > 0 {
+		section("Blocks")
+		for _, d := range dependents {
+			lines = append(lines, m.detailBlock(m.boardStyle(m.boardColor(d.Status)).Render("#"+d.ID+" "+d.Status)+dim.Render(" · ")+boardTitle(d), "  ", "", w)...)
+		}
 	}
 	runs := metrics.RunsOf(m.metricState, t.ID)
 	if len(runs) > 0 {

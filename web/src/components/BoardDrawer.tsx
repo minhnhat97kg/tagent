@@ -24,6 +24,15 @@ export function StatusBadge({ status }: { status: string }) {
 }
 // shortId keeps ticket keys readable: numeric ids as #21, generated ids by their last 4 characters.
 export const shortId = (id: string) => "#" + (/^\d+$/.test(id) ? id : id.slice(-4))
+// Priority is an ordering rank, not a label: high first, then normal, then low.
+export const priorityRank = (p?: string) => (p === "high" ? 0 : p === "low" ? 2 : 1)
+export const priorityMark = (p?: string) => (p === "high" ? "↑" : p === "low" ? "↓" : "")
+// needState is a card's dependency badge: "waits #12", "ready" or "" (no dependencies).
+export function needState(t: Task, all: Task[]) {
+  if (!t.needs?.length || t.status !== "todo") return ""
+  const open = t.needs.filter(id => { const dep = all.find(x => x.id === id); return !!dep && dep.status !== "done" }) // a deleted dependency stops blocking
+  return open.length ? `waits ${open.map(shortId).join(", ")}` : "ready"
+}
 export function rel(iso?: string) {
   const t = iso ? Date.parse(iso) : NaN
   if (Number.isNaN(t)) return iso || ""
@@ -64,7 +73,7 @@ export function Md({ text }: { text: string }) {
   })}</div>
 }
 
-export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, workflows, project, initialReply = '' }: { initialReply?: string; project?: Project; task: Task; statuses: string[]; roles: string[]; role: string; reason?: string; dir: string; reload: () => void; workflows: Workflow[] }) {
+export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, workflows, project, initialReply = '', onOpen }: { initialReply?: string; onOpen?: (id: string) => void; project?: Project; task: Task; statuses: string[]; roles: string[]; role: string; reason?: string; dir: string; reload: () => void; workflows: Workflow[] }) {
   // The ticket's chat pane: the tab needs to know before it is opened whether Chat can be shown at all.
   const chat = useTicketChat(dir, task.id)
   const chatOff = !!chat.info && !chat.info.available
@@ -81,6 +90,7 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
     }))
   }
   const [body, setBody] = useState(initialReply)
+  const [depQuery, setDepQuery] = useState("")
   const [sending, setSending] = useState(false)
   const [files, setFiles] = useState<File[]>([])
   const [attachments, setAttachments] = useState<Attachment[]>([])
@@ -141,11 +151,18 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
     setTab(TABS[next]!.id); tabRefs.current[next]?.focus()
   }
   const op = (body: Record<string, string>) => act(post("/api/tasks", { Dir: dir, ID: task.id, ...body }).then(reload))
+  // The Dependency row edits one list: add a ticket, or click a chip to drop it.
+  const needs = task.needs ?? []
+  const all = project?.tasks ?? []
+  const setNeeds = (ids: string[]) => act(post("/api/tasks", { Dir: dir, Op: "needs", ID: task.id, Needs: ids }).then(reload))
+  const candidates = all.filter(t => t.id !== task.id && !needs.includes(t.id))
+  const dependents = all.filter(t => t.needs?.includes(task.id))
   // Replying belongs to the conversation, so the reply lands in the Activity tab.
   const reply = () => { const who = role || roles[0] || ""; setTab("activity"); setBody(`@${who} `); requestAnimationFrame(() => { input.current?.focus(); input.current?.setSelectionRange(who.length + 2, who.length + 2) }) }
   return <>
     <div className="drawer-actions">
       <span className="board-key" title={task.id}>{shortId(task.id)}</span>
+      {!!priorityMark(task.priority) && <span className="card-prio" title={`${task.priority} priority`} aria-label={`${task.priority} priority`}>{priorityMark(task.priority)} {task.priority}</span>}
       <button type="button" onClick={() => setEditing(editing === null ? task.text : null)}><Pencil />Edit</button>
       {confirmDelete
         ? <><button type="button" className="danger" onClick={() => op({ Op: "rm" })}><Trash2 />Delete for good</button><button type="button" onClick={() => setConfirmDelete(false)}>Cancel</button></>
@@ -179,6 +196,14 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
     {tab === "details" && <div role="tabpanel" id="task-panel-details" aria-labelledby="task-tab-details" className="drawer-panel">
       <dl className="board-fields">
       <dt>Status</dt><dd><i className="status-dot" style={{ background: statusColor(task.status) }} /><select aria-label="Task status" value={task.status} onChange={e => act(post("/api/tasks", { Dir: dir, Op: "set", ID: task.id, Status: e.target.value }).then(reload))}>{statuses.map(s => <option key={s}>{s}</option>)}</select></dd>
+      <dt>Priority</dt><dd><select aria-label="Task priority" value={task.priority || "normal"} onChange={e => op({ Op: "priority", Priority: e.target.value })}>{["high", "normal", "low"].map(p => <option key={p}>{p}</option>)}</select></dd>
+      <dt>Dependencies</dt><dd className="dep-field">
+        {needs.map(id => <button type="button" key={id} className="dep-chip" title={`Remove #${id}`} onClick={() => setNeeds(needs.filter(x => x !== id))}>{shortId(id)} ×</button>)}
+        <input aria-label="Add dependency" list="dep-options" placeholder="ticket id" value={depQuery}
+          onChange={e => setDepQuery(e.target.value)}
+          onKeyDown={e => { if (e.key !== "Enter") return; e.preventDefault(); const q = depQuery.trim().toLowerCase(); const hit = candidates.find(t => t.id === depQuery.trim()) ?? candidates.find(t => `${t.id} ${title(t)}`.toLowerCase().includes(q)); if (q && hit) { setNeeds([...needs, hit.id]); setDepQuery("") } }} />
+        <datalist id="dep-options">{candidates.map(t => <option key={t.id} value={t.id}>{shortId(t.id)} {title(t)}</option>)}</datalist>
+      </dd>
       {role && <><dt>Role</dt><dd><Avatar role={role} />{role}</dd></>}
       {task.workflow && <><dt>Workflow</dt><dd className="flex flex-wrap items-center gap-1">{task.workflow}{(() => {
         // Steps of the ticket's recipe: finished ones checked, the current one highlighted.
@@ -190,6 +215,11 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
       {!!task.assignees?.length && <><dt>Assignees</dt><dd>{task.assignees.join(", ")}</dd></>}
       <dt>Updated</dt><dd title={task.updated}>{rel(task.updated) || "—"}</dd>
       </dl>
+      {!!needs.length && <section><h3>Waits for <span className="board-muted">{needs.length}</span></h3><ul className="dep-list">{needs.map(id => {
+        const dep = all.find(t => t.id === id)
+        return <li key={id}><button type="button" onClick={() => onOpen?.(id)}><span className="board-key">{shortId(id)}</span> {dep ? title(dep) : "missing"}{dep && <StatusBadge status={dep.status} />}</button></li>
+      })}</ul></section>}
+      {!!dependents.length && <section><h3>Blocks <span className="board-muted">{dependents.length}</span></h3><ul className="dep-list">{dependents.map(t => <li key={t.id}><button type="button" onClick={() => onOpen?.(t.id)}><span className="board-key">{shortId(t.id)}</span> {title(t)}<StatusBadge status={t.status} /></button></li>)}</ul></section>}
       {desc && <section><h3>Description</h3><Md text={desc} /></section>}
       {!!attachments.length && <section><h3>Attachments <span className="board-muted">{attachments.length}</span></h3><AttachmentRows items={attachments} open={setSelected} /></section>}
       {!desc && !attachments.length && <p className="board-muted">No description or attachments yet.</p>}

@@ -25,7 +25,9 @@ Agents
 
 Board and coordination
   task [ls]                    List tasks: id, status, assignees, text
-  task add [--to names] [--needs ids] text  Create a ticket (needs is informational)
+  task add [--to names] [--needs ids] [--priority high|normal|low] text  Create a ticket (open dependencies gate the start)
+  task needs id id[,id]|-      Set or clear the tickets this one waits for
+  task priority id high|normal|low  Set ordering; normal is the default
   task done id [note]          Admin shorthand for set done
   workflow list|new NAME|run NAME [--input k=v] [--wait] [title]
 task add --workflow NAME [--input k=v] title

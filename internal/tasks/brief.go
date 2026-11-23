@@ -18,6 +18,12 @@ func CapText(s string, n int) string {
 }
 func Brief(t Task) string {
 	b := fmt.Sprintf("%s: %s\nStatus: %s\n%s\n", t.ID, t.Title, t.Status, CapText(t.Text, 4000))
+	if t.Priority != "" {
+		b += "Priority: " + NormalizePriority(t.Priority) + "\n"
+	}
+	if len(t.Needs) > 0 {
+		b += "Waits for: " + strings.Join(t.Needs, ", ") + "\n"
+	}
 	data, _ := json.Marshal(t.Outputs)
 	b += "Outputs: " + string(data) + "\n"
 	var cs []TaskComment

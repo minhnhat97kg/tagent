@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { KanbanSquare, MessageSquare, OctagonAlert, Search, Settings } from "lucide-react"
-import { Avatar, BoardDrawer, shortId, statusColor, title } from "./BoardDrawer"
+import { Avatar, BoardDrawer, needState, priorityMark, priorityRank, shortId, statusColor, title } from "./BoardDrawer"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { act, post } from "@/api"
 import type { Project, Task } from "@/types"
@@ -14,7 +14,7 @@ function useMedia(q: string) {
 }
 
 // TaskDrawer is the Jira-like right panel shared by the board and the tasks list.
-export function TaskDrawer({ proj, dir, reload, id, onClose, origin, initialReply = '' }: { initialReply?: string; proj?: Project; dir: string; reload: () => void; id?: string; onClose: () => void; origin: React.RefObject<HTMLElement | null> }) {
+export function TaskDrawer({ proj, dir, reload, id, onClose, onOpen, origin, initialReply = '' }: { initialReply?: string; onOpen?: (id: string) => void; proj?: Project; dir: string; reload: () => void; id?: string; onClose: () => void; origin: React.RefObject<HTMLElement | null> }) {
   const statuses = proj?.statuses ?? []
   const selected = proj?.tasks?.find(t => t.id === id)
   const role = (t: Task) => proj?.workers?.[t.id]?.role || statuses.find(s => s.id === t.status)?.role || t.assignees?.[0] || ""
@@ -23,7 +23,7 @@ export function TaskDrawer({ proj, dir, reload, id, onClose, origin, initialRepl
   const docked = useMedia("(min-width: 768px)")
   return <Dialog modal={!docked} open={!!selected} onOpenChange={open => { if (!open) onClose() }}>
     <DialogContent className="board-drawer translate-x-0 translate-y-0 sm:max-w-none" onInteractOutside={e => { if (docked) e.preventDefault() }} onOpenAutoFocus={e => { e.preventDefault(); (e.currentTarget as HTMLElement).focus() }} onCloseAutoFocus={e => { e.preventDefault(); if (origin.current?.isConnected) origin.current.focus() }}>
-      {selected && <BoardDrawer key={selected.id + initialReply} initialReply={initialReply} project={proj} workflows={proj?.workflows ?? []} task={selected} statuses={statuses.map(s => s.id)} roles={roles} role={role(selected)} reason={proj?.blockedReasons?.[selected.id]} dir={dir} reload={reload} />}
+      {selected && <BoardDrawer key={selected.id + initialReply} initialReply={initialReply} project={proj} workflows={proj?.workflows ?? []} task={selected} statuses={statuses.map(s => s.id)} roles={roles} role={role(selected)} reason={proj?.blockedReasons?.[selected.id]} dir={dir} reload={reload} onOpen={onOpen} />}
     </DialogContent>
   </Dialog>
 }
@@ -57,7 +57,7 @@ export function Board({ dir, proj, reload }: { dir: string; proj?: Project; relo
     </header>
     {!statuses.length && <p className="board-empty">{proj ? "No board columns configured." : "Select a project to view tasks."}</p>}
     <div className="board-columns">{LANES.map(lane => {
-      const column = tasks.filter(t => laneOf(t.status) === lane).sort((a, b) => (b.updated || "").localeCompare(a.updated || ""))
+      const column = tasks.filter(t => laneOf(t.status) === lane).sort((a, b) => priorityRank(a.priority) - priorityRank(b.priority) || (b.updated || "").localeCompare(a.updated || ""))
       const live = column.some(t => proj?.workers?.[t.id]?.live)
       // "in progress" spans every working status, so a drop there has no single target status.
       const drop = lane !== "in progress"
@@ -70,12 +70,15 @@ export function Board({ dir, proj, reload }: { dir: string; proj?: Project; relo
         </header>
         <div className="board-cards">{column.map(t => {
           const working = proj?.workers?.[t.id]?.live
+          const state = needState(t, all)
           return <button type="button" key={t.id} draggable onDragStart={e => { e.dataTransfer.setData("text/task", t.id); e.dataTransfer.effectAllowed = "move" }} onDragEnd={() => setOver("")}
             onClick={e => { origin.current = e.currentTarget; setSelectedID(t.id) }} aria-label={`${shortId(t.id)}: ${title(t)}`} className={`board-card ${t.status === "blocked" ? "is-blocked" : ""}`}>
             <span className="card-title">{title(t)}</span>
             {t.status === "blocked" && <span className="blocked-reason">{proj?.blockedReasons?.[t.id] || t.note || "Awaiting a decision"}</span>}
             <span className="card-meta">
               <span className="board-key" title={t.id}>{shortId(t.id)}</span>
+              {!!priorityMark(t.priority) && <span className="card-prio" title={`${t.priority} priority`} aria-label={`${t.priority} priority`}>{priorityMark(t.priority)}</span>}
+              {!!state && <span className={`card-deps ${state === "ready" ? "is-ready" : ""}`}>{state}</span>}
               {lane === "in progress" && <span className="card-label" style={{ color: statusColor(t.status) }}>● {t.status}</span>}
               {t.workflow && <span className="card-label">{t.workflow}</span>}
               {!!t.comments?.length && <span className="inline-flex items-center gap-0.5" aria-label={`${t.comments.length} comments`}><MessageSquare className="size-3" />{t.comments.length}</span>}
@@ -86,6 +89,6 @@ export function Board({ dir, proj, reload }: { dir: string; proj?: Project; relo
         })}{!column.length && <p className="board-empty">{query || role || blocked ? "No match" : "Empty"}</p>}</div>
       </section>
     })}</div>
-    <TaskDrawer proj={proj} dir={dir} reload={reload} id={selectedID} onClose={() => setSelectedID(undefined)} origin={origin} />
+    <TaskDrawer proj={proj} dir={dir} reload={reload} id={selectedID} onClose={() => setSelectedID(undefined)} onOpen={setSelectedID} origin={origin} />
   </section>
 }

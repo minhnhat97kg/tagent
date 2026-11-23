@@ -144,8 +144,34 @@ var boardLanes = []string{"todo", "in progress", "blocked", "done"}
 
 func (m Model) laneOf(status string) string { return m.boardConfig.Lane(status) }
 
-// laneCards lists the ticket indexes in a lane, most recently updated first
-// (same order as the web board).
+// needState is a todo card's dependency badge: "waits #12, #15", "ready"
+// once every dependency is done, or "" without dependencies. A dependency
+// that no longer exists does not hold the card.
+func (m Model) needState(t tasks.Task) string {
+	if len(t.Needs) == 0 || t.Status != "todo" {
+		return ""
+	}
+	var open []string
+	for _, id := range t.Needs {
+		done, found := false, false
+		for _, n := range m.notes {
+			if n.ID == id {
+				done, found = n.Status == "done", true
+				break
+			}
+		}
+		if found && !done {
+			open = append(open, "#"+id)
+		}
+	}
+	if len(open) == 0 {
+		return "ready"
+	}
+	return "waits " + strings.Join(open, ", ")
+}
+
+// laneCards lists the ticket indexes in a lane: priority first, then most
+// recently updated (same order as the web board).
 func (m Model) laneCards(lane string) []int {
 	var cards []int
 	for i, t := range m.notes {
@@ -153,7 +179,12 @@ func (m Model) laneCards(lane string) []int {
 			cards = append(cards, i)
 		}
 	}
-	slices.SortStableFunc(cards, func(a, b int) int { return m.notes[b].Updated.Compare(m.notes[a].Updated) })
+	slices.SortStableFunc(cards, func(a, b int) int {
+		if r := tasks.PriorityRank(m.notes[a].Priority) - tasks.PriorityRank(m.notes[b].Priority); r != 0 {
+			return r
+		}
+		return m.notes[b].Updated.Compare(m.notes[a].Updated)
+	})
 	return cards
 }
 
@@ -306,7 +337,18 @@ func (m Model) boardCardLine(idx, width int) string {
 	if t.Status != m.laneOf(t.Status) {
 		status += " " + t.Status
 	}
-	return boardFit(style.Render(mark)+m.boardStyle(m.boardColor(t.Status)).Render(status)+m.boardStyle(m.theme.TextMuted).Render(" #"+t.ID+" ")+style.Render(boardTitle(t)), width)
+	badge := ""
+	if mark := tasks.PriorityMark(t.Priority); mark != "" {
+		badge += m.boardStyle(m.boardColor(t.Status)).Render(" " + mark)
+	}
+	if state := m.needState(t); state != "" {
+		color := m.theme.TextMuted
+		if state == "ready" {
+			color = m.theme.StatusDone
+		}
+		badge += m.boardStyle(color).Render(" " + state)
+	}
+	return boardFit(style.Render(mark)+m.boardStyle(m.boardColor(t.Status)).Render(status)+m.boardStyle(m.theme.TextMuted).Render(" #"+t.ID)+badge+" "+style.Render(boardTitle(t)), width)
 }
 
 // boardCard: title, then "● status #id role worker"; a blocked card adds its question.
@@ -334,6 +376,12 @@ func (m Model) boardCard(idx, width int) []string {
 	}
 	muted := m.boardStyle(m.theme.TextMuted)
 	meta := "  " + m.boardStyle(m.boardColor(t.Status)).Render("● "+t.Status) + muted.Render(" #"+t.ID+" "+role)
+	if mark := tasks.PriorityMark(t.Priority); mark != "" {
+		meta += m.boardStyle(m.boardColor(t.Status)).Render(" " + mark)
+	}
+	if state := m.needState(t); state != "" {
+		meta += muted.Render(" " + state)
+	}
 	if worker := m.boardWorker(t); worker != "" {
 		meta += " " + worker
 	}
@@ -1218,6 +1266,17 @@ func (m Model) boardKey(key string) (Model, tea.Cmd, bool) {
 			m.taskForm, m.taskStep = "start", 0
 		}
 		return m, nil, true
+	case "p": // priority cycle: normal -> high -> low -> normal
+		if len(m.notes) > 0 {
+			scope, id, next := m.notesScope, m.notes[m.taskCursor].ID, tasks.NextPriority(m.notes[m.taskCursor].Priority)
+			return m, func() tea.Msg { return actionResult("Priority "+next, tasks.SetPriority(scope, id, next)) }, true
+		}
+		return m, nil, true
+	case "D": // dependencies: ticket picker, space toggles, Enter saves
+		if len(m.notes) > 0 {
+			m.taskForm, m.taskStep, m.taskInput = "needs", 0, strings.Join(m.notes[m.taskCursor].Needs, ",")
+		}
+		return m, nil, true
 	case "e":
 		if len(m.notes) > 0 {
 			return m, editTaskText(m.notesScope, m.notes[m.taskCursor], m.tmuxPane, false), true
@@ -1285,5 +1344,21 @@ func (m Model) detailMaxScroll() int {
 }
 
 func (m Model) ticketHints() string {
-	return m.keyHints("h/l lane", "j/k card", "n new", "s start", "enter detail", "e edit", "C comment", "H/L status", "a files", "x delete", "w workflow", "B config", "? help")
+	return m.keyHints("h/l lane", "j/k card", "n new", "s start", "enter detail", "p priority", "D deps", "e edit", "C comment", "H/L status", "a files", "x delete", "w workflow", "B config", "? help")
+}
+
+// needCandidates lists the tickets the selected one may wait for (every ticket
+// but itself), in ticket order.
+func (m Model) needCandidates() []tasks.Task {
+	if m.taskCursor < 0 || m.taskCursor >= len(m.notes) {
+		return nil
+	}
+	id := m.notes[m.taskCursor].ID
+	out := make([]tasks.Task, 0, len(m.notes))
+	for _, t := range m.notes {
+		if t.ID != id {
+			out = append(out, t)
+		}
+	}
+	return out
 }

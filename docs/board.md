@@ -123,7 +123,10 @@ or pi), the tab is disabled and the summary line says why.
 
 Cards show the current status role and its live pane state, comment count, and
 repeated workflow-entry count when greater than one. Blocked tickets and tickets
-waiting for human input are highlighted. Pane matching uses the exact
+waiting for human input are highlighted. A todo card with dependencies shows
+`waits #12` (dim) or `ready`; a non-normal priority adds a small `↑`/`↓` marker.
+`p` cycles priority (normal → high → low) and `D` opens the dependency picker
+(j/k select, space toggles, Enter saves). Pane matching uses the exact
 `role#ticket` BoardTarget for the current status; assignment is metadata only.
 
 - `n`: new; `e`: edit; `x`: delete with confirmation.
@@ -228,7 +231,25 @@ first job; no name uses `default_workflow`. Board `s` opens a workflow picker
 For a deprecated board, `task start ID board` attaches the implicit `board`
 workflow. Existing pane names/IDs still select
 legacy manual dispatch, which requires a doing status; Tasks panel shares the board ticket actions.
-Needs (“blocked by”) and assignees are informational, never readiness gates.
+Assignees are metadata; `needs` are a start gate (see below).
+
+### Dependencies and priority
+
+`--needs` (on `task add`) and `task needs ID ids|-` record the tickets this one
+waits for. Dependencies gate the start: a ticket whose dependencies are not all
+done cannot leave todo — `start`, `move` and `set` refuse with
+`waiting for #12, #15`, the dispatcher never fires it, and the card shows a dim
+`waits #12` badge. When the last dependency reaches done the card turns to
+`ready`, but nothing starts it: a human still starts the ticket. Cycles, itself
+and unknown ids are rejected when saved; a deleted dependency stops blocking.
+The Details tab lists dependencies and dependents with their status (clickable
+in the web).
+
+Priority is `high`, `normal` (default) or `low` (`task add --priority`, `task
+priority ID ...`). Lanes sort by priority and then by the usual ticket order, and
+busy/approval dispatch queues deliver higher priority first. A card shows only a
+small `↑`/`↓` marker when the priority is not normal. In the TUI, `p` cycles the
+priority and `D` opens the dependency picker (space toggles, Enter saves).
 
 The dispatcher reserves each event before side effects. A status entry fires its
 role with instructions to read the full ticket, do that status's work, then

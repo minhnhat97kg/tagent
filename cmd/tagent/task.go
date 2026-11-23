@@ -29,7 +29,7 @@ func cmdTask(args []string, stdout, stderr io.Writer) int {
 		return exitOK
 	}
 	usage := func() int {
-		fmt.Fprintln(stderr, "usage: tagent task [ls] | add [--to name[,name]] [--needs id[,id]] <text> | done <id> [note] | move <id> <status> [comment] | retry <id> | start <id> <pane> | set <id> <configured-status> [note] | assign <id> <name[,name]|-> | show <id> | attachments <id> | comment <id> [--attach path]... [--diff] <text> | due <id> <YYYY-MM-DD|-> | rm <id>")
+		fmt.Fprintln(stderr, "usage: tagent task [ls] | add [--to name[,name]] [--needs id[,id]] [--priority high|normal|low] <text> | done <id> [note] | move <id> <status> [comment] | retry <id> | start <id> <pane> | set <id> <configured-status> [note] | assign <id> <name[,name]|-> | needs <id> <id[,id]|-> | priority <id> <high|normal|low> | show <id> | attachments <id> | comment <id> [--attach path]... [--diff] <text> | due <id> <YYYY-MM-DD|-> | rm <id>")
 		return exitUsage
 	}
 	var err error
@@ -150,7 +150,31 @@ func cmdTask(args []string, stdout, stderr io.Writer) int {
 		if t.Workflow != "" {
 			fmt.Fprintf(stdout, "Workflow: %s\nInputs: %v\nOutputs: %v\n", t.Workflow, t.Inputs, t.Outputs)
 		}
-		fmt.Fprintf(stdout, "Blocked by: %s (informational)\n", strings.Join(t.Needs, ","))
+		if mark := tasks.PriorityMark(t.Priority); mark != "" {
+			fmt.Fprintf(stdout, "Priority: %s %s\n", mark, tasks.NormalizePriority(t.Priority))
+		}
+		if len(t.Needs) > 0 {
+			fmt.Fprint(stdout, "Dependencies:")
+			for _, id := range t.Needs {
+				status := "missing"
+				if dep, e := tasks.Get(scope, id); e == nil {
+					status = dep.Status
+				}
+				fmt.Fprintf(stdout, " #%s (%s)", id, status)
+			}
+			if state := tasks.CardState(scope, t); state != "" {
+				fmt.Fprintf(stdout, "\nReadiness: %s\n", state)
+			} else {
+				fmt.Fprintln(stdout)
+			}
+		}
+		if dependents := tasks.Dependents(scope, t.ID); len(dependents) > 0 {
+			fmt.Fprint(stdout, "Blocks:")
+			for _, d := range dependents {
+				fmt.Fprintf(stdout, " #%s (%s)", d.ID, d.Status)
+			}
+			fmt.Fprintln(stdout)
+		}
 		if t.Note != "" {
 			fmt.Fprintln(stdout, "Note:", t.Note)
 		}
@@ -312,6 +336,8 @@ func cmdTask(args []string, stdout, stderr io.Writer) int {
 				opt.Inputs[k] = v
 			case "--needs":
 				opt.Needs = strings.Split(rest[1], ",")
+			case "--priority":
+				opt.Priority = rest[1]
 			default:
 				return usage()
 			}
@@ -356,6 +382,20 @@ func cmdTask(args []string, stdout, stderr io.Writer) int {
 				hook.Notify("task "+args[2], t.Text)
 			}
 		}
+	case "needs":
+		if len(args) != 3 {
+			return usage()
+		}
+		needs := []string{}
+		if args[2] != "-" {
+			needs = strings.Split(args[2], ",")
+		}
+		err = tasks.SetNeeds(scope, args[1], needs)
+	case "priority":
+		if len(args) != 3 {
+			return usage()
+		}
+		err = tasks.SetPriority(scope, args[1], args[2])
 	case "assign":
 		if len(args) != 3 {
 			return usage()
@@ -398,7 +438,7 @@ func taskBinding(scope string, args []string) error {
 	}
 	target := ""
 	switch args[0] {
-	case "attachments", "assign", "comment", "done", "due", "move", "retry", "rm", "set", "show", "start":
+	case "attachments", "assign", "comment", "done", "due", "move", "needs", "priority", "retry", "rm", "set", "show", "start":
 		if len(args) > 1 {
 			target = args[1]
 		}

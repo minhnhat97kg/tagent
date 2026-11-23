@@ -47,7 +47,8 @@ Edit the board from the web Board header (Settings, `#/board/config`) or the TUI
 board: `B` shows the default workflow, roles and triggers, `E` opens `$EDITOR`. Saves are
 validated; an error names its line and keeps the loaded config.
 Roles map to harness/agent instructions and optional models; models affect new
-panes only. Legacy `.claude`/`.codex`/`.opencode` agent files are read-only. Assignees and ticket `needs` are informational, not prerequisites.
+panes only. Legacy `.claude`/`.codex`/`.opencode` agent files are read-only. Assignees are metadata; ticket `needs` gate the start: a ticket with open dependencies cannot leave todo (CLI/TUI/web/dispatcher) and shows `waits #12` or `ready`.
+Priority is high/normal/low; lanes and the busy/approval queue order by it.
 
 ## Delegating
 
@@ -84,7 +85,8 @@ Re-entering a limited status beyond its cap blocks with an explanation.
 - `task due ID YYYY-MM-DD` (`-` clears): edits trigger, not passage of time.
 - `task assign ID role[,role]` (`-` clears): metadata unless triggers configured.
 - Create tickets with plain `task add`.
-- `task add [--to names] [--needs ids] "text"`; `task rm ID` for human cleanup.
+- `task add [--to names] [--needs ids] [--priority high|normal|low] "text"`; `task needs ID ids|-`;
+  `task priority ID high|normal|low`; `task rm ID` for human cleanup. Cycles/unknown ids are rejected.
 - `board init|run [--dir DIR]`: shared config/dispatcher.
 
 Main-worktree `.tasks/board.yaml` falls back to
