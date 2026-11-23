@@ -217,18 +217,24 @@ func TypeLine(pane, text string) {
 	retryPiSubmit(pane, text, 30*time.Second, 300*time.Millisecond)
 }
 
-// Retry only Enter, never the paste. Lifecycle idle alone is not proof that a
+// Retry only Enter, never the paste. Claude can also drop the Enter while it is
+// still taking in a long paste. Lifecycle idle alone is not proof that a
 // prompt was missed (a short turn may already have completed). Require the exact
 // original text in Pi's editor as well, not a match in transcript/history.
 func retryPiSubmit(pane, text string, timeout, poll time.Duration) {
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
 		time.Sleep(poll)
-		if GetPaneOptionValue(pane, PaneAgent) != "pi" || GetPaneOptionValue(pane, PaneStatusOpt) != string(StatusIdle) {
+		agent := GetPaneOptionValue(pane, PaneAgent)
+		if (agent != "pi" && agent != "claude") || GetPaneOptionValue(pane, PaneStatusOpt) != string(StatusIdle) {
 			return
 		}
 		screen, ok := RunTmux("capture-pane", "-p", "-t", pane)
-		if !ok || !piEditorContains(screen, text) {
+		contains := piEditorContains
+		if agent == "claude" {
+			contains = claudeEditorContains
+		}
+		if !ok || !contains(screen, text) {
 			return
 		}
 		RunTmux("send-keys", "-t", pane, "Enter")
@@ -249,7 +255,6 @@ func piEditorContains(screen, text string) bool {
 			bottom = i
 			continue
 		}
-		normalize := func(s string) string { return strings.Join(strings.Fields(s), "") }
 		body := lines[i+1 : bottom]
 		// A long prompt scrolls: pi shows "── ↑ N more ──" as the editor's first line
 		// and only the tail of the text, so match a suffix then.
@@ -257,11 +262,41 @@ func piEditorContains(screen, text string) bool {
 		if scrolled {
 			body = body[1:]
 		}
-		got, want := normalize(strings.Join(body, "\n")), normalize(text)
+		got, want := normalizeScreen(strings.Join(body, "\n")), normalizeScreen(text)
 		if got == "" || want == "" {
 			return false
 		}
 		return got == want || (scrolled && len(got) >= 20 && strings.HasSuffix(want, got))
 	}
 	return false
+}
+
+func normalizeScreen(s string) string { return strings.Join(strings.Fields(s), "") }
+func isRule(line string) bool {
+	line = strings.TrimSpace(line)
+	return len([]rune(line)) >= 3 && strings.Trim(line, "─") == ""
+}
+
+// claudeEditorContains reports an unsent prompt in Claude's input box: the text
+// above its bottom rule. A long prompt can be taller than the pane, so only its
+// tail (or Claude's "[Pasted text" placeholder) may be visible.
+func claudeEditorContains(screen, text string) bool {
+	lines := strings.Split(strings.TrimRight(screen, "\n"), "\n")
+	bottom := len(lines) - 1
+	for bottom >= 0 && !isRule(lines[bottom]) {
+		bottom--
+	}
+	if bottom < 0 {
+		return false
+	}
+	top := bottom - 1
+	for top >= 0 && !isRule(lines[top]) {
+		top--
+	}
+	body := strings.TrimLeft(strings.TrimSpace(strings.Join(lines[top+1:bottom], "\n")), "❯> ")
+	if strings.HasPrefix(body, "[Pasted text") {
+		return true
+	}
+	got, want := normalizeScreen(body), normalizeScreen(text)
+	return got != "" && want != "" && (got == want || (len(got) >= 20 && strings.HasSuffix(want, got)))
 }
