@@ -62,7 +62,7 @@ export function AgentsPage({ dir }: { dir: string }) {
         {poll.error ? <p role="alert" className="p-3 text-sm">Couldn't load agents. {poll.error.message}</p> : !poll.data ? <p className="p-3 text-sm text-muted-foreground">Loading…</p> : !roles.length ? <p className="p-3 text-sm text-muted-foreground">No agents yet.</p> : null}
         {roles.map(r => <button key={r.source + r.name} onClick={() => open(r)} aria-current={draft?.name === r.name}
           className={`block w-full border-b px-3 py-2 text-left hover:bg-accent ${draft?.name === r.name ? "bg-accent" : ""}`}>
-          <div className="flex items-center gap-1.5 text-[13px] font-medium">{r.name}<span className="text-[10.5px] font-normal text-muted-foreground">{r.source}</span>{r.running > 0 && <span className="ml-auto text-[11px] text-emerald-600">● {r.running}</span>}</div>
+          <div className="flex items-center gap-1.5 text-[13px] font-medium">{r.name}<span className="text-[10.5px] font-normal text-muted-foreground">{r.source === "global" ? "global" : "local"}</span>{r.running > 0 && <span className="ml-auto text-[11px] text-emerald-600">● {r.running}</span>}</div>
           <p className="truncate text-[11.5px] text-muted-foreground">{r.harness}{r.model ? ` · ${r.model}` : ""}</p>
           <p className="line-clamp-2 text-[11px] text-muted-foreground">{usedBySummary(r)}</p>
         </button>)}
@@ -70,7 +70,7 @@ export function AgentsPage({ dir }: { dir: string }) {
       {!draft ? <div className="hidden flex-1 items-center justify-center text-sm text-muted-foreground md:flex">Select an agent to edit its harness, model and instructions.</div> :
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-auto">
           <div className="flex shrink-0 flex-wrap items-center gap-2 border-b px-3 py-1.5">
-            <h3 className="mr-auto truncate text-[13px] font-semibold">{draft.name}{dirty && <span className="ml-1 text-amber-600">•</span>}<span className="ml-2 text-[11px] font-normal text-muted-foreground">{draft.source}{draft.path ? ` · ${draft.path}` : ""}</span></h3>
+            <h3 className="mr-auto truncate text-[13px] font-semibold">{draft.name}{dirty && <span className="ml-1 text-amber-600">•</span>}<span className="ml-2 text-[11px] font-normal text-muted-foreground">{draft.source === "global" ? "global" : "local"}{draft.path ? ` · ${draft.path}` : ""}</span></h3>
             {draft.source === "global"
               ? <Button size="xs" variant="outline" disabled={busy} onClick={() => void save({ ...draft, source: "repo", path: "" })}><Copy />Copy to repo</Button>
               : <>

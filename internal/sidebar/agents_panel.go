@@ -63,9 +63,9 @@ func (m Model) agentStripLines(width int) []string {
 		if first == "" {
 			first = "no instructions"
 		}
-		title := m.boardStyle(m.theme.TextPrimary).Bold(true).Render(a.Name)
+		title := m.boardStyle(m.theme.TextPrimary).Bold(true).Render(a.Name) + "  " + dim.Render(agentScope(a))
 		if a.Source == "global" {
-			title += "  " + dim.Render("global · read-only")
+			title += dim.Render(" · read-only")
 		}
 		return []string{
 			boardFit(title, width),
@@ -98,9 +98,17 @@ func (m Model) agentStripLines(width int) []string {
 			run = "  " + m.boardStyle(m.theme.StatusRunning).Render(fmt.Sprintf("● %d", a.Running))
 		}
 		name := m.boardStyle(m.theme.TextPrimary).Bold(true).Render(a.Name) + strings.Repeat(" ", nameW-lipgloss.Width(a.Name))
-		lines = append(lines, boardFit(mark+name+"  "+dim.Render(a.Harness+strings.Repeat(" ", harnessW-lipgloss.Width(a.Harness))+"  "+model)+run, width))
+		lines = append(lines, boardFit(mark+name+"  "+dim.Render(a.Harness+strings.Repeat(" ", harnessW-lipgloss.Width(a.Harness))+"  "+model)+"  "+m.boardStyle(m.theme.TextDim).Render(agentScope(a))+run, width))
 	}
 	return lines
+}
+
+// agentScope is "global" (~/.config/tmux-agent) or "local" (this repo / board).
+func agentScope(a agents.Agent) string {
+	if a.Source == "global" {
+		return "global"
+	}
+	return "local"
 }
 
 func agentSummary(a agents.Agent) string {
