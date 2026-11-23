@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { Suspense, lazy, useEffect, useRef, useState } from 'react'
 import { ArrowDown, ArrowLeft, ArrowRight, Bot, Loader2, Repeat, CheckCircle2, CircleDot, Play, Plus, Save, Terminal, Trash2, Workflow as WorkflowIcon } from 'lucide-react'
 import { api, send } from '@/api'
 import { usePoll } from '@/hooks/usePoll'
@@ -6,10 +6,13 @@ import { enc } from '@/hooks/useRoute'
 import { Button } from '@/components/ui/button'
 import { shortId, statusColor, title } from '@/components/BoardDrawer'
 import type { Run, Task } from '@/types'
+import { jobRanges } from '@/components/workflowYaml'
+
+const WorkflowYamlEditor = lazy(() => import('@/components/WorkflowYamlEditor'))
 
 type Job = { ID: string; Status: string; Agent: string; Model: string; Prompt: string; Run: string; Outputs: string[]; OnFailure: string; MaxLoops: number }
 type Input = { Description: string; Default: string; Required: boolean }
-type Flow = { key: string; name: string; global: boolean; yaml: string; description: string; error: string; jobs: Job[]; inputs: Record<string, Input>; total: number; running: number; lastUsed: string }
+type Flow = { key: string; name: string; global: boolean; yaml: string; description: string; error: string; errorLine: number; jobs: Job[]; inputs: Record<string, Input>; total: number; running: number; lastUsed: string }
 type Preview = { Name: string; Description: string; Jobs: Job[] }
 
 export function WorkflowsPage({ dir, initial = '', ticket, runs }: { dir: string; initial?: string; ticket?: Task; runs?: Run[] }) {
@@ -19,7 +22,7 @@ export function WorkflowsPage({ dir, initial = '', ticket, runs }: { dir: string
 type Box = { top: number; bottom: number }
 // FlowChart draws the recipe as it runs: ticket → each step → done. Failure routes back to an earlier
 // step are drawn as edges on the right; with a ticket it also shows how many times each step ran.
-function FlowChart({ jobs, ticket, runs }: { jobs: Job[]; ticket?: Task; runs?: Run[] }) {
+function FlowChart({ jobs, ticket, runs, active, onSelect }: { jobs: Job[]; ticket?: Task; runs?: Run[]; active: string; onSelect: (id: string) => void }) {
   const wrap = useRef<HTMLDivElement>(null)
   const cards = useRef<Record<string, HTMLElement | null>>({})
   const [boxes, setBoxes] = useState<Record<string, Box>>({})
@@ -48,8 +51,8 @@ function FlowChart({ jobs, ticket, runs }: { jobs: Job[]; ticket?: Task; runs?: 
       const n = entered(j.Status), current = i === at, done = at >= 0 && i < at
       return <div key={j.ID}>
         {arrow(i > 0 && jobs[i - 1].Run ? 'pass' : '')}
-        <details ref={el => { cards.current[j.ID] = el }} className={`group rounded-lg border bg-card shadow-sm ${current ? 'ring-2 ring-foreground/70' : ''} ${ticket && !current && !done && !n ? 'opacity-60' : ''}`} style={{ borderLeft: `3px solid ${statusColor(j.Status)}` }}>
-          <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2">
+        <details ref={el => { cards.current[j.ID] = el }} className={`group rounded-lg border bg-card shadow-sm ${active === j.ID ? 'ring-2 ring-sky-500' : current ? 'ring-2 ring-foreground/70' : ''} ${ticket && !current && !done && !n ? 'opacity-60' : ''}`} style={{ borderLeft: `3px solid ${statusColor(j.Status)}` }}>
+          <summary onClick={() => onSelect(j.ID)} className="flex cursor-pointer list-none items-center gap-2 px-3 py-2">
             {done ? <CheckCircle2 className="size-4 shrink-0 text-emerald-600" /> : current ? <Loader2 className="size-4 shrink-0 animate-spin text-foreground" /> : j.Run ? <Terminal className="size-4 shrink-0 text-sky-600" /> : <Bot className="size-4 shrink-0 text-indigo-600" />}
             <span className="font-medium">{j.ID}</span>
             <span className="rounded px-1.5 text-[11px]" style={{ color: statusColor(j.Status), background: 'var(--muted)' }}>{j.Status}</span>
@@ -93,6 +96,15 @@ function RunLog({ runs }: { runs: Run[] }) {
   </ol>
 }
 
+// parseError reads the server's JSON {error, line}; older or plain-text failures have no line.
+function parseError(text: string): { error: string; line: number } {
+  try {
+    const v = JSON.parse(text) as { error?: unknown; line?: unknown }
+    if (typeof v.error === 'string') return { error: v.error, line: Number(v.line) || 0 }
+  } catch { /* plain text */ }
+  return { error: text, line: 0 }
+}
+
 function WorkflowEditor({ dir, initial, ticket, runs }: { dir: string; initial: string; ticket?: Task; runs?: Run[] }) {
   const path = '/api/workflows?dir=' + enc(dir)
   const poll = usePoll(() => api<Flow[]>(path), 2000, dir)
@@ -100,6 +112,9 @@ function WorkflowEditor({ dir, initial, ticket, runs }: { dir: string; initial: 
   const [yaml, setYAML] = useState('')
   const [preview, setPreview] = useState<Preview>()
   const [validation, setValidation] = useState('')
+  const [validationLine, setValidationLine] = useState(0)
+  const [goto, setGoto] = useState<{ line: number; to?: number }>()
+  const [activeJob, setActiveJob] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [run, setRun] = useState<Flow>()
@@ -113,8 +128,8 @@ function WorkflowEditor({ dir, initial, ticket, runs }: { dir: string; initial: 
     const timer = setTimeout(() => {
       void send('POST', path, { Op: 'validate', YAML: yaml }).then(result => {
         if (!active || id !== revision.current) return
-        setPreview((result as { preview: Preview }).preview); setValidation('')
-      }).catch(e => { if (active && id === revision.current) setValidation((e as Error).message) })
+        setPreview((result as { preview: Preview }).preview); setValidation(''); setValidationLine(0)
+      }).catch(e => { if (active && id === revision.current) { const { error, line } = parseError((e as Error).message); setValidation(error); setValidationLine(line) } })
     }, 250)
     return () => { active = false; clearTimeout(timer) }
   }, [yaml, selected, path])
@@ -127,7 +142,7 @@ function WorkflowEditor({ dir, initial, ticket, runs }: { dir: string; initial: 
   const dirty = !!selected && yaml !== selected.yaml
   function open(f?: Flow) {
     if (dirty && !confirm('Discard unsaved workflow changes?')) return
-    select(f); setYAML(f?.yaml ?? ''); setPreview(f && { Name: f.name, Description: f.description, Jobs: f.jobs }); setError(''); setValidation(f?.error ?? '')
+    select(f); setYAML(f?.yaml ?? ''); setPreview(f && { Name: f.name, Description: f.description, Jobs: f.jobs }); setError(''); setValidation(f?.error ?? ''); setValidationLine(f?.errorLine ?? 0); setActiveJob(''); setGoto(undefined)
   }
   function start(f: Flow) { setRun(f); setError(''); setValues(Object.fromEntries(Object.entries(f.inputs ?? {}).map(([key, value]) => [key, value.Default]))) }
   const flows = poll.data ?? []
@@ -135,6 +150,9 @@ function WorkflowEditor({ dir, initial, ticket, runs }: { dir: string; initial: 
   const [pending, setPending] = useState(initial)
   if (pending && poll.data) { setPending(''); const f = flows.find(x => x.name === pending || x.key === pending); if (f) open(f) }
   const fieldClass = 'w-full rounded border bg-background p-2'
+  // Flow card → YAML: jump to the job's lines. YAML cursor → flow: the job under the cursor rings its card.
+  function jobAt(line: number) { return Object.entries(jobRanges(yaml)).find(([, r]) => line >= r.from && line <= r.to)?.[0] ?? '' }
+  function selectJob(id: string) { const r = jobRanges(yaml)[id]; setActiveJob(id); if (r) setGoto({ line: r.from, to: r.to }) }
 
   return <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg border bg-card">
     <header className="flex h-10 shrink-0 items-center gap-2 border-b px-3">
@@ -163,16 +181,19 @@ function WorkflowEditor({ dir, initial, ticket, runs }: { dir: string; initial: 
               <Button size="xs" variant="ghost" aria-label="Delete workflow" disabled={busy} onClick={() => { if (confirm('Delete workflow?')) void mutate('DELETE', { Name: selected.key }) }}><Trash2 /></Button>
             </>}
           </div>
-          {(validation || error) && <p role="alert" className="shrink-0 whitespace-pre-wrap border-b bg-destructive/5 px-3 py-1.5 text-xs text-destructive">{validation || error}</p>}
+          {(validation || error) && <p role="alert" className="shrink-0 whitespace-pre-wrap border-b bg-destructive/5 px-3 py-1.5 text-xs text-destructive">{validation && validationLine > 0 ? <button type="button" className="text-left underline decoration-dotted underline-offset-2" onClick={() => setGoto({ line: validationLine })}>Line {validationLine}: {validation}</button> : validation || error}</p>}
           <div className="grid min-h-0 flex-1 grid-rows-2 md:grid-cols-2 md:grid-rows-1">
             <div className="flex min-h-0 flex-col border-b md:border-b-0 md:border-r">
               <div className="shrink-0 px-3 pt-2 text-[11px] font-medium text-muted-foreground">YAML{selected.global && ' · global, read-only'}</div>
-              <textarea aria-label="Workflow YAML" spellCheck={false} readOnly={selected.global} value={yaml} onChange={e => setYAML(e.target.value)}
-                className="min-h-0 flex-1 resize-none bg-transparent p-3 font-mono text-[12px] leading-5 outline-none" />
+              <div className={`min-h-0 flex-1 ${selected.global ? 'bg-muted/40' : ''}`}>
+                <Suspense fallback={<pre className="h-full overflow-auto p-3 font-mono text-[12px] leading-5">{yaml}</pre>}>
+                  <WorkflowYamlEditor key={selected.key + selected.global} value={yaml} onChange={setYAML} readOnly={selected.global} errorLine={validationLine} errorMessage={validation} goto={goto} onCursor={line => setActiveJob(jobAt(line))} />
+                </Suspense>
+              </div>
             </div>
             <div className="min-h-0 overflow-auto p-3">
               <div className="mb-2 text-[11px] font-medium text-muted-foreground">{ticket ? `Run of ${shortId(ticket.id)} · ${ticket.status}` : 'Flow'}{validation && ' · last valid version'}</div>
-              <FlowChart jobs={preview?.Jobs ?? selected.jobs ?? []} ticket={ticket} runs={runs} />
+              <FlowChart jobs={preview?.Jobs ?? selected.jobs ?? []} ticket={ticket} runs={runs} active={activeJob} onSelect={selectJob} />
               {!!runs?.length && <RunLog runs={runs} />}
             </div>
           </div>

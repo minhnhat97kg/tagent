@@ -19,3 +19,26 @@ func TestExpand(t *testing.T) {
 		t.Fatal(got)
 	}
 }
+
+func TestErrorLine(t *testing.T) {
+	for src, want := range map[string]int{
+		"jobs:\n  a: {run: x}\n  a: {run: y}\n":                     3, // duplicate key is a yaml error, line from parser
+		"jobs:\n  a: {run: x}\n  b: {run: y, needs: z}\n":           3,
+		"jobs:\n  a: {run: x}\n  b: {run: y, needs: b}\n":           3,
+		"jobs:\n  a:\n    run: x\n    bogus: 1\n":                   4,
+		"jobs:\n  a: {run: x, needs: b}\n  b: {run: y, needs: a}\n": 2,
+		"jobs:\n  a: {run: x}\n  b: {run: y, status: done}\n":       3,
+		"jobs:\n  a: {agent: reviewer, run: x}\n":                   2,
+	} {
+		_, err := Parse([]byte(src))
+		if err == nil {
+			t.Fatalf("accepted %q", src)
+		}
+		if got := ErrorLine(err); got != want {
+			t.Errorf("%q: line %d, want %d (%v)", src, got, want, err)
+		}
+	}
+	if ErrorLine(nil) != 0 {
+		t.Fatal("nil error has a line")
+	}
+}

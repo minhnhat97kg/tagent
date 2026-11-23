@@ -47,3 +47,13 @@ func TestAgentActionRejectsNonAgent(t *testing.T) {
 		t.Fatalf("got %d", w.Code)
 	}
 }
+
+func TestWorkflowValidateReturnsLine(t *testing.T) {
+	s := &server{dir: t.TempDir()}
+	r := httptest.NewRequest("POST", "/api/workflows", strings.NewReader(`{"Op":"validate","YAML":"jobs:\n  a: {run: x}\n  b: {run: y, needs: z}\n"}`))
+	w := httptest.NewRecorder()
+	s.workflows(w, r)
+	if w.Code != 400 || !strings.Contains(w.Body.String(), `"line":3`) {
+		t.Fatalf("%d %s", w.Code, w.Body.String())
+	}
+}

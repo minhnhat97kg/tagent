@@ -2,6 +2,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"gopkg.in/yaml.v3"
 	"io"
@@ -9,9 +10,37 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"tagent/internal/apppath"
 )
+
+// Error is a parse failure tied to a 1-based source line (0 when none).
+type Error struct {
+	Line int
+	Msg  string
+}
+
+func (e *Error) Error() string { return e.Msg }
+
+var lineRE = regexp.MustCompile(`line (\d+)`)
+
+// ErrorLine returns the source line of a Parse error, or 0 when it has none.
+func ErrorLine(err error) int {
+	var e *Error
+	if errors.As(err, &e) {
+		return e.Line
+	}
+	if err == nil {
+		return 0
+	}
+	m := lineRE.FindStringSubmatch(err.Error())
+	if m == nil {
+		return 0
+	}
+	n, _ := strconv.Atoi(m[1])
+	return n
+}
 
 type Input struct {
 	Description string `yaml:"description"`
@@ -73,10 +102,12 @@ func Parse(b []byte) (Workflow, error) {
 		return w, fmt.Errorf("no jobs")
 	}
 	ids := map[string]Job{}
+	lines := map[string]int{}
 	statuses := map[string]string{"todo": "", "done": "", "blocked": ""}
 	for i := 0; i < len(raw.Jobs.Content); i += 2 {
 		var j Job
-		n := raw.Jobs.Content[i+1]
+		key, n := raw.Jobs.Content[i], raw.Jobs.Content[i+1]
+		j.ID = key.Value
 		data, e := yaml.Marshal(n)
 		if e != nil {
 			return w, e
@@ -84,42 +115,45 @@ func Parse(b []byte) (Workflow, error) {
 		dec := yaml.NewDecoder(strings.NewReader(string(data)))
 		dec.KnownFields(true)
 		if e = dec.Decode(&j); e != nil {
-			return w, e
+			// The fragment restarts at line 1, so shift the reported line onto the file.
+			line := n.Line + max(ErrorLine(e), 1) - 1
+			msg := strings.Replace(e.Error(), lineRE.FindString(e.Error()), fmt.Sprintf("line %d", line), 1)
+			return w, &Error{line, msg}
 		}
-		j.ID = raw.Jobs.Content[i].Value
 		if _, ok := ids[j.ID]; ok {
-			return w, fmt.Errorf("duplicate job %s", j.ID)
+			return w, errAt(key.Line, "duplicate job %s", j.ID)
 		}
 		if j.Status == "" {
 			j.Status = j.ID
 		}
 		if _, ok := statuses[j.Status]; ok {
-			return w, fmt.Errorf("duplicate/reserved status %s", j.Status)
+			return w, errAt(key.Line, "duplicate/reserved status %s", j.Status)
 		}
 		if (j.Run == "") == (j.Agent == "") || (j.Run != "" && (j.Prompt != "" || j.Model != "")) || j.MaxLoops < 0 {
-			return w, fmt.Errorf("job %s requires run or agent (+ optional prompt)", j.ID)
+			return w, errAt(key.Line, "job %s requires run or agent (+ optional prompt)", j.ID)
 		}
 		ids[j.ID] = j
+		lines[j.ID] = key.Line
 		statuses[j.Status] = j.ID
 	}
 	next := map[string]string{}
 	root := ""
 	for id, j := range ids {
 		if len(j.Needs) > 1 {
-			return w, fmt.Errorf("parallel jobs not supported yet")
+			return w, errAt(lines[id], "parallel jobs not supported yet")
 		}
 		if len(j.Needs) == 0 {
 			if root != "" {
-				return w, fmt.Errorf("parallel jobs not supported yet")
+				return w, errAt(lines[id], "parallel jobs not supported yet")
 			}
 			root = id
 		} else {
 			p := j.Needs[0]
 			if _, ok := ids[p]; !ok {
-				return w, fmt.Errorf("unknown needs %s", p)
+				return w, errAt(lines[id], "unknown needs %s", p)
 			}
 			if next[p] != "" {
-				return w, fmt.Errorf("parallel jobs not supported yet")
+				return w, errAt(lines[id], "parallel jobs not supported yet")
 			}
 			next[p] = id
 		}
@@ -130,6 +164,11 @@ func Parse(b []byte) (Workflow, error) {
 		w.Jobs = append(w.Jobs, ids[id])
 	}
 	if len(seen) != len(ids) {
+		for i := 0; i < len(raw.Jobs.Content); i += 2 {
+			if id := raw.Jobs.Content[i].Value; !seen[id] {
+				return w, errAt(raw.Jobs.Content[i].Line, "jobs need each other in a cycle")
+			}
+		}
 		return w, fmt.Errorf("jobs need each other in a cycle")
 	}
 	for _, j := range w.Jobs {
@@ -137,14 +176,17 @@ func Parse(b []byte) (Workflow, error) {
 			a, job := ids[j.OnFailure]
 			owner, status := statuses[j.OnFailure]
 			if !job && !status {
-				return w, fmt.Errorf("unknown on-failure %s", j.OnFailure)
+				return w, errAt(lines[j.ID], "unknown on-failure %s", j.OnFailure)
 			}
 			if job && status && owner != a.ID {
-				return w, fmt.Errorf("ambiguous on-failure %s", j.OnFailure)
+				return w, errAt(lines[j.ID], "ambiguous on-failure %s", j.OnFailure)
 			}
 		}
 	}
 	return w, nil
+}
+func errAt(line int, format string, a ...any) error {
+	return &Error{line, fmt.Sprintf(format, a...)}
 }
 func LocalDir(root string) string { return filepath.Join(root, ".tasks", "workflows") }
 func GlobalDir() string {

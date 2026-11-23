@@ -18,6 +18,7 @@
   --sidebar-border: #e4e4e7; --sidebar-accent: #f4f4f5;
   --term-bg: #ffffff; --term-fg: #18181b;
   --line: #18181b1c; --line-strong: #18181b33;
+  --yaml-string: #047857; --yaml-literal: #c2410c; --yaml-expr: #0369a1;
 }
 /* Dark follows the tagent theme setting (@agent_theme), same as the TUI. */
 .dark {
@@ -36,6 +37,7 @@
   --sidebar-border: #2e2e33; --sidebar-accent: #27272a;
   --term-bg: #18181b; --term-fg: #e4e4e7;
   --line: #ffffff1a; --line-strong: #ffffff33;
+  --yaml-string: #6ee7b7; --yaml-literal: #fdba74; --yaml-expr: #7dd3fc;
 }
 
 .notification-popover { max-height: min(560px, calc(var(--app-height, 100dvh) - 60px)); }
