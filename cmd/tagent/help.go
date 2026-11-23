@@ -14,6 +14,8 @@ Agents
   list [--json]                Running panes and their status
   agents [name]                List repo agents or show one definition (roles is an alias)
   new --repo-agent NAME        Start a repo agent; --agent and --model choose the harness
+  chat [--dir DIR] [--agent claude|pi] [--clear] ticket
+                               One assistant pane per ticket, bound to it (see task)
   name [pane] name             Name a running pane
   read pane [-n lines]         Read a pane's screen
   send pane [options] text     Send or queue a prompt
@@ -40,6 +42,7 @@ task move id status [--output k=v]... [comment]  Handoff along configured transi
   board init|run|validate [--dir DIR]  Create config / run triggers / validate config
                                      board.yaml roles support agent, model, effort (edit in the board's Agents panel or the web Agents page)
   task rm id                   Delete a task
+  task [ls] from a chat pane   Listing is read-only; a chat pane may only change its own ticket
   stats [ls|clear]             View or clear Claude/Codex/OpenCode/Pi usage
   ctx [--global] ...           Share notes (ls, add, rm, clear, scope)
   ask [--role name] text       Delegate to an idle agent or start one

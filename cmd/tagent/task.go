@@ -18,6 +18,10 @@ import (
 func cmdTask(args []string, stdout, stderr io.Writer) int {
 	wd, _ := os.Getwd()
 	scope := tasks.Scope(wd)
+	if err := taskBinding(scope, args); err != nil {
+		fmt.Fprintln(stderr, "task:", err)
+		return exitFailure
+	}
 	if len(args) == 0 || (len(args) == 1 && args[0] == "ls") {
 		for _, t := range tasks.List(scope) {
 			fmt.Fprintf(stdout, "%s\t%s\t%s\t%s\n", t.ID, t.Status, strings.Join(t.Assignees, ","), t.Text)
@@ -374,4 +378,36 @@ func cmdTask(args []string, stdout, stderr io.Writer) int {
 		return exitFailure
 	}
 	return exitOK
+}
+
+// taskBinding keeps a per-ticket chat pane on its ticket: the pane option
+// @pane_ticket names one <scope>#<id>, and every command that targets a ticket
+// must name that same ticket. Listing is read-only and stays allowed; adding a
+// ticket is not — the chat changes its own ticket, not the board. This guards
+// the CLI only: a shell can still unset TMUX_PANE or change directory.
+func taskBinding(scope string, args []string) error {
+	boundScope, bound, ok := tasks.CallerTicket()
+	if !ok {
+		return nil
+	}
+	if boundScope != scope {
+		return fmt.Errorf("this pane is bound to %s; refusing tasks from %s", boundScope, scope)
+	}
+	if len(args) == 0 || args[0] == "ls" {
+		return nil
+	}
+	target := ""
+	switch args[0] {
+	case "attachments", "assign", "comment", "done", "due", "move", "retry", "rm", "set", "show", "start":
+		if len(args) > 1 {
+			target = args[1]
+		}
+	}
+	if target == bound {
+		return nil
+	}
+	if target == "" {
+		return fmt.Errorf("this pane is bound to ticket %s; it may not run %q", bound, args[0])
+	}
+	return fmt.Errorf("this pane is bound to ticket %s; refusing ticket %s", bound, target)
 }

@@ -71,6 +71,8 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("POST /api/tasks", s.taskOp)
 	mux.HandleFunc("GET /api/tasks/{id}/attachments", s.attachments)
 	mux.HandleFunc("GET /api/tasks/{id}/run", s.run)
+	mux.HandleFunc("GET /api/tickets/{id}/chat", s.ticketChat)
+	mux.HandleFunc("POST /api/tickets/{id}/chat", s.ticketChat)
 	mux.HandleFunc("POST /api/tasks/{id}/attachments", s.attachments)
 	mux.HandleFunc("GET /api/config", s.settings)
 	mux.HandleFunc("POST /api/config", s.settings)
@@ -121,6 +123,7 @@ type server struct {
 	pinned     sync.Map
 	sizeOwners terminalOwners
 	chatClaims sync.Map // panes whose size Chat borrowed for a clipped question
+	chatLocks  sync.Map // per-ticket mutex around resolving/spawning a chat pane
 	deps       apiDeps
 }
 

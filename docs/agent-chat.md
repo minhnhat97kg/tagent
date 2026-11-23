@@ -34,3 +34,33 @@ Chat never answers an approval. When the agent is waiting, Chat shows the prompt
 ## How it works
 
 `GET /api/agents/<pane>/transcript?after=<cursor>` reads the pane's session (id from the agent hooks) and returns the active branch of its transcript as items `{id, role, text, tool, time}`. `after` is the last item id the page has; the response holds only newer items, or `reset` when that id is gone (for example after `/clear`). Parsers live in `internal/transcript` (`claude.go`, `pi.go`). Sending goes to `POST /api/pane/send`.
+
+## Per-ticket chat (backend)
+
+A ticket's chat is an ordinary agent pane (claude or pi) dedicated to that
+ticket; there is no separate harness. Chat stays on the same path as above:
+messages go to `POST /api/pane/send`, the feed comes from the transcript
+endpoint, and the pane keeps running in tmux.
+
+- **Scope key**: `tasks.TicketScope(dir, id)` = `<project scope>#<ticket id>`,
+  e.g. `tmux-agent-1a2b3c4d#12`. The project scope is shared by all worktrees.
+  It is stored in the pane option `@pane_ticket`.
+- **Spawn and reuse**: `tagent chat [--dir DIR] [--agent claude|pi] [--model M] [--clear] <id>`
+  reuses the pane bound to the key, or starts one with the normal spawn path. The
+  first message is `tasks.ContextFor(scope, id)`: ticket title, description,
+  status and workflow step/next, assignees, due, note, inputs/outputs, comments
+  and attachment paths. Reusing a pane never re-sends the context; `--clear`
+  closes the pane, drops its queue and starts again from the context.
+- **API**: `GET /api/tickets/<id>/chat?dir=<repo>` reports the pane
+  (`{key,pane,harness,status,available,reason}`) without starting anything;
+  `POST` with optional `{agent,clear}` starts or reuses it and returns the same
+  shape plus `created`. A missing ticket is 404. `available:false` means a pane
+  bound to the ticket runs a harness Chat cannot read (not claude/pi).
+- **Tools bound to the ticket**: from a pane with `@pane_ticket`, `tagent task`
+  accepts only that ticket's id (plus read-only `ls`); `add` and other tickets
+  are refused. This guards the CLI, not a shell that unsets `TMUX_PANE` or runs
+  elsewhere.
+
+The conversation itself lives in the pane transcript, so it is the same for
+Web and TUI and disappears when the pane is cleared. The older per-project
+receptionist/intake harness was removed; this path replaces it.

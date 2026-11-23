@@ -28,6 +28,7 @@ import (
 // it) can ask for.
 type spawnOpts struct {
 	Name, Agent, Model, Effort, Cwd, Role string
+	Ticket                                string // bind the pane to this ticket (per-ticket chat)
 	ConfigDir                             string
 	Worktree                              bool
 	Args                                  []string // extra agent arguments
@@ -49,6 +50,11 @@ func spawnAgent(o spawnOpts) (pane, warn string, err error) {
 
 	if o.ConfigDir == "" {
 		o.ConfigDir = o.Cwd
+	}
+	if o.Ticket != "" {
+		if _, err := tasks.Get(tasks.Scope(o.ConfigDir), o.Ticket); err != nil {
+			return "", "", fmt.Errorf("ticket %q: %w", o.Ticket, err)
+		}
 	}
 	// A role declared only in .tasks/board.yaml (e.g. pi roles) has no definition
 	// file: start its harness/model directly, named after the role.
@@ -174,6 +180,11 @@ func spawnAgent(o spawnOpts) (pane, warn string, err error) {
 	}
 	if o.Name != "" {
 		tmux.SetPaneOption(pane, tmux.PaneName, o.Name)
+	}
+	if o.Ticket != "" {
+		// The project scope, not just the id: a tool call can come from a worktree
+		// and must still resolve to the same board.
+		tmux.SetPaneOption(pane, tmux.PaneTicket, tasks.TicketScope(o.ConfigDir, o.Ticket))
 	}
 	if o.Role != "" {
 		tmux.SetPaneOption(pane, roleOption, o.Role)

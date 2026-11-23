@@ -24,6 +24,9 @@ const (
 	PaneName = "@pane_name"
 	// BoardTarget is "<agent>#<task id>": the board agent and task a pane answers for.
 	BoardTarget = "@board_target"
+	// PaneTicket is "<project scope>#<ticket id>": the per-ticket chat a pane
+	// answers for. `tagent task` refuses other tickets from that pane.
+	PaneTicket = "@pane_ticket"
 	// PaneAttention — attention flag ("notification" / "clear").
 	PaneAttention = "@pane_attention"
 	// PaneCwd — working directory reported by the hook, takes priority over pane_current_path.

@@ -568,6 +568,7 @@ func cmdNew(args []string, stdout, stderr io.Writer) int {
 	fs.StringVar(&o.Cwd, "cwd", "", "working directory (default: the current directory)")
 	fs.StringVar(&o.Role, "role", "", "repo agent defined by the selected harness")
 	fs.StringVar(&o.Role, "repo-agent", "", "repo agent defined by the selected harness")
+	fs.StringVar(&o.Ticket, "ticket", "", "bind the pane to a ticket (per-ticket chat)")
 	fs.BoolVar(&o.Worktree, "worktree", false, "run in its own git worktree on branch agent/<name>")
 	noWait := fs.Bool("no-wait", false, "don't wait for the agent to come up")
 	if err := fs.Parse(args); err != nil {

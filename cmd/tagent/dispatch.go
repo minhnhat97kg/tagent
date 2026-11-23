@@ -111,6 +111,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return cmdReport(rest, stdout, stderr)
 	case "send":
 		return cmdSend(rest, stdout, stderr)
+	case "chat":
+		return cmdChat(rest, stdout, stderr)
 	case "config":
 		return config.Dispatch(rest, stdout, stderr)
 	case "roles", "agents":
