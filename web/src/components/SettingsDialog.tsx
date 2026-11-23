@@ -1,3 +1,4 @@
+import { getDisplayDefault, setDisplayDefault, type DisplayDefault } from "@/lib/transcript"
 import { Lock, RotateCcw } from "lucide-react"
 import { toast } from "sonner"
 import { api, post } from "@/api"
@@ -40,6 +41,15 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
           {!s.readOnly && s.value !== s.default && !s.secret ? <button type="button" aria-label={`Reset ${s.label}`} title={`Reset to ${s.default || "empty"}`} className="flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent" onClick={() => save(s, { Reset: true })}><RotateCcw className="size-3.5" /></button> : <span />}
         </div>)}</div>
       </section>)}
+      <section>
+        <h3>This device</h3>
+        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)_24px] items-center gap-3 rounded-lg border px-3 py-2">
+          <div className="min-w-0"><div className="text-[12.5px] font-medium">Agent display</div><div className="truncate text-[11px] text-muted-foreground">Default view for agents; the toggle beside Handoff overrides it per agent</div></div>
+          <select aria-label="Agent display" className="h-8 w-full rounded-md border bg-background px-2 text-[12.5px]" defaultValue={getDisplayDefault()} onChange={e => setDisplayDefault(e.target.value as DisplayDefault)}>
+            <option value="auto">Auto (Chat on phone)</option><option value="terminal">Terminal</option><option value="chat">Chat</option>
+          </select><span />
+        </div>
+      </section>
     </DialogContent>
   </Dialog>
 }

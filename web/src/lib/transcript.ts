@@ -46,11 +46,25 @@ const key = (pane: string) => `tagent.display.${pane}`
 export type DisplayMode = "terminal" | "chat"
 
 // Remembered per agent and device; storage can be blocked, so every access is guarded.
+// Device-wide default from Settings: "auto" picks Chat on phones, Terminal elsewhere.
+export type DisplayDefault = "auto" | DisplayMode
+const DEFAULT_KEY = "tagent.agentDisplay"
+export function getDisplayDefault(): DisplayDefault {
+  let v: string | null = null
+  try { v = localStorage.getItem(DEFAULT_KEY) } catch { /* blocked storage */ }
+  return v === "terminal" || v === "chat" ? v : "auto"
+}
+export function setDisplayDefault(v: DisplayDefault) {
+  try { localStorage.setItem(DEFAULT_KEY, v) } catch { /* not remembered */ }
+}
+
 export function getMode(pane: string, chatSupported: boolean): DisplayMode {
   if (!chatSupported) return "terminal"
   let saved: string | null = null
   try { saved = localStorage.getItem(key(pane)) } catch { /* private window or blocked storage */ }
   if (saved === "terminal" || saved === "chat") return saved
+  const fallback = getDisplayDefault()
+  if (fallback !== "auto") return fallback
   return typeof matchMedia === "function" && matchMedia("(max-width: 767px)").matches ? "chat" : "terminal"
 }
 
