@@ -6,7 +6,7 @@ import (
 )
 
 // Test binaries never reach the user's own tmux server: it holds the real notify URL (tests sent
-// Telegram messages) and the real agent panes. Every tmux call, including child processes, goes to a
+// remote push messages) and the real agent panes. Every tmux call, including child processes, goes to a
 // private socket directory; tests that need tmux start their own server there.
 func init() {
 	if !testing.Testing() {

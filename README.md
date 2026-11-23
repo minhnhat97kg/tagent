@@ -152,6 +152,7 @@ Run `tagent help` to see the commands and the agents defined in the current repo
 | `tagent report wait <file> [--timeout D]` · `report show <file>` | Wait (file events, no polling) for a worker's JSON report and print a one-line summary; `send --report` asks the worker to write it |
 | `tagent ask [--role r] [--wait] "<task>"` | Give a task to an idle agent of this repo (with that role), or start a new one if nobody is free |
 | `tagent queue [pane]` · `queue clear <pane>` | Show / drop queued messages |
+| `tagent handoff [PANE]` | Give web-owned sizing back to tmux; defaults to the current pane. In the sidebar/dashboard Agents list, press `f`. Browser-owned rows show `sized by web`. See [terminal handoff](docs/terminal-handoff.md). |
 | `tagent checkpoints <agent>` · `undo <agent> [n]` | Every turn starts with a snapshot of the repo; `undo` rolls the files (and the branch, if the agent committed) back to before the last turn — or n turns back. `undo <agent> --redo <ref>` undoes the undo |
 | `tagent wait <pane> [--until stopped\|idle\|waiting] [--timeout D]` | Wait for a status (exit 124 on timeout) |
 | `tagent read <pane> [-n 50]` | Last N lines of the screen |
@@ -196,12 +197,12 @@ harness notifications, check status when the user asks.
   (`@agent_checkpoints`, on by default; a throwaway index and refs under
   `refs/tmux-agent/` — your index, branch and files aren't touched).
   `tagent undo <agent>` puts things back as they were before its last turn.
-- **Phone:** `tagent config set notify_url https://ntfy.sh/<topic>` (or a
-  Telegram bot `sendMessage` URL) to get a phone message when an agent needs
+- **Phone:** `tagent config set notify_url https://ntfy.sh/<topic>` (or another
+  plain-text POST webhook) to get a phone message when an agent needs
   approval and when a ticket reaches `done` or `blocked` (with assignees).
   Intermediate workflow steps and finished agent turns stay on the desktop.
 
-Browser dashboard: click **Start Chat** in the left pane to resume the project's conversation without sending a model request. Web chat uses native Ollama tools only (no MCP); `@agent_chat_model` defaults to `bonsai-2:9b` (`off` disables it), and `@agent_chat_endpoint` defaults to `http://127.0.0.1:11434`. Use a tool-capable local model. Ticket/command proposals still need approval. Legacy CLI/sidebar/Telegram `@agent_intake_llm` commands remain separate. See [web receptionist](docs/board.md#web-receptionist).
+Browser dashboard: click **Start Chat** in the left pane to resume the project's conversation without sending a model request. Web chat uses native Ollama tools only (no MCP); `@agent_chat_model` defaults to `bonsai-2:9b` (`off` disables it), and `@agent_chat_endpoint` defaults to `http://127.0.0.1:11434`. Use a tool-capable local model. Ticket/command proposals still need approval. TUI ticket intake uses the same native receptionist; CLI `@agent_intake_llm` commands remain separate. Press `N` in the TUI to choose a harness or open receptionist Chat. The avatar is off by default (`@agent_avatar` enables it). See [web receptionist](docs/board.md#web-receptionist).
 
 Press `?` in the sidebar or dashboard for contextual help. In Chat, `?` is literal input: Tab away first to open help. Focus Chat with Tab or a click, Enter to send, and Esc to close. Ask “which agents are running?” for a read-only answer, describe new work to clarify/draft a ticket, or use `!reload` / `!show ticket abc` to propose an operation. Commands and ticket creation require explicit approval. After an answer, type and Enter to start a fresh request (no conversation history). Context is the latest local ticket/agent/workflow snapshot, not an authoritative historical search; unavailable data is reported rather than guessed. Architectural judgement is escalated to the lead.
 
@@ -378,7 +379,7 @@ Set options with `set -g …` before loading the plugin, or use `tagent config`.
 | `@agent_watch_key` | `A` | dashboard key |
 | `@agent_action_key` | `a` | quick action key |
 | `@agent_digest_llm` | `ollama run --nowordwrap --think=false qwen3:0.6b` | command writing the avatar's line on every agent event — who needs you, who works on what (prompt = last argument); a small local model is enough |
-| `@agent_avatar` | `slime` | `slime` / `cat` / `sprout` / `ghost` / `robot` / `off` |
+| `@agent_avatar` | `off` | `slime` / `cat` / `sprout` / `ghost` / `robot` / `off` |
 | `@agent_avatar_lang` | `en` | `vi` / `en` |
 | `@agent_avatar_lines` | `1` | text lines in the speech bubble (1–8) |
 | `@agent_avatar_personality` | `cheerful, cute and encouraging` | how the avatar talks — pick a preset (tsundere, lazy office cat, sarcastic, pirate…) or describe your own |
@@ -392,7 +393,7 @@ Set options with `set -g …` before loading the plugin, or use `tagent config`.
 | `@agent_checkpoints` | `on` | snapshot the repo before each agent turn (for `undo`) |
 | `@agent_stuck_minutes` | `10` | warn when a running agent shows no activity this long |
 | `@sidebar_notifications` | `on` | desktop notifications |
-| `@agent_notify_url` | — | phone alerts and task-status transitions (ntfy or Telegram `sendMessage` URL); Telegram also shares dashboard Chat's project receptionist (approval is local in Chat; `/no` cancels; see [Telegram chat](docs/board.md#telegram-receptionist-chat)) |
+| `@agent_notify_url` | — | phone alerts and task-status transitions (ntfy or plain-text POST webhook); empty disables delivery |
 | `@agent_theme` | `light` | `dark` / `light`; `@agent_color_<token>`, `@agent_icon_<token>` override single colors/icons |
 
 ## Development

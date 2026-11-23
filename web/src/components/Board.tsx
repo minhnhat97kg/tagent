@@ -8,14 +8,14 @@ import { Workflows } from "./Workflows"
 import "./board.css"
 
 // TaskDrawer is the Jira-like right panel shared by the board and the tasks list.
-export function TaskDrawer({ proj, dir, reload, id, onClose, origin }: { proj?: Project; dir: string; reload: () => void; id?: string; onClose: () => void; origin: React.RefObject<HTMLElement | null> }) {
+export function TaskDrawer({ proj, dir, reload, id, onClose, origin, initialReply = '' }: { initialReply?: string; proj?: Project; dir: string; reload: () => void; id?: string; onClose: () => void; origin: React.RefObject<HTMLElement | null> }) {
   const statuses = proj?.statuses ?? []
   const selected = proj?.tasks?.find(t => t.id === id)
   const role = (t: Task) => proj?.workers?.[t.id]?.role || statuses.find(s => s.id === t.status)?.role || t.assignees?.[0] || ""
   const roles = Array.from(new Set([...(proj?.roles ?? []), ...(proj?.tasks ?? []).map(role)])).filter(Boolean)
   return <Dialog open={!!selected} onOpenChange={open => { if (!open) onClose() }}>
     <DialogContent className="board-drawer translate-x-0 translate-y-0 sm:max-w-none" onOpenAutoFocus={e => { e.preventDefault(); (e.currentTarget as HTMLElement).focus() }} onCloseAutoFocus={e => { e.preventDefault(); if (origin.current?.isConnected) origin.current.focus() }}>
-      {selected && <BoardDrawer key={selected.id} workflows={proj?.workflows ?? []} task={selected} statuses={statuses.map(s => s.id)} roles={roles} role={role(selected)} reason={proj?.blockedReasons?.[selected.id]} dir={dir} reload={reload} />}
+      {selected && <BoardDrawer key={selected.id + initialReply} initialReply={initialReply} workflows={proj?.workflows ?? []} task={selected} statuses={statuses.map(s => s.id)} roles={roles} role={role(selected)} reason={proj?.blockedReasons?.[selected.id]} dir={dir} reload={reload} />}
     </DialogContent>
   </Dialog>
 }

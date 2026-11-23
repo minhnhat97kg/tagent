@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -13,6 +14,8 @@ import (
 	"github.com/gorilla/websocket"
 	"tagent/internal/tmux"
 )
+
+var viewerID = regexp.MustCompile(`^[A-Za-z0-9-]{8,64}$`)
 
 func terminalOrigin(r *http.Request) bool {
 	u, err := url.Parse(r.Header.Get("Origin"))
@@ -85,20 +88,32 @@ func (s *server) paneWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer conn.Close()
+	// The browser keeps one viewer id per device, so a reload or reconnect keeps its Handoff: the latest
+	// Handoff wins and lasts until another device takes over, Release, or the TUI/CLI hands it back.
+	viewer := r.URL.Query().Get("viewer")
+	if !viewerID.MatchString(viewer) {
+		viewer = NewToken()
+	}
+	released := false
+	hadOwnership := false
 	conn.SetReadLimit(65536)
 	// Only this handler writes to the socket. Reader results are backpressured.
-	inputs := make(chan []byte)
+	type clientMessage struct {
+		kind int
+		data []byte
+	}
+	inputs := make(chan clientMessage)
 	done := make(chan struct{})
 	defer close(done)
 	go func() {
 		defer close(inputs)
 		for {
-			_, data, e := conn.ReadMessage()
+			kind, data, e := conn.ReadMessage()
 			if e != nil {
 				return
 			}
 			select {
-			case inputs <- data:
+			case inputs <- clientMessage{kind, data}:
 			case <-done:
 				return
 			}
@@ -122,12 +137,25 @@ func (s *server) paneWS(w http.ResponseWriter, r *http.Request) {
 		return conn.WriteJSON(v)
 	}
 	geometry := func() (paneShot, bool) {
-		info, ok := tmux.RunTmux("display-message", "-p", "-t", pane, "#{pane_width} #{pane_height} #{cursor_x} #{cursor_y} #{cursor_flag}")
+		info, ok := tmux.RunTmux("display-message", "-p", "-t", pane, "#{pane_width} #{pane_height} #{cursor_x} #{cursor_y} #{cursor_flag} #{alternate_on} #{mouse_any_flag} #{mouse_sgr_flag}")
 		var f paneShot
-		var cursor int
-		_, err := fmt.Sscan(info, &f.Cols, &f.Rows, &f.CX, &f.CY, &cursor)
+		f.Automatic = sessionResizable(strings.TrimSpace(session))
+		f.Resizable = s.sizeOwners.owns(pane, viewer)
+		if f.Resizable {
+			hadOwnership = true
+		} else if hadOwnership {
+			released = true
+		}
+		var cursor, alternate, mouse, sgr int
+		_, err := fmt.Sscan(info, &f.Cols, &f.Rows, &f.CX, &f.CY, &cursor, &alternate, &mouse, &sgr)
+		f.Alternate = alternate == 1
+		// The app (Claude, pi...) reads the mouse itself: the client forwards wheel/swipe as SGR mouse events.
+		f.Mouse = mouse == 1 && sgr == 1
 		f.Cursor = cursor == 1
 		return f, ok && err == nil
+	}
+	writeOwner := func(f paneShot) error {
+		return write(map[string]any{"type": "ownership", "owner": f.Resizable, "automatic": f.Automatic, "cols": f.Cols, "rows": f.Rows})
 	}
 	shot, ok := geometry()
 	if !ok {
@@ -142,6 +170,13 @@ func (s *server) paneWS(w http.ResponseWriter, r *http.Request) {
 	var screen []string
 	tick := time.NewTicker(time.Second)
 	defer tick.Stop()
+	var pending terminalSize
+	resizeTimer := time.NewTimer(time.Hour)
+	if !resizeTimer.Stop() {
+		<-resizeTimer.C
+	}
+	defer resizeTimer.Stop()
+	var resizeC <-chan time.Time
 	for {
 		select {
 		case line, open := <-lines:
@@ -159,7 +194,7 @@ func (s *server) paneWS(w http.ResponseWriter, r *http.Request) {
 			}
 			if strings.HasPrefix(line, "%end ") {
 				if block == 1 {
-					if _, err = fmt.Fprintf(stdin, "refresh-client -f ignore-size,!no-output -A '%s:on'\ncapture-pane -e -p -t %s\n", pane, pane); err != nil {
+					if _, err = fmt.Fprintf(stdin, "refresh-client -f ignore-size,!no-output -A '%s:on'\ncapture-pane -e -p -S -2000 -t %s\n", pane, pane); err != nil {
 						return
 					}
 				}
@@ -190,10 +225,47 @@ func (s *server) paneWS(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 			}
-		case data, open := <-inputs:
+		case message, open := <-inputs:
 			if !open {
 				return
 			}
+			if message.kind == websocket.TextMessage {
+				size, e := parseTerminalResize(message.data)
+				if e != nil {
+					continue
+				}
+				if size.Action == "release" {
+					released = true
+					resizeC = nil
+					if e := s.sizeOwners.release(pane, viewer); e != nil {
+						_ = write(map[string]string{"type": "error", "message": e.Error()})
+					}
+					f, _ := geometry()
+					_ = writeOwner(f)
+					continue
+				}
+				if size.Action == "handoff" {
+					released = false
+					resizeC = nil
+					if e := s.sizeOwners.resize(pane, viewer, size, true, false); e != nil {
+						_ = write(map[string]string{"type": "error", "message": e.Error()})
+					}
+					f, _ := geometry()
+					_ = writeOwner(f)
+					continue
+				}
+				pending = size
+				if !resizeTimer.Stop() {
+					select {
+					case <-resizeTimer.C:
+					default:
+					}
+				}
+				resizeTimer.Reset(150 * time.Millisecond)
+				resizeC = resizeTimer.C
+				continue
+			}
+			data := message.data
 			unlock := lockPaneInput(pane)
 			args := []string{"send-keys", "-t", pane, "-H"}
 			for _, b := range data {
@@ -204,15 +276,35 @@ func (s *server) paneWS(w http.ResponseWriter, r *http.Request) {
 			if write(map[string]any{"type": "ack", "ok": ok}) != nil || !ok {
 				return
 			}
+		case <-resizeC:
+			resizeC = nil
+			_, _ = geometry() // Notice external CLI/TUI ownership changes before considering auto-claim.
+			if ready {
+				if e := s.sizeOwners.resize(pane, viewer, pending, pending.Action == "handoff", !released && sessionResizable(strings.TrimSpace(session))); e != nil {
+					if write(map[string]string{"type": "error", "message": e.Error()}) != nil {
+						return
+					}
+				}
+				f, _ := geometry()
+				if writeOwner(f) != nil {
+					return
+				}
+			}
+			pending.Action = "resize"
 		case <-tick.C:
 			f, ok := geometry()
 			if !ok {
 				_ = write(map[string]string{"type": "gone"})
 				return
 			}
-			if ready && (f.Cols != shot.Cols || f.Rows != shot.Rows) {
+			if ready {
+				if writeOwner(f) != nil {
+					return
+				}
+			}
+			if ready && (f.Cols != shot.Cols || f.Rows != shot.Rows || f.Resizable != shot.Resizable) {
 				shot = f
-				if write(map[string]any{"type": "resize", "cols": f.Cols, "rows": f.Rows}) != nil {
+				if write(map[string]any{"type": "resize", "cols": f.Cols, "rows": f.Rows, "resizable": f.Resizable}) != nil {
 					return
 				}
 			}

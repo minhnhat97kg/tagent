@@ -7,7 +7,7 @@ export function registerPaneSocket(pane: string, send: (data: string) => Promise
   return () => { if (sockets.get(pane) === send) sockets.delete(pane) }
 }
 // Share ordering across raw keys, messages and approvals. Never retry input.
-export function paneInput(pane: string, action: "input" | "send" | "answer", data: string, extra = {}) {
+export function paneInput(pane: string, action: "input" | "answer", data: string, extra = {}) {
   const next = (queues.get(pane) ?? Promise.resolve()).catch(() => {}).then(() =>
     action === "input" && sockets.has(pane)
       ? sockets.get(pane)!(data)

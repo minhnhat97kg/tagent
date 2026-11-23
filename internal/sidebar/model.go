@@ -125,7 +125,8 @@ type Row struct {
 	// Pinned is true when the user pinned this pane to the top of the list
 	// (the "p" key) — process-memory only, lost on sidebar restart (see
 	// Model.pinnedPanes).
-	Pinned bool
+	Pinned     bool
+	SizedByWeb bool
 	// Selected is true when this pane is part of the current multi-select
 	// (the "v" key), driving bulk delete on "x" — see Model.selectedPanes.
 	Selected bool
@@ -566,10 +567,11 @@ func moveCursor(cursor, delta, count int) (int, bool) {
 // tmux — the result of a tmux.QuerySessions() call completed inside a
 // tea.Cmd, whether triggered by the periodic tick or by SIGUSR1.
 type RefreshMsg struct {
-	Sessions []tmux.SessionInfo
-	Theme    Theme
-	Icons    Icons
-	Avatar   AvatarConfig
+	SizeOwners map[string]bool
+	Sessions   []tmux.SessionInfo
+	Theme      Theme
+	Icons      Icons
+	Avatar     AvatarConfig
 	// Dialogs: the prompt on screen of each waiting agent (approval inbox).
 	Dialogs map[string]scrape.Dialog
 }
@@ -780,6 +782,7 @@ type Model struct {
 	// disappears (agent exits) simply falls out of the next rebuilt row list;
 	// its stale id staying in this set is harmless (never looked up again).
 	pinnedPanes map[string]bool
+	sizeOwners  map[string]bool
 
 	// filterQuery/filterEditing: the "/" text filter (name/agent/status
 	// substring, case-insensitive). filterEditing is true while the user is
@@ -884,11 +887,12 @@ func refreshCmd() tea.Cmd {
 		opts := tmux.GetAllGlobalOptions()
 
 		msg := RefreshMsg{
-			Sessions: sessions,
-			Theme:    ThemeFromOptions(opts),
-			Icons:    IconsFromOptions(opts),
-			Avatar:   avatarConfigFromOptions(opts),
-			Dialogs:  readDialogs(sessions),
+			Sessions:   sessions,
+			Theme:      ThemeFromOptions(opts),
+			Icons:      IconsFromOptions(opts),
+			Avatar:     avatarConfigFromOptions(opts),
+			Dialogs:    readDialogs(sessions),
+			SizeOwners: readSizeOwners(sessions),
 		}
 		return msg
 	}
@@ -952,6 +956,9 @@ func (m *Model) applyRows() {
 	// regrouped above it would otherwise move the highlight to another one.
 	prev, hadPrev := paneIDAt(m.rows, m.cursor)
 	m.rows = buildRows(m.sessions, m.repoFilter, extras)
+	for i := range m.rows {
+		m.rows[i].SizedByWeb = m.sizeOwners[m.rows[i].PaneID]
+	}
 	if dir := m.focusDir(prev); dir != "" {
 		harness, _ := tmux.GetOption(tmux.AgentOption)
 		m.rows = append(m.rows, repoAgentRows(dir, harness)...)
@@ -1219,6 +1226,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case RefreshMsg:
 		m.reloadIntake()
 		m.sessions = msg.Sessions
+		m.sizeOwners = msg.SizeOwners
 		m.theme = msg.Theme
 		m.icons = msg.Icons
 		m.dialogs = msg.Dialogs
@@ -1809,6 +1817,9 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	switch msg.String() {
+	case "N":
+		m.taskForm, m.taskStep = "new-agent", 0
+		return m, nil
 	case "q", "ctrl+c":
 		// cursorDirty still being set means the most recent @sidebar_cursor
 		// write is still waiting for the next AnimTick (debounce ~200ms) —
@@ -1973,6 +1984,14 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case "f": // free in the Agents keymap: reclaim sizing from a browser
+		if m.dashboard && m.agentFocus != 0 {
+			return m, nil
+		}
+		if row, ok := paneRowAt(m.rows, m.cursor); ok {
+			return m, handoffCmd(row.PaneID)
+		}
+		return m, nil
 	case "p":
 		// Pin/unpin the pane under the cursor — process-memory only (see
 		// Model.pinnedPanes). Pinned panes float to a "Pinned" group right

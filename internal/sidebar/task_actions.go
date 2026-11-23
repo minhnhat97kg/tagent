@@ -14,6 +14,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+var newAgentChoices = []string{"claude", "codex", "opencode", "receptionist"}
+
 type taskActionMsg struct{ Text string }
 
 func actionResult(text string, err error) taskActionMsg {
@@ -28,6 +30,25 @@ func (m Model) handleTaskForm(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 	if m.taskForm == "workflow-new" {
 		return m.handleWorkflowName(key)
+	}
+	if m.taskForm == "new-agent" {
+		switch key.String() {
+		case "esc":
+			m.taskForm = ""
+		case "j", "down":
+			m.taskStep = min(len(newAgentChoices)-1, m.taskStep+1)
+		case "k", "up":
+			m.taskStep = max(0, m.taskStep-1)
+		case "enter":
+			choice := newAgentChoices[m.taskStep]
+			m.taskForm = ""
+			if choice == "receptionist" {
+				m.agentFocus, m.taskFocus, m.inlineIntake = 3, false, true
+				return m.openIntake()
+			}
+			return m, func() tea.Msg { return spawnChosenAgent(choice) }
+		}
+		return m, nil
 	}
 	if key.String() == "esc" {
 		m.taskForm = ""
@@ -92,6 +113,15 @@ func (m Model) taskFormView() string {
 	title, hint := "Task detail", "Esc close"
 	body := ""
 	switch m.taskForm {
+	case "new-agent":
+		title, hint = "New agent", "j/k select · Enter open · Esc cancel"
+		for i, choice := range newAgentChoices {
+			prefix := "  "
+			if i == m.taskStep {
+				prefix = "› "
+			}
+			body += prefix + choice + "\n"
+		}
 	case "start":
 		title, hint = "Start "+m.notes[m.taskCursor].Title, m.keyHints("j/k select", "enter start", "esc cancel")
 		for i, w := range m.boardWorkflows {

@@ -179,6 +179,9 @@ func Digest(args []string, stdout, stderr io.Writer) int {
 func digestOnce(auto bool, stdout, stderr io.Writer) (bool, int) {
 	opts := tmux.GetAllGlobalOptions()
 	c := avatarConfigFromOptions(opts)
+	if !c.enabled() {
+		return false, 0
+	}
 	sessions := tmux.QuerySessions()
 	facts := digestFacts(sessions, Alerts(sessions), c)
 	key := digestKey(facts, c)

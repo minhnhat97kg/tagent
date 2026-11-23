@@ -42,7 +42,7 @@ func cmdSetStatus(args []string) int {
 		tmux.SetPaneOption(pane, tmux.PaneAgent, agent)
 		tmux.UnsetPaneOption(pane, tmux.PaneAgentSrc)
 		// Compare with the status this integration reported last, not @pane_status: other
-		// extensions may write @pane_status first, which hid running->idle (no completion, no Telegram reply).
+		// extensions may write @pane_status first, which hid running->idle (no completion notification).
 		last := tmux.GetPaneOptionValue(pane, "@pane_harness_status")
 		if last == "" {
 			last = tmux.GetPaneOptionValue(pane, tmux.PaneStatusOpt)

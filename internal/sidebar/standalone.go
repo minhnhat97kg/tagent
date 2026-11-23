@@ -258,7 +258,8 @@ func (m standaloneModel) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		case "N":
-			return m, spawnStandaloneAgent
+			m.left.taskForm, m.left.taskStep = "new-agent", 0
+			return m, nil
 		case "z":
 			m.layout = (m.layout + 1) % layoutCount
 			return m.relayout()
@@ -371,13 +372,19 @@ func restoreWindow(borrowed string) {
 
 // spawnStandaloneAgent starts a new agent (it lands in the background
 // session, since there is no $TMUX).
-func spawnStandaloneAgent() tea.Msg {
+func spawnStandaloneAgent() tea.Msg { return spawnChosenAgent("") }
+
+func spawnChosenAgent(agent string) tea.Msg {
 	bin, err := os.Executable()
 	if err != nil {
 		return nil
 	}
 	cwd, _ := os.Getwd()
-	_ = exec.Command(bin, "new", "--no-wait", "--cwd", cwd).Run()
+	args := []string{"new", "--no-wait", "--cwd", cwd}
+	if agent != "" {
+		args = append(args, "--agent", agent)
+	}
+	_ = exec.Command(bin, args...).Run()
 	return refreshRequestMsg{}
 }
 

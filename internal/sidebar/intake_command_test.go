@@ -43,6 +43,7 @@ func TestIntakeAnswerCompletion(t *testing.T) {
 }
 
 func TestIntakeQuickCommand(t *testing.T) {
+	legacyIntakeFixture(t)
 	t.Setenv("TMUX_AGENT_CONTEXT_DIR", t.TempDir())
 	old := executeIntakeCommand
 	defer func() { executeIntakeCommand = old }()

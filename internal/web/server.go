@@ -26,7 +26,6 @@ import (
 	"sync"
 	"tagent/internal/board"
 	"tagent/internal/workflow"
-	"time"
 
 	"tagent/internal/scrape"
 	"tagent/internal/tasks"
@@ -56,20 +55,27 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("POST /api/chat", s.chat)
 	mux.HandleFunc("GET /api/pane/ws", s.paneWS)
 	mux.HandleFunc("POST /api/pane/input", s.input)
-	mux.HandleFunc("POST /api/pane/send", s.send)
+	mux.HandleFunc("GET /api/workflows", s.workflows)
+	mux.HandleFunc("POST /api/workflows", s.workflows)
+	mux.HandleFunc("DELETE /api/workflows", s.workflows)
 	mux.HandleFunc("POST /api/pane/answer", s.answer)
 	mux.HandleFunc("POST /api/pane/kill", s.kill)
+	mux.HandleFunc("POST /api/pane/action", s.agentAction)
 	mux.HandleFunc("POST /api/agents", s.newAgent)
 	mux.HandleFunc("POST /api/tasks", s.taskOp)
+	mux.HandleFunc("GET /api/config", s.settings)
+	mux.HandleFunc("POST /api/config", s.settings)
 	sub, _ := fs.Sub(dist, "dist")
 	files := http.FileServerFS(sub)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if !strings.HasPrefix(r.URL.Path, "/assets/") {
 			w.Header().Set("Cache-Control", "no-cache") // index.html must pick up new hashed assets
+		} else {
+			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable") // names carry a content hash
 		}
-		files.ServeHTTP(w, r)
+		gzipped(w, r, files.ServeHTTP)
 	})
-	return s.auth(mux)
+	return s.auth(etagged(mux))
 }
 
 // NewToken is a random access token.
@@ -103,6 +109,8 @@ func URLs(addr, token string) []string {
 type server struct {
 	token, dir string
 	boardDirs  sync.Map
+	pinned     sync.Map
+	sizeOwners terminalOwners
 	deps       apiDeps
 }
 
@@ -163,6 +171,7 @@ type dialogJSON struct {
 }
 
 type agentJSON struct {
+	Pinned    bool        `json:"pinned"`
 	Pane      string      `json:"pane"`
 	Name      string      `json:"name"`
 	Agent     string      `json:"agent"`
@@ -173,6 +182,7 @@ type agentJSON struct {
 	Project   string      `json:"project"`
 	Prompt    string      `json:"prompt"`
 	Wait      string      `json:"wait,omitempty"`
+	Stuck     string      `json:"stuck,omitempty"`
 	Started   int64       `json:"started,omitempty"`
 	Branch    string      `json:"branch,omitempty"`
 	Hidden    bool        `json:"hidden,omitempty"`
@@ -192,7 +202,8 @@ func (s *server) agents() []agentJSON {
 				}
 				a := agentJSON{Pane: p.PaneID, Name: p.Name, Agent: string(p.Agent), Status: status, Session: se.SessionName,
 					Window: wi.WindowIndex + ":" + wi.WindowName, Path: p.Path, Project: filepath.Base(tasks.MainRoot(p.Path)),
-					Prompt: p.Prompt, Wait: p.WaitReason, Branch: p.Worktree.Branch, Hidden: hidden, Subagents: p.Subagents}
+					Prompt: p.Prompt, Wait: p.WaitReason, Stuck: p.Stuck, Branch: p.Worktree.Branch, Hidden: hidden, Subagents: p.Subagents}
+				_, a.Pinned = s.pinned.Load(p.PaneID)
 				if p.Status.IsActive() {
 					a.Started = p.StartedAt
 				}
@@ -230,7 +241,8 @@ func (s *server) state(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	host, _ := os.Hostname()
-	writeJSON(w, map[string]any{"agents": agents, "projects": projects, "host": host, "harnesses": []string{"claude", "codex", "opencode", "gemini", "pi", "copilot", "amp"}})
+	theme, _ := tmux.GetOption(tmux.AgentTheme)
+	writeJSON(w, map[string]any{"agents": agents, "projects": projects, "host": host, "theme": strings.ToLower(strings.TrimSpace(theme)), "harnesses": []string{"claude", "codex", "opencode", "gemini", "pi", "copilot", "amp"}})
 }
 
 var paneRe = regexp.MustCompile(`^%\d+$`)
@@ -245,12 +257,16 @@ func agentPane(id string) error {
 }
 
 type paneShot struct {
-	Screen string `json:"screen"`
-	Cols   int    `json:"cols"`
-	Rows   int    `json:"rows"`
-	CX     int    `json:"cx"`
-	CY     int    `json:"cy"`
-	Cursor bool   `json:"cursor"`
+	Automatic bool   `json:"automatic"`
+	Alternate bool   `json:"alternate"`
+	Mouse     bool   `json:"mouse"`
+	Resizable bool   `json:"resizable"`
+	Screen    string `json:"screen"`
+	Cols      int    `json:"cols"`
+	Rows      int    `json:"rows"`
+	CX        int    `json:"cx"`
+	CY        int    `json:"cy"`
+	Cursor    bool   `json:"cursor"`
 }
 
 var paneInputLocks sync.Map
@@ -295,26 +311,6 @@ func (s *server) input(w http.ResponseWriter, r *http.Request) {
 	defer unlock()
 	if _, ok := tmux.RunTmux(args...); !ok {
 		fail(w, fmt.Errorf("terminal input failed; delivery uncertain, not retried"))
-	}
-}
-
-func (s *server) send(w http.ResponseWriter, r *http.Request) {
-	if p, ok := s.paneBody(w, r); ok && p.Data != "" {
-		unlock := lockPaneInput(p.Pane)
-		defer unlock()
-		buf := "tagent-web-" + strings.TrimPrefix(p.Pane, "%")
-		if _, ok := tmux.RunTmux("set-buffer", "-b", buf, "--", p.Data); !ok {
-			fail(w, fmt.Errorf("could not buffer terminal message"))
-			return
-		}
-		if _, ok := tmux.RunTmux("paste-buffer", "-p", "-d", "-b", buf, "-t", p.Pane); !ok {
-			fail(w, fmt.Errorf("terminal paste failed; delivery uncertain, not retried"))
-			return
-		}
-		time.Sleep(300 * time.Millisecond)
-		if _, ok := tmux.RunTmux("send-keys", "-t", p.Pane, "Enter"); !ok {
-			fail(w, fmt.Errorf("terminal Enter failed; message may already be pasted"))
-		}
 	}
 }
 

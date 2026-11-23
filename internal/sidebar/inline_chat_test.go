@@ -10,6 +10,7 @@ import (
 )
 
 func TestInlineAnswerResubmit(t *testing.T) {
+	legacyIntakeFixture(t)
 	t.Setenv("TMUX_AGENT_CONTEXT_DIR", t.TempDir())
 	m := Model{dashboard: true, agentFocus: 3, inlineIntake: true, notesScope: "repo", boardDir: t.TempDir(), taskInput: "modal"}
 	m.intakeState = &intakeState{Token: 1, Scope: m.notesScope, Dir: m.boardDir, Idea: "status?", Answer: "Ready", Command: "printf 'ANSWER: fresh'"}
@@ -33,6 +34,7 @@ func TestInlineAnswerResubmit(t *testing.T) {
 }
 
 func TestInlineChatErrorThenResubmit(t *testing.T) {
+	legacyIntakeFixture(t)
 	for _, followup := range []bool{false, true} {
 		t.Setenv("TMUX_AGENT_CONTEXT_DIR", t.TempDir())
 		m := Model{dashboard: true, agentFocus: 3, inlineIntake: true, notesScope: "repo", boardDir: t.TempDir(), taskInput: "unrelated form"}

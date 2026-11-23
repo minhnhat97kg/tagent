@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"os"
@@ -84,6 +83,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return cmdList(rest, stdout)
 	case "new":
 		return cmdNew(rest, stdout, stderr)
+	case "handoff":
+		return cmdHandoff(rest, stderr)
 	case "name":
 		return cmdName(rest, stderr)
 	case "ctx":
@@ -178,9 +179,6 @@ func run(args []string, stdout, stderr io.Writer) int {
 	case "scrape":
 		// The scraper starts with tmux, so it also runs board triggers and the web UI.
 		go runBackground()
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		go runTelegram(ctx)
 		return scrape.Run()
 	case "spawn":
 		// Pure wiring: worktree.Dispatch creates the git worktree + tmux

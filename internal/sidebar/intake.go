@@ -31,6 +31,8 @@ type intakeState struct {
 	EditorRevision                                   uint64
 }
 
+var runSidebarReceptionist = intake.RunReceptionist
+
 var intakeParseEdited = intake.Parse
 var executeIntakeCommand = intake.Execute
 
@@ -58,9 +60,9 @@ func (m Model) intakeValid(token int64) bool {
 }
 
 func (m Model) openIntake() (Model, tea.Cmd) {
-	command, ok := tmux.GetOption("@agent_intake_llm")
-	if !ok {
-		command = "ollama run --nowordwrap --think=false bonsai-2:9b"
+	command, ok := tmux.GetOption("@agent_chat_model")
+	if !ok || command == "" {
+		command = "bonsai-2:9b"
 	}
 	m.taskInput = ""
 	if command == "off" {
@@ -366,10 +368,14 @@ func (m Model) handleIntake(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		s.Shared = submission.Conversation
-		token, command := s.Token, s.Command
+		token, model := s.Token, s.Command
+		endpoint, _ := tmux.GetOption("@agent_chat_endpoint")
+		if endpoint == "" {
+			endpoint = "http://127.0.0.1:11434"
+		}
 		return m, func() tea.Msg {
-			raw, e := intake.RunSubmission(submission, command, nil)
-			return intakeReply{token, raw, e}
+			runSidebarReceptionist(submission, intake.Harness{Model: model, Endpoint: endpoint})
+			return intakeReply{Token: token}
 		}
 
 	}

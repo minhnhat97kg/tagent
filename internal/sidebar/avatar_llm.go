@@ -75,7 +75,7 @@ func (c AvatarConfig) phrase(key string, kv ...string) string {
 	return strings.NewReplacer(kv...).Replace(table[key])
 }
 
-func (c AvatarConfig) llmEnabled() bool { return c.LLM != "" && c.LLM != "off" }
+func (c AvatarConfig) llmEnabled() bool { return c.enabled() && c.LLM != "" && c.LLM != "off" }
 
 func llmCacheDir() string {
 	return filepath.Join(os.TempDir(), fmt.Sprintf("tagent-avatar-%d", os.Getuid()))

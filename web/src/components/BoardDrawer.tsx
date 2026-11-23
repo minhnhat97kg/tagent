@@ -1,4 +1,4 @@
-import { Fragment, useRef, useState, type ReactNode } from "react"
+import { Fragment, useEffect, useRef, useState, type ReactNode } from "react"
 import { DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { act, post } from "@/api"
 import { Pencil, Play, Reply, Trash2 } from "lucide-react"
@@ -51,13 +51,18 @@ export function Md({ text }: { text: string }) {
   })}</div>
 }
 
-export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, workflows }: { task: Task; statuses: string[]; roles: string[]; role: string; reason?: string; dir: string; reload: () => void; workflows: Workflow[] }) {
-  const [body, setBody] = useState("")
+export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, workflows, initialReply = '' }: { initialReply?: string; task: Task; statuses: string[]; roles: string[]; role: string; reason?: string; dir: string; reload: () => void; workflows: Workflow[] }) {
+  const [body, setBody] = useState(initialReply)
   const [sending, setSending] = useState(false)
   const [cursor, setCursor] = useState(0)
   const [index, setIndex] = useState(0)
   const [dismissed, setDismissed] = useState(false)
   const input = useRef<HTMLTextAreaElement>(null)
+  useEffect(() => {
+    if (!initialReply) return
+    const frame = requestAnimationFrame(() => { input.current?.focus({ preventScroll: true }); input.current?.setSelectionRange(initialReply.length, initialReply.length) })
+    return () => cancelAnimationFrame(frame)
+  }, [initialReply])
   const mention = body.slice(0, cursor).match(/(?:^|\s)@([\w-]*)$/)
   const suggestions = !dismissed && mention ? roles.filter(r => r.toLowerCase().startsWith(mention[1].toLowerCase())) : []
   const choose = (r: string) => {

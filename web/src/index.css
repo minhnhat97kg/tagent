@@ -17,6 +17,31 @@
   --sidebar: #fafafa; --sidebar-foreground: #18181b;
   --sidebar-border: #e4e4e7; --sidebar-accent: #f4f4f5;
   --term-bg: #ffffff; --term-fg: #18181b;
+  --line: #18181b1c; --line-strong: #18181b33;
+}
+/* Dark follows the tagent theme setting (@agent_theme), same as the TUI. */
+.dark {
+  color-scheme: dark;
+  --ink: #e4e4e7; --chrome: #18181b; --panel: #0f0f11; --paper: #18181b; --surface: #27272a; --soft: #27272a;
+  --background: #0f0f11; --foreground: #e4e4e7;
+  --card: #18181b; --card-foreground: #e4e4e7;
+  --popover: #1f1f23; --popover-foreground: #e4e4e7;
+  --primary: #e4e4e7; --primary-foreground: #18181b;
+  --secondary: #27272a; --secondary-foreground: #e4e4e7;
+  --muted: #232326; --muted-foreground: #a1a1aa;
+  --accent: #27272a; --accent-foreground: #f4f4f5;
+  --destructive: #f87171;
+  --border: #2e2e33; --input: #3f3f46; --ring: #71717a;
+  --sidebar: #0f0f11; --sidebar-foreground: #e4e4e7;
+  --sidebar-border: #2e2e33; --sidebar-accent: #27272a;
+  --term-bg: #18181b; --term-fg: #e4e4e7;
+  --line: #ffffff1a; --line-strong: #ffffff33;
+}
+
+.notification-popover { max-height: min(560px, calc(var(--app-height, 100dvh) - 60px)); }
+@media (max-width: 767px) {
+  [data-radix-popper-content-wrapper]:has(.notification-popover) { position: fixed !important; inset: calc(var(--app-top, 0px) + 44px) 0 auto !important; transform: none !important; width: 100vw; }
+  .notification-popover { width: 100vw; max-width: 100vw; max-height: calc(var(--app-height, 100dvh) - 44px); border-radius: 0 0 12px 12px; }
 }
 
 @custom-variant dark (&:where(.dark, .dark *));
@@ -53,6 +78,10 @@
 
 @layer base {
   * { @apply border-border outline-ring/50; }
+  /* The app is a fixed shell: the page itself never scrolls (iOS would otherwise pan it when the keyboard opens). */
+  html, body, #root { height: 100%; overflow: hidden; overscroll-behavior: none; }
+  body { position: fixed; inset: 0; width: 100%; }
+  .app-viewport { position: fixed; left: 0; right: 0; top: var(--app-top, 0px); height: var(--app-height, 100dvh); overflow: hidden; }
   body { @apply bg-background text-foreground antialiased; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, ui-sans-serif, system-ui, sans-serif; font-size: 13px; letter-spacing: -0.006em; font-weight: 400; }
   :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
   button { transition: transform .15s ease, background-color .15s ease, color .15s ease; }

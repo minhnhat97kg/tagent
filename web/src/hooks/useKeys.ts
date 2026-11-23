@@ -7,9 +7,9 @@ const SKIP = "input, textarea, select, [contenteditable], [data-terminal], [role
 
 // useKeys binds the dashboard shortcuts: j/k move, n jumps to the next agent that needs you,
 // Enter focuses the terminal, ? opens help. Ctrl+Shift+F6 returns focus to the agent header.
-export function useKeys(order: Agent[], selPane: string | undefined, onHelp: () => void) {
-  const latest = useRef({ order, selPane, onHelp })
-  latest.current = { order, selPane, onHelp }
+export function useKeys(order: Agent[], selPane: string | undefined, onHelp: () => void, onNext?: () => void) {
+  const latest = useRef({ order, selPane, onHelp, onNext })
+  latest.current = { order, selPane, onHelp, onNext }
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -21,7 +21,7 @@ export function useKeys(order: Agent[], selPane: string | undefined, onHelp: () 
         return
       }
       if (e.metaKey || e.ctrlKey || e.altKey || t?.closest?.(SKIP)) return
-      const { order, selPane, onHelp } = latest.current
+      const { order, selPane, onHelp, onNext } = latest.current
       const n = order.length
       const i = order.findIndex((a) => a.pane === selPane)
       const go = (idx: number) => nav("/agent/" + enc(order[(idx + n) % n]!.pane))
@@ -39,6 +39,7 @@ export function useKeys(order: Agent[], selPane: string | undefined, onHelp: () 
           go(i < 0 ? n - 1 : i - 1)
           return
         case "n": {
+          if (onNext) { e.preventDefault(); onNext(); return }
           const next = order.map((a, idx) => ({ a, idx })).filter((x) => x.a.status === "waiting")
           const pick = next.find((x) => x.idx > i) ?? next[0]
           if (pick) nav("/agent/" + enc(pick.a.pane))
@@ -48,7 +49,7 @@ export function useKeys(order: Agent[], selPane: string | undefined, onHelp: () 
           // Only when focus is on the page itself, not on a button or link that Enter should activate.
           if (!selPane || (t && t !== document.body && t.closest?.("button, a, [role=button]"))) return
           e.preventDefault()
-          document.querySelector<HTMLElement>("[data-terminal]:not([data-readonly]) .xterm-helper-textarea")?.focus()
+          document.querySelector<HTMLElement>("[data-terminal] .xterm-helper-textarea")?.focus()
           return
         case "?":
           onHelp()

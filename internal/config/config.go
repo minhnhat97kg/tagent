@@ -49,7 +49,7 @@ var Settings = []Setting{
 	{Key: "@agent_chat_endpoint", Group: "Board", Label: "Web chat Ollama endpoint", Kind: Text, Default: "http://127.0.0.1:11434"},
 	{Key: "@agent_intake_llm", Group: "Board", Label: "Ticket intake LLM", Kind: Preset, Default: "ollama run --nowordwrap --think=false bonsai-2:9b", Choices: []string{"ollama run --nowordwrap --think=false bonsai-2:9b", "off"}},
 	{Key: "@agent_theme", Group: "Look", Label: "Theme", Kind: Choice, Default: "light", Choices: []string{"dark", "light"}},
-	{Key: "@agent_avatar", Group: "Look", Label: "Character", Kind: Choice, Default: "slime",
+	{Key: "@agent_avatar", Group: "Look", Label: "Character", Kind: Choice, Default: "off",
 		Choices: []string{"slime", "cat", "sprout", "ghost", "robot", "off"}, Help: "the sidebar avatar; off hides it"},
 	{Key: "@agent_avatar_lang", Group: "Look", Label: "Language", Kind: Choice, Default: "en", Choices: []string{"vi", "en"}},
 	{Key: "@sidebar_position", Group: "Sidebar", Label: "Position", Kind: Choice, Default: "left", Choices: []string{"left", "right"}},
@@ -61,7 +61,7 @@ var Settings = []Setting{
 	{Key: "@agent_stuck_minutes", Group: "Agents", Label: "Stuck after (minutes)", Kind: Int, Default: "10", Min: 1, Max: 240},
 	{Key: "@sidebar_notifications", Group: "Notifications", Label: "Desktop notifications", Kind: Bool, Default: "on"},
 	{Key: "@agent_notify_url", Group: "Notifications", Label: "Phone push URL", Kind: Text,
-		Help: "Phone alerts and task-status updates: ntfy or Telegram sendMessage URL; empty = off"},
+		Help: "Phone alerts and task-status updates: ntfy or plain-text POST webhook URL; empty = off"},
 }
 
 // Advanced options are not in the screen; `tagent config set|get|list`

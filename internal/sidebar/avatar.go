@@ -60,7 +60,7 @@ func avatarConfigFromOptions(opts map[string]string) AvatarConfig {
 		return def
 	}
 	return AvatarConfig{
-		Character:  or(avatarOption, "slime"),
+		Character:  or(avatarOption, "off"),
 		LLM:        or(llmOption, defaultLLM),
 		Lang:       or(langOption, "en"),
 		DonePrompt: strings.TrimSpace(opts[donePromptOption]),

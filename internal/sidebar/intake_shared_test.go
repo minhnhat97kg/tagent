@@ -7,6 +7,7 @@ import (
 )
 
 func TestSharedChatPanelsAndReopen(t *testing.T) {
+	legacyIntakeFixture(t)
 	t.Setenv("TMUX_AGENT_CONTEXT_DIR", t.TempDir())
 	dir := t.TempDir()
 	panel := func(token int64) Model {

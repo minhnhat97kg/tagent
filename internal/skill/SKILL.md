@@ -104,18 +104,9 @@ secrets. See docs/board.md for schema and failure routing.
 - `report wait FILE [--timeout 30m]`, `report show FILE`: worker reports.
 - `fanout -n N [--role ROLE] [--wait] TEXT`: independent attempts;
   `compare PREFIX`, `diff NAME`, `merge NAME [--discard]`, `discard NAME` review.
+- `handoff [PANE]`: return web-owned window sizing to tmux (current pane by default). Sidebar/dashboard Agents: `f`; browser-owned rows say `sized by web`. The tmux pane option `@agent_size_owner` is `web:<viewer-id>` while owned and empty after release. Web Handoff takes over; Release or closing the tab returns sizing.
 - `name [PANE] NAME`, `kill PANE...`, `undo AGENT`, `stats [ls|clear]`.
 - `ctx [--global]`, `ctx add TEXT`, `ctx rm ID`, `ctx clear --mine`: factual notes.
-
-Telegram private-chat control (configured via `@agent_notify_url`) is polled by
-our background scraper: `/list`, `/chat <name|number>`, `/read [n]` (default 30),
-`/stop`, `/help`. Selection persists; plain text sends/queues through the normal
-send path and completions return to chat (session assistant text preferred;
-hook/screen fallback only when storage is unavailable; no tool calls or reasoning).
-Pi replies follow the active branch. Pending replies hold queued input during bounded
-flush retries; long replies keep their beginning with `/read for more`. `/stop` only leaves chat, not the agent.
-Telegram never answers approval/trust prompts, creates tickets, or starts workflows.
-Only the configured private chat is accepted; never expose its bot token.
 
 Never approve another agent's permission prompt without explicit user authority;
 quote it to the human. For asynchronous waits use the harness background facility

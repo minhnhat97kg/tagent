@@ -4,6 +4,7 @@ export interface Option { Key: string; Label: string }
 export interface Dialog { question: string; options: Option[] | null }
 
 export interface Agent {
+  pinned?: boolean
   pane: string
   name: string
   agent: string
@@ -13,6 +14,7 @@ export interface Agent {
   path: string
   project: string
   prompt: string
+  stuck?: string
   wait?: string
   started?: number
   branch?: string
@@ -25,6 +27,7 @@ export interface State {
   agents: Agent[]
   harnesses: string[] | null
   host: string
+  theme?: string
   projects: string[] | null
 }
 
@@ -52,7 +55,7 @@ export interface Project {
 }
 
 
-export interface Overview { dir: string; project: string; attention: { needed: boolean; text: string }; providers: {name: string; usedPercent: number | null; weeklyPercent: number | null; stale: boolean}[]; tokens: {today: number; total7d: number; sparkline: string; days: {date: string; tokens: number}[]} }
+export interface Overview { dir: string; project: string; attention: { needed: boolean; text: string; items?: {kind: string; text: string; pane: string | null; count: number}[] }; providers: {name: string; usedPercent: number | null; weeklyPercent: number | null; stale: boolean}[]; tokens: {today: number; total7d: number; sparkline: string; days: {date: string; tokens: number}[]} }
 export interface Draft {title: string; goal: string; acceptance: string[]; outOfScope: string[]; workflow: string}
 export interface Chat {dir: string; enabled: boolean; revision: number; status: string; messages: {role: string; text: string; revision: number}[]; response: {question: string; answer: string; command: string; escalate: string; draft: Draft | null}; workflows: string[]; actions: string[]}
 export interface Workflow { name: string; description: string; global: boolean; file: string; error: string; jobs: { id: string; status: string; agent: string; run: string }[] }

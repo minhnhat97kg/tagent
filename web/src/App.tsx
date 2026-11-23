@@ -1,14 +1,18 @@
-import { useMemo, useState } from "react"
-import { ArrowLeft, Plus, SquareTerminal } from "lucide-react"
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
+import { bindVisualViewport } from '@/lib/touchViewport'
+import { ArrowLeft, Maximize2, Minimize2, Plus, Settings, SquareTerminal, Workflow } from "lucide-react"
+import { SettingsDialog } from "@/components/SettingsDialog"
 import { api } from "@/api"
 import { AgentView } from "@/components/AgentView"
-import { Board } from "@/components/Board"
+import { Notifications } from '@/components/Notifications'
+import { notifications, nextNotice, type Notice } from '@/lib/notifications'
+import { Board, TaskDrawer } from "@/components/Board"
 import { HelpDialog } from "@/components/HelpDialog"
 import { NewAgentDialog } from "@/components/NewAgentDialog"
 import { ProjectSelect } from "@/components/ProjectSelect"
 import { AgentsPanel } from "@/components/panels/AgentsPanel"
 import { ChatPanel } from "@/components/panels/ChatPanel"
-import { DefsPanel } from "@/components/panels/DefsPanel"
+import { WorkflowsPage } from "@/components/WorkflowsPage"
 import { OverviewPanel } from "@/components/panels/OverviewPanel"
 import { TasksPanel } from "@/components/panels/TasksPanel"
 import { Button } from "@/components/ui/button"
@@ -19,20 +23,32 @@ import { usePoll } from "@/hooks/usePoll"
 import { useProjectDir } from "@/hooks/useProjectDir"
 import { enc, nav, parseSel, useRoute } from "@/hooks/useRoute"
 import { baseName } from "@/lib/status"
-import { cn } from "@/lib/utils"
 import { useAppState } from "@/state"
 import type { Agent, Overview, Project } from "@/types"
 
 // App is a fixed shell: top bar, a left rail (usage, agents, roles, tasks) and one main view.
 // Home shows the board (chat in the rail); /agent/<pane> shows that agent's terminal.
 export default function App() {
+  useLayoutEffect(() => bindVisualViewport(document.documentElement), [])
   const route = useRoute()
   const sel = parseSel(route)
   const { state, error } = useAppState()
   const [newOpen, setNewOpen] = useState(false)
   const [help, setHelp] = useState(false)
+  const [settings, setSettings] = useState(false)
+  // Whole app full screen (browser chrome hidden). iPhone Safari has no Fullscreen API, so the button hides there.
+  const [full, setFull] = useState(false)
+  useEffect(() => {
+    const sync = () => setFull(!!document.fullscreenElement)
+    document.addEventListener("fullscreenchange", sync)
+    return () => document.removeEventListener("fullscreenchange", sync)
+  }, [])
+  useEffect(() => { document.documentElement.classList.toggle("dark", state?.theme === "dark") }, [state?.theme])
+  const canFull = typeof document.documentElement.requestFullscreen === "function"
+  const toggleFull = () => (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()).catch(() => {})
 
-  const agents = useMemo(() => (state?.agents ?? []).filter((a) => !a.hidden), [state])
+  // Background agents (tagent-bg session) are listed too, after the visible ones, like the TUI.
+  const agents = useMemo(() => [...(state?.agents ?? [])].sort((a, b) => Number(!!a.hidden) - Number(!!b.hidden)), [state])
   // Agents grouped by project, in the order the list shows them and j/k walk them.
   const ordered = useMemo(() => {
     const groups = new Map<string, Agent[]>()
@@ -40,68 +56,93 @@ export default function App() {
       const k = a.project || baseName(a.path)
       groups.set(k, [...(groups.get(k) ?? []), a])
     }
-    return [...groups.values()].flat()
+    return [...groups.values()].flat().sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned))
   }, [agents])
 
   const agent = sel?.kind === "agent" ? state?.agents.find((a) => a.pane === sel.pane) : undefined
   const [dir, setDir] = useProjectDir(agent?.path)
   const projPoll = usePoll<Project | undefined>(() => (dir ? api<Project>(`/api/project?dir=${enc(dir)}`) : Promise.resolve(undefined)), 2000, dir)
-  const overviewPoll = usePoll<Overview | undefined>(() => (dir ? api<Overview>(`/api/overview?dir=${enc(dir)}`) : Promise.resolve(undefined)), 2000, dir)
+  const [usageDays, setUsageDays] = useState(7)
+  const overviewPoll = usePoll<Overview | undefined>(() => (dir ? api<Overview>(`/api/overview?days=${usageDays}&dir=${enc(dir)}`) : Promise.resolve(undefined)), 5000, dir + usageDays) // usage changes slowly; 5s keeps the server idle
   const overview = overviewPoll.data?.dir === dir ? overviewPoll.data : undefined
-  useKeys(ordered, agent?.pane, () => setHelp(true))
+  const notices = notifications(ordered, projPoll.data?.dir === dir ? projPoll.data : undefined, overview)
+  const [noticeTicket, setNoticeTicket] = useState<{id: string; reply: string; dir: string}>()
+  const noticeOrigin = useRef<HTMLElement | null>(null)
+  const lastNotice = useRef<string | undefined>(undefined)
+  useEffect(() => { if (agent?.pane) lastNotice.current = 'agent:' + agent.pane }, [agent?.pane])
+  const openNotice = (n: Notice, reply = false) => {
+    lastNotice.current = n.id
+    if ('agent' in n) nav('/agent/' + enc(n.agent.pane))
+    else {
+      noticeOrigin.current = document.activeElement as HTMLElement
+      setNoticeTicket({dir, id:n.task.id, reply:reply && n.role ? `@${n.role} ` : ''})
+    }
+  }
+  useKeys(ordered, agent?.pane, () => setHelp(true), () => {
+    const next = nextNotice(notices, lastNotice.current ?? (agent ? 'agent:' + agent.pane : undefined))
+    if (next) openNotice(next)
+  })
 
   if (error?.message.startsWith("unauthorized")) {
-    return <div className="flex h-dvh items-center justify-center p-6 text-center"><p>tagent: open the link printed by <code>tagent web</code> (it carries the access token).</p></div>
+    return <div className="app-viewport flex items-center justify-center p-6 text-center"><p>tagent: open the link printed by <code>tagent web</code> (it carries the access token).</p></div>
   }
 
   const proj = projPoll.data
   const chatRoute = route === "/chat"
-  const home = !sel && !chatRoute
+  const boardRoute = route === '/board'
+  const home = !sel && !chatRoute && !boardRoute && route !== '/workflows'
+  const board = <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border bg-card"><Board dir={dir} proj={proj} reload={projPoll.reload} /></section>
   const tasks = <TasksPanel proj={proj} dir={dir} reload={projPoll.reload} className="min-h-40 flex-1" />
 
 
   let main
-  if (chatRoute) main = <ChatPanel key={dir} dir={dir} onTasks={projPoll.reload} className="h-full" />
+  if (boardRoute) main = board
+  else if (route === '/workflows') main = <WorkflowsPage key={dir} dir={dir} />
+  else if (chatRoute) main = <ChatPanel key={dir} dir={dir} onTasks={projPoll.reload} className="h-full" />
   else if (agent) main = <AgentView key={agent.pane} agent={agent} />
   else if (sel) main = state ? <div className="p-6 text-muted-foreground">Agent not found. <a href="#/" className="text-foreground underline">Home</a></div> : null
   else main = <>
     {/* Phone home: the rail's lists stacked; the board is one tap away. */}
     <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto md:hidden">
+      <OverviewPanel days={usageDays} onDays={setUsageDays} overview={overview} className="shrink-0" />
+      <a href="#/board" className="flex h-10 shrink-0 items-center justify-center rounded-lg border bg-card font-medium hover:bg-accent">Board</a>
       <AgentsPanel ordered={ordered} chatActive={chatRoute} className="shrink-0" />
       {tasks}
     </div>
     <div className="hidden min-h-0 min-w-0 flex-1 md:flex">
-      <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border bg-card"><Board dir={dir} proj={proj} reload={projPoll.reload} /></section>
+      {board}
     </div>
   </>
 
   return (
     <TooltipProvider>
-      <div className="flex h-dvh flex-col bg-sidebar">
-        <header className="flex h-11 shrink-0 items-center gap-2 border-b bg-card px-3">
+      <div className="app-viewport flex flex-col bg-sidebar">
+        <header className="flex h-11 shrink-0 items-center gap-1 border-b bg-card px-2 md:gap-2 md:px-3">
           {!home && <Button variant="ghost" size="icon-xs" className="md:hidden" onClick={() => nav("/")} aria-label="Back"><ArrowLeft /></Button>}
-          <a href="#/" className="flex shrink-0 items-center gap-1.5 text-[13px] font-semibold"><span className="flex size-6 items-center justify-center rounded-md bg-zinc-900 text-white"><SquareTerminal className="size-3.5" /></span>tagent<span className="hidden font-normal text-muted-foreground lg:inline"> · {state?.host ?? ""}</span></a>
-          <ProjectSelect value={dir} projects={state?.projects ?? []} onChange={(d) => { setDir(d); nav("/") }} />
-          {overview && <span className={cn("hidden min-w-0 items-center gap-1.5 truncate rounded-full px-2 py-0.5 text-[11.5px] md:flex", overview.attention.needed ? "bg-amber-50 text-amber-800" : "text-muted-foreground")}>
-            <span className={cn("size-1.5 shrink-0 rounded-full", overview.attention.needed ? "bg-amber-500" : "bg-emerald-500")} />{overview.attention.text}
-          </span>}
+          <a href="#/" className="flex shrink-0 items-center gap-1.5 text-[13px] font-semibold"><span className="flex size-6 items-center justify-center rounded-md bg-primary text-primary-foreground"><SquareTerminal className="size-3.5" /></span><span className="hidden sm:inline">tagent</span><span className="hidden font-normal text-muted-foreground lg:inline"> · {state?.host ?? ""}</span></a>
+          <div className="min-w-0 flex-1 overflow-hidden [&_button]:max-w-full"><ProjectSelect value={dir} projects={state?.projects ?? []} onChange={(d) => { setDir(d); nav("/") }} /></div>
           <div className="ml-auto flex items-center gap-1">
+            <Button variant="ghost" size="icon-xs" aria-label="Workflows" title="Workflows" onClick={() => nav('/workflows')}><Workflow /></Button>
+            <Notifications items={notices} onOpen={openNotice} onReply={n => openNotice(n, true)} />
             <Button size="sm" onClick={() => setNewOpen(true)}><Plus /> <span className="hidden sm:inline">New agent</span></Button>
+            {canFull && <Button className="hidden sm:inline-flex" variant="ghost" size="icon-xs" aria-label={full ? "Exit full screen" : "Full screen"} title={full ? "Exit full screen" : "Full screen"} onClick={() => void toggleFull()}>{full ? <Minimize2 /> : <Maximize2 />}</Button>}
+            <Button variant="ghost" size="icon-xs" aria-label="Settings" title="Settings" onClick={() => setSettings(true)}><Settings /></Button>
             <Button variant="ghost" size="icon-xs" aria-label="Shortcuts" onClick={() => setHelp(true)}>?</Button>
           </div>
         </header>
 
         <div className="flex min-h-0 flex-1 gap-2 p-2">
-          <aside className="hidden w-72 shrink-0 flex-col gap-2 md:flex">
-            <OverviewPanel overview={overview} className="shrink-0" />
+          {!boardRoute && <aside className="hidden w-72 shrink-0 flex-col gap-2 md:flex">
+            <OverviewPanel days={usageDays} onDays={setUsageDays} overview={overview} className="shrink-0" />
             <AgentsPanel ordered={ordered} selPane={agent?.pane} chatActive={chatRoute} className={home ? "min-h-24 flex-1" : "max-h-[35%] shrink-0"} />
-            <DefsPanel proj={proj} dir={dir} className="max-h-[25%] shrink-0" />
             {!home && tasks}
-          </aside>
+          </aside>}
           <main className="flex min-h-0 min-w-0 flex-1 flex-col">{main}</main>
         </div>
       </div>
-      {newOpen && <NewAgentDialog onOpenChange={setNewOpen} />}
+      <TaskDrawer proj={proj} dir={dir} reload={projPoll.reload} id={noticeTicket?.dir === dir ? noticeTicket.id : undefined} initialReply={noticeTicket?.reply} origin={noticeOrigin} onClose={() => setNoticeTicket(undefined)} />
+      {newOpen && <NewAgentDialog dir={dir} onOpenChange={setNewOpen} />}
+      <SettingsDialog open={settings} onOpenChange={setSettings} />
       <HelpDialog open={help} onOpenChange={setHelp} />
       <Toaster richColors position="top-right" />
     </TooltipProvider>

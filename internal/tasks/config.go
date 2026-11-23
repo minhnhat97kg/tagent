@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"tagent/internal/apppath"
 
 	"gopkg.in/yaml.v3"
@@ -80,9 +81,18 @@ type BoardConfig struct {
 func DefaultColumns() []string { return []string{"todo", "doing", "review", "blocked", "done"} }
 
 // MainRoot deliberately uses the common git dir, so linked worktrees share config.
+// mainRoots caches git answers: a directory's main worktree never changes, and the web, scraper and
+// sidebar ask for it per ticket and per pane on every refresh (one git exec each, ~5ms).
+var mainRoots sync.Map
+
 func MainRoot(dir string) string {
+	if root, ok := mainRoots.Load(dir); ok {
+		return root.(string)
+	}
 	if out, err := exec.Command("git", "-C", dir, "rev-parse", "--path-format=absolute", "--git-common-dir").Output(); err == nil {
-		return filepath.Dir(strings.TrimSpace(string(out)))
+		root := filepath.Dir(strings.TrimSpace(string(out)))
+		mainRoots.Store(dir, root)
+		return root
 	}
 	abs, err := filepath.Abs(dir)
 	if err == nil {

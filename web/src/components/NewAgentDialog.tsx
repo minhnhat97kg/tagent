@@ -1,14 +1,15 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { NewAgentComposer } from "@/components/NewAgentComposer"
 
-export function NewAgentDialog({ onOpenChange }: { onOpenChange: (open: boolean) => void }) {
+export function NewAgentDialog({ onOpenChange, dir }: { onOpenChange: (open: boolean) => void; dir?: string }) {
   return (
     <Dialog open onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="gap-3 sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>New agent</DialogTitle>
+          <DialogTitle className="text-[15px]">New agent</DialogTitle>
+          <DialogDescription className="text-[12px]">Pick who to start. Double-click a tile to open it right away.</DialogDescription>
         </DialogHeader>
-        <NewAgentComposer onDone={() => onOpenChange(false)} />
+        <NewAgentComposer dir={dir} onDone={() => onOpenChange(false)} />
       </DialogContent>
     </Dialog>
   )

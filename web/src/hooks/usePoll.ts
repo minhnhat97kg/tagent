@@ -5,13 +5,15 @@ export function usePoll<T>(fn: () => Promise<T>, ms: number, key: unknown = "") 
   const [data, setData] = useState<T>()
   const [error, setError] = useState<Error>()
   const fnRef = useRef(fn)
+  const last = useRef("") // skip re-rendering the whole page when a poll returns the same data
   useEffect(() => {
     fnRef.current = fn
   })
   const reload = useCallback(() => {
     fnRef.current().then(
       (d) => {
-        setData(d)
+        const json = JSON.stringify(d) ?? ""
+        if (json !== last.current) { last.current = json; setData(d) }
         setError(undefined)
       },
       (e: Error) => setError(e),
@@ -19,6 +21,7 @@ export function usePoll<T>(fn: () => Promise<T>, ms: number, key: unknown = "") 
   }, [])
   useEffect(() => {
     setData(undefined)
+    last.current = ""
     reload()
     const id = setInterval(() => {
       if (!document.hidden) reload()

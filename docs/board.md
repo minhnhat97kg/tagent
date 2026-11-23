@@ -69,7 +69,11 @@ Workflow recipes remain trusted executable configuration: review the command bef
 
 Humans can press `n` on the board or run `tagent task add -i [--workflow NAME] ["idea"]`.
 A local model asks at most three questions before proposing a ticket; nothing is created before approval.
-Set `@agent_intake_llm` to `off` for plain add, or a custom stdin/stdout command (60-second timeout).
+TUI intake uses the Chat receptionist (`@agent_chat_model` and `@agent_chat_endpoint`), sharing its conversation and approval state. `@agent_intake_llm` remains for CLI stdin/stdout commands (60-second timeout).
+
+## Board columns vs workflows
+
+`board.yaml` columns define the default flow. A workflow overrides that flow for one ticket, attached with `s`/start. Choose board flow for routine work; choose a workflow when a ticket needs a special sequence of roles or checks.
 Default: `ollama run --nowordwrap --think=false bonsai-2:9b`. Errors fall back to plain add with a notice.
 Set intake LLM off for plain creation. Draft keys: Enter create, r create+start, e editor, w cycle workflow, Esc cancel.
 CLI: y create, r create+start, e editor, w NAME (or w none) change workflow, n abort.
@@ -276,7 +280,7 @@ Old assigned todo tickets do not auto-run; move them deliberately.
 
 Reusable definition:
 - **Title:** Track delivery status updates
-- **Goal:** Track a feature through its existing feature workflow and receive Telegram status updates.
+- **Goal:** Track a feature through its existing feature workflow and receive phone status updates.
 - **Acceptance:** Assign an owner, move the ticket through the workflow, and verify that only `done`/`blocked` send a phone message, containing the ticket, old/new status and current assignees. Repeating the same status sends nothing.
 
 Use the existing feature workflow (no notification-specific workflow):
@@ -284,8 +288,7 @@ Use the existing feature workflow (no notification-specific workflow):
 tagent task add --workflow feature "Track delivery status updates"
 tagent task assign ID builder
 ```
-Assignment behavior is unchanged. Configure `notify_url` with the existing Telegram
-`sendMessage` URL (including `chat_id`) or ntfy URL; empty disables delivery.
+Assignment behavior is unchanged. Configure `notify_url` with an ntfy URL or plain-text POST webhook; empty disables delivery.
 Only persisted status transitions alert, including workflow, sidebar and web edits;
 creation, comments and assignment alone do not. Desktop enablement is independent.
 The global tmux destination is shared by boards. Messages expose project scope,
@@ -299,48 +302,17 @@ The left pane's **Start Chat** button reveals/resumes the selected project's dur
 
 Web chat uses one bounded, non-streaming native Ollama `/api/chat` tool call. Install/run Ollama with a tool-capable model (default `bonsai-2:9b`). Set `@agent_chat_model` to change the model, or `off` to disable web chat; `@agent_chat_endpoint` defaults to `http://127.0.0.1:11434`. Only use a trusted endpoint: project summaries and conversation history are sent there. Unsupported models and transport errors fail visibly and can be retried; there is no prose fallback.
 
-The fixed tools answer, ask a question, propose a ticket, propose an allowlisted command, or escalate. The native prompt includes command allowlisting documentation, not the legacy `ANSWER:`/`CMD:` response protocol. There is no MCP, plugin discovery, shell tool, or file tool. Tools only produce proposals: mutations still require explicit local approval. Commands require a `!` request. CLI/sidebar/Telegram retain the legacy `@agent_intake_llm` command/prose adapter; custom shell commands are never launched by web chat. Both paths share history and approval state.
+The fixed tools answer, ask a question, propose a ticket, propose an allowlisted command, or escalate. The native prompt includes command allowlisting documentation, not the legacy `ANSWER:`/`CMD:` response protocol. There is no MCP, plugin discovery, shell tool, or file tool. Tools only produce proposals: mutations still require explicit local approval. Commands require a `!` request. CLI retains the legacy `@agent_intake_llm` command/prose adapter; TUI intake uses the native receptionist; custom shell commands are never launched by web chat. Both paths share history and approval state.
 
-## Telegram receptionist chat
-
-Set `@agent_notify_url` to `https://api.telegram.org/bot<TOKEN>/sendMessage?chat_id=<ID>`
-using a positive private-chat ID. The existing background scraper long-polls Telegram;
-no webhook or public server is needed. Only that private chat is accepted. Keep the
-URL/token secret. Existing outgoing task-status notifications are unchanged.
-
-Telegram and dashboard Chat now share one durable receptionist conversation per task
-scope, including the existing worktree/main-root scoping. This **replaces agent pane
-control**: no terminal input, screen capture, agent completion bridge or transcript
-migration. Old pane selections are cleared on upgrade.
-
-- `/list`: registered and live-pane projects, deduplicated by task scope.
-- `/chat <name|number>`: select a project; ambiguous names require a number.
-- Plain text: ask the receptionist; a sole project is selected automatically.
-  Multiple projects require explicit selection. Busy requests receive a retry message.
-- Drafts and allowlisted commands require explicit **local approval in dashboard
-  Chat**. Telegram cannot approve or execute them (`ok` and `/yes` only explain
-  this boundary). `/no` cancels a proposal. Factual answers never execute commands.
-  Agent terminal approval dialogs also require local input.
-- `/read [n]`: bounded shared conversation history (default 30, maximum 48 entries).
-- `/stop`: detach without cancelling or erasing the conversation.
-- `/help`: command summary.
-
-A clarification on either surface can be answered on the other. Chat keeps local
-input/editor buffers separate; approval claims reject stale or competing proposals.
-Interrupted model requests become retryable failures; interrupted mutation claims
-report an uncertain outcome requiring inspection, and are never automatically rerun.
+Chat keeps local input/editor buffers separate; approval claims reject stale or
+competing proposals. Interrupted model requests become retryable failures;
+interrupted mutation claims report an uncertain outcome requiring inspection
+and are never automatically rerun.
 
 History is bounded and stored privately beneath the project's shared context directory
-in `conversation/state.json`. It survives panel/poller restarts and may contain
-sensitive user text. Old answers are quoted as untrusted context, not current facts.
+in `conversation/state.json`. It survives panel restarts and may contain sensitive
+user text. Old answers are quoted as untrusted context, not current facts.
 Corrupt state reports an error rather than silently replacing history.
-
-Only the owning scraper accepts input. Accepted text update IDs are deduplicated;
-offsets advance after handling. Output cursors are endpoint/scope-qualified and
-advance only after successful sends. Selection sends current pending state before
-checkpointing; failed sends leave the selection update retryable. Old history is not replayed. HTTP
-retries are ordered best-effort, not exactly-once delivery. Messages are plain text,
-token-redacted and bounded below Telegram's 4096 UTF-16-unit limit.
 
 Tasks panel and board share ticket controls: `n` intake, `s` workflow start picker,
 `enter` detail, `e` edit, `C` comment, `H`/`L` status, `x` delete with confirmation,

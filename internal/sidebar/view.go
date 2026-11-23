@@ -215,6 +215,9 @@ func renderPaneText(row Row, budget int, theme Theme, icons Icons, selected bool
 	}
 	// Emoji go: the marquee steps rune by rune and would split them.
 	name := stripEmoji(prefix + row.Base)
+	if row.SizedByWeb {
+		name += " · sized by web"
+	}
 	plain := name
 	if row.GitBranch != "" {
 		plain += "  " + icons.GitBranch + " " + stripEmoji(row.GitBranch)

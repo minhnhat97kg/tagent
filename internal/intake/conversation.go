@@ -25,7 +25,6 @@ type Message struct {
 // Conversation is shared by all clients of one task scope. Input buffers and
 // editors deliberately live outside this structure.
 type Conversation struct {
-	Delivered            map[string]uint64
 	Revision, Generation uint64
 	Messages             []Message
 	Idea                 string
@@ -35,7 +34,6 @@ type Conversation struct {
 	Status               string
 	Owner                int
 	Deadline             time.Time
-	Accepted             []string
 }
 
 // Result is the parsed proposal or read-only answer. Mutations are local-only.
@@ -60,10 +58,6 @@ func (s *Conversation) append(role, text string) {
 
 // conversationUpdate serializes transitions only, never model or command work.
 func conversationUpdate(scope string, change func(*Conversation) error) (Conversation, error) {
-	return conversationTransition(scope, change, true)
-}
-
-func conversationTransition(scope string, change func(*Conversation) error, revise bool) (Conversation, error) {
 	var s Conversation
 	dir := filepath.Join(sharedctx.Dir(scope), "conversation")
 	if err := os.MkdirAll(dir, 0700); err != nil {
@@ -112,9 +106,7 @@ func conversationTransition(scope string, change func(*Conversation) error, revi
 	} else if !recovered {
 		return s, nil
 	}
-	if revise || recovered {
-		s.Revision++
-	}
+	s.Revision++
 	b, err = json.Marshal(s)
 	if err != nil {
 		return s, err
@@ -140,15 +132,9 @@ func conversationTransition(scope string, change func(*Conversation) error, revi
 
 func LoadConversation(scope string) (Conversation, error) { return conversationUpdate(scope, nil) }
 
-// ReserveSubmission accepts an optional endpoint-qualified Telegram update ID.
-// Duplicate acceptance is retained independently of bounded message history.
-func ReserveSubmission(scope, input, identity string) (Conversation, error) {
+// ReserveSubmission reserves a request. The unused argument preserves client API compatibility.
+func ReserveSubmission(scope, input, _ string) (Conversation, error) {
 	return conversationUpdate(scope, func(s *Conversation) error {
-		for _, id := range s.Accepted {
-			if identity != "" && id == identity {
-				return ErrStale
-			}
-		}
 		if s.Status == "running" || s.Status == "approving" {
 			return ErrBusy
 		}
@@ -172,12 +158,6 @@ func ReserveSubmission(scope, input, identity string) (Conversation, error) {
 		s.Owner = os.Getpid()
 		s.Deadline = time.Now().Add(5 * time.Minute)
 		s.append("user", input)
-		if identity != "" {
-			s.Accepted = append(s.Accepted, identity)
-			if len(s.Accepted) > 256 {
-				s.Accepted = s.Accepted[len(s.Accepted)-256:]
-			}
-		}
 		return nil
 	})
 }
@@ -235,23 +215,10 @@ func ConversationPrompt(s Conversation, context Context) string {
 
 // ClaimApproval must be called by a local UI before executing any mutation.
 // A crashed claim is never automatically replayed.
-func ClaimApproval(scope string, revision uint64, identity ...string) (Conversation, error) {
+func ClaimApproval(scope string, revision uint64) (Conversation, error) {
 	return conversationUpdate(scope, func(s *Conversation) error {
-		if len(identity) > 0 && identity[0] != "" {
-			for _, id := range s.Accepted {
-				if id == identity[0] {
-					return ErrStale
-				}
-			}
-		}
 		if s.Revision != revision || s.Status != "proposal" {
 			return ErrStale
-		}
-		if len(identity) > 0 && identity[0] != "" {
-			s.Accepted = append(s.Accepted, identity[0])
-			if len(s.Accepted) > 256 {
-				s.Accepted = s.Accepted[len(s.Accepted)-256:]
-			}
 		}
 		s.Status = "approving"
 		s.Owner = os.Getpid()

@@ -26,7 +26,7 @@ func (n *statusNotice) send() {
 	if n == nil || n.to != "done" && n.to != "blocked" { // only final states reach the phone
 		return
 	}
-	clip := func(s string, max int) string { // stay well below Telegram's 4096 characters
+	clip := func(s string, max int) string { // bound payloads for phone push endpoints
 		r := []rune(strings.TrimSpace(s))
 		if len(r) > max {
 			return string(r[:max]) + "…"

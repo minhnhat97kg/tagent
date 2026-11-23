@@ -16,7 +16,7 @@ func TestConversationSharedTransitions(t *testing.T) {
 	if err != nil || s.Revision != 0 {
 		t.Fatal(s, err)
 	}
-	s, err = ReserveSubmission("project", "build a thing", "endpoint:1")
+	s, err = ReserveSubmission("project", "build a thing", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -30,7 +30,7 @@ func TestConversationSharedTransitions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s, err = ReserveSubmission("project", "a small thing", "endpoint:2")
+	s, err = ReserveSubmission("project", "a small thing", "")
 	if err != nil || len(s.Turns) != 1 {
 		t.Fatal(s, err)
 	}
@@ -61,7 +61,7 @@ func TestConversationSharedTransitions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = ReserveSubmission("project", "duplicate", "endpoint:1"); !errors.Is(err, ErrStale) {
+	if _, err = ReserveSubmission("project", "next request", ""); err != nil {
 		t.Fatal(err)
 	}
 	other, err := LoadConversation("other")

@@ -9,6 +9,7 @@ import (
 )
 
 func TestIntakePopup(t *testing.T) {
+	legacyIntakeFixture(t)
 	t.Setenv("TMUX_AGENT_CONTEXT_DIR", t.TempDir())
 	dir := t.TempDir()
 	scope := tasks.Scope(dir)

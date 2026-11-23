@@ -53,6 +53,7 @@ Worktrees and attempts
   diff name                    Show changes (also --stat)
   merge name [--discard]       Merge a worktree agent's changes
   discard name                 Drop a worktree agent
+  handoff [PANE]               Return web-owned pane sizing to this terminal
   checkpoints name            List snapshots; undo name [n] restores one
   fanout -n N text             Run parallel attempts; compare prefix reviews them
   save | restore               Save and restore running agents
@@ -67,14 +68,6 @@ UI and configuration
   reload                       Restart sidebars after an update
   explain <pane|name>          Why a pane has its status (hook/screen/CPU evidence)
   version                      Print version
-
-Telegram (private chat; configure @agent_notify_url with a Telegram bot URL)
-  /list projects, /chat <name|number>, /read [n], /stop, /help
-  Plain text talks to the same project receptionist as dashboard Chat.
-  A sole project is selected automatically; multiple projects require /chat.
-  Drafts/commands require explicit local approval in dashboard Chat; /no cancels.
-  /read reads shared history; /stop detaches without clearing the conversation.
-  No agent terminal forwarding. The background scraper polls; no webhook needed.
 `
 
 func cmdHelp(stdout io.Writer) int {
