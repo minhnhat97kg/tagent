@@ -104,6 +104,46 @@ func (m Model) handleTaskForm(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	}
+	if m.taskForm == "needs" {
+		candidates := m.needCandidates()
+		chosen := map[string]bool{}
+		for _, id := range strings.Split(m.taskInput, ",") {
+			if id = strings.TrimSpace(id); id != "" {
+				chosen[id] = true
+			}
+		}
+		switch key.String() {
+		case "esc":
+			m.taskForm = ""
+		case "j", "down":
+			m.taskStep = min(max(0, len(candidates)-1), m.taskStep+1)
+		case "k", "up":
+			m.taskStep = max(0, m.taskStep-1)
+		case " ":
+			if len(candidates) > 0 && m.taskStep < len(candidates) {
+				id := candidates[m.taskStep].ID
+				chosen[id] = !chosen[id]
+				var ids []string
+				for _, c := range candidates {
+					if chosen[c.ID] {
+						ids = append(ids, c.ID)
+					}
+				}
+				m.taskInput = strings.Join(ids, ",")
+			}
+		case "enter":
+			var ids []string
+			for _, id := range strings.Split(m.taskInput, ",") {
+				if id = strings.TrimSpace(id); id != "" {
+					ids = append(ids, id)
+				}
+			}
+			scope, id := m.notesScope, m.notes[m.taskCursor].ID
+			m.taskForm = ""
+			return m, func() tea.Msg { return actionResult("Dependencies saved", tasks.SetNeeds(scope, id, ids)) }
+		}
+		return m, nil
+	}
 	if m.taskForm == "chat" && key.Type == tea.KeyCtrlS {
 		return m.saveChatInput()
 	}
@@ -210,6 +250,31 @@ func (m Model) taskFormView() string {
 		if m.boardConfig.DefaultWorkflow != "" {
 			body += " (" + m.boardConfig.DefaultWorkflow + ")"
 		}
+	case "needs":
+		title, hint = "Dependencies", m.keyHints("j/k select", "space toggle", "enter save", "esc cancel")
+		if m.taskCursor >= 0 && m.taskCursor < len(m.notes) {
+			title = "Dependencies for #" + m.notes[m.taskCursor].ID
+		}
+		chosen := map[string]bool{}
+		for _, id := range strings.Split(m.taskInput, ",") {
+			if id = strings.TrimSpace(id); id != "" {
+				chosen[id] = true
+			}
+		}
+		candidates := m.needCandidates()
+		if len(candidates) == 0 {
+			body += boardFit("  no other tickets", width) + "\n"
+		}
+		for i, t := range candidates {
+			prefix, box := "  ", "[ ]"
+			if i == m.taskStep {
+				prefix = "› "
+			}
+			if chosen[t.ID] {
+				box = "[x]"
+			}
+			body += boardFit(fmt.Sprintf("%s%s #%s %s · %s", prefix, box, t.ID, boardTitle(t), t.Status), width) + "\n"
+		}
 	case "agent-model":
 		title, hint = "Model for "+m.selectedAgentName(), "Enter save · Esc cancel · applies to new panes"
 	case "agent-new":
@@ -226,7 +291,7 @@ func (m Model) taskFormView() string {
 		title, hint = "✎ Message the chat", "Enter send · ctrl+s save to ticket · Esc cancel"
 
 	}
-	if m.taskForm != "start" && m.taskForm != "default" && m.taskForm != "attachments" {
+	if m.taskForm != "start" && m.taskForm != "default" && m.taskForm != "attachments" && m.taskForm != "needs" {
 		body += "\n" + wrappedInput(m.taskInput, width, m.height)
 	}
 	return lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(m.theme.Accent).Width(width).Render(lipgloss.NewStyle().Bold(true).Foreground(m.theme.Accent).Render(title) + "\n\n" + lipgloss.NewStyle().Width(width).Render(body) + "\n\n" + hint)

@@ -47,6 +47,8 @@ export interface State {
 export interface Task {
  title: string
  workflow?: string
+ priority?: "high" | "normal" | "low"
+ needs?: string[] | null
  comments: { id?: string; author: string; body: string; created?: string }[] | null
   id: string
   text: string

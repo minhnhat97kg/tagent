@@ -125,11 +125,13 @@ func dispatchBoardAction(a board.Action) error {
 		}
 		return nil
 	}
+	priority := 1
 	if a.Event.Task != "" {
 		ticket, err := tasks.Get(scope, a.Event.Task)
 		if err != nil {
 			return err
 		}
+		priority = tasks.PriorityRank(ticket.Priority)
 		if ticket.Workflow != "" {
 			a.ExecDir, err = workflowWorktree(a.Dir, ticket.ID)
 			if err != nil {
@@ -247,7 +249,7 @@ func dispatchBoardAction(a board.Action) error {
 		if err := ensureBoardScraper(); err != nil {
 			return err
 		}
-		_, _, err := queue.Push(pane, a.Prompt)
+		_, _, err := queue.PushRank(pane, a.Prompt, priority)
 		if err == nil && a.ResumePrompt != nil {
 			tmux.SetPaneOption(pane, "@agent_comment_cursor", strconv.Itoa(a.CommentCount))
 			tmux.SetPaneOption(pane, "@agent_role_entries", strconv.Itoa(entries+1))

@@ -262,8 +262,12 @@ The tagged role resumes in the ticket's own flow with only that reply; another r
 routes to its first status. Unknown or multiple distinct tags save the comment but
 leave the ticket blocked with a notice. With missing history or a roleless step,
 type the role explicitly. Agents must block with exactly one concrete question.
-`task set` and `task done` remain admin overrides. Assignees and `needs` are
-informational, not dispatch gates; mention triggers still notify agents.
+`task set` and `task done` remain admin overrides. Assignees are metadata; `needs`
+is a start gate: a ticket with open dependencies cannot leave todo, and its card
+shows `waits #12` until the last one is done, then `ready` (a human still starts it).
+`task needs ID ids|-` edits them; cycles and unknown ids are rejected. Priority is
+`high`, `normal` (default) or `low` (`task add --priority`, `task priority`); lanes
+and the dispatcher's busy/approval queue order by it. Mention triggers still notify.
 Recipes support `workflow new|list|run`, `workflow run NAME --input key=value --wait`,
 and `task move ID NEXT --output key=value "Handoff"`.
 `task show ID --brief` includes the latest dispatch outcome. Accepted is not

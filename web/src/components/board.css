@@ -36,6 +36,16 @@
 .card-meta { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--muted-foreground); min-height: 20px; }
 .card-meta .board-avatar { margin-left: auto; }
 .card-label { background: var(--muted); border-radius: 4px; padding: 0 5px; }
+/* Priority is a rank, not a label: one arrow, no colour, no emoji. */
+.card-prio { font-variant-numeric: tabular-nums; color: var(--foreground); }
+.card-meta .card-deps { color: var(--muted-foreground); }
+.card-meta .card-deps.is-ready { color: #059669; }
+.dep-field { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.dep-chip { border-radius: 4px; background: var(--muted); padding: 0 5px; font-size: 11.5px; }
+.dep-field input { width: 8rem; border-radius: 4px; background: var(--card); padding: 1px 6px; box-shadow: inset 0 0 0 1px var(--line); font-size: 12px; }
+.dep-list { display: flex; flex-direction: column; gap: 2px; }
+.dep-list button { display: flex; align-items: center; gap: 6px; width: 100%; text-align: left; font-size: 12.5px; }
+.dep-list button:hover { text-decoration: underline; }
 .blocked-reason { background: #fef2f2; color: #b91c1c; padding: 4px 6px; border-radius: 4px; font-size: 11.5px; white-space: pre-wrap; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 
 .board-key { font: 11px ui-monospace, "SF Mono", Menlo, monospace; color: var(--muted-foreground); }

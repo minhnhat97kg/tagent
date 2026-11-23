@@ -35,6 +35,6 @@ export function TasksPanel({ proj, dir, reload, className }: { proj?: Project; d
       <Avatar role={role(t)} />
     </button>)}
     {!!done.length && <button className="flex h-8 w-full items-center px-2.5 text-[11.5px] text-muted-foreground hover:text-foreground" onClick={() => setShowDone(!showDone)}>{showDone ? "Hide done" : `Show ${done.length} done`}</button>}
-    <TaskDrawer proj={proj} dir={dir} reload={reload} id={openId} onClose={() => setOpenId(undefined)} origin={origin} />
+    <TaskDrawer proj={proj} dir={dir} reload={reload} id={openId} onClose={() => setOpenId(undefined)} onOpen={setOpenId} origin={origin} />
   </Panel>
 }

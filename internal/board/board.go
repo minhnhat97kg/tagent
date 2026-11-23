@@ -245,6 +245,14 @@ func Actions(dir string, cfg tasks.BoardConfig, ev tasks.Event, t tasks.Task) ([
 	if ev.Actor == "system" {
 		return nil, nil
 	}
+	// A ticket whose dependencies are not done is never dispatched: the CLI, the
+	// TUI and the web already refuse to start it, so this only catches events
+	// written by an older client or a script.
+	if ev.Kind == "status" || ev.Kind == "retry" {
+		if len(tasks.OpenNeeds(tasks.Scope(dir), t)) > 0 {
+			return nil, nil
+		}
+	}
 	var comment tasks.TaskComment
 	for _, c := range t.Comments {
 		if c.ID == ev.CommentID {

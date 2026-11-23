@@ -75,6 +75,11 @@ func move(scope, id, to, body string, seq int64, safety bool, opts ...MutationOp
 		if !slices.Contains(cfg.Columns, to) {
 			return fmt.Errorf("invalid status %q", to)
 		}
+		if to != t.Status && t.Status == "todo" {
+			if reason := WaitingReason(scope, t); reason != "" {
+				return fmt.Errorf("cannot leave todo: %s", reason)
+			}
+		}
 		if to != t.Status && !safety && !attached {
 			for _, s := range cfg.Statuses {
 				if s.ID == t.Status && s.Next != nil && !slices.Contains(s.Next, to) {

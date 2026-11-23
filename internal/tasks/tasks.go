@@ -26,6 +26,7 @@ type Task struct {
 	Inputs      map[string]string            `json:"inputs,omitempty"`
 	Outputs     map[string]map[string]string `json:"outputs,omitempty"`
 	Needs       []string                     `json:"needs,omitempty"`
+	Priority    string                       `json:"priority,omitempty"` // high | low; empty is normal
 	Title       string                       `json:"title"`
 	Due         string                       `json:"due,omitempty"`
 	Comments    []TaskComment                `json:"comments"`
@@ -48,6 +49,7 @@ type MutationOptions struct {
 	Outputs     map[string]string
 	Actor       string
 	Needs       []string
+	Priority    string
 }
 
 var scopeCache sync.Map // dir → scope: it runs git, and the UI asks for it many times a frame
@@ -198,6 +200,18 @@ func Add(scope, text string, assignees []string, opts ...MutationOptions) (Task,
 		t.ID = nextID(scope)
 		if len(opts) > 0 {
 			t.Needs = opts[0].Needs
+			for i := range t.Needs {
+				t.Needs[i] = strings.TrimSpace(t.Needs[i])
+			}
+			if err := ValidateNeeds(scope, "", t.Needs); err != nil {
+				return err
+			}
+			if err := ValidatePriority(opts[0].Priority); err != nil {
+				return err
+			}
+			if p := NormalizePriority(opts[0].Priority); p != "normal" {
+				t.Priority = p
+			}
 			t.Workflow = opts[0].Workflow
 			if t.Workflow != "" {
 				dir, ok := scopeRoots.Load(scope)
@@ -215,21 +229,6 @@ func Add(scope, text string, assignees []string, opts ...MutationOptions) (Task,
 				t.Inputs, e = w.Values(opts[0].Inputs)
 				if e != nil {
 					return e
-				}
-			}
-			seen := map[string]bool{}
-			for _, id := range t.Needs {
-				if seen[id] {
-					return fmt.Errorf("duplicate dependency %s", id)
-				}
-				seen[id] = true
-			}
-			for _, id := range t.Needs {
-				if id == "" {
-					continue
-				}
-				if _, err := Get(scope, id); err != nil {
-					return fmt.Errorf("task reference %s: %w", id, err)
 				}
 			}
 		}
@@ -368,6 +367,11 @@ func Update(scope, id, status string, assignees []string, opts ...MutationOption
 			status = jobStatus(cfg, status)
 			if !slices.Contains(cfg.Columns, status) {
 				return fmt.Errorf("invalid status %q", status)
+			}
+			if status != t.Status && t.Status == "todo" {
+				if reason := WaitingReason(scope, t); reason != "" {
+					return fmt.Errorf("cannot leave todo: %s", reason)
+				}
 			}
 		}
 		from := t.Status

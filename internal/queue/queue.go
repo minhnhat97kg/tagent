@@ -32,13 +32,19 @@ func paneDir(pane string) string {
 }
 
 // Push queues text for pane and returns its position (1 = next) and an id
-// for Pending.
+// for Pending. Normal priority, same rank as PushRank(pane, text, 1).
 func Push(pane, text string) (int, string, error) {
+	return PushRank(pane, text, 1)
+}
+
+// PushRank queues text for pane with a delivery rank: lower ranks are delivered
+// first, and the same rank keeps FIFO. The board passes tasks.PriorityRank.
+func PushRank(pane, text string, rank int) (int, string, error) {
 	dir := paneDir(pane)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return 0, "", err
 	}
-	id := filepath.Join(dir, fmt.Sprintf("%020d.txt", time.Now().UnixNano()))
+	id := filepath.Join(dir, fmt.Sprintf("%d-%020d.txt", rank, time.Now().UnixNano()))
 	if err := os.WriteFile(id, []byte(text), 0o600); err != nil {
 		return 0, "", err
 	}
