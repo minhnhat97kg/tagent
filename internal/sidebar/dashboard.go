@@ -125,9 +125,9 @@ func (m Model) dashboardView() string {
 	} else {
 		body = stack("agents", "usage", "tasks", "wf", "comp")
 	}
-	help := " Tab/S-Tab panel · ↑↓ select · Enter open · N new agent · l log · i prompt · b board"
+	help := " Tab/S-Tab panel · ↑↓ select · Enter open · N new agent · l log · i prompt · ? help"
 	if m.agentFocus == 3 {
-		help = " h/l or [ ] range · Tab/S-Tab panel"
+		help = " h/l or [ ] range · Tab/S-Tab panel · ? help"
 	}
 	if m.agentFocus == 4 {
 		help = m.keyHints("h/l agents", "enter view", "a add", "Tab focus", "? help")

@@ -873,14 +873,14 @@ func (m Model) boardView() string {
 	} else if m.workflowFocus && m.agentsOpen && !m.boardFlow && !m.boardDrawer {
 		hint = m.keyHints("enter detail", "m model", "e edit", "a add", "x delete", "t close", "Tab tickets", "? help")
 	} else if m.workflowFocus && !m.boardFlow && !m.boardDrawer {
-		hint = m.keyHints("enter view", "a add", "e edit", "t agents", "Tab tickets", "? help")
+		hint = m.keyHints("enter view", "a add", "e edit", "x delete", "t agents", "B config", "Tab tickets", "? help")
 	}
 	if m.boardConfigView {
-		hint = m.keyHints("esc close", "j/k scroll", "E edit", "? help")
+		hint = m.keyHints("esc close", "enter default", "j/k scroll", "E edit", "? help")
 	} else if m.boardFlow {
 		hint = m.keyHints("esc close", "[/] browse", "e edit", "? help")
 	} else if m.boardDrawer {
-		hint = m.keyHints("esc close", "j/k scroll", "e edit", "C comment", "? help")
+		hint = m.keyHints("esc close", "tab/1-4 tabs", "j/k scroll", "e edit", "C comment", "? help")
 	}
 	if m.taskDelete {
 		hint = "Delete task? y confirm · n cancel"
@@ -1027,7 +1027,7 @@ func (m Model) boardKey(key string) (Model, tea.Cmd, bool) {
 	if key == "o" {
 		return m, nil, false // the global expand key and button still work from the board
 	}
-	if m.boardMode && len(m.notes) > 0 && (key == "a" || key == "A") && !m.workflowFocus && m.workflowDelete == "" {
+	if len(m.notes) > 0 && (key == "a" || key == "A") && !m.workflowFocus && m.workflowDelete == "" {
 		m.taskForm = "attachments"
 		if key == "A" {
 			m.taskForm = "attach"

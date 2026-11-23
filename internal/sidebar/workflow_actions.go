@@ -79,6 +79,9 @@ func (m Model) workflowPanelKey(key string) (Model, tea.Cmd, bool) {
 	case "a":
 		m.taskForm = "workflow-new"
 		m.taskInput = ""
+	case "t": // swap this card for agents (same as t from the tickets)
+		m.agentsOpen, m.agentDetail, m.agentCursor = true, false, 0
+		m = m.loadAgents()
 	case "B": // board config summary (same view as the board's B key)
 		m.workflowFocus = false
 		m.boardFlow, m.boardConfigView = true, true
