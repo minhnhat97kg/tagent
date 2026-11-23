@@ -89,8 +89,6 @@ func (m Model) workflowPanelKey(key string) (Model, tea.Cmd, bool) {
 	case "esc", "q", "b":
 		m.workflowFocus = false
 		m.boardMode = false
-	case "ctrl+c":
-		return m, tea.Quit, true
 	case "enter", "w", "e", "x":
 		if len(m.boardWorkflows) == 0 {
 			return m, nil, true
@@ -106,6 +104,8 @@ func (m Model) workflowPanelKey(key string) (Model, tea.Cmd, bool) {
 		case "x":
 			m.workflowDelete = w.File
 		}
+	default:
+		return m, nil, false
 	}
 	return m, nil, true
 }

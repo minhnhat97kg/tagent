@@ -177,8 +177,6 @@ func (m Model) agentPanelKey(key string) (Model, tea.Cmd, bool) {
 		}
 		m.workflowFocus, m.agentsOpen = false, false
 		m.boardMode = false
-	case "ctrl+c":
-		return m, tea.Quit, true
 	case "m", "e", "x":
 		a, ok := m.selectedAgent()
 		if !ok {
@@ -199,6 +197,8 @@ func (m Model) agentPanelKey(key string) (Model, tea.Cmd, bool) {
 			}
 			return m, editFile(m.tmuxPane, edited.Path, func() tea.Msg { return agentsEditedMsg{} }), true
 		}
+	default:
+		return m, nil, false
 	}
 	return m, nil, true
 }
