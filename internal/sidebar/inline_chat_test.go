@@ -1,7 +1,7 @@
 package sidebar
 
 import (
-	"errors"
+	"net/http"
 	"strings"
 	"testing"
 
@@ -10,10 +10,10 @@ import (
 )
 
 func TestInlineAnswerResubmit(t *testing.T) {
-	legacyIntakeFixture(t)
 	t.Setenv("TMUX_AGENT_CONTEXT_DIR", t.TempDir())
+	fakeChat(t, "answer", `{"text":"fresh"}`)
 	m := Model{dashboard: true, agentFocus: 3, inlineIntake: true, notesScope: "repo", boardDir: t.TempDir(), taskInput: "modal"}
-	m.intakeState = &intakeState{Token: 1, Scope: m.notesScope, Dir: m.boardDir, Idea: "status?", Answer: "Ready", Command: "printf 'ANSWER: fresh'"}
+	m.intakeState = &intakeState{Token: 1, Scope: m.notesScope, Dir: m.boardDir, Idea: "status?", Answer: "Ready", Command: "stub"}
 	next, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("next")})
 	m = next.(Model)
 	next, cmd := m.handleKey(tea.KeyMsg{Type: tea.KeyEnter})
@@ -27,58 +27,38 @@ func TestInlineAnswerResubmit(t *testing.T) {
 		t.Fatal("answer not displayed")
 	}
 	m.notesScope = "other"
-	next, _ = m.intakeReply(intakeReply{Token: m.intakeState.Token, Raw: "ANSWER: leaked"})
+	next, _ = m.intakeReply(intakeReply{Token: m.intakeState.Token})
 	if next.(Model).intakeState.Answer == "leaked" {
 		t.Fatal("scope leaked")
 	}
 }
 
 func TestInlineChatErrorThenResubmit(t *testing.T) {
-	legacyIntakeFixture(t)
-	for _, followup := range []bool{false, true} {
-		t.Setenv("TMUX_AGENT_CONTEXT_DIR", t.TempDir())
-		m := Model{dashboard: true, agentFocus: 3, inlineIntake: true, notesScope: "repo", boardDir: t.TempDir(), taskInput: "unrelated form"}
-		m.intakeState = &intakeState{Token: 1, Scope: m.notesScope, Dir: m.boardDir, Command: "printf 'Q: Details?'", Input: "build a dashboard"}
-		next, cmd := m.handleKey(tea.KeyMsg{Type: tea.KeyEnter})
-		m = next.(Model)
-		if cmd == nil {
-			t.Fatal("initial request not submitted")
-		}
-		if followup {
-			next, _ = m.Update(cmd())
-			m = next.(Model)
-			next, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("small")})
-			m = next.(Model)
-			next, cmd = m.handleKey(tea.KeyMsg{Type: tea.KeyEnter})
-			m = next.(Model)
-			if cmd == nil || len(m.intakeState.Turns) != 1 {
-				t.Fatal("followup not submitted")
-			}
-		}
-		next, _ = m.Update(intakeReply{Token: 1, Err: errors.New("LLM unavailable")})
-		m = next.(Model)
-		if m.taskForm != "" || m.intakeState.Busy || m.intakeState.Input != "build a dashboard" || m.taskNotice != "LLM unavailable" {
-			t.Fatal("failed request not restored inline", m.intakeState)
-		}
-		if m.intakeState.Token == 1 || m.intakeState.Idea != "" || len(m.intakeState.Turns) != 0 {
-			t.Fatal("failed conversation not reset")
-		}
-		next, cmd = m.handleKey(tea.KeyMsg{Type: tea.KeyEnter})
-		m = next.(Model)
-		if cmd == nil || !m.intakeState.Busy {
-			t.Fatal("Enter did not retry restored request")
-		}
-		// A late result from the failed conversation cannot replace the retry.
-		next, _ = m.Update(intakeReply{Token: 1, Raw: "Q: stale"})
-		m = next.(Model)
-		if !m.intakeState.Busy {
-			t.Fatal("accepted stale reply")
-		}
-		next, _ = m.Update(cmd())
-		m = next.(Model)
-		if m.intakeState.Question != "Details?" || m.intakeState.Busy || m.taskInput != "unrelated form" {
-			t.Fatal("retry did not complete inline", m.intakeState)
-		}
+	t.Setenv("TMUX_AGENT_CONTEXT_DIR", t.TempDir())
+	fakeChatHandler(t, func(w http.ResponseWriter, r *http.Request) { http.Error(w, "LLM unavailable", 503) })
+	m := Model{dashboard: true, agentFocus: 3, inlineIntake: true, notesScope: "repo", boardDir: t.TempDir(), taskInput: "build a dashboard"}
+	m.intakeState = &intakeState{Token: 1, Scope: m.notesScope, Dir: m.boardDir, Command: "stub", Input: "build a dashboard"}
+	next, cmd := m.handleKey(tea.KeyMsg{Type: tea.KeyEnter})
+	m = next.(Model)
+	if cmd == nil {
+		t.Fatal("request not submitted")
+	}
+	next, _ = m.Update(cmd())
+	m = next.(Model)
+	if m.intakeState.Busy || m.intakeState.Shared.Status != "failed" {
+		t.Fatal("failed request not recorded", m.intakeState.Shared.Status)
+	}
+	fakeChat(t, "ask_question", `{"text":"Details?"}`)
+	m.intakeState.Input = "build a dashboard"
+	next, cmd = m.handleKey(tea.KeyMsg{Type: tea.KeyEnter})
+	m = next.(Model)
+	if cmd == nil {
+		t.Fatal("retry not submitted")
+	}
+	next, _ = m.Update(cmd())
+	m = next.(Model)
+	if m.intakeState.Question != "Details?" || m.intakeState.Busy {
+		t.Fatal("retry did not complete inline", m.intakeState)
 	}
 }
 
@@ -94,15 +74,10 @@ func TestInlineChatRouting(t *testing.T) {
 	m.intakeState.Busy = true
 	next, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyTab})
 	m = next.(Model)
-	next, _ = m.intakeReply(intakeReply{Token: 1, Raw: "Q: Details?"})
-	m = next.(Model)
-	if m.intakeState.Question != "Details?" {
-		t.Fatal("lost background reply")
-	}
 	m.notesScope = "other"
-	next, _ = m.intakeReply(intakeReply{Token: 1, Raw: "Q: Stale?"})
-	if next.(Model).intakeState.Question == "Stale?" {
-		t.Fatal("accepted stale scope")
+	next, _ = m.intakeReply(intakeReply{Token: 1})
+	if next.(Model).intakeState == nil || next.(Model).intakeState.Shared.Generation != 0 {
+		t.Fatal("reload changed another scope")
 	}
 }
 
@@ -137,33 +112,11 @@ func TestInlineChatFocusAndMouse(t *testing.T) {
 	}
 }
 
-func TestInlineChatCancelAndApproval(t *testing.T) {
-	old := executeIntakeCommand
-	defer func() { executeIntakeCommand = old }()
-	calls := 0
-	executeIntakeCommand = func(command, dir string) (string, error) { calls++; return "done", nil }
-	m := Model{dashboard: true, agentFocus: 3, inlineIntake: true, notesScope: "repo", boardDir: "/repo", taskInput: "form input", intakeState: &intakeState{Token: 1, Scope: "repo", Dir: "/repo"}}
-	next, _ := m.intakeReply(intakeReply{Token: 1, Raw: "CMD: tagent list"})
+func TestInlineChatCancel(t *testing.T) {
+	m := Model{dashboard: true, agentFocus: 3, inlineIntake: true, notesScope: "repo", boardDir: "/repo", intakeState: &intakeState{Token: 1, Scope: "repo", Dir: "/repo"}}
+	next, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyEsc})
 	m = next.(Model)
-	if calls != 0 || m.taskForm != "" {
-		t.Fatal("approval not inline")
-	}
-	next, cmd := m.handleKey(tea.KeyMsg{Type: tea.KeyEnter})
-	m = next.(Model)
-	if cmd == nil {
-		t.Fatal("no command after approval")
-	}
-	next, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyTab})
-	m = next.(Model)
-	next, _ = m.Update(cmd())
-	m = next.(Model)
-	if calls != 1 || m.intakeState.Output != "done" || m.taskInput != "form input" {
-		t.Fatal("lost output or corrupted form input")
-	}
-	m.agentFocus = 3
-	next, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyEsc})
-	m = next.(Model)
-	next, _ = m.intakeReply(intakeReply{Token: 1, Raw: "Q: stale"})
+	next, _ = m.intakeReply(intakeReply{Token: 1})
 	m = next.(Model)
 	if m.intakeState != nil || m.agentFocus == 3 {
 		t.Fatal("cancel did not invalidate")
@@ -172,7 +125,7 @@ func TestInlineChatCancelAndApproval(t *testing.T) {
 
 func TestChatBoundedStates(t *testing.T) {
 	for _, size := range [][2]int{{1, 0}, {4, 1}, {25, 6}, {100, 30}} {
-		for _, s := range []*intakeState{{}, {Busy: true}, {Question: "question\nmore"}, {ApprovedCommand: "echo hello"}, {Output: strings.Repeat("output\n", 40)}, {Raw: "invalid"}} {
+		for _, s := range []*intakeState{{}, {Busy: true}, {Question: "question\nmore"}, {Output: strings.Repeat("output\n", 40)}, {Raw: "invalid"}} {
 			m := Model{intakeState: s, taskInput: "multi\nline", taskNotice: "error", theme: DefaultTheme()}
 			lines := m.intakeLines(size[0], size[1])
 			if len(lines) > size[1] {

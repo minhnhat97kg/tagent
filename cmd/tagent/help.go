@@ -69,6 +69,13 @@ UI and configuration
   reload                       Restart sidebars after an update
   explain <pane|name>          Why a pane has its status (hook/screen/CPU evidence)
   version                      Print version
+
+Receptionist (web #/chat and TUI Chat; @agent_chat_model)
+  /agents, /board, /new, /run <workflow>, /clear
+  @name, @pane-id, @role route prompts after explicit approval.
+  New chat / Ctrl+N drops active history, not backups or completed actions.
+  All changes need approval; read-only tools run immediately.
+  Web Shift+Enter / TUI Alt+Enter or Ctrl+J inserts a newline.
 `
 
 func cmdHelp(stdout io.Writer) int {

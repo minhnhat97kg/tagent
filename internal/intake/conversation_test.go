@@ -34,7 +34,7 @@ func TestConversationSharedTransitions(t *testing.T) {
 	if err != nil || len(s.Turns) != 1 {
 		t.Fatal(s, err)
 	}
-	s, err = CompleteSubmission("project", s.Generation, "CMD: tagent reload", nil, nil)
+	s, err = CompleteTypedSubmission("project", s.Generation, Result{Calls: []ToolCall{{Name: "board_summary"}}}, "proposal", nil, nil)
 	if err != nil || s.Status != "proposal" {
 		t.Fatal(s, err)
 	}
@@ -127,7 +127,7 @@ func TestConversationBoundedAndUncertain(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	s, e = CompleteSubmission("p", s.Generation, "CMD: tagent reload", nil, nil)
+	s, e = CompleteTypedSubmission("p", s.Generation, Result{Calls: []ToolCall{{Name: "board_summary"}}}, "proposal", nil, nil)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -144,5 +144,17 @@ func TestConversationBoundedAndUncertain(t *testing.T) {
 	}
 	if _, e = ReserveSubmission("p", "!reload", ""); e == nil {
 		t.Fatal("uncertain mutation replayed")
+	}
+}
+
+func TestShellCommandRepliesRejected(t *testing.T) {
+	t.Setenv("TMUX_AGENT_CONTEXT_DIR", t.TempDir())
+	s, e := ReserveSubmission("cmd", "reload", "")
+	if e != nil {
+		t.Fatal(e)
+	}
+	s, e = CompleteSubmission("cmd", s.Generation, "CMD: tagent reload", nil, nil)
+	if e != nil || s.Status != "failed" || s.Response.Draft.Title != "" || len(s.Response.Calls) != 0 {
+		t.Fatal(s, e)
 	}
 }

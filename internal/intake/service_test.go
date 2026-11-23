@@ -1,7 +1,9 @@
 package intake
 
 import (
-	"errors"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"tagent/internal/tasks"
 	"testing"
@@ -15,15 +17,14 @@ func TestSubmissionService(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	_, e = RunSubmission(s, "stub", func(c, p string) (string, error) {
-		if c != "stub" || !strings.Contains(p, "hello") {
-			t.Fatal(c, p)
+	ok := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.Contains(r.URL.Path, "/api/chat") || !strings.Contains(readAll(r), "hello") {
+			t.Error("prompt not sent")
 		}
-		return "ANSWER: hello", nil
-	})
-	if e != nil {
-		t.Fatal(e)
-	}
+		w.Write([]byte(`{"message":{"tool_calls":[{"function":{"name":"answer","arguments":{"text":"hello"}}}]}}`))
+	}))
+	defer ok.Close()
+	RunReceptionist(s, Harness{Endpoint: ok.URL, Model: "stub"})
 	c, e := LoadConversation(scope)
 	if e != nil || c.Status != "idle" || c.Response.Answer != "hello" {
 		t.Fatal(c, e)
@@ -32,11 +33,17 @@ func TestSubmissionService(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	RunSubmission(s, "stub", func(string, string) (string, error) { return "", errors.New("failure") })
+	down := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Error(w, "down", 503) }))
+	defer down.Close()
+	RunReceptionist(s, Harness{Endpoint: down.URL, Model: "stub"})
 	c, _ = LoadConversation(scope)
 	if c.Status != "failed" {
 		t.Fatal(c)
 	}
+}
+func readAll(r *http.Request) string {
+	b, _ := io.ReadAll(r.Body)
+	return string(b)
 }
 func TestCreateDraftWithoutWorkflow(t *testing.T) {
 	t.Setenv("TMUX_AGENT_CONTEXT_DIR", t.TempDir())

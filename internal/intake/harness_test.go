@@ -18,7 +18,7 @@ func TestHarnessNativeTools(t *testing.T) {
 		{"answer", `{"message":{"tool_calls":[{"function":{"name":"answer","arguments":{"text":"hello"}}}]}}`, true},
 		{"question", `{"message":{"tool_calls":[{"function":{"name":"ask_question","arguments":{"text":"scope?"}}}]}}`, true},
 		{"ticket", `{"message":{"tool_calls":[{"function":{"name":"propose_ticket","arguments":{"title":"Fix","goal":"Test"}}}]}}`, true},
-		{"command", `{"message":{"tool_calls":[{"function":{"name":"propose_command","arguments":{"text":"tagent reload"}}}]}}`, true},
+		{"command", `{"message":{"tool_calls":[{"function":{"name":"propose_command","arguments":{"text":"tagent reload"}}}]}}`, false},
 		{"shell", `{"message":{"tool_calls":[{"function":{"name":"propose_command","arguments":{"text":"tagent reload; touch /tmp/no"}}}]}}`, false},
 		{"unknown", `{"message":{"tool_calls":[{"function":{"name":"shell","arguments":{"text":"ls"}}}]}}`, false},
 		{"unknown argument", `{"message":{"tool_calls":[{"function":{"name":"answer","arguments":{"text":"hi","execute":true}}}]}}`, false},
@@ -42,11 +42,11 @@ func TestHarnessNativeTools(t *testing.T) {
 				if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 					t.Fatal(err)
 				}
-				if request.Model != "test" || request.Stream || len(request.Messages) != 2 || len(request.Tools) != 5 {
+				if request.Model != "test" || request.Stream || len(request.Messages) != 2 || len(request.Tools) != 4+len(toolSpecs) {
 					t.Fatalf("unexpected native request: %+v", request)
 				}
 				system := request.Messages[0]
-				if system.Role != "system" || !strings.Contains(system.Content, "exactly one tool call, never prose") || !strings.Contains(system.Content, AllowedCommandReference) {
+				if system.Role != "system" || !strings.Contains(system.Content, "exactly one native tool call") || !strings.Contains(system.Content, "human approval") {
 					t.Errorf("missing tool instructions or command allowlist: %s", system.Content)
 				}
 				for _, legacy := range []string{"Reply ONLY", "ANSWER:", "CMD:", "Q:", "->"} {
@@ -57,7 +57,7 @@ func TestHarnessNativeTools(t *testing.T) {
 				if request.Messages[1].Role != "user" || request.Messages[1].Content != "snapshot" {
 					t.Errorf("snapshot/history not preserved: %+v", request.Messages[1])
 				}
-				for i, name := range []string{"answer", "ask_question", "propose_ticket", "propose_command", "escalate"} {
+				for i, name := range []string{"answer", "ask_question", "propose_ticket", "escalate"} {
 					if request.Tools[i].Function.Name != name {
 						t.Errorf("unexpected tool: %+v", request.Tools[i])
 					}
@@ -72,6 +72,45 @@ func TestHarnessNativeTools(t *testing.T) {
 		})
 	}
 }
+func TestNativeToolContinuationStopsForApproval(t *testing.T) {
+	t.Setenv("TMUX_AGENT_CONTEXT_DIR", t.TempDir())
+	executions, requests := 0, 0
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]json.RawMessage
+		if e := json.NewDecoder(r.Body).Decode(&body); e != nil {
+			t.Error(e)
+			return
+		}
+		requests++
+		if requests == 1 {
+			fmt.Fprint(w, `{"message":{"tool_calls":[{"function":{"name":"list_agents","arguments":{}}}]}}`)
+			return
+		}
+		var messages []map[string]json.RawMessage
+		_ = json.Unmarshal(body["messages"], &messages)
+		if len(messages) != 4 || string(messages[3]["role"]) != `"tool"` || !strings.Contains(string(messages[3]["content"]), "agents result") {
+			t.Error("missing native tool continuation", string(body["messages"]))
+		}
+		fmt.Fprint(w, `{"message":{"tool_calls":[{"function":{"name":"create_ticket","arguments":{"title":"Test","goal":"Coverage"}}}]}}`)
+	}))
+	defer ts.Close()
+	c, e := ReserveSubmission("tools", "make a ticket", "")
+	if e != nil {
+		t.Fatal(e)
+	}
+	RunReceptionist(Submission{Conversation: c, Scope: "tools", Dir: t.TempDir()}, Harness{Endpoint: ts.URL, Executor: func(context.Context, string, string, []string) (string, error) {
+		executions++
+		return "agents result", nil
+	}})
+	c, e = LoadConversation("tools")
+	if e != nil || c.Status != "proposal" || len(c.Response.Calls) != 1 || executions != 1 || requests != 2 {
+		t.Fatal(c, e, executions, requests)
+	}
+	if c.Response.Calls[0].Name != "create_ticket" {
+		t.Fatal(c.Response)
+	}
+}
+
 func TestHarnessTransportFailureReleasesSubmission(t *testing.T) {
 	t.Setenv("TMUX_AGENT_CONTEXT_DIR", t.TempDir())
 	c, err := ReserveSubmission("test", "hi", "")

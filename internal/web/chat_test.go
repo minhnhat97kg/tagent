@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -61,6 +62,90 @@ func TestChatPOSTRunner(t *testing.T) {
 		t.Fatal(w.Body.String())
 	}
 }
+func TestChatMentionApproval(t *testing.T) {
+	s := testChatServer(t)
+	fake := tmux.NewFake()
+	fake.Set("builder", "show", "-t", "%1", "-pv", "@agent_role")
+	restore := tmux.SetRunner(fake)
+	defer restore()
+	s.deps.sessions = func() []tmux.SessionInfo {
+		return []tmux.SessionInfo{{Windows: []tmux.WindowInfo{{Panes: []tmux.PaneInfo{{PaneID: "%1", Name: "one", Path: s.dir, PanePID: 42}}}}}}
+	}
+	defer intake.SetLiveSessions(s.deps.sessions)()
+	done := make(chan []string, 1)
+	s.deps.toolExecute = func(_ context.Context, dir, binary string, args []string) (string, error) {
+		if dir != s.dir || binary != "tagent" {
+			t.Error("wrong execution scope")
+		}
+		done <- args
+		return "queued", nil
+	}
+	w := request(s, "POST", "/api/chat", `{"op":"send","text":"@one hello"}`, true)
+	if w.Code != 202 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	c, e := intake.LoadConversation(tasks.Scope(s.dir))
+	if e != nil || c.Status != "proposal" {
+		t.Fatal(c, e)
+	}
+	select {
+	case <-done:
+		t.Fatal("sent before approval")
+	default:
+	}
+	w = request(s, "GET", "/api/chat", "", true)
+	if !strings.Contains(w.Body.String(), `"Role":"builder"`) || !strings.Contains(w.Body.String(), `"send_prompt"`) {
+		t.Fatal(w.Body.String())
+	}
+	w = request(s, "POST", "/api/chat", fmt.Sprintf(`{"op":"approve","revision":%d}`, c.Revision), true)
+	if w.Code != 202 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	select {
+	case args := <-done:
+		if strings.Join(args, "|") != "send|%1|hello" {
+			t.Fatal(args)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("not routed")
+	}
+	w = request(s, "POST", "/api/chat", fmt.Sprintf(`{"op":"approve","revision":%d}`, c.Revision), true)
+	if w.Code != 409 {
+		t.Fatal("stale approval accepted", w.Code)
+	}
+	for i := 0; i < 100; i++ {
+		c, _ = intake.LoadConversation(tasks.Scope(s.dir))
+		if c.Status == "idle" {
+			return
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	t.Fatal("approval did not finish")
+}
+
+func TestChatClear(t *testing.T) {
+	s := testChatServer(t)
+	scope := tasks.Scope(s.dir)
+	c, err := intake.ReserveSubmission(scope, "old", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, op := range []string{`"op":"clear"`, `"op":"send","text":"/clear"`} {
+		w := request(s, "POST", "/api/chat", fmt.Sprintf(`{%s,"revision":%d}`, op, c.Revision), true)
+		if w.Code != 200 {
+			t.Fatal(w.Code, w.Body.String())
+		}
+		c, err = intake.LoadConversation(scope)
+		if err != nil || len(c.Messages) != 0 || c.Status != "idle" {
+			t.Fatal(c, err)
+		}
+	}
+	w := request(s, "POST", "/api/chat", `{"op":"clear","revision":1}`, true)
+	if w.Code != 409 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+}
+
 func TestChatDisabledAndValidation(t *testing.T) {
 	s := testChatServer(t)
 	s.deps.command = func() string { return "off" }
@@ -107,47 +192,6 @@ func TestChatProposalOnce(t *testing.T) {
 	}
 }
 
-func TestChatCommandApprovalAndEdit(t *testing.T) {
-	s := testChatServer(t)
-	scope := tasks.Scope(s.dir)
-	c, _ := intake.ReserveSubmission(scope, "!reload", "")
-	c, e := intake.CompleteSubmission(scope, c.Generation, "CMD: tagent reload", nil, nil)
-	if e != nil {
-		t.Fatal(e)
-	}
-	w := request(s, "POST", "/api/chat", fmt.Sprintf(`{"op":"edit","revision":%d,"command":"tagent reload; bad"}`, c.Revision), true)
-	if w.Code != 400 {
-		t.Fatal(w.Code)
-	}
-	w = request(s, "POST", "/api/chat", fmt.Sprintf(`{"op":"create","revision":%d}`, c.Revision), true)
-	if w.Code != 400 {
-		t.Fatal(w.Code)
-	}
-	executed := make(chan string, 1)
-	s.deps.execute = func(command, dir string) (string, error) { executed <- command + " " + dir; return "done", nil }
-	w = request(s, "POST", "/api/chat", fmt.Sprintf(`{"op":"approve","revision":%d}`, c.Revision), true)
-	if w.Code != 202 {
-		t.Fatal(w.Code, w.Body.String())
-	}
-	select {
-	case value := <-executed:
-		if value != "tagent reload "+s.dir {
-			t.Fatal(value)
-		}
-	case <-time.After(time.Second):
-		t.Fatal("not executed")
-	}
-	for i := 0; i < 100; i++ {
-		c, _ = intake.LoadConversation(scope)
-		if c.Status == "idle" {
-			break
-		}
-		time.Sleep(time.Millisecond * 5)
-	}
-	if c.Status != "idle" {
-		t.Fatal(c)
-	}
-}
 func TestChatCancelAndScope(t *testing.T) {
 	s := testChatServer(t)
 	scope := tasks.Scope(s.dir)

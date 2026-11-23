@@ -1,6 +1,9 @@
 package sidebar
 
-import "tagent/internal/intake"
+import (
+	"tagent/internal/intake"
+	"time"
+)
 
 // reloadIntake preserves local editor/input state while observing remote turns.
 func (m *Model) reloadIntake() {
@@ -17,10 +20,17 @@ func (m *Model) reloadIntake() {
 		return
 	}
 	s := *old
+	if shared.Generation != old.Shared.Generation {
+		s.Token = time.Now().UnixNano()
+		s.EditorRevision = 0
+		if len(shared.Messages) == 0 {
+			s.Scroll = 0
+		}
+	}
 	s.Shared = shared
 	s.Idea, s.Turns, s.Raw = shared.Idea, shared.Turns, shared.Raw
 	p := shared.Response
-	s.Question, s.Answer, s.ApprovedCommand, s.Escalate, s.Draft = p.Question, p.Answer, p.Command, p.Escalate, p.Draft
+	s.Question, s.Answer, s.Escalate, s.Draft = p.Question, p.Answer, p.Escalate, p.Draft
 	s.Busy = shared.Status == "running" || shared.Status == "approving"
 	s.Output = ""
 	if shared.Status == "idle" && p.Question == "" && p.Answer == "" && p.Escalate == "" && len(shared.Messages) > 0 {

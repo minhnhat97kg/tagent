@@ -14,12 +14,12 @@ import (
 )
 
 type apiDeps struct {
-	sessions func() []tmux.SessionInfo
-	refresh  func(string, []tmux.SessionInfo) metrics.State
-	quota    func() quota.Snapshot
-	command  func() string
-	harness  *intake.Harness
-	execute  func(string, string) (string, error)
+	sessions    func() []tmux.SessionInfo
+	refresh     func(string, []tmux.SessionInfo) metrics.State
+	quota       func() quota.Snapshot
+	command     func() string
+	harness     *intake.Harness
+	toolExecute intake.ToolExecutor
 }
 
 func (s *server) sessions() []tmux.SessionInfo {

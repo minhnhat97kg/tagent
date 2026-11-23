@@ -4,7 +4,6 @@ import (
 	"cmp"
 	"os"
 	"strings"
-	"tagent/internal/clipboard"
 	"tagent/internal/intake"
 	"tagent/internal/tasks"
 	"tagent/internal/tmux"
@@ -12,10 +11,14 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/x/ansi"
 )
 
-const chatGuidance = "Ask: which agents are running? · Draft: add tests · !reload proposes a command. Enter sends; drafts/commands need approval. Answers are read-only; type a new request or Esc. Snapshot: latest local data, not history."
+// runChat runs the native receptionist; tests replace it with a fake endpoint.
+var runChat = func(model string, s intake.Submission) { intake.RunReceptionist(s, intake.NativeHarness(model)) }
+
+const chatGuidance = "Try /agents · /board · /new · /run <workflow>. @ mentions route prompts with approval. Enter sends; Alt+Enter/Ctrl+J newline. Ctrl+N or /clear starts a new chat. PgUp/PgDown scroll. Changes always need approval."
 
 type intakeState struct {
 	Shared                                           intake.Conversation
@@ -26,21 +29,16 @@ type intakeState struct {
 	Workflows                                        []string
 	Draft                                            intake.Draft
 	Busy                                             bool
-	ApprovedCommand, Output, Escalate                string
-	EditingCommand                                   bool
+	Output, Escalate                                 string
 	EditorRevision                                   uint64
+	Scroll                                           int
+	Completion                                       int
+	DismissCompletion                                bool
 }
-
-var runSidebarReceptionist = intake.RunReceptionist
 
 var intakeParseEdited = intake.Parse
-var executeIntakeCommand = intake.Execute
+var executeIntakeTool intake.ToolExecutor
 
-type intakeCommandOutput struct {
-	Token  int64
-	Output string
-	Err    error
-}
 type intakeEditReply struct {
 	intakeReply
 	Revision uint64
@@ -84,77 +82,36 @@ func (m Model) openIntake() (Model, tea.Cmd) {
 	return m, nil
 }
 func (m Model) intakeReply(msg intakeReply) (tea.Model, tea.Cmd) {
-	s := m.intakeState
-	if !m.intakeValid(msg.Token) {
-		return m, nil
-	}
-	if s.Shared.Generation != 0 {
-		if msg.Err != nil {
-			intake.CompleteSubmission(s.Scope, s.Shared.Generation, "", msg.Err, s.Workflows)
-			copy := *s
-			copy.Input = s.Idea
-			copy.Idea = ""
-			copy.Turns = nil
-			copy.Busy = false
-			copy.Token = time.Now().UnixNano()
-			m.intakeState = &copy
-			m.taskNotice = msg.Err.Error()
-			return m, nil
-		}
+	if m.intakeState != nil && m.intakeState.Shared.Generation != 0 {
 		m.reloadIntake()
-		return m, nil
 	}
-	copy := *s
-	s = &copy
-	m.intakeState = s
-	s.Busy = false
-	if msg.Err != nil {
-		if !m.inlineIntake {
-			m.taskForm = "a"
-		}
-		if m.inlineIntake {
-			// Restore the request as a fresh conversation, not an answer to
-			// a question that was cleared when the failed request started.
-			m.intakeState = &intakeState{
-				Token: time.Now().UnixNano(), Input: s.Idea,
-				Scope: s.Scope, Dir: s.Dir, Command: s.Command,
-				Workflows: s.Workflows,
-			}
-		} else {
-			m.taskInput = s.Idea
-		}
-		m.taskNotice = msg.Err.Error()
-		return m, nil
-	}
-	s.Raw = msg.Raw
-	response, e := intake.ParseResponse(msg.Raw)
-	if e == nil && response.Answer != "" {
-		s.Answer = response.Answer
-		s.Raw = ""
-		return m, nil
-	}
-	if e == nil && response.Command != "" {
-		s.ApprovedCommand = response.Command
-		s.Question = ""
-		return m, nil
-	}
-	if e == nil && response.Escalate != "" {
-		s.Escalate = response.Escalate
-		s.Question = ""
-		return m, tea.Printf("%s", clipboard.OSC52Sequence(s.Idea))
-	}
-	q, d := response.Question, response.Draft
-	if e != nil || (q != "" && len(s.Turns) >= 3) {
-		m.taskNotice = "Invalid reply: e edit or Esc cancel"
-		return m, nil
-	}
-	d.Normalize(s.Workflows)
-	s.Question = q
-	s.Draft = d
 	return m, nil
 }
 func (m Model) handleIntake(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 	s := m.intakeState
+	if s != nil && !s.Busy && s.Shared.Status != "proposal" && !s.DismissCompletion {
+		choices := intake.Completions(m.taskInput, intake.Recipients(s.Dir, m.sessions))
+		if len(choices) > 0 {
+			copy := *s
+			s = &copy
+			m.intakeState = s
+			switch key.String() {
+			case "esc":
+				s.DismissCompletion = true
+				return m, nil
+			case "up":
+				s.Completion = (s.Completion + len(choices) - 1) % len(choices)
+				return m, nil
+			case "down":
+				s.Completion = (s.Completion + 1) % len(choices)
+				return m, nil
+			case "tab", "enter":
+				m.taskInput = intake.CompleteMention(m.taskInput, choices[s.Completion%len(choices)].Token)
+				s.Completion = 0
+				return m, nil
+			}
+		}
+	}
 	if key.String() == "esc" {
 		m.taskForm = ""
 		m.intakeState = nil
@@ -164,91 +121,71 @@ func (m Model) handleIntake(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.inlineIntake = false
 		return m, nil
 	}
+	if s != nil && (key.String() == "ctrl+n" || (key.String() == "ctrl+y" && s.Shared.Status == "uncertain") || (key.Type == tea.KeyEnter && strings.TrimSpace(m.taskInput) == "/clear")) {
+		_, err := intake.ClearConversation(s.Scope, s.Shared.Revision, key.String() == "ctrl+y")
+		if err != nil {
+			m.taskNotice = err.Error()
+			if s.Shared.Status == "uncertain" {
+				m.taskNotice += "; after inspection press Ctrl+Y to acknowledge and clear (cannot undo mutations)"
+			}
+		} else {
+			m.taskInput = ""
+		}
+		m.reloadIntake()
+		return m, nil
+	}
+	if s != nil && (key.String() == "pgup" || key.String() == "pgdown") {
+		copy := *s
+		s = &copy
+		m.intakeState = s
+		if key.String() == "pgup" {
+			s.Scroll += 5
+		} else {
+			s.Scroll = max(0, s.Scroll-5)
+		}
+		return m, nil
+	}
 	if s == nil || s.Busy {
 		return m, nil
 	}
 	copy := *s
 	s = &copy
 	m.intakeState = s
-	if s.Escalate != "" || s.Output != "" {
+	if key.Type == tea.KeyRunes || key.Type == tea.KeyBackspace {
+		s.DismissCompletion = false
+		s.Completion = 0
+	}
+	if key.String() == "alt+enter" || key.String() == "ctrl+j" || key.String() == "shift+enter" {
+		m.taskInput += "\n"
 		return m, nil
 	}
-	if s.ApprovedCommand != "" {
-		if !s.EditingCommand {
-			switch key.String() {
-			case "e":
-				s.EditingCommand = true
-				s.EditorRevision = s.Shared.Revision
-				m.taskInput = s.ApprovedCommand
-				return m, nil
-			case "enter":
-				if _, e := intake.CommandArgs(s.ApprovedCommand); e != nil {
-					m.taskNotice = e.Error()
-					return m, nil
-				}
-				if s.Shared.Revision != 0 {
-					claimed, e := intake.ClaimApproval(s.Scope, s.Shared.Revision)
-					if e != nil {
-						m.taskNotice = e.Error()
-						m.reloadIntake()
-						return m, nil
-					}
-					s.Shared = claimed
-				}
-				s.Busy = true
-				token, command, dir := s.Token, s.ApprovedCommand, s.Dir
-				return m, func() tea.Msg {
-					out, e := executeIntakeCommand(command, dir)
-					if s.Shared.Generation != 0 {
-						text := out
-						if e != nil {
-							text += "\n" + e.Error()
-						}
-						if text == "" {
-							text = "Command completed"
-						}
-						_, finishErr := intake.FinishApproval(s.Scope, s.Shared.Generation, text)
-						if finishErr != nil {
-							e = finishErr
-						}
-					}
-					return intakeCommandOutput{token, out, e}
-				}
+	if len(s.Shared.Response.Calls) > 0 {
+		if key.String() == "c" {
+			_, err := intake.CancelProposal(s.Scope, s.Shared.Revision)
+			if err != nil {
+				m.taskNotice = err.Error()
 			}
+			m.reloadIntake()
 			return m, nil
 		}
-		if key.Type == tea.KeyEnter {
-			if _, e := intake.CommandArgs(m.taskInput); e != nil {
-				m.taskNotice = e.Error()
-				return m, nil
-			}
-			if s.Shared.Revision != 0 {
-				result := s.Shared.Response
-				result.Command = m.taskInput
-				updated, e := intake.EditProposal(s.Scope, s.EditorRevision, result)
-				if e != nil {
-					m.taskNotice = e.Error()
-					m.reloadIntake()
-					return m, nil
-				}
-				s.Shared = updated
-			}
-			s.ApprovedCommand = m.taskInput
-			s.EditingCommand = false
-			m.taskInput = ""
+		if key.Type != tea.KeyEnter {
 			return m, nil
 		}
-		switch key.Type {
-		case tea.KeyBackspace, tea.KeyDelete:
-			r := []rune(m.taskInput)
-			if len(r) > 0 {
-				m.taskInput = string(r[:len(r)-1])
-			}
-		case tea.KeyRunes:
-			m.taskInput += string(key.Runes)
-		case tea.KeySpace:
-			m.taskInput += " "
+		claimed, err := intake.ClaimApproval(s.Scope, s.Shared.Revision)
+		if err != nil {
+			m.taskNotice = err.Error()
+			m.reloadIntake()
+			return m, nil
 		}
+		s.Shared = claimed
+		s.Busy = true
+		token, scope, dir := s.Token, s.Scope, s.Dir
+		return m, func() tea.Msg {
+			_, err := intake.ExecuteClaimedTools(scope, dir, claimed, executeIntakeTool)
+			return intakeReply{Token: token, Err: err}
+		}
+	}
+	if s.Shared.Status == "uncertain" {
 		return m, nil
 	}
 	if (s.Draft.Title != "" || s.Raw != "" && s.Question == "") && key.String() == "e" {
@@ -341,8 +278,8 @@ func (m Model) handleIntake(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if input == "" {
 			return m, nil
 		}
-		if s.Answer != "" {
-			s.Answer, s.Idea, s.Raw, s.Question, s.ApprovedCommand, s.Output, s.Escalate = "", "", "", "", "", "", ""
+		if s.Answer != "" || s.Output != "" || s.Escalate != "" {
+			s.Answer, s.Idea, s.Raw, s.Question, s.Output, s.Escalate = "", "", "", "", "", ""
 			s.Turns, s.Draft, s.Token = nil, intake.Draft{}, time.Now().UnixNano()
 		}
 		if s.Idea == "" {
@@ -367,14 +304,15 @@ func (m Model) handleIntake(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.reloadIntake()
 			return m, nil
 		}
-		s.Shared = submission.Conversation
-		token, model := s.Token, s.Command
-		endpoint, _ := tmux.GetOption("@agent_chat_endpoint")
-		if endpoint == "" {
-			endpoint = "http://127.0.0.1:11434"
+		if submission.Direct {
+			s.Busy = false
+			m.reloadIntake()
+			return m, nil
 		}
+		s.Shared = submission.Conversation
+		token, command := s.Token, s.Command
 		return m, func() tea.Msg {
-			runSidebarReceptionist(submission, intake.Harness{Model: model, Endpoint: endpoint})
+			runChat(command, submission)
 			return intakeReply{Token: token}
 		}
 
@@ -404,8 +342,9 @@ func (m Model) intakeLines(inner, height int) []string {
 	}
 	var lines []string
 	say := func(text string, mine bool) {
+		text = ansi.Strip(text)
 		w := max(1, inner*3/4)
-		label, style := "bonsai", m.boardStyle(m.theme.TextPrimary)
+		label, style := "Receptionist", m.boardStyle(m.theme.TextPrimary)
 		if mine {
 			label, style = "you", m.boardStyle(m.theme.Accent)
 		}
@@ -423,9 +362,30 @@ func (m Model) intakeLines(inner, height int) []string {
 		}
 		lines = append(lines, "")
 	}
+	renderer, _ := glamour.NewTermRenderer(glamour.WithStandardStyle("notty"), glamour.WithWordWrap(max(1, inner*3/4-2)))
 	if s.Shared.Revision != 0 {
+		if len(s.Shared.Messages) == 0 {
+			say(chatGuidance, false)
+		}
 		for _, entry := range s.Shared.Messages {
-			say(entry.Text, entry.Role == "user")
+			if entry.Tool != nil {
+				say("┌ Tool · "+entry.Tool.Status, false)
+				for _, c := range entry.Tool.Calls {
+					say(c.Name+"\n"+c.Summary(), false)
+				}
+				if entry.Tool.Output != "" {
+					say(entry.Tool.Output, false)
+				}
+				say("└", false)
+			} else {
+				text := ansi.Strip(entry.Text)
+				if entry.Role == "assistant" && renderer != nil {
+					if rendered, err := renderer.Render(text); err == nil {
+						text = rendered
+					}
+				}
+				say(text, entry.Role == "user")
+			}
 		}
 	} else if s.Idea == "" {
 		say(chatGuidance, false)
@@ -442,18 +402,21 @@ func (m Model) intakeLines(inner, height int) []string {
 	switch {
 	case s.Busy:
 		say("…", false)
+	case len(s.Shared.Response.Calls) > 0:
+		keys = "Enter approve · c cancel · Ctrl+N new chat"
 	case s.Answer != "":
-		say(s.Answer, false)
+		if s.Shared.Revision == 0 {
+			say(s.Answer, false)
+		}
 		keys, input = "Enter new request · Esc close", true
 	case s.Escalate != "":
 		say("This needs the lead (Claude): "+s.Escalate+"\nYour request is copied to the clipboard.", false)
-		keys = "Esc close"
+		keys, input = "Enter new request · Esc close", true
 	case s.Output != "":
-		say(s.Output, false)
-		keys = "Esc close"
-	case s.ApprovedCommand != "":
-		say("Run this?\n"+s.ApprovedCommand, false)
-		keys, input = "Enter run · e edit · Esc cancel", s.EditingCommand
+		if s.Shared.Revision == 0 {
+			say(s.Output, false)
+		}
+		keys, input = "Enter new request · Esc close", true
 	case s.Draft.Title != "":
 		say(s.Draft.Text()+"\nWorkflow: "+cmp.Or(s.Draft.Workflow, "none"), false)
 		keys = "Enter create · r start · w workflow · e edit · Esc"
@@ -461,7 +424,7 @@ func (m Model) intakeLines(inner, height int) []string {
 		say(s.Raw, false)
 		keys = "e edit · Esc cancel"
 	default:
-		if s.Question != "" {
+		if s.Question != "" && s.Shared.Revision == 0 {
 			say(s.Question, false)
 		}
 		keys, input = "Enter send · Esc cancel", true
@@ -475,6 +438,19 @@ func (m Model) intakeLines(inner, height int) []string {
 			return m.taskInput
 		}(), inner, height), "\n")...)
 	}
+	if !s.DismissCompletion && input {
+		value := m.taskInput
+		if m.inlineIntake {
+			value = s.Input
+		}
+		for i, c := range intake.Completions(value, intake.Recipients(s.Dir, m.sessions)) {
+			prefix := "  "
+			if i == s.Completion {
+				prefix = "› "
+			}
+			foot = append(foot, prefix+c.Label)
+		}
+	}
 	if m.taskNotice != "" {
 		foot = append(foot, m.taskNotice)
 	}
@@ -487,9 +463,8 @@ func (m Model) intakeLines(inner, height int) []string {
 		foot = foot[len(foot)-height:]
 	}
 	room := max(0, height-len(foot))
-	if len(lines) > room { // keep the newest messages
-		lines = lines[len(lines)-room:]
-	}
+	end := len(lines) - min(s.Scroll, max(0, len(lines)-room))
+	lines = lines[max(0, end-room):end]
 	for len(lines) < room {
 		lines = append([]string{""}, lines...)
 	}

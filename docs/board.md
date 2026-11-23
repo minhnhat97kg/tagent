@@ -326,16 +326,20 @@ retries or replay; concurrent transitions may arrive out of order.
 
 ## Web receptionist
 
-The left pane's **Start Chat** button reveals/resumes the selected project's durable conversation and focuses its composer. It never calls the model, clears history, or creates a ticket. Pending proposals remain indicated while closed. **Create & start** is a separate approval action.
+The Agents panel's `#/chat` link opens the selected project's durable conversation and focuses its composer. It never calls the model, clears history, or creates a ticket. Pending proposals remain indicated while closed. **Create & start** is a separate approval action.
 
-Web chat uses one bounded, non-streaming native Ollama `/api/chat` tool call. Install/run Ollama with a tool-capable model (default `bonsai-2:9b`). Set `@agent_chat_model` to change the model, or `off` to disable web chat; `@agent_chat_endpoint` defaults to `http://127.0.0.1:11434`. Only use a trusted endpoint: project summaries and conversation history are sent there. Unsupported models and transport errors fail visibly and can be retried; there is no prose fallback.
+Web and TUI Chat use the same native Ollama application tools and shared conversation. Set `@agent_chat_model` (default `bonsai-2:9b`, `off` disables Chat) and optionally `@agent_chat_endpoint` (default `http://127.0.0.1:11434`). Use a trusted endpoint and a tool-capable model: history and project summaries are sent there. Read-only tool results continue natively, bounded to eight calls and three minutes. There is no shell tool, MCP, or prose fallback. Legacy paths keep `@agent_intake_llm`: CLI `task -i` intake and the Telegram text bridge (`cmd/tagent/telegram.go`). Both accept prose and task drafts only; a `CMD:` or other shell-command reply is rejected as a failed request, never executed. Telegram is not a receptionist tool surface.
 
-The fixed tools answer, ask a question, propose a ticket, propose an allowlisted command, or escalate. The native prompt includes command allowlisting documentation, not the legacy `ANSWER:`/`CMD:` response protocol. There is no MCP, plugin discovery, shell tool, or file tool. Tools only produce proposals: mutations still require explicit local approval. Commands require a `!` request. CLI retains the legacy `@agent_intake_llm` command/prose adapter; TUI intake uses the native receptionist; custom shell commands are never launched by web chat. Both paths share history and approval state.
+Read-only tools: `list_agents`, `inspect_agent`, `list_tickets`, `board_summary`, `usage_summary`, `open_view` (relative chat/board/agent links only). Mutations: `start_agent` (harness, role, project directory within the selected task scope, optional worktree), `send_prompt`, `answer_approval`, `kill_agent`, `handoff`, `resize`, `create_ticket`, `move_ticket`, `comment_ticket`, `start_ticket`, `run_workflow`. Every mutation requires an explicit approval; output cannot grant approval. Handoff transfers a pane into another existing agent pane's tmux destination, not a harness migration. Resize uses explicit width/height. Sends use the normal queued CLI path. Agent identity and pending approvals are rechecked before execution; partial batches stop on failure and are never automatically retried.
 
-Chat keeps local input/editor buffers separate; approval claims reject stale or
-competing proposals. Interrupted model requests become retryable failures;
-interrupted mutation claims report an uncertain outcome requiring inspection
-and are never automatically rerun.
+Commands: `/agents`, `/board`, `/new` (asks for launch details), `/run <workflow>`, `/clear`. Missing workflow inputs require clarification. Type `@` for running names, exact pane IDs and roles; arrows select, Tab/Enter completes, Escape dismisses. Mentions route the entire remaining prompt; multiple recipients form one approval batch. Ambiguous roles/names require an exact pane; no implicit spawning or broadcast. Emails and code are not mentions.
+
+Web Enter sends, Shift+Enter inserts a newline; composition input does not send. TUI Alt+Enter or Ctrl+J inserts a newline. New chat (web), Ctrl+N (TUI), or `/clear` drops active disk history, not backups; it cannot undo actions. Reset invalidates in-flight replies, but is refused during execution. Uncertain interrupted actions require inspection and explicit acknowledgement (web confirmation or TUI Ctrl+Y).
+
+A clarification on either surface can be answered on the other. Chat keeps local
+input/editor buffers separate; approval claims reject stale or competing proposals.
+Interrupted model requests become retryable failures; interrupted mutation claims
+report an uncertain outcome requiring inspection, and are never automatically rerun.
 
 History is bounded and stored privately beneath the project's shared context directory
 in `conversation/state.json`. It survives panel restarts and may contain sensitive

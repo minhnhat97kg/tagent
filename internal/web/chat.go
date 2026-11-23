@@ -42,22 +42,25 @@ func (s *server) intakeCommand() string {
 	}
 	return c
 }
-func chatDTO(dir string, enabled bool, c intake.Conversation) any {
+func chatDTO(dir string, enabled bool, c intake.Conversation, recipients []intake.Recipient) any {
 	type message struct {
-		Role     string `json:"role"`
-		Text     string `json:"text"`
-		Revision uint64 `json:"revision"`
+		Role     string             `json:"role"`
+		Text     string             `json:"text"`
+		Revision uint64             `json:"revision"`
+		Tool     *intake.ToolRecord `json:"tool,omitempty"`
 	}
 	messages := []message{}
 	for _, m := range c.Messages {
-		messages = append(messages, message{m.Role, m.Text, m.Revision})
+		messages = append(messages, message{m.Role, m.Text, m.Revision, m.Tool})
 	}
 	actions := []string{}
 	if enabled && c.Status == "proposal" {
 		if c.Response.Draft.Title != "" {
 			actions = []string{"create", "start", "edit", "cancel"}
-		} else if c.Response.Command != "" {
-			actions = []string{"approve", "edit", "cancel"}
+		} else if len(c.Response.Calls) > 0 {
+			actions = []string{"approve", "cancel"}
+		} else {
+			actions = []string{"cancel"}
 		}
 	}
 	names := []string{}
@@ -68,7 +71,7 @@ func chatDTO(dir string, enabled bool, c intake.Conversation) any {
 	if status == "" {
 		status = "idle"
 	}
-	return map[string]any{"dir": dir, "enabled": enabled, "revision": c.Revision, "status": status, "messages": messages, "response": map[string]any{"question": c.Response.Question, "answer": c.Response.Answer, "command": c.Response.Command, "escalate": c.Response.Escalate, "draft": draftDTO(c.Response.Draft)}, "workflows": names, "actions": actions}
+	return map[string]any{"recipients": recipients, "dir": dir, "enabled": enabled, "revision": c.Revision, "status": status, "messages": messages, "response": map[string]any{"question": c.Response.Question, "answer": c.Response.Answer, "escalate": c.Response.Escalate, "draft": draftDTO(c.Response.Draft)}, "workflows": names, "actions": actions}
 }
 func chatError(w http.ResponseWriter, e error) {
 	code := 500
@@ -80,12 +83,12 @@ func chatError(w http.ResponseWriter, e error) {
 func (s *server) chat(w http.ResponseWriter, r *http.Request) {
 	dir := s.projectDir(r)
 	var o struct {
-		Dir      string     `json:"dir"`
-		Op       string     `json:"op"`
-		Text     string     `json:"text"`
-		Revision uint64     `json:"revision"`
-		Draft    *draftJSON `json:"draft"`
-		Command  string     `json:"command"`
+		Dir                  string     `json:"dir"`
+		Op                   string     `json:"op"`
+		Text                 string     `json:"text"`
+		Revision             uint64     `json:"revision"`
+		Draft                *draftJSON `json:"draft"`
+		AcknowledgeUncertain bool       `json:"acknowledgeUncertain"`
 	}
 	if r.Method == "POST" {
 		if e := readBody(r, &o); e != nil {
@@ -109,11 +112,20 @@ func (s *server) chat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method == "GET" {
-		writeJSON(w, chatDTO(dir, enabled, c))
+		writeJSON(w, chatDTO(dir, enabled, c, intake.Recipients(dir, s.sessions())))
 		return
 	}
 	if !enabled {
 		http.Error(w, "Chat disabled", 403)
+		return
+	}
+	if o.Op == "clear" || (o.Op == "send" && strings.TrimSpace(o.Text) == "/clear") {
+		c, e = intake.ClearConversation(scope, o.Revision, o.AcknowledgeUncertain)
+		if e != nil {
+			chatError(w, e)
+			return
+		}
+		writeJSON(w, chatDTO(dir, true, c, intake.Recipients(dir, s.sessions())))
 		return
 	}
 	if o.Op == "send" {
@@ -128,11 +140,8 @@ func (s *server) chat(w http.ResponseWriter, r *http.Request) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(202)
-		writeJSON(w, chatDTO(dir, true, sub.Conversation))
-		h := intake.Harness{Endpoint: "http://127.0.0.1:11434", Model: command}
-		if endpoint, ok := tmux.GetOption("@agent_chat_endpoint"); ok && endpoint != "" {
-			h.Endpoint = endpoint
-		}
+		writeJSON(w, chatDTO(dir, true, sub.Conversation, intake.Recipients(dir, s.sessions())))
+		h := intake.NativeHarness(command)
 		if s.deps.harness != nil {
 			h = *s.deps.harness
 		}
@@ -171,27 +180,15 @@ func (s *server) chat(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 			result.Draft = intake.Draft{Title: d.Title, Goal: d.Goal, Acceptance: d.Acceptance, OutOfScope: d.OutOfScope, Workflow: d.Workflow}
-		} else if result.Command != "" && o.Command != "" {
-			if _, err := intake.CommandArgs(o.Command); err != nil {
-				fail(w, err)
-				return
-			}
-			result.Command = o.Command
 		} else {
 			fail(w, fmt.Errorf("proposal type mismatch"))
 			return
 		}
 		c, e = intake.EditProposal(scope, o.Revision, result)
 	case "create", "start", "approve":
-		if (o.Op == "approve" && c.Response.Command == "") || (o.Op != "approve" && c.Response.Draft.Title == "") {
+		if (o.Op == "approve") != (len(c.Response.Calls) > 0) || (o.Op != "approve" && c.Response.Draft.Title == "") {
 			fail(w, fmt.Errorf("proposal type mismatch"))
 			return
-		}
-		if o.Op == "approve" {
-			if _, err := intake.CommandArgs(c.Response.Command); err != nil {
-				fail(w, err)
-				return
-			}
 		}
 		claimed, err := intake.ClaimApproval(scope, o.Revision)
 		if err != nil {
@@ -199,29 +196,20 @@ func (s *server) chat(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		finish := func() {
-			var out string
-			var err error
 			if o.Op == "approve" {
-				execute := s.deps.execute
-				if execute == nil {
-					execute = intake.Execute
-				}
-				out, err = execute(claimed.Response.Command, dir)
-			} else {
-				out, err = intake.CreateDraft(dir, scope, claimed.Response.Draft, o.Op == "start")
+				_, _ = intake.ExecuteClaimedTools(scope, dir, claimed, s.deps.toolExecute)
+				return
 			}
+			out, err := intake.CreateDraft(dir, scope, claimed.Response.Draft, o.Op == "start")
 			if err != nil {
 				out += "\n" + err.Error()
-			}
-			if out == "" {
-				out = "Command completed"
 			}
 			_, _ = intake.FinishApproval(scope, claimed.Generation, out)
 		}
 		if o.Op == "approve" {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(202)
-			writeJSON(w, chatDTO(dir, true, claimed))
+			writeJSON(w, chatDTO(dir, true, claimed, intake.Recipients(dir, s.sessions())))
 			go finish()
 			return
 		}
@@ -235,5 +223,5 @@ func (s *server) chat(w http.ResponseWriter, r *http.Request) {
 		chatError(w, e)
 		return
 	}
-	writeJSON(w, chatDTO(dir, true, c))
+	writeJSON(w, chatDTO(dir, true, c, intake.Recipients(dir, s.sessions())))
 }

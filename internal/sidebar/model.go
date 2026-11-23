@@ -1180,23 +1180,6 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.taskNotice = msg.err.Error()
 		}
 		return m, nil
-	case intakeCommandOutput:
-		if !m.intakeValid(msg.Token) {
-			return m, nil
-		}
-		s := *m.intakeState
-		s.Busy = false
-		s.Output = msg.Output
-		if msg.Err != nil {
-			s.Output += "\n" + msg.Err.Error()
-		}
-		if s.Output == "" {
-			s.Output = "Command completed"
-		}
-		m.intakeState = &s
-		m.notes = tasks.List(s.Scope)
-		m.boardHistory, _ = tasks.ReadEvents(s.Scope, 0)
-		return m, nil
 	case intakeEditReply:
 		if m.intakeState != nil && m.intakeState.Shared.Revision != msg.Revision {
 			m.taskNotice = "Conversation changed; reopen the draft editor."
@@ -1678,7 +1661,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	if m.dashboard && m.agentFocus == 3 && !m.boardMode && !m.taskDelete && m.taskForm == "" && !m.popup.IsRepoOpen() && !m.removeConfirmOpen && !m.filterEditing {
-		if msg.String() == "tab" {
+		if msg.String() == "tab" && (m.intakeState == nil || m.intakeState.DismissCompletion || len(intake.Completions(m.intakeState.Input, intake.Recipients(m.intakeState.Dir, m.sessions))) == 0) {
 			m.agentFocus, m.taskFocus = 0, false
 			return m, nil
 		}

@@ -1,20 +1,13 @@
 package sidebar
 
 import (
-	tea "github.com/charmbracelet/bubbletea"
 	"net/http"
 	"net/http/httptest"
 	"tagent/internal/intake"
 	"testing"
-)
 
-// Preserve the existing UI protocol fixtures without executing a model service.
-func legacyIntakeFixture(t *testing.T) {
-	t.Helper()
-	old := runSidebarReceptionist
-	t.Cleanup(func() { runSidebarReceptionist = old })
-	runSidebarReceptionist = func(s intake.Submission, h intake.Harness) { _, _ = intake.RunSubmission(s, h.Model, nil) }
-}
+	tea "github.com/charmbracelet/bubbletea"
+)
 
 func TestReceptionistChoice(t *testing.T) {
 	t.Setenv("TMUX_AGENT_CONTEXT_DIR", t.TempDir())
@@ -38,9 +31,11 @@ func TestSidebarNativeIntakeRouting(t *testing.T) {
 		w.Write([]byte(`{"message":{"tool_calls":[{"function":{"name":"ask_question","arguments":{"text":"Which scope?"}}}]}}`))
 	}))
 	defer server.Close()
-	old := runSidebarReceptionist
-	defer func() { runSidebarReceptionist = old }()
-	runSidebarReceptionist = func(s intake.Submission, h intake.Harness) { h.Endpoint = server.URL; intake.RunReceptionist(s, h) }
+	old := runChat
+	defer func() { runChat = old }()
+	runChat = func(model string, s intake.Submission) {
+		intake.RunReceptionist(s, intake.Harness{Endpoint: server.URL, Model: model})
+	}
 	dir := t.TempDir()
 	m := Model{taskForm: "intake", notesScope: "repo", boardDir: dir, taskInput: "build a feature", intakeState: &intakeState{Token: 1, Scope: "repo", Dir: dir, Command: "test-model"}}
 	next, cmd := m.handleIntake(tea.KeyMsg{Type: tea.KeyEnter})

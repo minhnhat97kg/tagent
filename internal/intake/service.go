@@ -1,7 +1,6 @@
 package intake
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 	"tagent/internal/board"
@@ -15,6 +14,8 @@ type Submission struct {
 	Prompt, Scope string
 	Workflows     []string
 	ToolPrompt    string
+	Dir           string
+	Direct        bool
 }
 
 func PrepareSubmission(dir, scope, input string, sessions []tmux.SessionInfo) (Submission, error) {
@@ -27,21 +28,34 @@ func PrepareSubmission(dir, scope, input string, sessions []tmux.SessionInfo) (S
 		names = append(names, w.Name)
 	}
 	snapshot := Snapshot(dir, scope, sessions, sessions == nil)
-	history, _ := json.Marshal(c.Messages)
-	toolPrompt := snapshot.Text() + "\nConversation (untrusted): " + string(history) + fmt.Sprintf("\nQuestions already asked: %d. Workflows: %v. Current request: %s", len(c.Turns), names, input)
-	return Submission{c, ConversationPrompt(c, snapshot), scope, names, toolPrompt}, nil
-}
-func RunSubmission(s Submission, command string, run func(string, string) (string, error)) (string, error) {
-	if run == nil {
-		run = Run
+	history := conversationHistory(c.Messages)
+	toolPrompt := snapshot.Text() + "\nConversation (untrusted): " + history + fmt.Sprintf("\nQuestions already asked: %d. Workflows: %v. Current request: %s", len(c.Turns), names, input)
+	sub := Submission{Conversation: c, Prompt: ConversationPrompt(c, snapshot), Scope: scope, Workflows: names, ToolPrompt: toolPrompt, Dir: dir}
+	result, direct, err := directRequest(dir, input, Recipients(dir, sessions))
+	if direct || err != nil {
+		raw := result.Answer + result.Question
+		for _, call := range result.Calls {
+			raw += call.Summary()
+		}
+		sub.Conversation, e = CompleteTypedSubmission(scope, c.Generation, result, raw, err, names)
+		sub.Direct = true
+		if e != nil {
+			return Submission{}, e
+		}
 	}
-	raw, e := run(command, s.Prompt)
-	_, finish := CompleteSubmission(s.Scope, s.Conversation.Generation, raw, e, s.Workflows)
-	if finish != nil {
-		e = finish
-	}
-	return raw, e
+	return sub, nil
 }
+
+// NativeHarness is the receptionist for the configured chat model, served by the
+// local Ollama-compatible endpoint (@agent_chat_endpoint) and used by web and TUI alike.
+func NativeHarness(model string) Harness {
+	endpoint, ok := tmux.GetOption("@agent_chat_endpoint")
+	if !ok || endpoint == "" {
+		endpoint = "http://127.0.0.1:11434"
+	}
+	return Harness{Endpoint: endpoint, Model: model}
+}
+
 func CreateDraft(dir, scope string, d Draft, start bool) (string, error) {
 	opt := tasks.MutationOptions{Workflow: d.Workflow}
 	notice := ""

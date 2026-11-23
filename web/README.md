@@ -1,5 +1,7 @@
-# tagent web UI
+# Web dashboard
 
-Source for the browser UI that `tagent web` serves. `make web` builds it into `internal/web/dist`, which the binary embeds.
+Run `npm ci`, `npm test`, and `npm run build`; Vite embeds the build in `internal/web/dist`. `npm run dev` proxies `/api` to port 7777.
 
-Dev: run `tagent web --addr 127.0.0.1:7777 --token t` (the Vite dev server proxies /api there), open `http://127.0.0.1:7777/?token=t` once to set the cookie, then run `npm run dev` in this folder and use `http://127.0.0.1:5173`.
+`#/chat` shares the TUI receptionist conversation and native tools. Enter sends, Shift+Enter adds a newline; `@` completes running names, panes and roles. Every change (including routed sends) needs approval; read-only tools do not. Commands: `/agents`, `/new`, `/board`, `/run <workflow>`, `/clear`.
+
+New chat drops active history, not backups or completed actions. Interrupted approvals require inspection and acknowledgement before clearing. See [receptionist reference](../docs/board.md#web-receptionist) for tools, scope and configuration.
