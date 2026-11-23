@@ -5,7 +5,7 @@ import { Pencil, Play, Reply, Trash2 } from "lucide-react"
 import type { Task, Workflow } from "@/types"
 
 // Status colours are reserved and always sit next to a text label.
-const COLORS: Record<string, string> = { todo: "#a1a1aa", plan: "#3b82f6", build: "#3b82f6", test: "#0ea5e9", review: "#f59e0b", blocked: "#ef4444", done: "#10b981" }
+const COLORS: Record<string, string> = { todo: "#a1a1aa", plan: "#3b82f6", planning: "#3b82f6", researching: "#3b82f6", reproducing: "#3b82f6", build: "#6366f1", building: "#6366f1", refactoring: "#6366f1", fixing: "#6366f1", writing: "#6366f1", test: "#0ea5e9", testing: "#0ea5e9", review: "#f59e0b", reviewing: "#f59e0b", blocked: "#ef4444", done: "#10b981" }
 export const statusColor = (s: string) => COLORS[s] ?? "#a1a1aa"
 export function StatusBadge({ status }: { status: string }) {
   return <span className="status-badge"><i style={{ background: statusColor(status) }} />{status}</span>

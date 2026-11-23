@@ -410,9 +410,34 @@ func (s *server) project(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	statuses := []map[string]string{}
+	seen := map[string]bool{}
 	for _, status := range cfg.Statuses {
+		seen[status.ID] = true
 		statuses = append(statuses, map[string]string{"id": status.ID, "role": status.Role, "run": status.Run})
 	}
+	// Workflow tickets move through their recipe's statuses (planning, building, ...), not the board's;
+	// give each one a column before "blocked" so those tickets show up and move.
+	at := len(statuses)
+	for i, st := range statuses {
+		if st["id"] == "blocked" {
+			at = i
+			break
+		}
+	}
+	extra := []map[string]string{}
+	for _, ticket := range t {
+		wcfg, err := tasks.ConfigForTask(dir, cfg, ticket)
+		if ticket.Workflow == "" || err != nil {
+			continue
+		}
+		for _, status := range wcfg.Statuses {
+			if !seen[status.ID] {
+				seen[status.ID] = true
+				extra = append(extra, map[string]string{"id": status.ID, "role": status.Role, "run": status.Run})
+			}
+		}
+	}
+	statuses = append(statuses[:at], append(extra, statuses[at:]...)...)
 	workers := map[string]map[string]any{}
 	history, _ := tasks.ReadEvents(tasks.Scope(dir), 0)
 	reasons := map[string]string{}

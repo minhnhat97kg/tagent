@@ -20,6 +20,9 @@ export function TaskDrawer({ proj, dir, reload, id, onClose, origin, initialRepl
   </Dialog>
 }
 
+const LANES = ["todo", "in progress", "done"]
+const laneOf = (status: string) => (status === "todo" || status === "done" ? status : "in progress")
+
 export function Board({ dir, proj, reload }: { dir: string; proj?: Project; reload: () => void }) {
   const [query, setQuery] = useState("")
   const [role, setRole] = useState("")
@@ -43,16 +46,17 @@ export function Board({ dir, proj, reload }: { dir: string; proj?: Project; relo
       <span className="board-muted ml-auto">{tasks.length === all.length ? `${all.length} tasks` : `${tasks.length} of ${all.length}`}</span>
     </header>
     {!statuses.length && <p className="board-empty">{proj ? "No board columns configured." : "Select a project to view tasks."}</p>}
-    <div className="board-columns">{statuses.map(s => {
-      const column = tasks.filter(t => t.status === s.id).sort((a, b) => (b.updated || "").localeCompare(a.updated || ""))
+    <div className="board-columns">{LANES.map(lane => {
+      const column = tasks.filter(t => laneOf(t.status) === lane).sort((a, b) => (b.updated || "").localeCompare(a.updated || ""))
       const live = column.some(t => proj?.workers?.[t.id]?.live)
-      return <section key={s.id} aria-label={`${s.id} column`} className={`board-column ${column.length ? "" : "is-empty"} ${over === s.id ? "drop-over" : ""}`}
-        onDragOver={e => { e.preventDefault(); setOver(s.id) }} onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOver("") }} onDrop={e => { e.preventDefault(); setOver(""); const id = e.dataTransfer.getData("text/task"); if (id) move(id, s.id) }}>
+      // "in progress" spans every working status, so a drop there has no single target status.
+      const drop = lane !== "in progress"
+      return <section key={lane} aria-label={`${lane} column`} className={`board-column ${column.length ? "" : "is-empty"} ${over === lane ? "drop-over" : ""}`}
+        onDragOver={e => { if (drop) { e.preventDefault(); setOver(lane) } }} onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOver("") }} onDrop={e => { e.preventDefault(); setOver(""); const id = e.dataTransfer.getData("text/task"); if (id && drop) move(id, lane) }}>
         <header className="column-heading">
-          <i className="status-dot" style={{ background: statusColor(s.id) }} />
-          <h3>{s.id}</h3><span className="column-count">{column.length}</span>
+          <i className="status-dot" style={{ background: statusColor(lane === "in progress" ? "build" : lane) }} />
+          <h3>{lane}</h3><span className="column-count">{column.length}</span>
           {live && <span className="board-live" title="Agent working">●</span>}
-          <span className="column-owner">{s.role ? <Avatar role={s.role} /> : s.run ? <span className="board-key" title={s.run}>CI</span> : null}</span>
         </header>
         <div className="board-cards">{column.map(t => {
           const working = proj?.workers?.[t.id]?.live
@@ -62,6 +66,7 @@ export function Board({ dir, proj, reload }: { dir: string; proj?: Project; relo
             {t.status === "blocked" && <span className="blocked-reason">{proj?.blockedReasons?.[t.id] || t.note || "Awaiting a decision"}</span>}
             <span className="card-meta">
               <span className="board-key" title={t.id}>{shortId(t.id)}</span>
+              {lane === "in progress" && <span className="card-label" style={{ color: statusColor(t.status) }}>● {t.status}</span>}
               {t.workflow && <span className="card-label">{t.workflow}</span>}
               {!!t.comments?.length && <span aria-label={`${t.comments.length} comments`}>💬 {t.comments.length}</span>}
               {working && <span className="board-live">● working</span>}
