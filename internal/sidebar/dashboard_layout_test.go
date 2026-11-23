@@ -73,30 +73,28 @@ func TestNewTicketKeyOpensEditor(t *testing.T) {
 	}
 }
 
-func TestDashboardWideShowsBoardColumns(t *testing.T) {
-	m := dashSample()
-	m.taskFocus, m.agentFocus = true, 2
-	m.width, m.height = 140, 40
-	out := m.dashboardView()
-	plain := ansi.Strip(out)
-	for _, h := range []string{"todo · 2", "doing · 1", "review · 1"} {
-		if !strings.Contains(plain, h) {
-			t.Fatalf("missing column header %q:\n%s", h, plain)
+func TestDashboardShowsBoardColumnsAtEveryWidth(t *testing.T) {
+	for _, size := range [][2]int{{60, 40}, {100, 30}, {140, 40}} {
+		m := dashSample()
+		m.taskFocus, m.agentFocus, m.taskCursor = true, 2, 2
+		m.width, m.height = size[0], size[1]
+		out := m.dashboardView()
+		plain := ansi.Strip(out)
+		if !strings.Contains(plain, "☷ Tasks · 6") || !strings.Contains(plain, "doing · 1") || !strings.Contains(plain, "Ticket number 3") {
+			t.Fatalf("%v: columns missing or selection hidden:\n%s", size, plain)
 		}
-	}
-	for i, l := range strings.Split(out, "\n")[1:39] {
-		if lipgloss.Width(l) != 139 && lipgloss.Width(l) != 140 {
-			t.Fatalf("line %d is %d cells", i, lipgloss.Width(l))
+		for i, l := range strings.Split(out, "\n")[1 : size[1]-1] {
+			if lipgloss.Width(l) != size[0]-1 && lipgloss.Width(l) != size[0] {
+				t.Fatalf("%v line %d is %d cells", size, i, lipgloss.Width(l))
+			}
 		}
-	}
-	g := m.dashGeometry()
-	// click on the first card of the doing column
-	_, start, _, _, cw := m.boardColumnSpan(g.tasks.w)
-	if idx, ok := m.boardColumnAt(cw*(1-start)+2, 2, g.tasks.w, g.tasks.h-1); !ok || idx != 2 {
-		t.Fatalf("hit-test got %d %v", idx, ok)
-	}
-	m.width = 100
-	if p := ansi.Strip(m.dashboardView()); strings.Contains(p, "doing · 1") || !strings.Contains(p, "Ticket number 1") {
-		t.Fatalf("narrow dashboard changed:\n%s", p)
+		g := m.dashGeometry()
+		if g.wf.h == 0 || !strings.Contains(plain, "Workflows") {
+			t.Fatalf("%v: no Workflows card", size)
+		}
+		_, start, _, _, cw := m.boardColumnSpan(g.tasks.w)
+		if idx, ok := m.boardColumnAt(cw*(1-start)+2, 2, g.tasks.w, g.tasks.h-1); !ok || idx != 2 {
+			t.Fatalf("%v: hit-test got %d %v", size, idx, ok)
+		}
 	}
 }

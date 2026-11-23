@@ -110,17 +110,11 @@ func (m Model) dashboardView() string {
 	if m.taskTitle {
 		taskTitle += " · Enter board"
 	}
-	var tasksCard string
-	if g.columns {
-		// Same kanban columns as the board, under a one-line header.
-		head := m.boardStyle(m.theme.TextPrimary).Bold(true).Render(boardFit(" "+taskTitle, g.tasks.w))
-		tasksCard = head + "\n" + m.boardColumnView(g.tasks.w, g.tasks.h-1, m.taskFocus, m.theme.BorderFocus, m.theme.Border)
-	} else {
-		tasksCard = m.dashboardPanel(taskTitle, m.taskLines(g.tasks.w-4, g.tasks.h-2)[1:], g.tasks.w, g.tasks.h, m.taskFocus)
-	}
-	if g.preview.h > 0 {
-		title, lines := m.ticketPreview(g.preview.w - 4)
-		tasksCard += "\n" + m.dashboardPanel(title, lines, g.preview.w, g.preview.h, false)
+	// Same kanban columns as the board, under a one-line header, then Workflows.
+	head := m.boardStyle(m.theme.TextPrimary).Bold(true).Render(boardFit(" "+taskTitle, g.tasks.w))
+	tasksCard := head + "\n" + m.boardColumnView(g.tasks.w, g.tasks.h-1, m.taskFocus, m.theme.BorderFocus, m.theme.Border)
+	if g.wf.h > 0 {
+		tasksCard += "\n" + m.workflowCard(g.wf.w, g.wf.h)
 	}
 	var body string
 	if g.wide {
@@ -136,6 +130,9 @@ func (m Model) dashboardView() string {
 	}
 	if m.agentFocus == 1 {
 		help = " ↑↓ role · e edit instruction · Tab focus"
+	}
+	if m.agentFocus == 4 {
+		help = m.keyHints("j/k workflow", "enter view", "a add", "e edit", "x delete", "Tab focus")
 	}
 	if m.taskFocus {
 		help = m.ticketHints()
@@ -290,103 +287,6 @@ func (m Model) agentLines(width, height int) []string {
 	}
 	return out
 }
-func (m Model) taskLines(width, height int) []string {
-	out := []string{m.sectionTitle("☷ Tasks", width, m.taskFocus)}
-	if len(m.notes) == 0 {
-		out = append(out, m.boardStyle(m.theme.TextMuted).Render(" No tasks yet."))
-	}
-	// Web look: flat list in board-column order, one row per ticket.
-	var lines []string
-	cursorLine := 0
-	for _, status := range m.boardColumns() {
-		for _, idx := range m.boardStatusCards(status) {
-			if idx == m.taskCursor {
-				cursorLine = len(lines)
-			}
-			lines = append(lines, m.taskRow(idx, status, width))
-		}
-	}
-	start := max(0, cursorLine-max(1, height-3))
-	for i := start; i < len(lines) && len(out) < height; i++ {
-		out = append(out, lines[i])
-	}
-	for len(out) < height {
-		out = append(out, "")
-	}
-	return out
-}
-
-// taskRow is the web TasksPanel row: ● status, short id, title, then blocked tag, live dot and role avatar.
-func (m Model) taskRow(idx int, status string, width int) string {
-	t := m.notes[idx]
-	th := m.theme
-	paint := func(c lipgloss.Color) lipgloss.Style {
-		st := lipgloss.NewStyle().Foreground(c)
-		if idx == m.taskCursor {
-			st = st.Background(th.SelectionBg)
-		}
-		return st
-	}
-	dot := m.boardColor(status)
-	switch {
-	case m.boardConfig.Lane(status) == "done":
-		dot = th.TextDim
-	case strings.HasPrefix(status, "review"):
-		dot = th.StatusWaiting
-	}
-	text := th.TextPrimary
-	if m.boardConfig.Lane(status) == "done" {
-		text = th.TextDim
-	}
-	id := t.ID
-	if strings.Trim(id, "0123456789") != "" && len(id) > 4 {
-		id = id[max(0, len(id)-4):]
-	}
-	id = "#" + id
-	type seg struct {
-		s string
-		c lipgloss.Color
-	}
-	var right []seg
-	if status == "blocked" {
-		right = append(right, seg{" blocked", th.StatusError})
-	}
-	if strings.HasPrefix(ansi.Strip(m.boardWorker(t)), "●") { // live = active pane
-		right = append(right, seg{" ●", th.StatusRunning})
-	}
-	role := ""
-	if len(t.Assignees) > 0 {
-		role = t.Assignees[0]
-	} else {
-		for _, s := range m.boardConfig.Statuses {
-			if s.ID == status {
-				role = s.Role
-			}
-		}
-	}
-	if role != "" {
-		r := []rune(strings.ToUpper(role))
-		right = append(right, seg{" " + string(r[:min(2, len(r))]), th.TextMuted})
-	}
-	rw := 0
-	for _, r := range right {
-		rw += lipgloss.Width(r.s)
-	}
-	const idW = 5
-	room := max(0, width-2-2-idW-1-rw)
-	title := ansi.Truncate(strings.Join(strings.Fields(boardTitle(t)), " "), room, "…")
-	var b strings.Builder
-	b.WriteString(paint(th.TextPrimary).Render("  "))
-	b.WriteString(paint(dot).Render("● "))
-	b.WriteString(paint(th.TextMuted).Render(fmt.Sprintf("%-*s ", idW, id)))
-	b.WriteString(paint(text).Render(title + strings.Repeat(" ", max(0, room-ansi.StringWidth(title)))))
-	for _, r := range right {
-		b.WriteString(paint(r.c).Render(r.s))
-	}
-	b.WriteString(paint(text).Render(strings.Repeat(" ", max(0, width-lipgloss.Width(b.String())))))
-	return b.String()
-}
-
 func statusGlyph(s string) string {
 	switch s {
 	case "done":
@@ -551,15 +451,13 @@ type rect struct{ x, y, w, h int }
 // dashGeom is every card's rectangle (h == 0: not shown), shared by the view
 // and mouse hit-testing. y counts from the top bar (row 0).
 type dashGeom struct {
-	wide, columns                              bool
-	agents, usage, comp, roles, tasks, preview rect
-	usageLines                                 []string
+	wide                                  bool
+	agents, usage, comp, roles, tasks, wf rect
+	usageLines                            []string
 }
 
-const previewHeight = 6
-
 // dashGeometry mirrors the web home: wide = left column (Agents over Usage,
-// then Companion/Roles when rows remain) beside Tasks (+ ticket preview);
+// then Companion/Roles when rows remain) beside Tasks (+ Workflows);
 // narrow = Agents, Usage, Tasks stacked, Companion/Roles after when rows remain.
 func (m Model) dashGeometry() dashGeom {
 	w, h := m.width, m.height
@@ -571,7 +469,7 @@ func (m Model) dashGeometry() dashGeom {
 	}
 	width := max(6, w-1)
 	bh := max(6, h-2) // minus top bar and footer
-	g := dashGeom{wide: w >= 90, columns: w >= 120}
+	g := dashGeom{wide: w >= 90}
 	left := width
 	if g.wide {
 		left = min(44, max(38, width*40/100))
@@ -634,39 +532,12 @@ func (m Model) dashGeometry() dashGeom {
 			g.roles = rect{0, y, width, rolesH}
 		}
 	}
-	// Quick preview of the selected ticket when the list leaves 8+ spare rows.
-	if !g.columns && len(m.notes) > 0 && g.tasks.h-(len(m.notes)+2) >= 8 {
-		g.preview = rect{g.tasks.x, g.tasks.y + g.tasks.h - previewHeight, g.tasks.w, previewHeight}
-		g.tasks.h -= previewHeight
+	// Workflows card under the columns when they keep 8+ rows.
+	if wh := m.workflowCardHeight(g.tasks.h - 1); wh > 0 {
+		g.wf = rect{g.tasks.x, g.tasks.y + g.tasks.h - wh, g.tasks.w, wh}
+		g.tasks.h -= wh
 	}
 	return g
-}
-
-// ticketPreview is the card under the task list: "#id · status", then title,
-// assignee/due/tokens, the last comment and a key hint.
-func (m Model) ticketPreview(width int) (string, []string) {
-	t := m.notes[min(m.taskCursor, len(m.notes)-1)]
-	muted := lipgloss.NewStyle().Foreground(m.theme.TextMuted)
-	assignee := "unassigned"
-	if len(t.Assignees) > 0 {
-		assignee = strings.Join(t.Assignees, ", ")
-	}
-	meta := assignee
-	if t.Due != "" {
-		meta += " · due " + t.Due
-	}
-	meta += " · " + m.taskUsage(t.ID)
-	comment := "no comments"
-	if n := len(t.Comments); n > 0 {
-		c := t.Comments[n-1]
-		comment = c.Author + ": " + strings.Join(strings.Fields(c.Body), " ")
-	}
-	return "#" + t.ID + " · " + t.Status, []string{
-		lipgloss.NewStyle().Foreground(m.theme.TextPrimary).Bold(true).Render(fitLine(strings.Join(strings.Fields(boardTitle(t)), " "), width)),
-		muted.Render(fitLine(meta, width)),
-		muted.Render(fitLine(comment, width)),
-		muted.Render(fitLine("enter detail · e edit · n new", width)),
-	}
 }
 
 // usageLines is the Usage card body: what needs the user, then provider

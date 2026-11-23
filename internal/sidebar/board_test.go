@@ -2,6 +2,7 @@ package sidebar
 
 import (
 	"fmt"
+	"github.com/charmbracelet/lipgloss"
 	"os"
 	"path/filepath"
 	"strings"
@@ -38,35 +39,21 @@ func boardPress(m Model, key string) (Model, tea.Cmd) {
 	return next.(Model), cmd
 }
 
-func TestBoardListTwoLineRows(t *testing.T) {
+func TestBoardScreenUsesColumnsAtEveryWidth(t *testing.T) {
 	m := boardTestModel()
 	m.boardConfig = tasks.BoardConfig{Columns: []string{"todo", "build", "review", "blocked", "done"}}
 	m.notes = append(m.notes, tasks.Task{ID: "4", Title: "Fourth card", Status: "build"}, tasks.Task{ID: "5", Title: "Fifth card", Status: "blocked"})
-	for _, size := range [][2]int{{119, 40}, {45, 40}} {
+	for _, size := range [][2]int{{60, 30}, {100, 30}, {140, 40}} {
 		m.width, m.height = size[0], size[1]
-		view := ansi.Strip(m.View())
-		for _, want := range []string{"○ First card", "◐ Fourth card", "✕ Fifth card", "✓ Third card", "todo · builder", "12-01", "Board 5"} {
-			if !strings.Contains(view, want) {
-				t.Errorf("%v: view lacks %q:\n%s", size, want, view)
+		lines := strings.Split(m.View(), "\n")
+		view := ansi.Strip(strings.Join(lines, "\n"))
+		if !strings.Contains(view, "todo · 2") || !strings.Contains(view, "Workflows") {
+			t.Errorf("%v: no columns/workflows card:\n%s", size, view)
+		}
+		for i, l := range lines {
+			if lipgloss.Width(l) > size[0] {
+				t.Fatalf("%v line %d too wide", size, i)
 			}
-		}
-		if strings.Contains(view, "Todo 2") || strings.Contains(view, "Owner:") {
-			t.Fatalf("%v: still grouped into columns: %s", size, view)
-		}
-		// Done tickets sort last.
-		if strings.Index(view, "Third card") < strings.Index(view, "Fifth card") {
-			t.Fatalf("done ticket not last: %s", view)
-		}
-	}
-	for i := range m.notes {
-		if rows := m.boardRow(i, 30); len(rows) != 2 {
-			t.Fatalf("row %d has %d lines", i, len(rows))
-		}
-	}
-	m.notes[0].Title = strings.Repeat("very long title ", 20)
-	for _, line := range m.boardRow(0, 30) {
-		if ansi.StringWidth(line) != 30 {
-			t.Fatalf("row not fitted: %q", line)
 		}
 	}
 }
@@ -208,7 +195,7 @@ func TestBoardMoveAndSelection(t *testing.T) {
 	m := boardTestModel()
 	m.width = 70
 	m.notes = tasks.List("kanban")
-	m, _ = boardPress(m, "j")
+	m, _ = boardPress(m, "l")
 	if m.notes[m.taskCursor].ID != second.ID {
 		t.Fatal("j selected wrong task")
 	}
@@ -238,8 +225,8 @@ func TestBoardMoveAndSelection(t *testing.T) {
 		t.Fatal("k did not select previous card")
 	}
 	m.notes = append(m.notes, tasks.Task{Title: "Unknown", Status: "legacy"})
-	m, _ = boardPress(m, "j")
-	m, _ = boardPress(m, "j")
+	m, _ = boardPress(m, "l")
+	m, _ = boardPress(m, "l")
 	if m.taskCursor != 2 || !strings.Contains(ansi.Strip(m.View()), "Unknown") {
 		t.Fatal("unknown-status task is not reachable")
 	}
@@ -495,12 +482,7 @@ func TestBoardColumnsAndNavigation(t *testing.T) {
 	}
 	m.width = 119
 	view = ansi.Strip(m.View())
-	if !strings.Contains(view, "todo") || !strings.Contains(view, "○ First card") {
-		t.Fatal("missing narrow groups")
-	}
-	m, _ = boardPress(m, "j")
-	m, _ = boardPress(m, "j")
-	if m.taskCursor != 2 {
-		t.Fatal("narrow must traverse statuses")
+	if !strings.Contains(view, "todo · 2") || !strings.Contains(view, "First card") {
+		t.Fatal("missing columns at width 119")
 	}
 }

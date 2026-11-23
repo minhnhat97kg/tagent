@@ -11,19 +11,19 @@ func TestBlockedRowQuestion(t *testing.T) {
 	m := boardTestModel()
 	m.notes = []tasks.Task{{ID: "blocked", Title: "Ticket", Status: "blocked", Comments: []tasks.TaskComment{{ID: "question", Body: "Token nằm\nở đâu?"}, {ID: "reply", Body: "unrelated reply"}}}}
 	m.boardHistory = []tasks.Event{{Task: "blocked", Kind: "status", From: "build", To: "blocked", CommentID: "question"}}
-	row := m.boardRow(0, 80)
-	if len(row) != 2 || !strings.Contains(row[1], "Token nằm ở đâu?") || strings.Contains(row[1], "unrelated") {
+	row := m.boardCard(0, 80)
+	if len(row) != 3 || !strings.Contains(row[1], "Token nằm ở đâu?") || strings.Contains(row[1], "unrelated") {
 		t.Fatal(row)
 	}
 	for _, width := range []int{1, 5, 12} {
-		for _, line := range m.boardRow(0, width) {
+		for _, line := range m.boardCard(0, width) {
 			if ansi.StringWidth(line) > width {
 				t.Fatal(width, line)
 			}
 		}
 	}
 	m.boardHistory = nil
-	row = m.boardRow(0, 80)
+	row = m.boardCard(0, 80)
 	if !strings.Contains(row[1], "reply with @role") {
 		t.Fatal(row)
 	}

@@ -11,7 +11,7 @@ import (
 )
 
 func TestWorkflowPanelFocus(t *testing.T) {
-	m := Model{boardMode: true, boardWorkflows: []workflow.Workflow{{Name: "one", File: "one.yml"}, {Name: "two", File: "two.yml"}}}
+	m := Model{boardMode: true, width: 100, height: 40, boardWorkflows: []workflow.Workflow{{Name: "one", File: "one.yml"}, {Name: "two", File: "two.yml"}}}
 	m, _, handled := m.boardKey("tab")
 	if !handled || !m.workflowFocus {
 		t.Fatal("no workflow focus")

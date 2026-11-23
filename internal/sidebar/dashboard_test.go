@@ -17,7 +17,7 @@ func TestDashboardFitsBothWidthsAndKeepsTaskSelection(t *testing.T) {
 	m.EnableDashboard()
 	m.notesScope = "project-12345678"
 	m.notes = []tasks.Task{
-		{ID: "one", Text: "First task", Status: "doing"},
+		{ID: "one", Text: "First task", Status: "plan"},
 		{ID: "two", Text: "Second task", Status: "done", CompletedAt: time.Now()},
 	}
 	m.metricState = metrics.State{Sessions: map[string]metrics.Session{
@@ -56,7 +56,7 @@ func TestDashboardFitsBothWidthsAndKeepsTaskSelection(t *testing.T) {
 	updated, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("l")}) // wide: next column
 	m = updated.(Model)
 	if m.taskCursor != 1 || !strings.Contains(m.taskDetail(80)[1], "Second task") {
-		t.Fatal("task selection did not update detail")
+		t.Fatalf("sel %d focus %d/%v cols %v w %d", m.taskCursor, m.agentFocus, m.taskFocus, m.boardColumns(), m.width)
 	}
 	updated, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("x")})
 	m = updated.(Model)

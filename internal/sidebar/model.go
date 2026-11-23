@@ -9,7 +9,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -1474,6 +1473,13 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 				return m.handleKey(tea.KeyMsg{Type: tea.KeyUp})
 			}
 		}
+		if m.boardMode && m.taskForm == "" && !m.helpOpen && !m.boardDrawer && !m.boardFlow && msg.Button == tea.MouseButtonLeft && msg.Action == tea.MouseActionPress {
+			h := m.height - 3
+			cols := h - m.workflowCardHeight(h)
+			if idx, ok := m.boardColumnAt(msg.X, msg.Y-1, m.width, cols); ok {
+				m.taskCursor, m.workflowFocus = idx, false
+			}
+		}
 		return m, nil // Dashboard hit targets are not valid while an overlay replaces it.
 	}
 	if m.dashboard && msg.Button == tea.MouseButtonLeft && msg.Action == tea.MouseActionPress {
@@ -1494,27 +1500,24 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 		}
-		if g.columns && g.tasks.contains(msg.X, msg.Y) && msg.Y > g.tasks.y {
+		if g.tasks.contains(msg.X, msg.Y) && msg.Y > g.tasks.y {
 			if idx, ok := m.boardColumnAt(msg.X-g.tasks.x, msg.Y-g.tasks.y-1, g.tasks.w, g.tasks.h-1); ok {
 				m.taskCursor = idx
 				m.taskTitle = false
-				m.taskFocus, m.agentFocus = true, 2
+				m.taskFocus, m.agentFocus, m.workflowFocus = true, 2, false
 				m = m.openBoard()
 				m, cmd, _ := m.boardKey("enter")
 				return m, cmd
 			}
-		} else if g.tasks.contains(msg.X, msg.Y) && msg.Y > g.tasks.y && msg.Y < g.tasks.y+g.tasks.h-1 {
-			order := m.boardOrder()
-			pos := slices.Index(order, m.taskCursor)
-			// One row per ticket; the same window as taskLines (height g.tasks.h-2).
-			idx := max(0, pos-max(1, g.tasks.h-2-3)) + (msg.Y - g.tasks.y - 1)
-			if idx >= 0 && idx < len(order) {
-				m.taskCursor = order[idx]
-				m.taskTitle = false
-				m.taskFocus, m.agentFocus = true, 2
-				m = m.openBoard()
-				m, cmd, _ := m.boardKey("enter")
-				return m, cmd
+		}
+		if g.wf.contains(msg.X, msg.Y) && msg.Y > g.wf.y && msg.Y < g.wf.y+g.wf.h-1 {
+			start := max(0, m.workflowCursor-max(1, g.wf.h-2)+1)
+			if m.agentFocus != 4 {
+				start = 0
+			}
+			if idx := start + msg.Y - g.wf.y - 1; idx < len(m.boardWorkflows) {
+				m.workflowCursor, m.agentFocus, m.taskFocus, m.workflowFocus = idx, 4, false, true
+				return m, nil
 			}
 		}
 	}
@@ -1527,7 +1530,14 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	}
 	if m.dashboard && (msg.Button == tea.MouseButtonWheelDown || msg.Button == tea.MouseButtonWheelUp) {
 		// The wheel scrolls the task list when the pointer is over it.
-		if g := m.dashGeometry(); g.tasks.contains(msg.X, msg.Y) {
+		if g := m.dashGeometry(); g.wf.contains(msg.X, msg.Y) {
+			if msg.Button == tea.MouseButtonWheelDown && m.workflowCursor+1 < len(m.boardWorkflows) {
+				m.workflowCursor++
+			} else if msg.Button == tea.MouseButtonWheelUp && m.workflowCursor > 0 {
+				m.workflowCursor--
+			}
+			return m, nil
+		} else if g.tasks.contains(msg.X, msg.Y) {
 			if msg.Button == tea.MouseButtonWheelDown && m.taskCursor+1 < len(m.notes) {
 				m.taskCursor++
 			} else if msg.Button == tea.MouseButtonWheelUp && m.taskCursor > 0 {
@@ -1622,12 +1632,32 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				return m, cmd
 			}
 		}
+		if m.agentFocus == 4 && !m.boardMode {
+			switch key := msg.String(); key {
+			case "esc":
+				m.agentFocus, m.taskFocus, m.workflowFocus = 2, true, false
+				return m, nil
+			case "j", "k", "up", "down", "a", "e", "x", "w", "enter", "y", "n":
+				m, cmd, _ := m.workflowPanelKey(key)
+				if m.boardFlow {
+					m.boardMode, m.boardDrawer, m.workflowFocus = true, false, false
+				}
+				return m, cmd
+			}
+		}
 		switch msg.String() {
 		case "tab":
 			// Visual order: Agents, Usage, Agent definitions, Tasks.
-			next := map[int]int{0: 3, 3: 1, 1: 2, 2: 0}
+			next := map[int]int{0: 3, 3: 1, 1: 2, 2: 0, 4: 0}
+			if m.dashGeometry().wf.h > 0 {
+				next[2] = 4
+			}
 			m.agentFocus = next[m.agentFocus]
 			m.taskFocus = m.agentFocus == 2
+			m.workflowFocus = m.agentFocus == 4
+			if m.agentFocus >= 2 && m.boardDir == "" {
+				m = m.boardContext() // loads the board config and workflows
+			}
 			m.definitionCursor = 0
 			return m, nil
 		case "[", "h", "left":
@@ -1702,8 +1732,8 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				}
 			}
 			if key == "k" || key == "up" {
-				order := m.boardOrder()
-				if m.width >= 120 && len(m.notes) > 0 {
+				var order []int
+				if len(m.notes) > 0 {
 					order = m.boardStatusCards(m.notes[m.taskCursor].Status)
 				}
 				if len(order) == 0 || order[0] == m.taskCursor {
