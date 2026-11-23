@@ -118,7 +118,7 @@ export default function App() {
     <TooltipProvider>
       <div className="app-viewport flex flex-col bg-sidebar">
         <header className="flex h-11 shrink-0 items-center gap-1 border-b bg-card px-2 md:gap-2 md:px-3">
-          {!home && <Button variant="ghost" size="icon-xs" className="md:hidden" onClick={() => nav("/")} aria-label="Back"><ArrowLeft /></Button>}
+          {!home && <Button variant="ghost" size="icon-xs" onClick={() => nav("/")} aria-label="Back to home" title="Back to home"><ArrowLeft /></Button>}
           <a href="#/" className="flex shrink-0 items-center gap-1.5 text-[13px] font-semibold"><span className="flex size-6 items-center justify-center rounded-md bg-primary text-primary-foreground"><SquareTerminal className="size-3.5" /></span><span className="hidden sm:inline">tagent</span><span className="hidden font-normal text-muted-foreground lg:inline"> · {state?.host ?? ""}</span></a>
           <div className="min-w-0 flex-1 overflow-hidden [&_button]:max-w-full"><ProjectSelect value={dir} projects={state?.projects ?? []} onChange={(d) => { setDir(d); nav("/") }} /></div>
           <div className="ml-auto flex items-center gap-1">
