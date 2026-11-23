@@ -60,8 +60,15 @@ func (m Model) agentStripLines(width int) []string {
 		if a.Running > 0 {
 			running = m.boardStyle(m.theme.StatusRunning).Render(fmt.Sprintf("● %d running", a.Running))
 		}
+		if first == "" {
+			first = "no instructions"
+		}
+		title := m.boardStyle(m.theme.TextPrimary).Bold(true).Render(a.Name)
+		if a.Source == "global" {
+			title += "  " + dim.Render("global · read-only")
+		}
 		return []string{
-			boardFit(m.boardStyle(m.theme.TextPrimary).Bold(true).Render(a.Name)+"  "+dim.Render(a.Source), width),
+			boardFit(title, width),
 			row("Harness", a.Harness),
 			row("Model", model),
 			row("Used by", used),
