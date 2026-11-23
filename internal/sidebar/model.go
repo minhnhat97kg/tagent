@@ -1482,7 +1482,7 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 			m.agentFocus, m.taskFocus = 3, false
 			return m, nil
 		}
-		if g.tasks.contains(msg.X, g.tasks.y) {
+		if g.tasks.contains(msg.X, msg.Y) && msg.Y == g.tasks.y { // the Tasks header line
 			m.agentFocus, m.taskFocus, m.taskTitle = 2, true, true
 			return m, nil
 		}

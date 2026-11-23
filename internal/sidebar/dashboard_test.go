@@ -83,3 +83,23 @@ func TestUsageFocusChangesRange(t *testing.T) {
 		t.Fatalf("l outside Usage changed range to %d", got)
 	}
 }
+
+// Narrow (stacked) layout: the Tasks card starts at x=0, so a click anywhere used to focus Tasks.
+func TestNarrowClickFocusesTheCardClicked(t *testing.T) {
+	m := dashSample()
+	m.width, m.height = 70, 40
+	g := m.dashGeometry()
+	click := func(x, y int) Model {
+		next, _ := m.handleMouse(tea.MouseMsg{X: x, Y: y, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress})
+		return next.(Model)
+	}
+	if got := click(g.agents.x+5, g.agents.y+g.agents.h/2); got.taskFocus || got.agentFocus != 0 {
+		t.Fatalf("click in Agents: focus=%d taskFocus=%v", got.agentFocus, got.taskFocus)
+	}
+	if got := click(g.usage.x+5, g.usage.y+g.usage.h/2); got.agentFocus != 3 || got.taskFocus {
+		t.Fatalf("click in Usage: focus=%d taskFocus=%v", got.agentFocus, got.taskFocus)
+	}
+	if got := click(g.tasks.x+5, g.tasks.y); got.agentFocus != 2 || !got.taskFocus {
+		t.Fatalf("click on the Tasks header: focus=%d taskFocus=%v", got.agentFocus, got.taskFocus)
+	}
+}
