@@ -153,6 +153,7 @@ func (m Model) boardGlyph(status string) (string, lipgloss.Color) {
 }
 func (m Model) boardColor(status string) lipgloss.Color { _, c := m.boardGlyph(status); return c }
 
+	slices.SortStableFunc(cards, func(a, b int) int { return m.notes[b].Updated.Compare(m.notes[a].Updated) })
 func boardTitle(t tasks.Task) string {
 	if t.Title != "" {
 		return t.Title
@@ -172,7 +173,8 @@ func (m Model) laneOf(status string) string {
 	return "in progress"
 }
 
-// laneCards lists the ticket indexes in a lane, in ticket order.
+// laneCards lists the ticket indexes in a lane, most recently updated first
+// (same order as the web board).
 func (m Model) laneCards(lane string) []int {
 	var cards []int
 	for i, t := range m.notes {

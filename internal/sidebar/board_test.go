@@ -226,9 +226,11 @@ func TestBoardMoveAndSelection(t *testing.T) {
 	if last.Kind != "status" || last.Actor != "user" || last.To != "todo" {
 		t.Fatalf("move event: %+v", last)
 	}
-	m, _ = boardPress(m, "k")
+	// Lanes list the most recently updated ticket first: the one just moved
+	// back to todo is on top, so j reaches the older one below it.
+	m, _ = boardPress(m, "j")
 	if m.notes[m.taskCursor].ID != first.ID {
-		t.Fatal("k did not select previous card")
+		t.Fatal("j did not select the older card below")
 	}
 	m.notes = append(m.notes, tasks.Task{Title: "Unknown", Status: "legacy"})
 	m, _ = boardPress(m, "l")
