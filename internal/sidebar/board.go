@@ -526,12 +526,12 @@ func (m Model) workflowCardHeight(avail int) int {
 
 // workflowCard is the Workflows panel, windowed around the cursor when focused.
 func (m Model) workflowCard(width, height int) string {
-	lines := m.workflowLines(width - 4)
+	title, lines, cursor := m.stripPanel(width - 4)
 	start := 0
 	if m.workflowFocus {
-		start = max(0, m.workflowCursor-max(1, height-2)+1)
+		start = max(0, cursor-max(1, height-2)+1)
 	}
-	return m.boardPanel(fmt.Sprintf("Workflows %d · a add · e edit", len(m.boardWorkflows)), lines[min(start, len(lines)):], width, height, m.workflowFocus)
+	return m.boardPanel(title, lines[min(start, len(lines)):], width, height, m.workflowFocus)
 }
 
 func (m Model) boardView() string {
@@ -575,8 +575,12 @@ func (m Model) boardView() string {
 	hint := m.ticketHints()
 	if m.workflowDelete != "" {
 		hint = "Delete workflow " + m.workflowDelete + "? y / n"
+	} else if m.agentDelete != "" {
+		hint = "Delete agent " + m.agentDelete + "? y / n"
+	} else if m.workflowFocus && m.agentsOpen && !m.boardFlow && !m.boardDrawer {
+		hint = m.keyHints("enter detail", "m model", "e edit", "a add", "x delete", "t close", "Tab tickets", "? help")
 	} else if m.workflowFocus && !m.boardFlow && !m.boardDrawer {
-		hint = m.keyHints("enter view", "a add", "e edit", "Tab tickets", "? help")
+		hint = m.keyHints("enter view", "a add", "e edit", "t agents", "Tab tickets", "? help")
 	}
 	if m.boardFlow {
 		hint = m.keyHints("esc close", "[/] browse", "e edit", "? help")
@@ -708,6 +712,9 @@ func (m Model) triggerSummary() string {
 
 // Returns handled=false only for the existing Tasks actions, routed to their forms.
 func (m Model) boardKey(key string) (Model, tea.Cmd, bool) {
+	if key == "o" {
+		return m, nil, false // the global expand key and button still work from the board
+	}
 	if m.boardMode && len(m.notes) > 0 && (key == "a" || key == "A") && !m.workflowFocus && m.workflowDelete == "" {
 		m.taskForm = "attachments"
 		if key == "A" {
@@ -782,6 +789,14 @@ func (m Model) boardKey(key string) (Model, tea.Cmd, bool) {
 		return m, nil, true
 	}
 	switch key {
+	case "t":
+		m.boardMode = true
+		m.agentsOpen = !m.agentsOpen
+		m.workflowFocus, m.agentDetail, m.agentCursor = m.agentsOpen, false, 0
+		if m.agentsOpen {
+			m = m.loadAgents()
+		}
+		return m, nil, true
 	case "w":
 		m.boardMode = true
 		m.boardFlow, m.boardDrawer = true, false

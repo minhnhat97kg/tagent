@@ -38,7 +38,7 @@ task move id status [--output k=v]... [comment]  Handoff along configured transi
   task attachments id         List comment and job-output attachments, sizes and availability
   task due id YYYY-MM-DD|-      Set or clear a due date
   board init|run|validate [--dir DIR]  Create config / run triggers / validate config
-                                     board.yaml roles support agent, model, effort
+                                     board.yaml roles support agent, model, effort (edit in the board's Agents panel or the web Agents page)
   task rm id                   Delete a task
   stats [ls|clear]             View or clear Claude/Codex/OpenCode/Pi usage
   ctx [--global] ...           Share notes (ls, add, rm, clear, scope)

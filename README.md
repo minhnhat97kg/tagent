@@ -271,7 +271,7 @@ not in the screen: `tagent config list` shows all of them, and
 
 ### Repo agents and task board
 
-Define agents using the selected harness's own files: `.claude/agents/<name>.md`, `.codex/agents/<name>.toml`, or `.opencode/agents/<name>.md`. `tagent agents`, the sidebar below running panes, and the dashboard's left pane read those definitions from the repo. The Repo agents tab shows each native file and can open it in `$EDITOR`. Claude and OpenCode launch with their native `--agent` option. Codex does not expose a standalone agent selector, so tagent passes the TOML `developer_instructions` to a new Codex session.
+Define agents using the selected harness's own files: `.claude/agents/<name>.md`, `.codex/agents/<name>.toml`, or `.opencode/agents/<name>.md`. `tagent agents`, the sidebar below running panes, and the dashboard's left pane read those definitions from the repo. The Repo agents tab shows each native file and can open it in `$EDITOR`. To see and edit every agent in one place (repo, global and board.yaml roles), use the Agents page on the web (`#/agents`) or the board's Agents panel (`t`); see `docs/board.md`. Claude and OpenCode launch with their native `--agent` option. Codex does not expose a standalone agent selector, so tagent passes the TOML `developer_instructions` to a new Codex session.
 
 Choose how they run in tagent configuration:
 

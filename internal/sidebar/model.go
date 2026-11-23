@@ -17,6 +17,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
+	"tagent/internal/agents"
 	"tagent/internal/clock"
 	"tagent/internal/git"
 	"tagent/internal/hook"
@@ -623,6 +624,11 @@ type Model struct {
 	workflowFocus    bool
 	workflowCursor   int
 	workflowDelete   string
+	agentsOpen       bool
+	agents           []agents.Agent
+	agentCursor      int
+	agentDelete      string
+	agentDetail      bool
 	taskForm         string
 	taskInput        string
 	taskStep         int
@@ -969,7 +975,6 @@ func (m *Model) applyRows() {
 }
 
 func repoAgentRows(dir, harness string) []Row {
-	defs := tasks.LocalDefinitions(dir, harness)
 	rows := []Row{{IsRepoAgent: true, Header: "Global agents"}}
 	for _, d := range roles.ListGlobal(harness) {
 		rows = append(rows, Row{IsRepoAgent: true, RepoAgentName: d.Name})
@@ -978,11 +983,17 @@ func repoAgentRows(dir, harness string) []Row {
 		rows = append(rows, Row{IsRepoAgent: true, RepoAgentName: "(none configured)"})
 	}
 	rows = append(rows, Row{IsRepoAgent: true, Header: "Local agents"})
-	if len(defs) == 0 {
+	var local []agents.Agent
+	for _, a := range agents.List(dir, harness, nil) {
+		if a.Source != "global" {
+			local = append(local, a)
+		}
+	}
+	if len(local) == 0 {
 		return append(rows, Row{IsRepoAgent: true, RepoAgentName: "(none in this repo)"})
 	}
-	for _, d := range defs {
-		rows = append(rows, Row{IsRepoAgent: true, RepoAgentName: d.Name})
+	for _, a := range local {
+		rows = append(rows, Row{IsRepoAgent: true, RepoAgentName: a.Name})
 	}
 	return rows
 }
@@ -1166,6 +1177,12 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.boardConfig = msg.config
 			m.boardWorkflows = workflow.List(tasks.MainRoot(m.boardDir))
 			m.taskNotice = "✓ Board config reloaded"
+		}
+		return m, nil
+	case agentsEditedMsg:
+		m = m.loadAgents()
+		if msg.err != nil {
+			m.taskNotice = "! " + msg.err.Error()
 		}
 		return m, nil
 	case workflowsEditedMsg:

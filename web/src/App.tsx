@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { bindVisualViewport } from '@/lib/touchViewport'
-import { ArrowLeft, Kanban, Maximize2, Minimize2, Plus, Settings, SquareTerminal, Workflow } from "lucide-react"
+import { ArrowLeft, Bot, Kanban, Maximize2, Minimize2, Plus, Settings, SquareTerminal, Workflow } from "lucide-react"
 import { SettingsDialog } from "@/components/SettingsDialog"
 import { api } from "@/api"
 import { AgentView } from "@/components/AgentView"
@@ -12,6 +12,7 @@ import { NewAgentDialog } from "@/components/NewAgentDialog"
 import { ProjectSelect } from "@/components/ProjectSelect"
 import { AgentsPanel } from "@/components/panels/AgentsPanel"
 import { WorkflowsPage } from "@/components/WorkflowsPage"
+import { AgentsPage } from "@/components/AgentsPage"
 import { OverviewPanel } from "@/components/panels/OverviewPanel"
 import { TasksPanel } from "@/components/panels/TasksPanel"
 import { Button } from "@/components/ui/button"
@@ -89,7 +90,8 @@ export default function App() {
   const proj = projPoll.data
   const boardRoute = route === '/board'
   const flowRoute = /^\/workflows(?:\/([^/]+)(?:\/([^/]+))?)?$/.exec(route)
-  const home = !sel && !boardRoute && !flowRoute
+  const agentsRoute = route === "/agents"
+  const home = !sel && !boardRoute && !flowRoute && !agentsRoute
   const board = <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border bg-card"><Board dir={dir} proj={proj} reload={projPoll.reload} /></section>
   const tasks = <TasksPanel proj={proj} dir={dir} reload={projPoll.reload} className="min-h-40 flex-1" />
 
@@ -97,6 +99,7 @@ export default function App() {
   let main
   if (boardRoute) main = board
   else if (flowRoute) { const name = decodeURIComponent(flowRoute[1] ?? ''), id = decodeURIComponent(flowRoute[2] ?? ''); main = <WorkflowsPage key={dir + route} dir={dir} initial={name} ticket={proj?.tasks?.find(t => t.id === id)} runs={proj?.runs?.[id]} /> }
+  else if (agentsRoute) main = <AgentsPage key={dir} dir={dir} />
   else if (agent) main = <AgentView key={agent.pane} agent={agent} project={proj} />
   else if (sel) main = state ? <div className="p-6 text-muted-foreground">Agent not found. <a href="#/" className="text-foreground underline">Home</a></div> : null
   else main = <>
@@ -120,6 +123,7 @@ export default function App() {
           <div className="min-w-0 flex-1 overflow-hidden [&_button]:max-w-full"><ProjectSelect value={dir} projects={state?.projects ?? []} onChange={(d) => { setDir(d); nav("/") }} /></div>
           <div className="ml-auto flex items-center gap-1">
             <Button variant="ghost" size="icon-xs" aria-label="Board" title="Board" onClick={() => nav('/board')}><Kanban /></Button>
+            <Button variant="ghost" size="icon-xs" aria-label="Agents" title="Agents" onClick={() => nav('/agents')}><Bot /></Button>
             <Button variant="ghost" size="icon-xs" aria-label="Workflows" title="Workflows" onClick={() => nav('/workflows')}><Workflow /></Button>
             <Notifications items={notices} onOpen={openNotice} onReply={n => openNotice(n, true)} />
             <Button size="sm" onClick={() => setNewOpen(true)}><Plus /> <span className="hidden sm:inline">New agent</span></Button>

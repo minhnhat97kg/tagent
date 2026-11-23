@@ -23,6 +23,20 @@ export interface Agent {
   subagents?: string[] | null
 }
 
+// Role is an agent definition from /api/roles: harness, model and effort from board.yaml, instructions from its file.
+export interface Role {
+  name: string
+  harness: string
+  model: string
+  effort: string
+  source: "repo" | "global" | "board"
+  path: string
+  instructions: string
+  running: number
+  panes: { pane: string; status: string }[] | null
+  usedBy: string[] | null
+}
+
 export interface State {
   agents: Agent[]
   harnesses: string[] | null

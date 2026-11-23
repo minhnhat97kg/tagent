@@ -23,7 +23,8 @@ var helpSections = []shortcutSection{
 	{"Agent definitions", [][2]string{{"j k", "move"}, {"e enter", "edit instruction file"}, {"Tab", "next panel"}}},
 	{"Tasks", ticketShortcuts([2]string{"Tab / b", "focus next panel / open board"})},
 	{"Board · Tickets", ticketShortcuts([2]string{"Tab / esc", "focus workflows / back"})},
-	{"Board · Workflows", [][2]string{{"Tab", "focus tickets"}, {"j k ↑ ↓", "select workflow"}, {"enter w", "view selected workflow"}, {"a", "new workflow name, then $EDITOR"}, {"e", "edit selected workflow"}, {"x", "delete workflow (y/n confirm)"}, {"esc q b", "back to dashboard"}}},
+	{"Board · Agents", [][2]string{{"Tab", "focus tickets"}, {"j k ↑ ↓", "select agent"}, {"enter", "show detail"}, {"m", "model (new panes only)"}, {"e", "edit instructions in $EDITOR"}, {"a", "new agent"}, {"x", "delete agent (y/n confirm)"}, {"t", "swap workflows card for agents (and back)"}, {"esc q b", "back to dashboard"}}},
+	{"Board · Workflows", [][2]string{{"Tab", "focus tickets"}, {"t", "swap this card for agents"}, {"j k ↑ ↓", "select workflow"}, {"enter w", "view selected workflow"}, {"a", "new workflow name, then $EDITOR"}, {"e", "edit selected workflow"}, {"x", "delete workflow (y/n confirm)"}, {"esc q b", "back to dashboard"}}},
 	{"Board · Workflow view", [][2]string{{"[ ]", "browse workflows"}, {"e c", "edit displayed workflow / board config"}, {"esc w q", "close workflow view"}, {"ctrl+c", "quit"}}},
 	{"Board · Task detail", [][2]string{{"j k ↑ ↓", "scroll task detail"}, {"pgup pgdn", "scroll page"}, {"g G", "top / bottom"}, {"esc", "close detail drawer"}, {"enter i", "toggle detail drawer"}, {"e", "edit task"}, {"c / C", "blocked: @role reply resumes; C: comment"}, {"a / A", "view attachments / attach file"}}},
 	{"Standalone (outside tmux)", [][2]string{{"enter", "type into selected agent"}, {"ctrl+] ctrl+\\", "back to list (or click it)"}, {"N", "start a new agent here"}, {"z", "layout: split · half · agent · dashboard"}}},
@@ -36,6 +37,8 @@ func (m Model) helpSection() shortcutSection {
 		title = "Board · Task detail"
 	case m.boardMode && m.boardFlow:
 		title = "Board · Workflow view"
+	case m.boardMode && m.agentsOpen && (m.workflowFocus || m.taskForm == "agent-new" || m.taskForm == "agent-model"):
+		title = "Board · Agents"
 	case m.boardMode && (m.workflowFocus || m.taskForm == "workflow-new"):
 		title = "Board · Workflows"
 	case m.boardMode:

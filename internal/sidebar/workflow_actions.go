@@ -55,6 +55,9 @@ func createWorkflowFile(root, name string) (string, error) {
 	return path, e
 }
 func (m Model) workflowPanelKey(key string) (Model, tea.Cmd, bool) {
+	if m.agentsOpen {
+		return m.agentPanelKey(key)
+	}
 	if m.workflowDelete != "" {
 		switch key {
 		case "y":
