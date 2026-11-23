@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"tagent/internal/tmux"
 	"testing"
-	"tmux-agent/internal/tmux"
 )
 
 type testTransport func(*http.Request) (*http.Response, error)

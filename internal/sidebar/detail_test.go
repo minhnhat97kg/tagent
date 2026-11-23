@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"tmux-agent/internal/git"
-	"tmux-agent/internal/tasks"
-	"tmux-agent/internal/tmux"
+	"tagent/internal/git"
+	"tagent/internal/tasks"
+	"tagent/internal/tmux"
 )
 
 func TestBoardRefreshShowsRepoTask(t *testing.T) {

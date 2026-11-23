@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"tmux-agent/internal/tmux"
+	"tagent/internal/tmux"
 )
 
 // ─── sidebarPositionFromSetting ────────────────────────────────────────────

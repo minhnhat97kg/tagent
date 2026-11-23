@@ -4,8 +4,8 @@ import (
 	"strconv"
 	"strings"
 
-	"tmux-agent/internal/process"
-	"tmux-agent/internal/tmux"
+	"tagent/internal/process"
+	"tagent/internal/tmux"
 )
 
 // paneFromAncestors finds the pane a process runs in when TMUX_PANE isn't

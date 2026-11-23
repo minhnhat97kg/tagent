@@ -5,11 +5,11 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"tagent/internal/metrics"
+	"tagent/internal/quota"
+	"tagent/internal/tasks"
+	"tagent/internal/tmux"
 	"time"
-	"tmux-agent/internal/metrics"
-	"tmux-agent/internal/quota"
-	"tmux-agent/internal/tasks"
-	"tmux-agent/internal/tmux"
 )
 
 type apiDeps struct {

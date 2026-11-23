@@ -8,7 +8,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"tmux-agent/internal/tmux"
+	"tagent/internal/tmux"
 )
 
 // Run starts the sidebar TUI — invoked when the binary runs with no

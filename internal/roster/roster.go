@@ -1,5 +1,5 @@
 // Package roster remembers which agents were running — name, kind, cwd,
-// session id, role — so `tmux-agent restore` can bring them back after a
+// session id, role — so `tagent restore` can bring them back after a
 // tmux or machine restart (Claude resumes its own session).
 package roster
 
@@ -7,9 +7,10 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"tagent/internal/apppath"
 	"time"
 
-	"tmux-agent/internal/tmux"
+	"tagent/internal/tmux"
 )
 
 // Agent is one remembered agent.
@@ -34,7 +35,7 @@ func File() string {
 		home, _ := os.UserHomeDir()
 		state = filepath.Join(home, ".local", "state")
 	}
-	return filepath.Join(state, "tmux-agent", "agents.json")
+	return filepath.Join(apppath.Dir(state), "agents.json")
 }
 
 // Collect lists the running agents (role from the @agent_role pane option).

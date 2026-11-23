@@ -83,7 +83,7 @@ func TestSendDesktopNotificationLinuxHasBackend(t *testing.T) {
 	if gotName != "notify-send" {
 		t.Fatalf("called command = %q, want notify-send", gotName)
 	}
-	wantArgs := []string{"--app-name=tmux-agent-sidebar", "--urgency=normal", "title", "body"}
+	wantArgs := []string{"--app-name=tagent-sidebar", "--urgency=normal", "title", "body"}
 	if len(gotArgs) != len(wantArgs) {
 		t.Fatalf("args = %v, want %v", gotArgs, wantArgs)
 	}

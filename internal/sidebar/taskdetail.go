@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"tmux-agent/internal/metrics"
-	"tmux-agent/internal/tasks"
+	"tagent/internal/metrics"
+	"tagent/internal/tasks"
 
 	"github.com/charmbracelet/x/ansi"
 )

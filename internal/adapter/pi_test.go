@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"tmux-agent/internal/event"
+	"tagent/internal/event"
 )
 
 // TestPiRegistrationTableMatchesParse is a mandatory drift test (see part 2 of the

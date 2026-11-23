@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"tmux-agent/internal/process"
-	"tmux-agent/internal/tmux"
+	"tagent/internal/process"
+	"tagent/internal/tmux"
 )
 
 func TestClassify(t *testing.T) {

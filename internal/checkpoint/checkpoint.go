@@ -1,5 +1,5 @@
 // Package checkpoint snapshots a repo's files before each agent turn so a
-// bad turn can be undone (`tmux-agent undo <agent>`).
+// bad turn can be undone (`tagent undo <agent>`).
 //
 // A checkpoint is a commit of every non-ignored file in the working tree —
 // tracked or not — built through a throwaway index, so the user's index,
@@ -67,15 +67,15 @@ func Key(agent string) string {
 // snapshot commits the working tree (via a temp index) and returns the
 // commit and its tree.
 func (r repo) snapshot(msg string) (commit, tree string, err error) {
-	idx, err := os.CreateTemp("", "tmux-agent-index-*")
+	idx, err := os.CreateTemp("", "tagent-index-*")
 	if err != nil {
 		return "", "", err
 	}
 	idx.Close()
 	defer os.Remove(idx.Name())
 	env := []string{"GIT_INDEX_FILE=" + idx.Name(),
-		"GIT_AUTHOR_NAME=tmux-agent", "GIT_AUTHOR_EMAIL=tmux-agent@localhost",
-		"GIT_COMMITTER_NAME=tmux-agent", "GIT_COMMITTER_EMAIL=tmux-agent@localhost"}
+		"GIT_AUTHOR_NAME=tagent", "GIT_AUTHOR_EMAIL=tagent@localhost",
+		"GIT_COMMITTER_NAME=tagent", "GIT_COMMITTER_EMAIL=tagent@localhost"}
 	head, headErr := r.git(nil, "rev-parse", "-q", "--verify", "HEAD")
 	if headErr == nil {
 		if _, err = r.git(env, "read-tree", head); err != nil { // fast path: only changed files get hashed
@@ -104,7 +104,7 @@ func Create(dir, agent string) (string, error) {
 		return "", err
 	}
 	key := Key(agent)
-	commit, tree, err := r.snapshot("tmux-agent checkpoint: " + agent)
+	commit, tree, err := r.snapshot("tagent checkpoint: " + agent)
 	if err != nil {
 		return "", err
 	}
@@ -159,7 +159,7 @@ func Restore(dir, ref string) (backup string, err error) {
 	if _, err := r.git(nil, "rev-parse", "-q", "--verify", ref+"^{commit}"); err != nil {
 		return "", fmt.Errorf("no checkpoint %s", ref)
 	}
-	commit, _, err := r.snapshot("tmux-agent backup before undo")
+	commit, _, err := r.snapshot("tagent backup before undo")
 	if err != nil {
 		return "", err
 	}

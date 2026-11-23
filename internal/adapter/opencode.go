@@ -1,6 +1,6 @@
 package adapter
 
-import "tmux-agent/internal/event"
+import "tagent/internal/event"
 
 // init self-registers this adapter into the package registry. This way
 // adding an adapter doesn't require editing adapter.go — that is the
@@ -16,14 +16,14 @@ const opencodeAgentName = "opencode"
 //
 // Unlike Claude/Codex, OpenCode doesn't configure hooks via a
 // settings.json. It uses a JavaScript plugin
-// (assets/.opencode/plugins/tmux-agent-sidebar.js, running inside
-// OpenCode's own Bun runtime) as the bridge. `tmux-agent install opencode`
-// writes that file to ~/.config/opencode/plugins/tmux-agent.js — OpenCode v2
+// (assets/.opencode/plugins/tagent-sidebar.js, running inside
+// OpenCode's own Bun runtime) as the bridge. `tagent install opencode`
+// writes that file to ~/.config/opencode/plugins/tagent.js — OpenCode v2
 // discovers both `plugin/` and `plugins/`, but treats only `plugins/` as V2.
 // The plugin default-exports a V2 definition (id + setup(ctx)), registers
 // `ctx.session.hook("prompt", …)`, `ctx.tool.hook("execute.after", …)`, and a
 // `ctx.event.subscribe(…)` loop, and inside each callback spawns
-// "tmux-agent hook opencode <event>" with JSON on stdin, without waiting for
+// "tagent hook opencode <event>" with JSON on stdin, without waiting for
 // the child to exit (fire-and-forget).
 //
 // Consequence: OpenCode has no reliable "session-end" — Bun doesn't
@@ -48,7 +48,7 @@ func (OpenCodeAdapter) Name() string { return opencodeAgentName }
 // trigger. This table isn't ported from the Rust version (the reference
 // implementation has no registration table for OpenCode) — it was rebuilt
 // directly from the hook() calls in
-// assets/.opencode/plugins/tmux-agent-sidebar.js.
+// assets/.opencode/plugins/tagent-sidebar.js.
 func (OpenCodeAdapter) Registrations() []Registration {
 	return []Registration{
 		{Trigger: "ctx.event.subscribe", Matcher: "session.created", Kind: event.SessionStart},

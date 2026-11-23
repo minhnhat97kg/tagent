@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"tmux-agent/internal/tmux"
+	"tagent/internal/tmux"
 )
 
 func TestValidate(t *testing.T) {

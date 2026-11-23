@@ -10,12 +10,12 @@ import (
 	"strconv"
 	"strings"
 
-	"tmux-agent/internal/tmux"
+	"tagent/internal/tmux"
 )
 
 // selfBinaryFallback is used when os.Executable() fails (rare) — the
 // module's current binary name, not any particular command's name.
-const selfBinaryFallback = "tmux-agent"
+const selfBinaryFallback = "tagent"
 
 // Toggle implements the "toggle <window_id> [pane_path] [--create-only]"
 // command: turns the observer sidebar pane in ONE window on/off. Already has

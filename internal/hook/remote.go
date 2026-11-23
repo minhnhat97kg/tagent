@@ -1,6 +1,6 @@
 package hook
 
-import "tmux-agent/internal/notify"
+import "tagent/internal/notify"
 
 // Notify sends a one-off notification (desktop + phone) for events the
 // hook handlers don't cover — the watchdog's stuck/conflict warnings. It

@@ -4,7 +4,7 @@
 #
 # Derived from hiroppy/tmux-agent-sidebar (MIT) — see NOTICE.
 #
-# Why this file exists even though `tmux-agent setup` could write an absolute
+# Why this file exists even though `tagent setup` could write an absolute
 # binary path:
 #
 # 1. Late binding. settings.json only needs to know where hook.sh is. The
@@ -22,12 +22,18 @@ PLUGIN_DIR="$(cd "$(dirname "$0")/.." && pwd -P)"
 # Fallback when the script runs from a Claude Code plugin install
 # (${CLAUDE_PLUGIN_ROOT}/assets/hook.sh). The plugin cache holds no binary,
 # so look in the tmux plugin directory where TPM puts it.
-TPM_DIR="$HOME/.tmux/plugins/tmux-agent"
+TPM_DIR="$HOME/.tmux/plugins/tagent"
 
-if [ -x "$PLUGIN_DIR/bin/tmux-agent" ]; then
+if [ -x "$PLUGIN_DIR/bin/tagent" ]; then
+  BIN="$PLUGIN_DIR/bin/tagent"
+elif [ -x "$TPM_DIR/bin/tagent" ]; then
+  BIN="$TPM_DIR/bin/tagent"
+elif command -v tagent &>/dev/null; then
+  BIN="tagent"
+elif [ -x "$PLUGIN_DIR/bin/tmux-agent" ]; then
   BIN="$PLUGIN_DIR/bin/tmux-agent"
-elif [ -x "$TPM_DIR/bin/tmux-agent" ]; then
-  BIN="$TPM_DIR/bin/tmux-agent"
+elif [ -x "$HOME/.tmux/plugins/tmux-agent/bin/tmux-agent" ]; then
+  BIN="$HOME/.tmux/plugins/tmux-agent/bin/tmux-agent"
 elif command -v tmux-agent &>/dev/null; then
   BIN="tmux-agent"
 else

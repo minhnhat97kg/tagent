@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"tmux-agent/internal/tmux"
+	"tagent/internal/tmux"
 )
 
 // setupTempGitRepo builds a TEMPORARY git repo (t.TempDir(), auto-cleaned

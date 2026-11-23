@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"tmux-agent/internal/activity"
-	"tmux-agent/internal/process"
+	"tagent/internal/activity"
+	"tagent/internal/process"
 )
 
 // Field indices at the window level in a `tmux list-panes -F` line.

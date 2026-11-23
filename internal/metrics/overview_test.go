@@ -1,10 +1,10 @@
 package metrics
 
 import (
+	"tagent/internal/tasks"
+	"tagent/internal/tmux"
 	"testing"
 	"time"
-	"tmux-agent/internal/tasks"
-	"tmux-agent/internal/tmux"
 )
 
 func TestTokenWindow(t *testing.T) {

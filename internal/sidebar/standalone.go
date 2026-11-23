@@ -11,10 +11,10 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 
-	"tmux-agent/internal/tmux"
+	"tagent/internal/tmux"
 )
 
-// Standalone mode: tmux-agent run in a plain terminal (no $TMUX) shows the
+// Standalone mode: tagent run in a plain terminal (no $TMUX) shows the
 // dashboard on the left and the live screen of the selected agent's pane on
 // the right. Enter focuses the pane (keys go to the agent), ctrl+] returns.
 
@@ -23,7 +23,7 @@ import (
 func isLeaveKey(s string) bool { return s == "ctrl+]" || s == "ctrl+\\" || s == "ctrl+^" }
 
 // HiddenSession is the detached session standalone agents run in.
-const HiddenSession = "tmux-agent-bg"
+const HiddenSession = "tagent-bg"
 
 type standaloneModel struct {
 	left       Model

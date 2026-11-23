@@ -19,7 +19,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"tmux-agent/internal/tmux"
+	"tagent/internal/tmux"
 )
 
 // RepoGroup is the set of panes working on the same git repo (or the same
@@ -101,7 +101,7 @@ func groupKeyForPath(path string) string {
 }
 
 // PaneBranch is the branch the pane works on: the one recorded for a
-// tmux-agent worktree, else read from the repo's HEAD file (no git process,
+// tagent worktree, else read from the repo's HEAD file (no git process,
 // same walk-up as findRepoRoot). "" when detached or not in a repo.
 func PaneBranch(p tmux.PaneInfo) string {
 	if p.Worktree.Branch != "" {

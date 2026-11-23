@@ -3,10 +3,10 @@ package intake
 import (
 	"fmt"
 	"strings"
-	"tmux-agent/internal/board"
-	"tmux-agent/internal/tasks"
-	"tmux-agent/internal/tmux"
-	"tmux-agent/internal/workflow"
+	"tagent/internal/board"
+	"tagent/internal/tasks"
+	"tagent/internal/tmux"
+	"tagent/internal/workflow"
 )
 
 type Submission struct {

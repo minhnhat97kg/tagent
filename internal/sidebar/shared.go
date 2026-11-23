@@ -18,7 +18,7 @@ import (
 	"syscall"
 	"time"
 
-	"tmux-agent/internal/tmux"
+	"tagent/internal/tmux"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"

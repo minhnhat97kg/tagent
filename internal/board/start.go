@@ -3,8 +3,8 @@ package board
 import (
 	"fmt"
 	"slices"
-	"tmux-agent/internal/tasks"
-	"tmux-agent/internal/workflow"
+	"tagent/internal/tasks"
+	"tagent/internal/workflow"
 )
 
 // Start uses a workflow or advances through the board's configured columns.

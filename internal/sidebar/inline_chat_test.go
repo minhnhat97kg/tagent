@@ -141,7 +141,7 @@ func TestInlineChatCancelAndApproval(t *testing.T) {
 	calls := 0
 	executeIntakeCommand = func(command, dir string) (string, error) { calls++; return "done", nil }
 	m := Model{dashboard: true, agentFocus: 3, inlineIntake: true, notesScope: "repo", boardDir: "/repo", taskInput: "form input", intakeState: &intakeState{Token: 1, Scope: "repo", Dir: "/repo"}}
-	next, _ := m.intakeReply(intakeReply{Token: 1, Raw: "CMD: tmux-agent list"})
+	next, _ := m.intakeReply(intakeReply{Token: 1, Raw: "CMD: tagent list"})
 	m = next.(Model)
 	if calls != 0 || m.taskForm != "" {
 		t.Fatal("approval not inline")

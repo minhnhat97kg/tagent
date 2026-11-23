@@ -6,8 +6,8 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"tmux-agent/internal/tasks"
-	"tmux-agent/internal/tmux"
+	"tagent/internal/tasks"
+	"tagent/internal/tmux"
 )
 
 // emptyHint is shown when no agent pane is running anywhere on the tmux

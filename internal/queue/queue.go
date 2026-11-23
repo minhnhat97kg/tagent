@@ -1,4 +1,4 @@
-// Package queue holds messages for busy agents: `tmux-agent send` to an
+// Package queue holds messages for busy agents: `tagent send` to an
 // agent that's working (or waiting on you) queues the text instead of
 // typing into the middle of its turn; the scraper loop delivers the next
 // message each time the agent is idle again.
@@ -23,7 +23,7 @@ func Dir() string {
 		home, _ := os.UserHomeDir()
 		state = filepath.Join(home, ".local", "state")
 	}
-	return filepath.Join(state, "tmux-agent", "queue")
+	return filepath.Join(state, "tagent", "queue")
 }
 
 func paneDir(pane string) string {

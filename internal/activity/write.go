@@ -4,7 +4,7 @@ import (
 	"os"
 	"strings"
 
-	"tmux-agent/internal/clock"
+	"tagent/internal/clock"
 )
 
 const (

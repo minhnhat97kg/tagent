@@ -3,13 +3,13 @@ package hook
 import (
 	"strconv"
 
-	"tmux-agent/internal/clock"
-	"tmux-agent/internal/event"
-	"tmux-agent/internal/tmux"
+	"tagent/internal/clock"
+	"tagent/internal/event"
+	"tagent/internal/tmux"
 )
 
 // Transition moves a pane from status old to next for an integration that
-// only knows coarse states (the screen scraper, `tmux-agent set-status`
+// only knows coarse states (the screen scraper, `tagent set-status`
 // from a harness plugin) rather than full hook events. It writes the status
 // and does what the full hook handlers do around it: run start time and
 // notification run id on running, "done, not yet seen" + a desktop

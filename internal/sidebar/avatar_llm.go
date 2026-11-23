@@ -78,7 +78,7 @@ func (c AvatarConfig) phrase(key string, kv ...string) string {
 func (c AvatarConfig) llmEnabled() bool { return c.LLM != "" && c.LLM != "off" }
 
 func llmCacheDir() string {
-	return filepath.Join(os.TempDir(), fmt.Sprintf("tmux-agent-avatar-%d", os.Getuid()))
+	return filepath.Join(os.TempDir(), fmt.Sprintf("tagent-avatar-%d", os.Getuid()))
 }
 
 // cachedLine returns the LLM line for key, if one was written.

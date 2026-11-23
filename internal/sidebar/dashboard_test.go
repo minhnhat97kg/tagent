@@ -8,8 +8,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"tmux-agent/internal/metrics"
-	"tmux-agent/internal/tasks"
+	"tagent/internal/metrics"
+	"tagent/internal/tasks"
 )
 
 func TestDashboardFitsBothWidthsAndKeepsTaskSelection(t *testing.T) {

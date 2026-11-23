@@ -12,14 +12,14 @@ import (
 	"strings"
 	"time"
 
-	"tmux-agent/internal/activity"
-	"tmux-agent/internal/event"
-	"tmux-agent/internal/hook"
-	"tmux-agent/internal/process"
-	"tmux-agent/internal/roster"
-	"tmux-agent/internal/sharedctx"
-	"tmux-agent/internal/tmux"
-	"tmux-agent/internal/usage"
+	"tagent/internal/activity"
+	"tagent/internal/event"
+	"tagent/internal/hook"
+	"tagent/internal/process"
+	"tagent/internal/roster"
+	"tagent/internal/sharedctx"
+	"tagent/internal/tmux"
+	"tagent/internal/usage"
 )
 
 // The watchdog runs inside the scraper loop (one per tmux server) every
@@ -66,7 +66,7 @@ func (w *watchdog) maybeRun(now time.Time) {
 	w.checkStuck(sessions, now)
 	w.checkConflicts(sessions, now)
 	checkSubagents(sessions)
-	if now.Sub(w.lastSave) >= saveEvery { // for `tmux-agent restore`
+	if now.Sub(w.lastSave) >= saveEvery { // for `tagent restore`
 		w.lastSave = now
 		roster.Save(roster.Collect(sessions))
 	}
@@ -217,7 +217,7 @@ func (w *watchdog) checkConflicts(sessions []tmux.SessionInfo, now time.Time) {
 		if !w.reported[k] {
 			w.reported[k] = true
 			msg := fmt.Sprintf("conflict: %s are all editing %s — coordinate before editing it further", strings.Join(names, ", "), file)
-			sharedctx.Add(scopeOf[k], "tmux-agent", "", msg)
+			sharedctx.Add(scopeOf[k], "tagent", "", msg)
 			hook.Notify("file conflict", msg)
 		}
 	}

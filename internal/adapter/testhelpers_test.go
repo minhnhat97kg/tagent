@@ -3,7 +3,7 @@ package adapter
 import (
 	"testing"
 
-	"tmux-agent/internal/event"
+	"tagent/internal/event"
 )
 
 // minimalPayload returns the minimal payload for Parse to accept a given

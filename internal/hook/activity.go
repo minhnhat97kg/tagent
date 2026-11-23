@@ -7,9 +7,9 @@
 package hook
 
 import (
-	"tmux-agent/internal/activity"
-	"tmux-agent/internal/tmux"
-	"tmux-agent/internal/toollabel"
+	"tagent/internal/activity"
+	"tagent/internal/tmux"
+	"tagent/internal/toollabel"
 )
 
 // HandleActivityLog processes the ActivityLog event: generates a label for

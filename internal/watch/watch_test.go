@@ -10,11 +10,11 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
 
-	"tmux-agent/internal/config"
-	"tmux-agent/internal/roles"
-	"tmux-agent/internal/sidebar"
-	"tmux-agent/internal/tasks"
-	"tmux-agent/internal/tmux"
+	"tagent/internal/config"
+	"tagent/internal/roles"
+	"tagent/internal/sidebar"
+	"tagent/internal/tasks"
+	"tagent/internal/tmux"
 )
 
 func TestBoardAssignAndAdvance(t *testing.T) {

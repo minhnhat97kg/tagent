@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"testing"
 
-	"tmux-agent/internal/process"
+	"tagent/internal/process"
 )
 
 // The tests below must NOT depend on real ports open on the machine running

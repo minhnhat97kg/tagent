@@ -1,8 +1,8 @@
 package sidebar
 
 import (
+	"tagent/internal/tasks"
 	"testing"
-	"tmux-agent/internal/tasks"
 )
 
 func TestPanelUsesBoardActions(t *testing.T) {

@@ -1,9 +1,9 @@
 package sidebar
 
 import (
+	"tagent/internal/tasks"
 	"testing"
 	"time"
-	"tmux-agent/internal/tasks"
 
 	tea "github.com/charmbracelet/bubbletea"
 )

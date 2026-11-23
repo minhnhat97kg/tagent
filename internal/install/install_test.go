@@ -11,7 +11,7 @@ import (
 )
 
 func testEnv(t *testing.T) env {
-	return env{home: t.TempDir(), bin: "/opt/tmux-agent/bin/tmux-agent", hookScript: "/opt/tmux-agent/assets/hook.sh", out: &bytes.Buffer{}}
+	return env{home: t.TempDir(), bin: "/opt/tagent/bin/tagent", hookScript: "/opt/tagent/assets/hook.sh", out: &bytes.Buffer{}}
 }
 
 func readJSON(t *testing.T, path string) map[string]any {
@@ -26,7 +26,7 @@ func readJSON(t *testing.T, path string) map[string]any {
 	return m
 }
 
-// Install replaces stale tmux-agent hooks (older install path), keeps the
+// Install replaces stale tagent hooks (older install path), keeps the
 // user's own hooks and settings, backs the file up, and uninstall removes
 // exactly what install added.
 func TestClaudeHooksMergeAndUninstall(t *testing.T) {
@@ -58,13 +58,13 @@ func TestClaudeHooksMergeAndUninstall(t *testing.T) {
 		t.Fatalf("Stop hooks = %d, want 2 (user's + ours, stale one replaced): %v", len(stop), stop)
 	}
 	b, _ := json.Marshal(stop)
-	if strings.Contains(string(b), "/old/place") || !strings.Contains(string(b), "/opt/tmux-agent/assets/hook.sh") || !strings.Contains(string(b), "notify-send") {
+	if strings.Contains(string(b), "/old/place") || !strings.Contains(string(b), "/opt/tagent/assets/hook.sh") || !strings.Contains(string(b), "notify-send") {
 		t.Errorf("Stop hooks = %s", b)
 	}
 	if _, err := os.Stat(cfg + ".tmux-agent.bak"); err != nil {
 		t.Error("original must be backed up")
 	}
-	if _, err := os.Stat(e.path(".claude/skills/tmux-agent/SKILL.md")); err != nil {
+	if _, err := os.Stat(e.path(".claude/skills/tagent/SKILL.md")); err != nil {
 		t.Error("skill must be installed")
 	}
 
@@ -76,7 +76,7 @@ func TestClaudeHooksMergeAndUninstall(t *testing.T) {
 	if len(hooks) != 1 || len(hooks["Stop"].([]any)) != 1 {
 		t.Errorf("after uninstall only the user's hook must remain, got %v", hooks)
 	}
-	if _, err := os.Stat(e.path(".claude/skills/tmux-agent")); !os.IsNotExist(err) {
+	if _, err := os.Stat(e.path(".claude/skills/tagent")); !os.IsNotExist(err) {
 		t.Error("skill must be removed")
 	}
 }
@@ -91,12 +91,12 @@ func TestInstructionBlockSetReplaceRemove(t *testing.T) {
 	e.install(h)
 	e.install(h)
 	b, _ := os.ReadFile(path)
-	if strings.Count(string(b), blockBegin) != 1 || !strings.HasPrefix(string(b), "# My rules\nbe nice\n\n") || strings.Contains(string(b), "name: tmux-agent") {
+	if strings.Count(string(b), blockBegin) != 1 || !strings.HasPrefix(string(b), "# My rules\nbe nice\n\n") || strings.Contains(string(b), "name: tagent") {
 		t.Fatalf("after install:\n%s", b)
 	}
 	e.uninstall(h)
 	b, _ = os.ReadFile(path)
-	if strings.Contains(string(b), "tmux-agent") || !strings.Contains(string(b), "be nice") {
+	if strings.Contains(string(b), "tagent") || !strings.Contains(string(b), "be nice") {
 		t.Fatalf("after uninstall:\n%s", b)
 	}
 }
@@ -109,7 +109,7 @@ func TestPluginsPointAtBinary(t *testing.T) {
 			t.Fatal(err)
 		}
 		b, err := os.ReadFile(e.path(h.file))
-		if err != nil || !strings.Contains(string(b), `"/opt/tmux-agent/bin/tmux-agent"`) {
+		if err != nil || !strings.Contains(string(b), `"/opt/tagent/bin/tagent"`) {
 			t.Errorf("%s plugin must call the binary by absolute path:\n%s", name, b)
 		}
 	}
@@ -158,12 +158,12 @@ await new Promise(resolve => setTimeout(resolve, 1000));
 func TestOpenCodePluginUsesV2DirAndRemovesLegacy(t *testing.T) {
 	e := testEnv(t)
 	h, _ := find("opencode")
-	if h.file != ".config/opencode/plugins/tmux-agent.js" {
+	if h.file != ".config/opencode/plugins/tagent.js" {
 		t.Fatalf("opencode plugin path = %q, want the V2 plugins/ directory", h.file)
 	}
 
-	// An older tmux-agent wrote the V1 plugin into plugin/ (singular).
-	legacy := e.path(".config/opencode/plugin/tmux-agent.js")
+	// An older tagent wrote the V1 plugin into plugin/ (singular).
+	legacy := e.path(".config/opencode/plugin/tagent.js")
 	if err := os.MkdirAll(filepath.Dir(legacy), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -174,18 +174,18 @@ func TestOpenCodePluginUsesV2DirAndRemovesLegacy(t *testing.T) {
 	if err := e.install(h); err != nil {
 		t.Fatal(err)
 	}
-	installed := e.path(".config/opencode/plugins/tmux-agent.js")
+	installed := e.path(".config/opencode/plugins/tagent.js")
 	b, err := os.ReadFile(installed)
 	if err != nil {
 		t.Fatalf("V2 plugin must be installed: %v", err)
 	}
-	for _, want := range []string{`export default`, `id: "tmux-agent"`, `async setup(ctx)`, `ctx.event.subscribe`, `ctx.session.hook`, `ctx.tool.hook`} {
+	for _, want := range []string{`export default`, `id: "tagent"`, `async setup(ctx)`, `ctx.event.subscribe`, `ctx.session.hook`, `ctx.tool.hook`} {
 		if !strings.Contains(string(b), want) {
 			t.Errorf("installed plugin missing %q", want)
 		}
 	}
 	if _, err := os.Stat(legacy); !os.IsNotExist(err) {
-		t.Error("legacy V1 plugin at plugin/tmux-agent.js must be removed on install")
+		t.Error("legacy V1 plugin at plugin/tagent.js must be removed on install")
 	}
 
 	// Uninstall removes both the V2 file and a legacy file that reappeared.
@@ -216,5 +216,45 @@ func TestDryRunWritesNothing(t *testing.T) {
 	entries, _ := os.ReadDir(e.home)
 	if len(entries) != 0 {
 		t.Errorf("dry run wrote %v", entries)
+	}
+}
+
+func TestLegacySkillPreserved(t *testing.T) {
+	e := testEnv(t)
+	h, _ := find("claude")
+	old := e.path(".claude/skills/tmux-agent")
+	if err := os.MkdirAll(old, 0755); err != nil {
+		t.Fatal(err)
+	}
+	user := filepath.Join(old, "notes.txt")
+	if err := os.WriteFile(user, []byte("mine"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.install(h); err != nil {
+		t.Fatal(err)
+	}
+	if b, err := os.ReadFile(user); err != nil || string(b) != "mine" {
+		t.Fatal("user skill content changed")
+	}
+}
+
+func TestLegacySkillDropped(t *testing.T) {
+	e := testEnv(t)
+	h, _ := find("claude")
+	old := e.path(".claude/skills/tmux-agent")
+	if err := os.MkdirAll(old, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(old, "SKILL.md"), []byte("old"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.install(h); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Lstat(old); !os.IsNotExist(err) {
+		t.Fatalf("legacy skill still present: %v", err)
+	}
+	if _, err := os.Stat(e.path(".claude/skills/tagent/SKILL.md")); err != nil {
+		t.Fatal(err)
 	}
 }

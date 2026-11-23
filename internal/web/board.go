@@ -3,7 +3,7 @@ package web
 import (
 	"context"
 
-	"tmux-agent/internal/board"
+	"tagent/internal/board"
 )
 
 func (s *server) discoverBoards(ctx context.Context, fire board.Fire) {

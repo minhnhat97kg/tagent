@@ -1,4 +1,4 @@
-module tmux-agent
+module tagent
 
 go 1.26
 

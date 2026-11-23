@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"tmux-agent/internal/tasks"
-	"tmux-agent/internal/tmux"
-	"tmux-agent/internal/workflow"
+	"tagent/internal/tasks"
+	"tagent/internal/tmux"
+	"tagent/internal/workflow"
 )
 
 // Context contains only local summary data, never pane transcripts or task bodies.

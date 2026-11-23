@@ -17,10 +17,10 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
 
-	"tmux-agent/internal/tmux"
+	"tagent/internal/tmux"
 )
 
-// `tmux-agent digest [--auto]`: what the avatar says, written by a small
+// `tagent digest [--auto]`: what the avatar says, written by a small
 // local model from the agents' state — who needs you, who is working on
 // what, or that all is quiet. Agent hooks run it on every event (prompt
 // submitted, stop, failure, notification); the text lands in @agent_digest

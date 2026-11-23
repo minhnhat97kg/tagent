@@ -17,9 +17,9 @@ SOCKET="$1"
 ROOT="$(cd "$(dirname "$0")/../../../.." && pwd)"
 
 # Build the real sidebar binary into this run's own temp dir — never touch
-# bin/tmux-agent of a developer working in parallel.
-BIN="$(mktemp -d)/tmux-agent"
-(cd "$ROOT" && go build -o "$BIN" ./cmd/tmux-agent)
+# bin/tagent of a developer working in parallel.
+BIN="$(mktemp -d)/tagent"
+(cd "$ROOT" && go build -o "$BIN" ./cmd/tagent)
 
 # Fake repo: a directory with a ".git" entry is enough (group.go only checks
 # that ".git" exists, it never runs git) — a fixed name keeps the output

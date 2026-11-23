@@ -41,16 +41,16 @@ setup() {
     SESSION="$session_name"
 
     # ROOT resolves to <repo>/assets (fixtures live under assets/fixtures/…).
-    # The Go binary builds one level up, at <repo>/bin/tmux-agent. Same
+    # The Go binary builds one level up, at <repo>/bin/tagent. Same
     # priority order as assets/hook.sh: repo build first, then PATH.
     local repo_root
     repo_root="$(cd "$ROOT/.." && pwd)"
-    if [[ -x "$repo_root/bin/tmux-agent" ]]; then
-        BIN="$repo_root/bin/tmux-agent"
-    elif command -v tmux-agent &>/dev/null; then
-        BIN="tmux-agent"
+    if [[ -x "$repo_root/bin/tagent" ]]; then
+        BIN="$repo_root/bin/tagent"
+    elif command -v tagent &>/dev/null; then
+        BIN="tagent"
     else
-        BIN="$repo_root/bin/tmux-agent"
+        BIN="$repo_root/bin/tagent"
     fi
     TMUX_CONF="$ROOT/fixtures/scenarios/common/.tmux.conf"
 
@@ -71,7 +71,7 @@ setup() {
     export TMUX_TMPDIR="$TMUX_DIR"
 
     # internal/activity/path.go names activity log files from ONLY the
-    # pane id (e.g. "%3" -> tmux-agent-activity_3.log). Pane ids are a
+    # pane id (e.g. "%3" -> tagent-activity_3.log). Pane ids are a
     # per-tmux-server counter starting back at %0, so this isolated
     # fixture server can perfectly well hand out the same pane id as a
     # pane on the user's real default server — same filename, same
@@ -172,7 +172,7 @@ build_layout() {
     # Same filename rule as internal/activity/path.go's LogFilePath, but
     # rooted at $TMUX_AGENT_LOG_DIR (set in setup()) instead of /tmp —
     # that is what keeps this file from colliding with a real user log.
-    export MAIN_LOG="$TMUX_AGENT_LOG_DIR/tmux-agent-activity${MAIN_PANE/\%/_}.log"
+    export MAIN_LOG="$TMUX_AGENT_LOG_DIR/tagent-activity${MAIN_PANE/\%/_}.log"
     : > "$MAIN_LOG"
 
     # Off-screen window hosting the 3 other agents. Idle panes are
@@ -253,7 +253,7 @@ build_layout() {
     tmux select-pane -t "$focus_pane"
 
     export FOCUSED_PANE="$focus_pane"
-    export FOCUSED_LOG="$TMUX_AGENT_LOG_DIR/tmux-agent-activity${focus_pane/\%/_}.log"
+    export FOCUSED_LOG="$TMUX_AGENT_LOG_DIR/tagent-activity${focus_pane/\%/_}.log"
     : > "$FOCUSED_LOG"
 }
 

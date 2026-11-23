@@ -11,7 +11,7 @@ import (
 )
 
 const CommandReference = `Factual questions -> ANSWER; ! operations -> CMD; new work -> Q/TICKET; design/review/judgement -> ESCALATE.
-Reply ONLY ANSWER: <facts>, CMD: tmux-agent <args> (one command), ESCALATE: <one-line reason>, Q: <question>, or TICKET.
+Reply ONLY ANSWER: <facts>, CMD: tagent <args> (one command), ESCALATE: <one-line reason>, Q: <question>, or TICKET.
 Allowed commands (no other subcommands):
 list; task ls; task show ID; task move ID STATUS [NOTE]; task set ID STATUS [NOTE]; task comment ID "TEXT"; task assign ID ROLE[,ROLE]; task due ID YYYY-MM-DD;
 workflow list; workflow run NAME [--input key=value] ["TITLE"];
@@ -59,7 +59,7 @@ func ParseResponse(raw string) (Response, error) {
 }
 func CommandArgs(s string) ([]string, error) {
 	bad := func() ([]string, error) {
-		return nil, fmt.Errorf("command refused: use one allowed tmux-agent command without shell syntax")
+		return nil, fmt.Errorf("command refused: use one allowed tagent command without shell syntax")
 	}
 	if strings.ContainsAny(s, ";|&`$()><\r\n\x00") {
 		return bad()
@@ -93,7 +93,7 @@ func CommandArgs(s string) ([]string, error) {
 	if started {
 		args = append(args, b.String())
 	}
-	if len(args) < 2 || args[0] != "tmux-agent" {
+	if len(args) < 2 || (args[0] != "tagent" && args[0] != "tmux-agent") {
 		return bad()
 	}
 	switch args[1] {

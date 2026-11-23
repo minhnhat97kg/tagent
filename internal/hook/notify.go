@@ -7,13 +7,13 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"tagent/internal/notify"
 	"time"
-	"tmux-agent/internal/notify"
 
-	"tmux-agent/internal/activity"
-	"tmux-agent/internal/clock"
-	"tmux-agent/internal/event"
-	"tmux-agent/internal/tmux"
+	"tagent/internal/activity"
+	"tagent/internal/clock"
+	"tagent/internal/event"
+	"tagent/internal/tmux"
 )
 
 // notificationCooldownMs is the minimum interval (in milliseconds) before a
@@ -372,7 +372,7 @@ func SendDesktopNotification(title, body string) error {
 		script := `display notification "` + escapeAppleScript(body) + `" with title "` + escapeAppleScript(title) + `"`
 		return runNotifyCommand("osascript", "-e", script)
 	case "linux":
-		return runNotifyCommand("notify-send", "--app-name=tmux-agent-sidebar", "--urgency=normal", title, body)
+		return runNotifyCommand("notify-send", "--app-name=tagent-sidebar", "--urgency=normal", title, body)
 	default:
 		return errNotifyUnsupportedOS
 	}
@@ -408,12 +408,12 @@ func escapeAppleScript(value string) string {
 // SendDesktopNotification was a stub. Using the agent name as the title for
 // now; part 4 can upgrade this at the same time it wires in the real OS
 // call. SessionEnd carries no Agent (see event.Event) so it falls back to
-// "tmux-agent".
+// "tagent".
 func notificationTitle(evt event.Event) string {
 	if evt.Agent != "" {
 		return evt.Agent
 	}
-	return "tmux-agent"
+	return "tagent"
 }
 
 func truncateBody(text string) string {

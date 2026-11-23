@@ -2,9 +2,9 @@ package board
 
 import (
 	"context"
+	"tagent/internal/tasks"
 	"testing"
 	"time"
-	"tmux-agent/internal/tasks"
 )
 
 const jiraConfig = `roles: {implementer: {agent: pi, model: chosen}}

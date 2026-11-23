@@ -11,11 +11,11 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"tmux-agent/internal/metrics"
-	"tmux-agent/internal/quota"
-	"tmux-agent/internal/roles"
-	"tmux-agent/internal/tasks"
-	"tmux-agent/internal/tmux"
+	"tagent/internal/metrics"
+	"tagent/internal/quota"
+	"tagent/internal/roles"
+	"tagent/internal/tasks"
+	"tagent/internal/tmux"
 )
 
 type metricMsg struct {
@@ -82,7 +82,7 @@ func (m Model) dashboardView() string {
 		h = 20
 	}
 	if h == 1 {
-		return fitLine("tmux-agent", w)
+		return fitLine("tagent", w)
 	}
 	inner := max(1, w-3)
 	repo := m.notesScope

@@ -1,4 +1,4 @@
-// Package skill holds the tmux-agent SKILL.md that teaches agents the CLI;
+// Package skill holds the tagent SKILL.md that teaches agents the CLI;
 // internal/install writes it into each harness.
 package skill
 

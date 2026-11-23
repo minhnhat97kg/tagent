@@ -38,8 +38,8 @@ func Prompt(idea string, turns []Turn, context Context, forceDraft bool) string 
 	preface := "You are a project receptionist, not a coding agent. Answer factual questions with ANSWER: <text> using only the snapshot; say when information is missing. Never invent status or IDs. Architectural judgement -> ESCALATE: <reason>. Ordinary new work -> Q/TICKET; only ! requests may propose CMD. Commands and drafts require human approval.\n" + context.Text()
 	if op, ok := strings.CutPrefix(strings.TrimSpace(idea), "!"); ok {
 		return preface + CommandReference +
-			"\nReply with ANSWER: <facts>, CMD: tmux-agent <args> (one allowed command, no pipes) or ESCALATE: <reason>." +
-			"\nExamples: reload the sidebar -> CMD: tmux-agent reload | show ticket abc -> CMD: tmux-agent task show abc | run research about cats -> CMD: tmux-agent workflow run research --input goal=\"cats\"" +
+			"\nReply with ANSWER: <facts>, CMD: tagent <args> (one allowed command, no pipes) or ESCALATE: <reason>." +
+			"\nExamples: reload the sidebar -> CMD: tagent reload | show ticket abc -> CMD: tagent task show abc | run research about cats -> CMD: tagent workflow run research --input goal=\"cats\"" +
 			"\nREQUEST: " + strings.TrimSpace(op) + "\nReply:\n"
 	}
 	s := preface + "You help a developer turn an idea into a clear ticket for coding agents. Ask ONE short question at a time about scope, definition of done, out of scope or constraints, and only about what is still unclear; at most 3 questions. Questions in the user's language; the ticket may be English.\n" +

@@ -1,20 +1,25 @@
 .PHONY: build install reload test fmt vet clean update-frames web
 
-BIN := bin/tmux-agent
+BIN := bin/tagent
 
 build:
-	go build -o $(BIN) ./cmd/tmux-agent
+	go build -o $(BIN) ./cmd/tagent
 	@if [ "$$(uname -s)" = Darwin ]; then codesign --force --sign - $(BIN); fi
 
 BIN_DIR ?= $(HOME)/.local/bin
 # install.sh checkout that ~/.tmux.conf loads the plugin from
-SHARE_DIR ?= $(HOME)/.local/share/tmux-agent
+SHARE_DIR ?= $(HOME)/.local/share/tagent
 
 # Quick local install: build, link into BIN_DIR, integrate harnesses, reload sidebars.
 install: build
 	mkdir -p $(BIN_DIR)
-	ln -sf $(CURDIR)/$(BIN) $(BIN_DIR)/tmux-agent
-	@if [ -d $(SHARE_DIR) ]; then mkdir -p $(SHARE_DIR)/bin && ln -sf $(CURDIR)/$(BIN) $(SHARE_DIR)/bin/tmux-agent && rsync -a --delete assets/ $(SHARE_DIR)/assets/; fi
+	ln -sf $(CURDIR)/$(BIN) $(BIN_DIR)/tagent
+	ln -sf tagent $(BIN_DIR)/tmux-agent
+	ln -sf tagent bin/tmux-agent
+	mkdir -p $(SHARE_DIR)/bin
+	ln -sf $(CURDIR)/$(BIN) $(SHARE_DIR)/bin/tagent
+	rsync -a --delete assets/ $(SHARE_DIR)/assets/
+	bash assets/install-compat.sh "$(SHARE_DIR)"
 	$(BIN) install
 	-$(BIN) reload
 

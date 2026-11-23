@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"tmux-agent/internal/tmux"
+	"tagent/internal/tmux"
 )
 
 // Remote notifications: the same events as the desktop notification, pushed

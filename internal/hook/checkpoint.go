@@ -1,8 +1,8 @@
 package hook
 
 import (
-	"tmux-agent/internal/checkpoint"
-	"tmux-agent/internal/tmux"
+	"tagent/internal/checkpoint"
+	"tagent/internal/tmux"
 )
 
 // CheckpointsOption turns the per-turn snapshots off ("off").
@@ -12,7 +12,7 @@ const CheckpointsOption = "@agent_checkpoints"
 func CheckpointKey(pane string) string { return "pane-" + pane }
 
 // checkpointTurn snapshots the pane's repo before a turn starts, for
-// `tmux-agent undo`. Silent: no repo, or git failing, just means no undo.
+// `tagent undo`. Silent: no repo, or git failing, just means no undo.
 func checkpointTurn(pane, cwd string) {
 	if v, _ := tmux.GetOption(CheckpointsOption); v == "off" {
 		return

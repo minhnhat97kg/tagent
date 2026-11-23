@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"tagent/internal/tmux"
 	"testing"
-	"tmux-agent/internal/tmux"
 )
 
 func TestStatusNotifications(t *testing.T) {

@@ -7,7 +7,7 @@ import (
 	"text/tabwriter"
 )
 
-// Dispatch implements `tmux-agent config [list | get <key> | set <key>
+// Dispatch implements `tagent config [list | get <key> | set <key>
 // <value> | reset <key> | path]`; no arguments opens the settings screen.
 func Dispatch(args []string, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
@@ -31,7 +31,7 @@ func Dispatch(args []string, stdout, stderr io.Writer) int {
 		}
 		s, ok := Find(args[1])
 		if !ok {
-			fmt.Fprintf(stderr, "config: unknown setting %q (see `tmux-agent config list`)\n", args[1])
+			fmt.Fprintf(stderr, "config: unknown setting %q (see `tagent config list`)\n", args[1])
 			return 2
 		}
 		switch args[0] {
@@ -63,6 +63,6 @@ func Dispatch(args []string, stdout, stderr io.Writer) int {
 		}
 		return 0
 	}
-	fmt.Fprintln(stderr, "usage: tmux-agent config [list | get <key> | set <key> <value> | reset <key> | path]")
+	fmt.Fprintln(stderr, "usage: tagent config [list | get <key> | set <key> <value> | reset <key> | path]")
 	return 2
 }

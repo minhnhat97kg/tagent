@@ -2,8 +2,8 @@ package sidebar
 
 import (
 	tea "github.com/charmbracelet/bubbletea"
+	"tagent/internal/intake"
 	"testing"
-	"tmux-agent/internal/intake"
 )
 
 func TestSharedChatPanelsAndReopen(t *testing.T) {
@@ -51,7 +51,7 @@ func TestSharedChatPanelsAndReopen(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	shared, e = intake.CompleteSubmission("other", shared.Generation, "CMD: tmux-agent reload", nil, nil)
+	shared, e = intake.CompleteSubmission("other", shared.Generation, "CMD: tagent reload", nil, nil)
 	if e != nil {
 		t.Fatal(e)
 	}

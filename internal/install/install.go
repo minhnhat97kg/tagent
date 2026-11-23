@@ -1,4 +1,4 @@
-// Package install wires tmux-agent into agent harnesses — `tmux-agent
+// Package install wires tagent into agent harnesses — `tagent
 // install <harness>` / `uninstall <harness>` (herdr's `integration install`).
 //
 // Each harness gets what it supports, from most to least precise:
@@ -6,7 +6,7 @@
 //   - status integration: hooks merged into its JSON config (claude, codex),
 //     an extension/plugin file (pi, opencode) — exact running/idle/waiting.
 //     Harnesses without one still get status from the screen scraper.
-//   - usage docs for the agent: the tmux-agent skill (claude, codex, pi), or
+//   - usage docs for the agent: the tagent skill (claude, codex, pi), or
 //     a marked block in its global instructions file (others).
 //
 // Every write is reversible by uninstall: hook entries are recognized by
@@ -26,9 +26,9 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"tmux-agent/assets"
-	"tmux-agent/internal/setup"
-	"tmux-agent/internal/skill"
+	"tagent/assets"
+	"tagent/internal/setup"
+	"tagent/internal/skill"
 )
 
 // harness describes one agent CLI and where its integration pieces go.
@@ -39,7 +39,7 @@ type harness struct {
 	hooks  string   // JSON config to merge hook entries into ("" = none)
 	file   string   // extension/plugin file to write ("" = none)
 	legacy []string // files older installs wrote; removed on install and uninstall
-	skills string   // skills root (<root>/tmux-agent/SKILL.md)
+	skills string   // skills root (<root>/tagent/SKILL.md)
 	instr  string   // global instructions file for a marked block
 	note   string   // shown after install
 }
@@ -48,13 +48,13 @@ var harnesses = []harness{
 	{name: "claude", detect: []string{".claude", "claude"}, hooks: ".claude/settings.json", skills: ".claude/skills"},
 	{name: "codex", detect: []string{".codex", "codex"}, hooks: ".codex/hooks.json", skills: ".codex/skills",
 		note: "Codex runs hooks only when its hooks feature is enabled in your version — if status stays 'unknown', the screen scraper still covers it."},
-	{name: "pi", detect: []string{".pi", "pi"}, file: ".pi/agent/extensions/tmux-agent.ts", skills: ".pi/agent/skills"},
+	{name: "pi", detect: []string{".pi", "pi"}, file: ".pi/agent/extensions/tagent.ts", legacy: []string{".pi/agent/extensions/tmux-agent.ts"}, skills: ".pi/agent/skills"},
 	{name: "opencode", detect: []string{".config/opencode", "opencode"},
 		// OpenCode v2 discovers both directories, but only treats `plugins/`
-		// as V2. Older tmux-agent installs wrote the V1 plugin to `plugin/`;
+		// as V2. Older tagent installs wrote the V1 plugin to `plugin/`;
 		// remove that file so v2 can't load the stale, rejected copy.
-		file:   ".config/opencode/plugins/tmux-agent.js",
-		legacy: []string{".config/opencode/plugin/tmux-agent.js"},
+		file:   ".config/opencode/plugins/tagent.js",
+		legacy: []string{".config/opencode/plugin/tagent.js", ".config/opencode/plugin/tmux-agent.js", ".config/opencode/plugins/tmux-agent.js"},
 		instr:  ".config/opencode/AGENTS.md"},
 	{name: "gemini", detect: []string{".gemini", "gemini"}, instr: ".gemini/GEMINI.md", note: "status comes from screen detection"},
 	{name: "copilot", detect: []string{".copilot", "copilot"}, instr: ".copilot/copilot-instructions.md", note: "status comes from screen detection"},
@@ -99,7 +99,7 @@ type env struct {
 	out                   io.Writer
 }
 
-// Dispatch implements `tmux-agent install|uninstall [--dry-run] [harness…|all]`.
+// Dispatch implements `tagent install|uninstall [--dry-run] [harness…|all]`.
 // No harness (or "all") means every supported harness found on this machine.
 func Dispatch(uninstall bool, args []string, stdout, stderr io.Writer) int {
 	home, err := os.UserHomeDir()
@@ -109,7 +109,7 @@ func Dispatch(uninstall bool, args []string, stdout, stderr io.Writer) int {
 	}
 	bin, err := os.Executable()
 	if err != nil {
-		bin = "tmux-agent"
+		bin = "tagent"
 	} else if resolved, err := filepath.EvalSymlinks(bin); err == nil {
 		bin = resolved
 	}
@@ -221,16 +221,19 @@ func (e env) install(h harness) error {
 		}
 	}
 	if h.skills != "" {
-		if err := e.write(filepath.Join(e.path(h.skills), "tmux-agent", "SKILL.md"), skill.Render(e.bin)); err != nil {
+		if err := e.write(filepath.Join(e.path(h.skills), "tagent", "SKILL.md"), skill.Render(e.bin)); err != nil {
 			return err
 		}
-		e.say("skill", "~/"+h.skills+"/tmux-agent/SKILL.md")
+		e.say("skill", "~/"+h.skills+"/tagent/SKILL.md")
+		if err := e.dropLegacySkill(h.skills); err != nil {
+			return err
+		}
 	}
 	if h.instr != "" {
 		if err := e.editText(e.path(h.instr), func(s string) string { return setBlock(s, skillBody(skill.Render(e.bin))) }); err != nil {
 			return err
 		}
-		e.say("docs", "~/"+h.instr+" (tmux-agent block)")
+		e.say("docs", "~/"+h.instr+" (tagent block)")
 	}
 	return nil
 }
@@ -245,9 +248,9 @@ func (e env) uninstall(h harness) error {
 		}
 	}
 	paths := append([]string{h.file}, h.legacy...)
-	paths = append(paths, filepath.Join(h.skills, "tmux-agent"))
+	paths = append(paths, filepath.Join(h.skills, "tagent"))
 	for _, p := range paths {
-		if p == "" || p == "tmux-agent" {
+		if p == "" || p == "tagent" {
 			continue
 		}
 		if err := e.remove(p); err != nil {
@@ -271,7 +274,7 @@ func (e env) uninstall(h harness) error {
 func (e env) pluginSource(name string) string {
 	switch name {
 	case "opencode":
-		return strings.Replace(assets.OpenCodePlugin, `{ cmd: "tmux-agent",`, fmt.Sprintf(`{ cmd: %q,`, e.bin), 1)
+		return strings.Replace(assets.OpenCodePlugin, `{ cmd: "tagent",`, fmt.Sprintf(`{ cmd: %q,`, e.bin), 1)
 	case "pi":
 		bin, _ := json.Marshal(e.bin)
 		return strings.ReplaceAll(piExtension, "{{BIN}}", string(bin))
@@ -279,10 +282,10 @@ func (e env) pluginSource(name string) string {
 	return ""
 }
 
-// piExtension reports Pi's agent lifecycle to tmux-agent (same events
+// piExtension reports Pi's agent lifecycle to tagent (same events
 // herdr's Pi integration uses). Interactive (tui) sessions only.
-const piExtension = `// installed by tmux-agent — ` + "`tmux-agent install pi`" + ` overwrites this file,
-// ` + "`tmux-agent uninstall pi`" + ` removes it.
+const piExtension = `// installed by tagent — ` + "`tagent install pi`" + ` overwrites this file,
+// ` + "`tagent uninstall pi`" + ` removes it.
 // @ts-nocheck
 import { spawn } from "node:child_process";
 
@@ -308,7 +311,7 @@ export default function (pi) {
   pi.on("session_start", (_event, ctx) => {
     if (ctx?.mode !== "tui") return;
     root = true;
-    // The session id lets tmux-agent read replies and usage from the transcript instead of the screen.
+    // The session id lets tagent read replies and usage from the transcript instead of the screen.
     const id = ctx?.sessionManager?.getSessionId?.();
     if (id) run("tmux", ["set-option", "-p", "-t", process.env.TMUX_PANE, "@pane_session_id", id]);
     report(ctx?.isIdle?.() === false ? "running" : "idle");
@@ -324,13 +327,13 @@ export default function (pi) {
 
 // ─── JSON hooks ────────────────────────────────────────────────────────
 
-// ourCommand matches the commands tmux-agent generates for agent: `bash
+// ourCommand matches the commands tagent generates for agent: `bash
 // '<…>/hook.sh' <agent> <event>` — whatever the install path.
 func ourCommand(agent string) *regexp.Regexp {
 	return regexp.MustCompile(`hook\.sh'? ` + regexp.QuoteMeta(agent) + ` [a-z-]+$`)
 }
 
-// mergeHooks replaces tmux-agent's entries in cfg["hooks"] with snippet's
+// mergeHooks replaces tagent's entries in cfg["hooks"] with snippet's
 // (so re-running install updates paths instead of duplicating), leaving
 // every other hook alone.
 func mergeHooks(cfg, snippet map[string]any, agent string) {
@@ -350,7 +353,7 @@ func mergeHooks(cfg, snippet map[string]any, agent string) {
 	cfg["hooks"] = hooks
 }
 
-// removeHooks drops every hook entry whose commands are all tmux-agent's,
+// removeHooks drops every hook entry whose commands are all tagent's,
 // and triggers left empty.
 func removeHooks(cfg map[string]any, agent string) {
 	hooks, _ := cfg["hooks"].(map[string]any)
@@ -432,7 +435,7 @@ const (
 	blockEnd   = "<!-- tmux-agent:end -->"
 )
 
-// setBlock replaces the tmux-agent block in s with body (removes it when
+// setBlock replaces the tagent block in s with body (removes it when
 // body is ""), or appends one.
 func setBlock(s, body string) string {
 	block := ""
@@ -513,4 +516,28 @@ func (e env) write(path, content string) error {
 		mode = st.Mode().Perm()
 	}
 	return os.WriteFile(path, []byte(content), mode)
+}
+
+// dropLegacySkill removes the pre-rename skill dir so harnesses don't load the
+// skill twice, but only when it holds nothing except our SKILL.md (or is a link);
+// anything else may be the user's and is left alone.
+func (e env) dropLegacySkill(root string) error {
+	if e.dry {
+		return nil
+	}
+	old := e.path(filepath.Join(root, "tmux-agent"))
+	fi, err := os.Lstat(old)
+	if os.IsNotExist(err) {
+		return nil
+	} else if err != nil {
+		return err
+	}
+	if fi.Mode()&os.ModeSymlink != 0 {
+		return os.Remove(old)
+	}
+	entries, err := os.ReadDir(old)
+	if err != nil || len(entries) != 1 || entries[0].Name() != "SKILL.md" {
+		return err
+	}
+	return os.RemoveAll(old)
 }

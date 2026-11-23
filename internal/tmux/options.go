@@ -19,7 +19,7 @@ import (
 const (
 	// PaneAgent — the agent name the hook recognizes ("claude" / "codex" / "opencode").
 	PaneAgent = "@pane_agent"
-	// PaneName — optional agent name, set with `tmux-agent name`. Shown in
+	// PaneName — optional agent name, set with `tagent name`. Shown in
 	// place of the directory name, and usable as a target for send/read/wait.
 	PaneName = "@pane_name"
 	// BoardTarget is "<agent>#<task id>": the board agent and task a pane answers for.

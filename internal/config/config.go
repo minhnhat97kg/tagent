@@ -1,10 +1,10 @@
-// Package config is tmux-agent's central configuration: one registry of
+// Package config is tagent's central configuration: one registry of
 // every user setting (group, kind, choices, default, help), shared by
-// `tmux-agent config list|get|set|reset` and the settings screen (ui.go).
+// `tagent config list|get|set|reset` and the settings screen (ui.go).
 //
 // Settings are tmux global options. A change is applied to the running
 // server at once (`set -g`) and persisted to ConfigFile — tmux syntax,
-// sourced by assets/tmux-agent.tmux before the plugin seeds its defaults —
+// sourced by assets/tagent.tmux before the plugin seeds its defaults —
 // so it survives a tmux restart.
 package config
 
@@ -15,8 +15,9 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"tagent/internal/apppath"
 
-	"tmux-agent/internal/tmux"
+	"tagent/internal/tmux"
 )
 
 // Kind is how a setting is edited.
@@ -61,7 +62,7 @@ var Settings = []Setting{
 		Help: "Phone alerts and task-status updates: ntfy or Telegram sendMessage URL; empty = off"},
 }
 
-// Advanced options are not in the screen; `tmux-agent config set|get|list`
+// Advanced options are not in the screen; `tagent config set|get|list`
 // still handles them.
 var Advanced = []Setting{
 	{Key: "@agent_digest_llm", Group: "Avatar", Label: "LLM for its lines", Kind: Preset, Default: "ollama run --nowordwrap --think=false qwen3:0.6b",
@@ -80,13 +81,13 @@ var Advanced = []Setting{
 	{Key: "@agent_max_panes", Group: "Agents", Label: "Max agents per window", Kind: Int, Default: "4", Min: 1, Max: 12},
 	{Key: "@agent_scrape", Group: "Agents", Label: "Screen detection", Kind: Bool, Default: "on", Help: "status for agents without hooks"},
 	{Key: "@agent_web", Group: "Web", Label: "Web UI", Kind: Bool, Default: "off",
-		Help: "serve the browser UI from the background process; takes effect after `tmux-agent reload`; URL in `tmux show -gv @agent_web_url`"},
+		Help: "serve the browser UI from the background process; takes effect after `tagent reload`; URL in `tmux show -gv @agent_web_url`"},
 	{Key: "@agent_web_addr", Group: "Web", Label: "Web address", Kind: Text, Default: "127.0.0.1:7777",
 		Help: "0.0.0.0:7777 opens it to the network (plain HTTP: use a tunnel or VPN)"},
 	{Key: "@agent_web_token", Group: "Web", Label: "Web token", Kind: Text,
 		Help: "access token; empty = random, saved on first start"},
 	{Key: "@agent_checkpoints", Group: "Agents", Label: "Checkpoint before each turn", Kind: Bool, Default: "on",
-		Help: "snapshot the repo before every agent turn so `tmux-agent undo <agent>` can roll it back"},
+		Help: "snapshot the repo before every agent turn so `tagent undo <agent>` can roll it back"},
 	{Key: "@sidebar_key", Group: "Keys", Label: "Toggle sidebar (prefix +)", Kind: Text, Default: "e", Reload: true},
 	{Key: "@sidebar_key_all", Group: "Keys", Label: "Toggle all sidebars (prefix +)", Kind: Text, Default: "E", Reload: true},
 	{Key: "@agent_watch_key", Group: "Keys", Label: "Dashboard (prefix +)", Kind: Text, Default: "A", Reload: true},
@@ -180,10 +181,10 @@ func ConfigFile() string {
 		home, _ := os.UserHomeDir()
 		dir = filepath.Join(home, ".config")
 	}
-	return filepath.Join(dir, "tmux-agent", "config.conf")
+	return filepath.Join(apppath.Dir(dir), "config.conf")
 }
 
-const fileHeader = "# tmux-agent settings — written by `tmux-agent config` (tmux syntax).\n# Loaded by the plugin before its defaults; edit freely.\n"
+const fileHeader = "# tagent settings — written by `tagent config` (tmux syntax).\n# Loaded by the plugin before its defaults; edit freely.\n"
 
 // persist rewrites ConfigFile with key set to *value (nil = removed),
 // keeping every other line.

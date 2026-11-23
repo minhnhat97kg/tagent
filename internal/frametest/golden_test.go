@@ -13,7 +13,7 @@ import (
 // written specifically for this harness, matching the contract above.
 //
 // scenario.sh lives under assets/fixtures/scenarios/ (not testdata) because
-// it builds and runs the real tmux-agent binary itself — it is not static
+// it builds and runs the real tagent binary itself — it is not static
 // data.
 func scenarioPath(name string) string {
 	return filepath.Join("..", "..", "assets", "fixtures", "scenarios", name, "scenario.sh")

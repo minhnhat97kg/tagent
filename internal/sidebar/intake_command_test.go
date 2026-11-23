@@ -2,8 +2,8 @@ package sidebar
 
 import (
 	"strings"
+	"tagent/internal/intake"
 	"testing"
-	"tmux-agent/internal/intake"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -49,12 +49,12 @@ func TestIntakeQuickCommand(t *testing.T) {
 	calls := 0
 	executeIntakeCommand = func(c, d string) (string, error) {
 		calls++
-		if c != "tmux-agent list" {
+		if c != "tagent list" {
 			t.Fatal(c)
 		}
 		return "agents output", nil
 	}
-	m := Model{taskForm: "intake", taskInput: "reload", intakeState: &intakeState{Token: 1, Command: "echo 'CMD: tmux-agent reload'"}}
+	m := Model{taskForm: "intake", taskInput: "reload", intakeState: &intakeState{Token: 1, Command: "echo 'CMD: tagent reload'"}}
 	model, cmd := m.handleIntake(tea.KeyMsg{Type: tea.KeyEnter})
 	m = model.(Model)
 	model, _ = m.intakeReply(cmd().(intakeReply))
@@ -64,13 +64,13 @@ func TestIntakeQuickCommand(t *testing.T) {
 	}
 	model, _ = m.handleIntake(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("e")})
 	m = model.(Model)
-	m.taskInput = "tmux-agent install"
+	m.taskInput = "tagent install"
 	model, _ = m.handleIntake(tea.KeyMsg{Type: tea.KeyEnter})
 	m = model.(Model)
 	if !m.intakeState.EditingCommand {
 		t.Fatal("unsafe edit accepted")
 	}
-	m.taskInput = "tmux-agent list"
+	m.taskInput = "tagent list"
 	model, _ = m.handleIntake(tea.KeyMsg{Type: tea.KeyEnter})
 	m = model.(Model)
 	if calls != 0 {
@@ -92,7 +92,7 @@ func TestIntakeEscalateAndReject(t *testing.T) {
 		t.Fatal("no escalation or clipboard")
 	}
 	m = Model{taskForm: "intake", intakeState: &intakeState{Token: 1}}
-	model, _ = m.intakeReply(intakeReply{Token: 1, Raw: "CMD: tmux-agent reload; evil"})
+	model, _ = m.intakeReply(intakeReply{Token: 1, Raw: "CMD: tagent reload; evil"})
 	if model.(Model).intakeState.ApprovedCommand != "" {
 		t.Fatal("unsafe command")
 	}

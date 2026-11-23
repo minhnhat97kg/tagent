@@ -51,7 +51,7 @@ func GlobalDir() string {
 		home, _ := os.UserHomeDir()
 		base = filepath.Join(home, ".config")
 	}
-	return filepath.Join(base, "tmux-agent", "agents")
+	return filepath.Join(base, "tagent", "agents")
 }
 func ListGlobal(harness string) []Definition {
 	defs := listDir(filepath.Join(GlobalDir(), Harness(harness)), Harness(harness))

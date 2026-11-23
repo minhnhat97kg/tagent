@@ -59,7 +59,7 @@ var All = []Kind{
 
 // externalNames maps an event kind to the name passed on the command line:
 //
-//	tmux-agent hook <agent> <external-name>
+//	tagent hook <agent> <external-name>
 //
 // This is the CONTRACT with assets/hook.sh and each agent's hook
 // configuration. Kebab-case, deliberately NOT matching the Go constant

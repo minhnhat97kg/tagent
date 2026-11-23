@@ -18,7 +18,7 @@ func TestSidebarLayoutHook(t *testing.T) {
 	if _, err := exec.LookPath("tmux"); err != nil {
 		t.Skip("tmux unavailable")
 	}
-	socket := fmt.Sprintf("tmux-agent-layout-%d", os.Getpid())
+	socket := fmt.Sprintf("tagent-layout-%d", os.Getpid())
 	run := func(args ...string) string {
 		t.Helper()
 		cmd := exec.Command("tmux", append([]string{"-L", socket}, args...)...)

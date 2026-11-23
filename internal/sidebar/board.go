@@ -13,10 +13,10 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 
-	"tmux-agent/internal/metrics"
-	"tmux-agent/internal/tasks"
-	"tmux-agent/internal/tmux"
-	"tmux-agent/internal/workflow"
+	"tagent/internal/metrics"
+	"tagent/internal/tasks"
+	"tagent/internal/tmux"
+	"tagent/internal/workflow"
 )
 
 type boardConfigMsg struct {
@@ -206,7 +206,7 @@ func (m Model) boardRow(idx, width int) []string {
 // how many tickets are running through each.
 func (m Model) workflowLines(width int) []string {
 	if len(m.boardWorkflows) == 0 {
-		return []string{m.boardStyle(m.theme.TextDim).Render("No workflows · tmux-agent workflow new <name>")}
+		return []string{m.boardStyle(m.theme.TextDim).Render("No workflows · tagent workflow new <name>")}
 	}
 	dim := m.boardStyle(m.theme.TextMuted)
 	var lines []string

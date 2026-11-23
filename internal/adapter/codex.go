@@ -1,7 +1,7 @@
 // Package adapter — CodexAdapter for the Codex CLI (openai/codex).
 package adapter
 
-import "tmux-agent/internal/event"
+import "tagent/internal/event"
 
 // codexAgentName is the agent name attached to every Event that Codex
 // generates.

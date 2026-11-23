@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"tmux-agent/internal/activity"
-	"tmux-agent/internal/tmux"
+	"tagent/internal/activity"
+	"tagent/internal/tmux"
 )
 
 func readLogFile(t *testing.T, pane string) string {

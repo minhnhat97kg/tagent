@@ -6,7 +6,7 @@
 //
 // It normally runs docked: the sidebar pane expands into it (`o` in the
 // sidebar, or prefix + A — sidebar.SetExpanded) and collapses back with
-// o/q/esc. `tmux-agent watch` without --docked runs it full-screen.
+// o/q/esc. `tagent watch` without --docked runs it full-screen.
 package watch
 
 import (
@@ -24,15 +24,15 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 
-	"tmux-agent/internal/activity"
-	"tmux-agent/internal/config"
-	"tmux-agent/internal/git"
-	"tmux-agent/internal/queue"
-	"tmux-agent/internal/roles"
-	"tmux-agent/internal/sidebar"
-	"tmux-agent/internal/tasks"
-	"tmux-agent/internal/tmux"
-	"tmux-agent/internal/usage"
+	"tagent/internal/activity"
+	"tagent/internal/config"
+	"tagent/internal/git"
+	"tagent/internal/queue"
+	"tagent/internal/roles"
+	"tagent/internal/sidebar"
+	"tagent/internal/tasks"
+	"tagent/internal/tmux"
+	"tagent/internal/usage"
 )
 
 // Run starts the dashboard. args: [--docked] [--board-scope scope --task id].
@@ -167,7 +167,7 @@ type model struct {
 	tokens     usage.Tokens
 	hasTok     bool
 	summary    string
-	// events/last/primed feed `tmux-agent events` (Stream) only.
+	// events/last/primed feed `tagent events` (Stream) only.
 	events []event
 	last   map[string]paneState
 	primed bool
@@ -689,9 +689,9 @@ func (m model) updateInput(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-// Stream is `tmux-agent events`: the same event feed as the dashboard's
+// Stream is `tagent events`: the same event feed as the dashboard's
 // Stream panel, one tab-separated line per event (time, agent, kind, text),
-// for scripts and agents (`tmux-agent events | grep -m1 'tester.*done'`).
+// for scripts and agents (`tagent events | grep -m1 'tester.*done'`).
 // Runs until the writer fails (e.g. the reader closed the pipe).
 func Stream(args []string, w io.Writer) int {
 	asJSON := len(args) > 0 && args[0] == "--json"
@@ -729,7 +729,7 @@ func Stream(args []string, w io.Writer) int {
 
 type flashMsg string
 
-// spawnRole starts an agent with role through `tmux-agent new` (same
+// spawnRole starts an agent with role through `tagent new` (same
 // binary), in the selected agent's project, or the dashboard's directory.
 func (m model) spawnRole(role string) tea.Cmd {
 	dir := ""

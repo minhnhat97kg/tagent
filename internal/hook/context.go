@@ -3,8 +3,8 @@ package hook
 import (
 	"strings"
 
-	"tmux-agent/internal/event"
-	"tmux-agent/internal/tmux"
+	"tagent/internal/event"
+	"tagent/internal/tmux"
 )
 
 // AgentContext gathers the hook payload fields shared by 6 event Kinds

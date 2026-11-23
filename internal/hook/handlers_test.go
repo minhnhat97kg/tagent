@@ -3,8 +3,8 @@ package hook
 import (
 	"testing"
 
-	"tmux-agent/internal/event"
-	"tmux-agent/internal/tmux"
+	"tagent/internal/event"
+	"tagent/internal/tmux"
 )
 
 // ─── Shared test infrastructure for this file ───────────────────────
@@ -50,7 +50,7 @@ func enabledSettings() NotificationSettings {
 //
 // The single source of truth for the "running/idle => unset attention" rule,
 // shared by setStatus (internal handler) and the external "set-status"
-// command (cmd/tmux-agent).
+// command (cmd/tagent).
 
 func TestApplyPaneStatusWritesStatus(t *testing.T) {
 	fake := tmux.NewFake()

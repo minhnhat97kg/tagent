@@ -2,7 +2,7 @@
 // github.com/badlogic/pi-mono).
 package adapter
 
-import "tmux-agent/internal/event"
+import "tagent/internal/event"
 
 // piAgentName is the agent name attached to every Event that Pi generates.
 const piAgentName = "pi"

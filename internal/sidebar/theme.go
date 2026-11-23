@@ -19,7 +19,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"tmux-agent/internal/tmux"
+	"tagent/internal/tmux"
 )
 
 // Theme holds all the colors the sidebar uses, reloaded on every refresh

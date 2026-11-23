@@ -6,8 +6,8 @@ import (
 )
 
 func TestRenderFillsBinary(t *testing.T) {
-	got := Render("/opt/bin/tmux-agent")
-	if strings.Contains(got, "{{BIN}}") || !strings.HasPrefix(got, "---\nname: tmux-agent") || !strings.Contains(got, "/opt/bin/tmux-agent new") {
+	got := Render("/opt/bin/tagent")
+	if strings.Contains(got, "{{BIN}}") || !strings.HasPrefix(got, "---\nname: tagent") || !strings.Contains(got, "/opt/bin/tagent new") {
 		t.Fatalf("bad skill:\n%s", got)
 	}
 }

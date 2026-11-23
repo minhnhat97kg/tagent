@@ -55,7 +55,7 @@ export default function App() {
     return (
       <div className="flex h-dvh items-center justify-center p-6 text-center">
         <p>
-          tmux-agent: open the link printed by <code>tmux-agent web</code> (it carries the access token).
+          tagent: open the link printed by <code>tagent web</code> (it carries the access token).
         </p>
       </div>
     )
@@ -76,7 +76,7 @@ export default function App() {
             </Button>
           )}
           <span className="font-serif text-sm">
-            tmux-agent <span className="text-muted-foreground">· {state?.host ?? ""}</span>
+            tagent <span className="text-muted-foreground">· {state?.host ?? ""}</span>
           </span>
           <span className="truncate rounded-full bg-muted px-2 py-1 text-xs">{overview ? `${overview.attention.needed ? "⚠" : "✓"} ${overview.attention.text}` : "Loading…"}</span>
           <div className="ml-auto flex items-center gap-1">

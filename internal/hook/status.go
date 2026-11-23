@@ -5,7 +5,7 @@
 // reads raw JSON and never checks the agent name.
 package hook
 
-import "tmux-agent/internal/tmux"
+import "tagent/internal/tmux"
 
 // Pane status priority order, highest to lowest:
 //

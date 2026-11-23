@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"tmux-agent/internal/board"
-	"tmux-agent/internal/tasks"
-	"tmux-agent/internal/tmux"
+	"tagent/internal/board"
+	"tagent/internal/tasks"
+	"tagent/internal/tmux"
 )
 
 func TestWebDiscoversBoardWithoutBrowser(t *testing.T) {

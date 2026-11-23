@@ -3,13 +3,13 @@ package board
 import (
 	"fmt"
 	"strings"
+	"tagent/internal/tasks"
 	"testing"
-	"tmux-agent/internal/tasks"
 )
 
 func TestReentryTokenEstimate(t *testing.T) {
 	task := tasks.Task{ID: "abc123", Title: "Build feature", Text: strings.Repeat("d", 4000)}
-	full := "Read tmux-agent task show abc123 (description and all comments). " + task.Text
+	full := "Read tagent task show abc123 (description and all comments). " + task.Text
 	for i := 0; i < 28; i++ {
 		c := tasks.TaskComment{ID: fmt.Sprint(i), Author: "builder", Body: strings.Repeat("h", 600)}
 		task.Comments = append(task.Comments, c)

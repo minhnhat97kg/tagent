@@ -162,7 +162,7 @@ func TestBoardConfigValidation(t *testing.T) {
 		}
 	}
 	dir, _ := testBoard(t)
-	global := filepath.Join(os.Getenv("XDG_CONFIG_HOME"), "tmux-agent")
+	global := filepath.Join(os.Getenv("XDG_CONFIG_HOME"), "tagent")
 	os.MkdirAll(global, 0700)
 	os.WriteFile(filepath.Join(global, "board.yaml"), []byte("columns: [todo, global, done]\nroles: {planner: {agent: pi, effort: high}}"), 0600)
 	c, err := LoadBoardConfig(dir)

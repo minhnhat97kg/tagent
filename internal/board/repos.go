@@ -3,8 +3,8 @@ package board
 import (
 	"os"
 	"path/filepath"
-	"tmux-agent/internal/sharedctx"
-	"tmux-agent/internal/tasks"
+	"tagent/internal/sharedctx"
+	"tagent/internal/tasks"
 )
 
 func Register(dir string) error {

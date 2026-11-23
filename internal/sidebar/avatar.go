@@ -10,7 +10,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 
-	"tmux-agent/internal/tmux"
+	"tagent/internal/tmux"
 )
 
 // ─── Avatar ──────────────────────────────────────────────────────────────
@@ -19,7 +19,7 @@ import (
 // agent and nudges you to act: when an agent waits on you or finishes
 // unseen, it changes mood (each mood its own animation) and says who and
 // what, with the quick-action key — space in the sidebar, prefix + a
-// anywhere (`tmux-agent next`), or a click on it. Quick action: a waiting
+// anywhere (`tagent next`), or a click on it. Quick action: a waiting
 // or failed agent → jump there (answering approvals stays with you); a
 // finished agent → send @agent_done_prompt if configured, else jump there.
 
@@ -46,7 +46,7 @@ type AvatarConfig struct {
 	SayWaiting   string
 	SayDone      string
 	SayError     string
-	Digest       string // last `tmux-agent digest` (digest.go)
+	Digest       string // last `tagent digest` (digest.go)
 	DigestFor    string // digestKey of the state it describes
 	DigestAsking string // digestKey a line is being written for
 	Personality  string // how the local model talks (@agent_avatar_personality)
@@ -195,7 +195,7 @@ func Act(a Alert, cfg AvatarConfig, fromPane string) string {
 	return "jumped to " + a.Name
 }
 
-// AvatarConfigFromTmux reads the avatar options (for `tmux-agent next`).
+// AvatarConfigFromTmux reads the avatar options (for `tagent next`).
 func AvatarConfigFromTmux() AvatarConfig {
 	return avatarConfigFromOptions(tmux.GetAllGlobalOptions())
 }

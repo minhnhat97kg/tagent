@@ -8,7 +8,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 
-	"tmux-agent/internal/sidebar"
+	"tagent/internal/sidebar"
 )
 
 // Editor is the settings list shared by the standalone settings screen
@@ -56,7 +56,7 @@ func (e *Editor) Flash() (msg string, bad bool) { return e.flash, e.flashBad }
 // Resize adapts the inline input to the screen.
 func (e *Editor) Resize(width int) { e.input.Width = max(10, width-30) }
 
-// Refresh reloads every value, so a change made elsewhere (`tmux-agent
+// Refresh reloads every value, so a change made elsewhere (`tagent
 // config set`) shows up when the screen opens.
 func (e *Editor) Refresh() {
 	for _, s := range Settings {

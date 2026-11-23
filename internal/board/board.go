@@ -13,8 +13,8 @@ import (
 	"syscall"
 	"time"
 
-	"tmux-agent/internal/tasks"
-	"tmux-agent/internal/workflow"
+	"tagent/internal/tasks"
+	"tagent/internal/workflow"
 )
 
 type Action struct {
@@ -362,7 +362,7 @@ func Actions(dir string, cfg tasks.BoardConfig, ev tasks.Event, t tasks.Task) ([
 				continue
 			}
 			if a.Prompt == "" {
-				a.Prompt = fmt.Sprintf("Task %s (%s): %s changed by %s. Read `tmux-agent task show %s` and reply with `tmux-agent task comment %s <text>`.", t.ID, t.Title, ev.Kind, ev.Actor, t.ID, t.ID)
+				a.Prompt = fmt.Sprintf("Task %s (%s): %s changed by %s. Read `tagent task show %s` and reply with `tagent task comment %s <text>`.", t.ID, t.Title, ev.Kind, ev.Actor, t.ID, t.ID)
 			}
 			out = append(out, a)
 		}

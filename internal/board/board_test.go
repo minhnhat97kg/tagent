@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"tmux-agent/internal/tasks"
+	"tagent/internal/tasks"
 )
 
 func setup(t *testing.T, cfg string) (string, string) {

@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"tmux-agent/internal/tmux"
+	"tagent/internal/tmux"
 )
 
 func TestDigestSkipsWhileAnotherRunIsActive(t *testing.T) {
@@ -105,7 +105,7 @@ func TestCommandExists(t *testing.T) {
 }
 
 func TestForeignScript(t *testing.T) {
-	if !foreignScript("젠장, tmux-agent은") || !foreignScript("ふん、終わった") || !foreignScript("tối ऑप्टi") || foreignScript("Hừ, xong rồi đó 😒 · 100%") {
+	if !foreignScript("젠장, tagent은") || !foreignScript("ふん、終わった") || !foreignScript("tối ऑप्टi") || foreignScript("Hừ, xong rồi đó 😒 · 100%") {
 		t.Fatal("Korean/Japanese lines must be caught, Vietnamese kept")
 	}
 }

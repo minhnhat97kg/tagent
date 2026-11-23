@@ -9,10 +9,10 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 
-	"tmux-agent/internal/config"
-	"tmux-agent/internal/roles"
-	"tmux-agent/internal/sidebar"
-	"tmux-agent/internal/tmux"
+	"tagent/internal/config"
+	"tagent/internal/roles"
+	"tagent/internal/sidebar"
+	"tagent/internal/tmux"
 )
 
 // Layout: one tab at a time — its list on the left, the selected item's
@@ -250,7 +250,7 @@ func (m model) agentsBox(w, h int) []string {
 		}
 	}
 	if len(m.agents) == 0 {
-		lines = append(lines, dim.Render("no running panes — `tmux-agent new`"))
+		lines = append(lines, dim.Render("no running panes — `tagent new`"))
 	}
 	if len(repoLines) > (h-2)/2 {
 		repoLines = repoLines[:(h-2)/2]
@@ -520,7 +520,7 @@ func (m model) settingsDetailBox(w, h int) []string {
 	for i := 0; i+1 < len(actions); i += 2 {
 		bar += key.Render(actions[i]) + dim.Render(" "+actions[i+1]+"   ")
 	}
-	usage := dim.Render("tmux-agent config set " + s.Key + " <value>")
+	usage := dim.Render("tagent config set " + s.Key + " <value>")
 	if pad := h - 2 - len(body) - 3; pad > 0 {
 		body = append(body, make([]string, pad)...)
 	} else {
@@ -585,7 +585,7 @@ func (m model) roleDetailBox(w, h int) []string {
 	for i := 0; i+1 < len(actions); i += 2 {
 		bar += key.Render(actions[i]) + dim.Render(" "+actions[i+1]+"   ")
 	}
-	usage := dim.Render("tmux-agent new --role " + name + "   ·   team: <name>@" + name)
+	usage := dim.Render("tagent new --role " + name + "   ·   team: <name>@" + name)
 	if pad := h - 2 - len(body) - 3; pad > 0 {
 		body = append(body, make([]string, pad)...)
 	} else {

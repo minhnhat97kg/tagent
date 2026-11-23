@@ -3,8 +3,8 @@ package hook
 import (
 	"os"
 
-	"tmux-agent/internal/activity"
-	"tmux-agent/internal/tmux"
+	"tagent/internal/activity"
+	"tagent/internal/tmux"
 )
 
 // PendingSessionEnd is the name of an old option. NOTHING in this package

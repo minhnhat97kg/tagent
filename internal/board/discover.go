@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"tmux-agent/internal/tasks"
-	"tmux-agent/internal/tmux"
+	"tagent/internal/tasks"
+	"tagent/internal/tmux"
 )
 
 // Discover runs one dispatcher per scope of every agent pane plus extra dirs. One worker per shared scope, independent of browser polling. A held external

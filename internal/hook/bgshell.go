@@ -4,8 +4,8 @@ import (
 	"strconv"
 	"strings"
 
-	"tmux-agent/internal/process"
-	"tmux-agent/internal/tmux"
+	"tagent/internal/process"
+	"tagent/internal/tmux"
 )
 
 // Background shells: @pane_bg_cmd says "the agent left a background Bash

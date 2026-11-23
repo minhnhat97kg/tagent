@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"tmux-agent/internal/process"
-	"tmux-agent/internal/tmux"
+	"tagent/internal/process"
+	"tagent/internal/tmux"
 )
 
 // Explain says why a pane has the status it has: where the status came

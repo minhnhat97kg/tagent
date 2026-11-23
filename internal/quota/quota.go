@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"tagent/internal/apppath"
 	"time"
 )
 
@@ -167,7 +168,7 @@ func codex() Provider {
 	return Provider{}
 }
 
-// apiCache is shared by every tmux-agent process (sidebars, scraper,
+// apiCache is shared by every tagent process (sidebars, scraper,
 // standalone…): the usage endpoint answers 429 when each polls on its own.
 type apiCache struct {
 	Tried, Fetched int64
@@ -178,7 +179,7 @@ type apiCache struct {
 // processes and otherwise reuses the last answer (stale after 15 minutes).
 func claudeAPI(token string) (Provider, bool) {
 	dir, _ := os.UserCacheDir()
-	path := filepath.Join(dir, "tmux-agent", "claude-usage.json")
+	path := filepath.Join(apppath.Dir(dir), "claude-usage.json")
 	var c apiCache
 	if b, err := os.ReadFile(path); err == nil {
 		json.Unmarshal(b, &c)

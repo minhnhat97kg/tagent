@@ -7,7 +7,7 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
-	"tmux-agent/internal/intake"
+	"tagent/internal/intake"
 )
 
 func TestIntakeChatLeftRight(t *testing.T) {

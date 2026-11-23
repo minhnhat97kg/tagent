@@ -9,7 +9,7 @@ package assets
 import _ "embed"
 
 // OpenCodePlugin is the OpenCode bridge plugin, copied into OpenCode's
-// global plugin directory by `tmux-agent install opencode`.
+// global plugin directory by `tagent install opencode`.
 //
-//go:embed .opencode/plugins/tmux-agent-sidebar.js
+//go:embed .opencode/plugins/tagent-sidebar.js
 var OpenCodePlugin string

@@ -2,8 +2,8 @@ package sidebar
 
 import (
 	"strings"
+	"tagent/internal/tasks"
 	"testing"
-	"tmux-agent/internal/tasks"
 )
 
 func TestTaskAuditTimeline(t *testing.T) {

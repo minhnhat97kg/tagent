@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"tmux-agent/internal/tmux"
+	"tagent/internal/tmux"
 )
 
 // Every error path in Dispatch must exit 0 silently, never panic, never print

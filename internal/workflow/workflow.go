@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"tagent/internal/apppath"
 )
 
 type Input struct {
@@ -152,7 +153,7 @@ func GlobalDir() string {
 		h, _ := os.UserHomeDir()
 		base = filepath.Join(h, ".config")
 	}
-	return filepath.Join(base, "tmux-agent", "workflows")
+	return filepath.Join(apppath.Dir(base), "workflows")
 }
 func Load(file string) Workflow {
 	b, e := os.ReadFile(file)

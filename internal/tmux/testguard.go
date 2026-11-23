@@ -12,7 +12,7 @@ func init() {
 	if !testing.Testing() {
 		return
 	}
-	dir, err := os.MkdirTemp("/tmp", "tmux-agent-test-") // short: unix socket paths are limited (~104 bytes on macOS)
+	dir, err := os.MkdirTemp("/tmp", "tagent-test-") // short: unix socket paths are limited (~104 bytes on macOS)
 	if err != nil {
 		panic(err)
 	}

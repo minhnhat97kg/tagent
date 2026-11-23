@@ -12,10 +12,10 @@ import (
 	"syscall"
 	"time"
 
-	"tmux-agent/internal/sharedctx"
-	"tmux-agent/internal/tasks"
-	"tmux-agent/internal/tmux"
-	"tmux-agent/internal/usage"
+	"tagent/internal/sharedctx"
+	"tagent/internal/tasks"
+	"tagent/internal/tmux"
+	"tagent/internal/usage"
 )
 
 type Session struct {

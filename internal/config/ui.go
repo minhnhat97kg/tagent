@@ -10,11 +10,11 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 
-	"tmux-agent/internal/sidebar"
-	"tmux-agent/internal/tmux"
+	"tagent/internal/sidebar"
+	"tagent/internal/tmux"
 )
 
-// RunUI is the settings screen (`tmux-agent config` with no arguments;
+// RunUI is the settings screen (`tagent config` with no arguments;
 // opened in a popup by `,` in the sidebar). It wraps the shared Editor.
 func RunUI() int {
 	opts := tmux.GetAllGlobalOptions()
@@ -54,7 +54,7 @@ func (m uiModel) View() string {
 	}
 	fg := func(c lipgloss.Color) lipgloss.Style { return lipgloss.NewStyle().Foreground(c) }
 	dim, accent := fg(m.theme.TextDim), fg(m.theme.Accent).Bold(true)
-	title := lipgloss.NewStyle().Background(m.theme.Accent).Foreground(lipgloss.Color("0")).Bold(true).Render(" \uf013 tmux-agent settings ")
+	title := lipgloss.NewStyle().Background(m.theme.Accent).Foreground(lipgloss.Color("0")).Bold(true).Render(" \uf013 tagent settings ")
 	lines := []string{title + dim.Render("  "+ConfigFile()), ""}
 
 	body, selLine := m.ed.Body(m.theme, 32, true)
@@ -111,7 +111,7 @@ func ReloadKeys(oldKey string) error {
 	if !ok {
 		return fmt.Errorf("plugin not loaded")
 	}
-	entry := filepath.Join(filepath.Dir(filepath.Dir(bin)), "assets", "tmux-agent.tmux")
+	entry := filepath.Join(filepath.Dir(filepath.Dir(bin)), "assets", "tagent.tmux")
 	if _, err := os.Stat(entry); err != nil {
 		return err
 	}

@@ -1,8 +1,8 @@
 package hook
 
 import (
-	"tmux-agent/internal/event"
-	"tmux-agent/internal/tmux"
+	"tagent/internal/event"
+	"tagent/internal/tmux"
 )
 
 // ShouldUpdateCwd returns true when @pane_cwd (and the location fields that

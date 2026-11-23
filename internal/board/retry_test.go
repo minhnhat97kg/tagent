@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"tagent/internal/tasks"
 	"testing"
 	"time"
-	"tmux-agent/internal/tasks"
 )
 
 func TestRetryDispatchAndCaps(t *testing.T) {

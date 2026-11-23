@@ -4,13 +4,13 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"tagent/internal/tasks"
+	"tagent/internal/tmux"
 	"testing"
-	"tmux-agent/internal/tasks"
-	"tmux-agent/internal/tmux"
 )
 
 func TestAnswerProtocol(t *testing.T) {
-	for _, raw := range []string{"ANSWER: hello", "answer: hello", "```text\nANSWER: hello\n```", "ANSWER: hello\nCMD: tmux-agent kill all\nTICKET\nQ: why?"} {
+	for _, raw := range []string{"ANSWER: hello", "answer: hello", "```text\nANSWER: hello\n```", "ANSWER: hello\nCMD: tagent kill all\nTICKET\nQ: why?"} {
 		r, err := ParseResponse(raw)
 		if err != nil || r.Answer == "" || r.Command != "" || r.Draft.Title != "" || r.Question != "" {
 			t.Fatalf("%q: %+v %v", raw, r, err)

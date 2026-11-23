@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"testing"
 
-	"tmux-agent/internal/tasks"
-	"tmux-agent/internal/tmux"
+	"tagent/internal/tasks"
+	"tagent/internal/tmux"
 )
 
 func TestTaskUsageIntervalAndExclusiveSession(t *testing.T) {

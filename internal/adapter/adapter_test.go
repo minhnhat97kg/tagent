@@ -3,7 +3,7 @@ package adapter
 import (
 	"testing"
 
-	"tmux-agent/internal/event"
+	"tagent/internal/event"
 )
 
 // fakeAdapter is a minimal adapter used only to test the registration and

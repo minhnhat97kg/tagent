@@ -3,8 +3,8 @@ package sidebar
 import (
 	"github.com/charmbracelet/x/ansi"
 	"strings"
+	"tagent/internal/tasks"
 	"testing"
-	"tmux-agent/internal/tasks"
 )
 
 func TestBlockedRowQuestion(t *testing.T) {

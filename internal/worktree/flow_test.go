@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"tmux-agent/internal/tmux"
+	"tagent/internal/tmux"
 )
 
 // fakeSpawnEnv is a fake SpawnEnv for testing the spawnWith/removeWith core:

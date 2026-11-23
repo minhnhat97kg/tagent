@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"tmux-agent/internal/tasks"
-	"tmux-agent/internal/workflow"
+	"tagent/internal/tasks"
+	"tagent/internal/workflow"
 
 	tea "github.com/charmbracelet/bubbletea"
 )

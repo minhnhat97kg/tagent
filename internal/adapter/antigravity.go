@@ -2,7 +2,7 @@
 // (antigravity.google).
 package adapter
 
-import "tmux-agent/internal/event"
+import "tagent/internal/event"
 
 // antigravityAgentName is the agent name attached to every Event that
 // Antigravity generates.

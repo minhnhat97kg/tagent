@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"tmux-agent/internal/notify"
+	"tagent/internal/notify"
 )
 
 // Captured under the board lock; delivery happens only after persistence and unlock.
@@ -65,7 +65,7 @@ func (n *statusNotice) send() {
 		if reason != "" {
 			lines = append(lines, "", cmp.Or(role, last.Author, "agent")+": "+clip(reason, 1500))
 		}
-		lines = append(lines, "", fmt.Sprintf("Answer: tmux-agent task comment %s \"@%s …\"", n.id, cmp.Or(role, "<role>")))
+		lines = append(lines, "", fmt.Sprintf("Answer: tagent task comment %s \"@%s …\"", n.id, cmp.Or(role, "<role>")))
 	}
 	if len(n.assignees) > 0 {
 		lines = append(lines, "Assignees: "+clip(strings.Join(n.assignees, ", "), 200))

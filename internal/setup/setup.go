@@ -11,7 +11,7 @@
 //
 // OpenCode is DELIBERATELY absent from setup's agent list: it doesn't
 // configure through a Claude/Codex-style settings.json file but instead uses
-// a pre-bundled JavaScript plugin (assets/.opencode/plugins/tmux-agent-sidebar.js)
+// a pre-bundled JavaScript plugin (assets/.opencode/plugins/tagent-sidebar.js)
 // that calls the hook itself — there's no JSON snippet to generate and paste.
 package setup
 
@@ -23,8 +23,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"tmux-agent/internal/adapter"
-	"tmux-agent/internal/version"
+	"tagent/internal/adapter"
+	"tagent/internal/version"
 )
 
 // supportedAgents lists the agents setup knows how to generate a snippet
@@ -56,11 +56,11 @@ var configPaths = map[string]string{
 // tilde is deliberately not expanded (the user pastes it directly into
 // settings.json; expanding the tilde is the shell's job when the hook runs,
 // not setup's).
-const FallbackHookScript = "~/.tmux/plugins/tmux-agent/assets/hook.sh"
+const FallbackHookScript = "~/.tmux/plugins/tagent/assets/hook.sh"
 
 // maxWalkUpDepth is the maximum number of directory levels to walk up from
 // the binary's directory when looking for assets/hook.sh. This repo builds
-// the binary at <repo>/bin/tmux-agent and places hook.sh at
+// the binary at <repo>/bin/tagent and places hook.sh at
 // <repo>/assets/hook.sh (walking up exactly 1 level from bin/ is enough) —
 // 3 extra levels of headroom for other build layouts (e.g. nested through an
 // intermediate directory) without having to change this constant.
@@ -87,6 +87,12 @@ type ResolvedHookScript struct {
 func ResolveHookScript() ResolvedHookScript {
 	if path, ok := walkUpForHookScript(maxWalkUpDepth); ok {
 		return ResolvedHookScript{Path: path, Detected: true}
+	}
+	home, _ := os.UserHomeDir()
+	if _, err := os.Stat(filepath.Join(home, ".tmux/plugins/tagent")); os.IsNotExist(err) {
+		if _, err := os.Stat(filepath.Join(home, ".tmux/plugins/tmux-agent/assets/hook.sh")); err == nil {
+			return ResolvedHookScript{Path: "~/.tmux/plugins/tmux-agent/assets/hook.sh", Detected: false}
+		}
 	}
 	return ResolvedHookScript{Path: FallbackHookScript, Detected: false}
 }
@@ -285,12 +291,12 @@ func runSetup(args []string, hookScript string, stderr io.Writer) (int, any) {
 		}
 		return 0, snippet
 	default:
-		fmt.Fprintln(stderr, "usage: tmux-agent setup [agent]")
+		fmt.Fprintln(stderr, "usage: tagent setup [agent]")
 		return 2, nil
 	}
 }
 
-// Dispatch is the entry point for the `tmux-agent setup [agent]` command.
+// Dispatch is the entry point for the `tagent setup [agent]` command.
 // Prints JSON to stdout; any error is printed clearly to stderr — this is a
 // user-initiated action (unlike the background hook path which follows the
 // soft-degradation philosophy), so errors must never be swallowed silently.

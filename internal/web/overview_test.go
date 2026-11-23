@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"tagent/internal/metrics"
+	"tagent/internal/quota"
+	"tagent/internal/tmux"
 	"testing"
-	"tmux-agent/internal/metrics"
-	"tmux-agent/internal/quota"
-	"tmux-agent/internal/tmux"
 )
 
 func request(s *server, method, path, body string, auth bool) *httptest.ResponseRecorder {

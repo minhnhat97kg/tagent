@@ -2,7 +2,7 @@
 // Codex, OpenCode) into the internal event.Event.
 package adapter
 
-import "tmux-agent/internal/event"
+import "tagent/internal/event"
 
 // Registration links an agent-side trigger (as it appears in the agent's
 // settings.json) to the internal event kind produced when the hook runs.

@@ -7,7 +7,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"tmux-agent/internal/tmux"
+	"tagent/internal/tmux"
 )
 
 // SpawnRequest bundles every input of a spawn call: the repo, the task name

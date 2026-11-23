@@ -22,6 +22,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"tagent/internal/apppath"
 	"time"
 )
 
@@ -54,8 +55,8 @@ func Scope(dir string) string {
 }
 
 // Dir is where a scope's entries live: <root>/<scope>, root being
-// $TMUX_AGENT_CONTEXT_DIR, else $XDG_STATE_HOME/tmux-agent/context, else
-// ~/.local/state/tmux-agent/context.
+// $TMUX_AGENT_CONTEXT_DIR, else $XDG_STATE_HOME/tagent/context, else
+// ~/.local/state/tagent/context.
 func Dir(scope string) string {
 	return filepath.Join(rootDir(), scope)
 }
@@ -69,7 +70,7 @@ func rootDir() string {
 		home, _ := os.UserHomeDir()
 		state = filepath.Join(home, ".local", "state")
 	}
-	return filepath.Join(state, "tmux-agent", "context")
+	return filepath.Join(apppath.Dir(state), "context")
 }
 
 // Add posts a note to scope and returns it.

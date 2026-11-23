@@ -1,6 +1,6 @@
 package sidebar
 
-import "tmux-agent/internal/intake"
+import "tagent/internal/intake"
 
 // reloadIntake preserves local editor/input state while observing remote turns.
 func (m *Model) reloadIntake() {

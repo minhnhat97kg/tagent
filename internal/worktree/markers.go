@@ -3,7 +3,7 @@ package worktree
 import (
 	"strings"
 
-	"tmux-agent/internal/tmux"
+	"tagent/internal/tmux"
 )
 
 // SpawnMarkersTemplate builds the template for tmux "display-message -p -F"

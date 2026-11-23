@@ -15,11 +15,11 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"tmux-agent/internal/git"
-	"tmux-agent/internal/hook"
-	"tmux-agent/internal/tasks"
-	"tmux-agent/internal/tmux"
-	"tmux-agent/internal/worktree"
+	"tagent/internal/git"
+	"tagent/internal/hook"
+	"tagent/internal/tasks"
+	"tagent/internal/tmux"
+	"tagent/internal/worktree"
 )
 
 // detailMsg is the result of detailFetchCmd for ONE pane.

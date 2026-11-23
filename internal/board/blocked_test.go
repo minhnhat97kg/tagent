@@ -2,8 +2,8 @@ package board
 
 import (
 	"strings"
+	"tagent/internal/tasks"
 	"testing"
-	"tmux-agent/internal/tasks"
 )
 
 func TestBlockedReplyResetsLoopsAndContext(t *testing.T) {

@@ -19,10 +19,10 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"tmux-agent/internal/portscan"
-	"tmux-agent/internal/process"
-	"tmux-agent/internal/session"
-	"tmux-agent/internal/tmux"
+	"tagent/internal/portscan"
+	"tagent/internal/process"
+	"tagent/internal/session"
+	"tagent/internal/tmux"
 )
 
 const (

@@ -5,9 +5,9 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"tagent/internal/sharedctx"
 	"testing"
 	"time"
-	"tmux-agent/internal/sharedctx"
 )
 
 func TestConversationSharedTransitions(t *testing.T) {
@@ -34,7 +34,7 @@ func TestConversationSharedTransitions(t *testing.T) {
 	if err != nil || len(s.Turns) != 1 {
 		t.Fatal(s, err)
 	}
-	s, err = CompleteSubmission("project", s.Generation, "CMD: tmux-agent reload", nil, nil)
+	s, err = CompleteSubmission("project", s.Generation, "CMD: tagent reload", nil, nil)
 	if err != nil || s.Status != "proposal" {
 		t.Fatal(s, err)
 	}
@@ -127,7 +127,7 @@ func TestConversationBoundedAndUncertain(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	s, e = CompleteSubmission("p", s.Generation, "CMD: tmux-agent reload", nil, nil)
+	s, e = CompleteSubmission("p", s.Generation, "CMD: tagent reload", nil, nil)
 	if e != nil {
 		t.Fatal(e)
 	}

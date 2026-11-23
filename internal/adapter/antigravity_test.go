@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"tmux-agent/internal/event"
+	"tagent/internal/event"
 )
 
 // TestAntigravityRegistrationTableMatchesParse is a mandatory drift test: exactly two

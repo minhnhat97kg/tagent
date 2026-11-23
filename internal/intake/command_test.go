@@ -6,29 +6,29 @@ import (
 )
 
 func TestCommandSafety(t *testing.T) {
-	for _, s := range []string{"tmux-agent reload", "tmux-agent task show abc", "tmux-agent task comment abc \"two words\"", "tmux-agent workflow run research --input goal=topic", "tmux-agent ctx ls", "tmux-agent ctx --global add \"a note\""} {
+	for _, s := range []string{"tagent reload", "tagent task show abc", "tagent task comment abc \"two words\"", "tagent workflow run research --input goal=topic", "tagent ctx ls", "tagent ctx --global add \"a note\""} {
 		if _, e := CommandArgs(s); e != nil {
 			t.Fatal(s, e)
 		}
 	}
-	for _, s := range []string{"sh reload", "tmux-agent task rm abc", "tmux-agent install", "tmux-agent merge abc", "tmux-agent discard abc", "tmux-agent config set x y", "tmux-agent ctx clear", "tmux-agent ctx --global rm abc", "tmux-agent workflow new x", "tmux-agent reload\nlist", "tmux-agent task show \"unterminated"} {
+	for _, s := range []string{"sh reload", "tagent task rm abc", "tagent install", "tagent merge abc", "tagent discard abc", "tagent config set x y", "tagent ctx clear", "tagent ctx --global rm abc", "tagent workflow new x", "tagent reload\nlist", "tagent task show \"unterminated"} {
 		if _, e := CommandArgs(s); e == nil {
 			t.Fatal(s)
 		}
 	}
 	for _, c := range ";|&`$()><" {
-		if _, e := CommandArgs("tmux-agent task comment id \"a" + string(c) + "b\""); e == nil {
+		if _, e := CommandArgs("tagent task comment id \"a" + string(c) + "b\""); e == nil {
 			t.Fatal(c)
 		}
 	}
-	args, e := CommandArgs("tmux-agent task comment abc \"two words\"")
+	args, e := CommandArgs("tagent task comment abc \"two words\"")
 	if e != nil || args[4] != "two words" {
 		t.Fatal(args, e)
 	}
 }
 func TestResponses(t *testing.T) {
-	r, e := ParseResponse("CMD: tmux-agent reload")
-	if e != nil || r.Command != "tmux-agent reload" {
+	r, e := ParseResponse("CMD: tagent reload")
+	if e != nil || r.Command != "tagent reload" {
 		t.Fatal(r, e)
 	}
 	r, e = ParseResponse("ESCALATE: Needs architectural judgement")
@@ -39,6 +39,17 @@ func TestResponses(t *testing.T) {
 	for _, s := range []string{"! operations", "ESCALATE", "task move", "abc todo Ticket", "research: Research a topic"} {
 		if !strings.Contains(p, s) {
 			t.Fatal(s)
+		}
+	}
+}
+
+func TestLegacyCommandAlias(t *testing.T) {
+	for _, command := range []string{"tagent reload", "tmux-agent reload"} {
+		if _, err := CommandArgs(command); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := CommandArgs(command + "; evil"); err == nil {
+			t.Fatal("accepted shell syntax")
 		}
 	}
 }

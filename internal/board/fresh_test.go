@@ -1,8 +1,8 @@
 package board
 
 import (
+	"tagent/internal/tasks"
 	"testing"
-	"tmux-agent/internal/tasks"
 )
 
 func TestFreshPolicy(t *testing.T) {

@@ -10,7 +10,7 @@ import (
 	"syscall"
 	"time"
 
-	"tmux-agent/internal/sharedctx"
+	"tagent/internal/sharedctx"
 )
 
 const historyLimit = 48

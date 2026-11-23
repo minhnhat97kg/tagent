@@ -3,7 +3,7 @@ package adapter
 import (
 	"encoding/json"
 
-	"tmux-agent/internal/event"
+	"tagent/internal/event"
 )
 
 // init self-registers this adapter into the package registry. This way

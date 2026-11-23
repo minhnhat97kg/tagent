@@ -10,8 +10,8 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	"github.com/muesli/termenv"
 
-	"tmux-agent/internal/tasks"
-	"tmux-agent/internal/tmux"
+	"tagent/internal/tasks"
+	"tagent/internal/tmux"
 )
 
 // rowBackgroundNeverDrops scans a rendered (Render()'d) string containing ANSI
@@ -72,7 +72,7 @@ func TestRepoAgentsHeaderCentered(t *testing.T) {
 func TestRenderRowsEachRowOneLine(t *testing.T) {
 	rows := []Row{
 		{IsHeader: true, Header: "1 work"},
-		{Status: tmux.StatusRunning, Agent: tmux.AgentClaude, Base: "tmux-agent"},
+		{Status: tmux.StatusRunning, Agent: tmux.AgentClaude, Base: "tagent"},
 		{IsHeader: true, Header: "2 api", HeaderFocus: true},
 		{Status: tmux.StatusIdle, Agent: tmux.AgentClaude, Base: "api"},
 	}
@@ -84,7 +84,7 @@ func TestRenderRowsEachRowOneLine(t *testing.T) {
 	if lines[0] != "▸ 1 work" || lines[2] != "▾ 2 api" {
 		t.Fatalf("headers = %q / %q, want \"▸ 1 work\" / \"▾ 2 api\" (▾ = the sidebar's window)", lines[0], lines[2])
 	}
-	if !strings.Contains(lines[1], "tmux-agent") {
+	if !strings.Contains(lines[1], "tagent") {
 		t.Fatalf("pane line = %q, want it to contain the basename", lines[1])
 	}
 }
@@ -279,7 +279,7 @@ func TestSubagentRows_UsesBranchAndMarksIsSubagentChild(t *testing.T) {
 func TestRenderRowsIndentsSubagentBranchAndExcludesFromCursor(t *testing.T) {
 	rows := []Row{
 		{IsHeader: true, Header: "work"},
-		{Status: tmux.StatusRunning, Agent: tmux.AgentClaude, Base: "tmux-agent"},
+		{Status: tmux.StatusRunning, Agent: tmux.AgentClaude, Base: "tagent"},
 		{IsSubagentChild: true, SubagentLabel: "└─ Explore"},
 		{Status: tmux.StatusIdle, Agent: tmux.AgentClaude, Base: "other"},
 	}
@@ -305,7 +305,7 @@ func TestRenderRowsIndentsSubagentBranchAndExcludesFromCursor(t *testing.T) {
 // above, but for IsInfoChild instead of IsSubagentChild).
 func TestRenderRowsIndentsInfoLineAndExcludesFromCursor(t *testing.T) {
 	rows := []Row{
-		{Status: tmux.StatusRunning, Agent: tmux.AgentClaude, Base: "tmux-agent"},
+		{Status: tmux.StatusRunning, Agent: tmux.AgentClaude, Base: "tagent"},
 		{IsInfoChild: true, InfoLabel: "refactor view.go"},
 		{Status: tmux.StatusIdle, Agent: tmux.AgentClaude, Base: "other"},
 	}
@@ -325,7 +325,7 @@ func TestRenderRowsIndentsInfoLineAndExcludesFromCursor(t *testing.T) {
 
 func TestRenderRowsScrollsLongInfoLineWithinWidth(t *testing.T) {
 	rows := []Row{
-		{Status: tmux.StatusRunning, Agent: tmux.AgentClaude, Base: "tmux-agent"},
+		{Status: tmux.StatusRunning, Agent: tmux.AgentClaude, Base: "tagent"},
 		{IsInfoChild: true, InfoLabel: strings.Repeat("x", 100)},
 	}
 	got := renderRows(rows, 20, -1, DefaultTheme(), DefaultIcons())

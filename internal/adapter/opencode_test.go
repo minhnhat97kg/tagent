@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"tmux-agent/internal/event"
+	"tagent/internal/event"
 )
 
 // The tests below are ported from tas/src/adapter/opencode.rs (the

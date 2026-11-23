@@ -10,7 +10,7 @@ import (
 // Paths relative to internal/adapter (where the test runs) to the repo root.
 const (
 	claudeHooksJSONPath  = "../../assets/hooks/hooks.json"
-	opencodePluginJSPath = "../../assets/.opencode/plugins/tmux-agent-sidebar.js"
+	opencodePluginJSPath = "../../assets/.opencode/plugins/tagent-sidebar.js"
 	hooksAssetsDir       = "../../assets/hooks"
 )
 

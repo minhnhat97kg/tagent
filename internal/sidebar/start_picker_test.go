@@ -8,9 +8,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"tagent/internal/tasks"
+	"tagent/internal/workflow"
 	"testing"
-	"tmux-agent/internal/tasks"
-	"tmux-agent/internal/workflow"
 )
 
 func TestStartPicker(t *testing.T) {

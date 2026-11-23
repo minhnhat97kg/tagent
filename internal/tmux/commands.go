@@ -186,7 +186,7 @@ func IsPaneViewed(pane string) bool {
 }
 
 // ResolvePane maps a target to a pane id: an agent name set with
-// `tmux-agent name` (@pane_name) wins, anything else is passed through as a
+// `tagent name` (@pane_name) wins, anything else is passed through as a
 // tmux target (%12, sess:1.2, …).
 func ResolvePane(target string) string {
 	out, ok := RunTmux("list-panes", "-a", "-F", "#{pane_id} #{"+PaneName+"}")
@@ -208,7 +208,7 @@ func ResolvePane(target string) string {
 // TypeLine pastes text (bracketed paste, so TUIs like pi do not open
 // autocomplete popups mid-text that would swallow the Enter) and submits it.
 func TypeLine(pane, text string) {
-	buf := "tmux-agent-" + strings.TrimPrefix(pane, "%")
+	buf := "tagent-" + strings.TrimPrefix(pane, "%")
 	if _, ok := RunTmux("set-buffer", "-b", buf, "--", text); ok {
 		RunTmux("paste-buffer", "-p", "-d", "-b", buf, "-t", pane)
 	} else {

@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"tagent/internal/intake"
+	"tagent/internal/tasks"
+	"tagent/internal/tmux"
 	"testing"
 	"time"
-	"tmux-agent/internal/intake"
-	"tmux-agent/internal/tasks"
-	"tmux-agent/internal/tmux"
 )
 
 func stringsReader(s string) io.Reader { return strings.NewReader(s) }
@@ -102,11 +102,11 @@ func TestChatCommandApprovalAndEdit(t *testing.T) {
 	s := testChatServer(t)
 	scope := tasks.Scope(s.dir)
 	c, _ := intake.ReserveSubmission(scope, "!reload", "")
-	c, e := intake.CompleteSubmission(scope, c.Generation, "CMD: tmux-agent reload", nil, nil)
+	c, e := intake.CompleteSubmission(scope, c.Generation, "CMD: tagent reload", nil, nil)
 	if e != nil {
 		t.Fatal(e)
 	}
-	w := request(s, "POST", "/api/chat", fmt.Sprintf(`{"op":"edit","revision":%d,"command":"tmux-agent reload; bad"}`, c.Revision), true)
+	w := request(s, "POST", "/api/chat", fmt.Sprintf(`{"op":"edit","revision":%d,"command":"tagent reload; bad"}`, c.Revision), true)
 	if w.Code != 400 {
 		t.Fatal(w.Code)
 	}
@@ -122,7 +122,7 @@ func TestChatCommandApprovalAndEdit(t *testing.T) {
 	}
 	select {
 	case value := <-executed:
-		if value != "tmux-agent reload "+s.dir {
+		if value != "tagent reload "+s.dir {
 			t.Fatal(value)
 		}
 	case <-time.After(time.Second):

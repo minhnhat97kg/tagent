@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"tmux-agent/internal/event"
+	"tagent/internal/event"
 )
 
 func TestClaudeAdapterName(t *testing.T) {

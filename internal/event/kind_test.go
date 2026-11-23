@@ -3,7 +3,7 @@ package event
 import "testing"
 
 // ExternalName is the name passed on the command line
-// `tmux-agent hook <agent> <name>`, i.e. the contract with assets/hook.sh
+// `tagent hook <agent> <name>`, i.e. the contract with assets/hook.sh
 // and each agent's hook configuration. It is kebab-case and does NOT match
 // the Go constant name — lock each one down individually.
 func TestExternalNameIsContract(t *testing.T) {

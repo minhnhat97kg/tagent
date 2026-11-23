@@ -4,7 +4,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"os/exec"
 	"strings"
-	"tmux-agent/internal/tmux"
+	"tagent/internal/tmux"
 )
 
 // popup runs a shell command in a tmux popup over pane; with no pane

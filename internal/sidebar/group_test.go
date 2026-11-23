@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"tmux-agent/internal/tmux"
+	"tagent/internal/tmux"
 )
 
 // ─── GroupPanesByRepo ───────────────────────────────────────────────────────

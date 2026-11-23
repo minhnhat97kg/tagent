@@ -9,8 +9,8 @@ set -euo pipefail
 SOCKET="$1"
 ROOT="$(cd "$(dirname "$0")/../../../.." && pwd)"
 
-BIN="$(mktemp -d)/tmux-agent"
-(cd "$ROOT" && go build -o "$BIN" ./cmd/tmux-agent)
+BIN="$(mktemp -d)/tagent"
+(cd "$ROOT" && go build -o "$BIN" ./cmd/tagent)
 
 WORKDIR="$(mktemp -d)"
 

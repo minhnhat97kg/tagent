@@ -3,7 +3,7 @@ package hook
 import (
 	"testing"
 
-	"tmux-agent/internal/tmux"
+	"tagent/internal/tmux"
 )
 
 // The permission group has exactly four labels. A whitelist, not a prefix.

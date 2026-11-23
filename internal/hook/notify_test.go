@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"tmux-agent/internal/clock"
-	"tmux-agent/internal/event"
-	"tmux-agent/internal/tmux"
+	"tagent/internal/clock"
+	"tagent/internal/event"
+	"tagent/internal/tmux"
 )
 
 // freezeClock freezes clock.NowUnixMilli() at a fixed epoch-seconds mark,

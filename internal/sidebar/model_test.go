@@ -9,11 +9,11 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"tmux-agent/internal/clock"
-	"tmux-agent/internal/git"
-	"tmux-agent/internal/scrape"
-	"tmux-agent/internal/tasks"
-	"tmux-agent/internal/tmux"
+	"tagent/internal/clock"
+	"tagent/internal/git"
+	"tagent/internal/scrape"
+	"tagent/internal/tasks"
+	"tagent/internal/tmux"
 )
 
 func TestBoardTaskClickTargetsVisibleTask(t *testing.T) {
@@ -98,13 +98,13 @@ func TestBuildRowsOneRepoOnePane(t *testing.T) {
 	sessions := []tmux.SessionInfo{{
 		SessionName: "work",
 		Windows: []tmux.WindowInfo{{WindowID: "@1", WindowIndex: "1", WindowName: "main", Panes: []tmux.PaneInfo{
-			{PaneID: "%1", Agent: tmux.AgentClaude, Status: tmux.StatusRunning, Path: "/tmp/not-a-git-repo/tmux-agent"},
+			{PaneID: "%1", Agent: tmux.AgentClaude, Status: tmux.StatusRunning, Path: "/tmp/not-a-git-repo/tagent"},
 		}}},
 	}}
 	got := buildRows(sessions, RepoFilterAll, rowExtras{CurrentWindow: "@1"})
 	want := []Row{
 		{IsHeader: true, Header: "1 main", HeaderFocus: true},
-		{Status: tmux.StatusRunning, Agent: tmux.AgentClaude, Base: "tmux-agent", PaneID: "%1"},
+		{Status: tmux.StatusRunning, Agent: tmux.AgentClaude, Base: "tagent", PaneID: "%1"},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("buildRows = %+v, want %+v", got, want)

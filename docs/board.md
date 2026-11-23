@@ -4,7 +4,7 @@
 
 Blocked rows show the blocking question. `c` opens the existing comment editor
 prefilled with the interrupted role. Send `@implementer answer` (also supported by
-`tmux-agent task comment ID "@implementer answer"`) to resume that exact step.
+`tagent task comment ID "@implementer answer"`) to resume that exact step.
 Another role routes to its first status in the ticket's flow. Unknown or multiple
 distinct tags save the comment but keep the ticket blocked with a notice.
 Without history or for a roleless step, type a valid role explicitly. An unchanged
@@ -13,7 +13,7 @@ prefill cancels. Resumed agents receive only the reply, not old comment history.
 exactly one concrete question in their blocking move comment.
 
 A ticket is the work state. Status entry dispatches work; comments carry handoffs.
-Run `tmux-agent board init` to exclusively create the example in the main
+Run `tagent board init` to exclusively create the example in the main
 worktree's `.tasks/board.yaml`:
 
 ```yaml
@@ -36,10 +36,10 @@ triggers:
     agent: '{{event.name}}'
 ```
 
-Run `tmux-agent board validate [--dir DIR]` to check the effective configuration
+Run `tagent board validate [--dir DIR]` to check the effective configuration
 without creating or modifying files or running triggers. Like runtime, it reads
 `.tasks/board.yaml` from the main worktree, then (only if absent)
-`$XDG_CONFIG_HOME/tmux-agent/board.yaml` (`~/.config/tmux-agent/board.yaml`
+`$XDG_CONFIG_HOME/tagent/board.yaml` (`~/.config/tagent/board.yaml`
 when unset), then built-in defaults if neither exists. Local errors do not fall
 back. Missing configuration is valid. Success prints a confirmation and exits 0;
 invalid or unreadable configuration prints `board:` errors to stderr and exits 1.
@@ -48,8 +48,8 @@ availability or executable/trigger success.
 
 ## Local quick commands
 
-For humans, board `n` and `tmux-agent do "request"` use the local intake model to
-classify requests: operations produce `CMD: tmux-agent <args>`, work ideas use
+For humans, board `n` and `tagent do "request"` use the local intake model to
+classify requests: operations produce `CMD: tagent <args>`, work ideas use
 questions/tickets, and design/review/judgement produces `ESCALATE: reason`.
 The prompt includes up to 30 current tickets and workflow names/descriptions.
 Commands are never automatic: popup Enter runs, e edits the command line (Enter
@@ -67,7 +67,7 @@ Workflow recipes remain trusted executable configuration: review the command bef
 
 ## Intake
 
-Humans can press `n` on the board or run `tmux-agent task add -i [--workflow NAME] ["idea"]`.
+Humans can press `n` on the board or run `tagent task add -i [--workflow NAME] ["idea"]`.
 A local model asks at most three questions before proposing a ticket; nothing is created before approval.
 Set `@agent_intake_llm` to `off` for plain add, or a custom stdin/stdout command (60-second timeout).
 Default: `ollama run --nowordwrap --think=false bonsai-2:9b`. Errors fall back to plain add with a notice.
@@ -119,7 +119,7 @@ waiting for human input are highlighted. Pane matching uses the exact
 ## Configuration
 
 Local configuration replaces the global file in full. When absent, load
-`$XDG_CONFIG_HOME/tmux-agent/board.yaml` (default `~/.config/tmux-agent/board.yaml`).
+`$XDG_CONFIG_HOME/tagent/board.yaml` (default `~/.config/tagent/board.yaml`).
 An invalid local file disables dispatch; it does not fall back. Linked worktrees
 share the main worktree config and ticket store. With neither file, default
 statuses are todo, doing, review, blocked, done, all roleless, with no triggers.
@@ -151,10 +151,10 @@ not skip a role just because that role made the transition.
 ## Working a ticket
 
 ```sh
-tmux-agent task add "Implement the feature"  # prints ID
-tmux-agent task move ID plan "Acceptance criteria"
-tmux-agent task show ID                     # description and all comments
-tmux-agent task move ID build "Plan, files and verification strategy"
+tagent task add "Implement the feature"  # prints ID
+tagent task move ID plan "Acceptance criteria"
+tagent task show ID                     # description and all comments
+tagent task move ID build "Plan, files and verification strategy"
 ```
 
 Move writes the optional comment and changed status under one task lock and one
@@ -210,7 +210,7 @@ transaction or WAL. One-lock batches prevent interleaving concurrent mutations.
 ## Workflows
 
 Local `.tasks/workflows/*.yml` recipes override names in
-`$XDG_CONFIG_HOME/tmux-agent/workflows` (default `~/.config/tmux-agent/workflows`).
+`$XDG_CONFIG_HOME/tagent/workflows` (default `~/.config/tagent/workflows`).
 Discovery and configuration use the main worktree root. Native Claude/OpenCode
 role definitions are passed inline from that checkout, so main-only or edited
 roles do not fall back to stale definitions in the ticket tree. Reuse validates
@@ -225,7 +225,7 @@ secrets and local-only scripts are not copied. Ordinary board execution is uncha
 Creation failures are reported before launch; retry requires a new status entry. Recipes are resolved
 live: editing affects existing tickets; missing or broken recipes report errors.
 
-`tmux-agent workflow new NAME` creates a starter and opens `$EDITOR`.
+`tagent workflow new NAME` creates a starter and opens `$EDITOR`.
 `workflow list` shows scope, jobs and in-progress tickets.
 `workflow run NAME --input goal=value --wait "Title"` starts a ticket, prints its
 ID and optionally waits (done exits 0, blocked exits 1).
@@ -282,8 +282,8 @@ Reusable definition:
 
 Use the existing feature workflow (no notification-specific workflow):
 ```sh
-tmux-agent task add --workflow feature "Track delivery status updates"
-tmux-agent task assign ID builder
+tagent task add --workflow feature "Track delivery status updates"
+tagent task assign ID builder
 ```
 Assignment behavior is unchanged. Configure `notify_url` with the existing Telegram
 `sendMessage` URL (including `chat_id`) or ntfy URL; empty disables delivery.

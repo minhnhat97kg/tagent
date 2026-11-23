@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"tmux-agent/internal/hook"
-	"tmux-agent/internal/tmux"
+	"tagent/internal/hook"
+	"tagent/internal/tmux"
 )
 
 // Dialog is an approval/question prompt read off an agent's screen.

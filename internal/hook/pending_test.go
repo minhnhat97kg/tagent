@@ -4,8 +4,8 @@ import (
 	"os"
 	"testing"
 
-	"tmux-agent/internal/activity"
-	"tmux-agent/internal/tmux"
+	"tagent/internal/activity"
+	"tagent/internal/tmux"
 )
 
 // The Pending* option names are a contract with clearAllMeta and with an old

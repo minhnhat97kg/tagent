@@ -5,7 +5,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"tmux-agent/internal/tmux"
+	"tagent/internal/tmux"
 )
 
 // ─── Built-in tables: Dark/Light + @agent_theme ───────────────────────────

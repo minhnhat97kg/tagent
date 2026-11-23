@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"tagent/internal/apppath"
 
 	"gopkg.in/yaml.v3"
 )
@@ -207,7 +208,7 @@ func LoadBoardConfig(dir string) (BoardConfig, error) {
 			h, _ := os.UserHomeDir()
 			base = filepath.Join(h, ".config")
 		}
-		b, err = os.ReadFile(filepath.Join(base, "tmux-agent", "board.yaml"))
+		b, err = os.ReadFile(filepath.Join(apppath.Dir(base), "board.yaml"))
 	}
 	if os.IsNotExist(err) {
 		return ParseBoardConfig(nil)

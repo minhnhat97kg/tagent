@@ -5,10 +5,10 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"tagent/internal/board"
+	"tagent/internal/tasks"
+	"tagent/internal/tmux"
 	"time"
-	"tmux-agent/internal/board"
-	"tmux-agent/internal/tasks"
-	"tmux-agent/internal/tmux"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -165,7 +165,7 @@ func shortDuration(d time.Duration) string {
 
 // Long text is edited outside the inline short-field form.
 func editTaskText(scope string, task tasks.Task, pane string, comment bool) tea.Cmd {
-	f, err := os.CreateTemp("", "tmux-agent-task-*.md")
+	f, err := os.CreateTemp("", "tagent-task-*.md")
 	if err != nil {
 		return func() tea.Msg { return actionResult("", err) }
 	}

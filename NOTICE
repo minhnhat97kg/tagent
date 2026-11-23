@@ -1,4 +1,4 @@
-tmux-agent
+tagent
 
 This project is a tmux plugin rewritten in Go. Its architecture, feature set,
 tmux option names, activity log format, key bindings, and the shell/JSON/JS

@@ -11,8 +11,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
 
-	"tmux-agent/internal/tasks"
-	"tmux-agent/internal/workflow"
+	"tagent/internal/tasks"
+	"tagent/internal/workflow"
 )
 
 func boardTestModel() Model {

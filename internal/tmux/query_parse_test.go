@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"tmux-agent/internal/process"
+	"tagent/internal/process"
 )
 
 // fullPaneFields returns a valid set of pane-level fields for tests to

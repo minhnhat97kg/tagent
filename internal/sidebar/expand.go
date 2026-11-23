@@ -5,7 +5,7 @@ import (
 	"io"
 	"strings"
 
-	"tmux-agent/internal/tmux"
+	"tagent/internal/tmux"
 )
 
 // The sidebar pane uses one model at either width.
@@ -52,7 +52,7 @@ func setExpanded(pane string, expanded bool, scope, taskID string) {
 	tmux.RunTmux("select-pane", "-t", windowID, "-l") // back to where the user was
 }
 
-// ExpandToggle implements `tmux-agent expand [window_id]` (prefix + A):
+// ExpandToggle implements `tagent expand [window_id]` (prefix + A):
 // expand the window's sidebar — creating it first if there is none — or
 // collapse it when already expanded.
 func ExpandToggle(args []string, stderr io.Writer) int {

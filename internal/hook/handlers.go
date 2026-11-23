@@ -3,10 +3,10 @@ package hook
 import (
 	"strconv"
 
-	"tmux-agent/internal/activity"
-	"tmux-agent/internal/clock"
-	"tmux-agent/internal/event"
-	"tmux-agent/internal/tmux"
+	"tagent/internal/activity"
+	"tagent/internal/clock"
+	"tagent/internal/event"
+	"tagent/internal/tmux"
 )
 
 // setStatus writes @pane_status. There's no "clear" branch — no handler in
@@ -38,7 +38,7 @@ func MarkUnseenIfUnviewed(pane string) {
 
 // ApplyPaneStatus is the single source of truth for the "running/idle ⇒
 // unset attention" rule, used both by internal handlers (via setStatus) and
-// the external "set-status" command (cmd/tmux-agent), where status can be an
+// the external "set-status" command (cmd/tagent), where status can be an
 // arbitrary hand-typed string. "clear" is a sentinel specific to that
 // external interface — like setAttention(pane, "clear") — it unsets both
 // options rather than writing "clear" as a value; no internal handler needs

@@ -31,7 +31,7 @@ func TestPaneFormatRoundTripsPipeCharacterOnRealTmux(t *testing.T) {
 		t.Skip("no tmux on this machine, skipping integration test")
 	}
 
-	socket := fmt.Sprintf("tmux-agent-pipe-test-%d", os.Getpid())
+	socket := fmt.Sprintf("tagent-pipe-test-%d", os.Getpid())
 	run := func(args ...string) string {
 		t.Helper()
 		full := append([]string{"-L", socket}, args...)

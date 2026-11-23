@@ -1,6 +1,6 @@
 // Package scrape is the fallback status source for agents with no hook
 // integration (Copilot CLI, Gemini, Cursor, Aider, …, or Claude/Codex before
-// `tmux-agent setup` was run): it polls the bottom of each agent pane with
+// `tagent setup` was run): it polls the bottom of each agent pane with
 // capture-pane and guesses running/waiting/idle from what's on screen —
 // herdr's "screen detection" path.
 //
@@ -16,10 +16,10 @@ import (
 	"strings"
 	"time"
 
-	"tmux-agent/internal/hook"
-	"tmux-agent/internal/process"
-	"tmux-agent/internal/queue"
-	"tmux-agent/internal/tmux"
+	"tagent/internal/hook"
+	"tagent/internal/process"
+	"tagent/internal/queue"
+	"tagent/internal/tmux"
 )
 
 // pidOption holds the pid of the scraper that currently owns the job. The
@@ -110,7 +110,7 @@ func DetectAgent(snap *process.Snapshot, panePID int) string {
 	return ""
 }
 
-// Run is the `tmux-agent scrape` loop, started in the background by
+// Run is the `tagent scrape` loop, started in the background by
 // agent-sidebar.conf.
 func Run() int {
 	me := strconv.Itoa(os.Getpid())

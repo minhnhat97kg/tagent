@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-	"tmux-agent/internal/tasks"
-	"tmux-agent/internal/workflow"
+	"tagent/internal/tasks"
+	"tagent/internal/workflow"
 )
 
 func statusPrompt(t tasks.Task, s tasks.Status, ev tasks.Event, next []string, since int) string {
@@ -37,13 +37,13 @@ func statusPrompt(t tasks.Task, s tasks.Status, ev tasks.Event, next []string, s
 	if len(next) > 0 {
 		target = next[0]
 	}
-	cmd := fmt.Sprintf("tmux-agent task move %s %s", t.ID, target)
+	cmd := fmt.Sprintf("tagent task move %s %s", t.ID, target)
 	for _, key := range s.Outputs {
 		cmd += " --output " + key + "=value"
 	}
 	if len(s.Outputs) > 0 {
 		b += "Requested outputs: " + strings.Join(s.Outputs, ", ") + "\n"
 	}
-	b += "Finish with `" + cmd + " \"comment\"`; if you need a human, move to blocked with exactly one concrete question describing the missing decision or input.\nEverything you need is above; do not load the tmux-agent skill; use `task show " + t.ID + " --brief` only if you need more."
+	b += "Finish with `" + cmd + " \"comment\"`; if you need a human, move to blocked with exactly one concrete question describing the missing decision or input.\nEverything you need is above; do not load the tagent skill; use `task show " + t.ID + " --brief` only if you need more."
 	return b
 }

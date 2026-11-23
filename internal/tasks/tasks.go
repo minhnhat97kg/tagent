@@ -17,8 +17,8 @@ import (
 	"syscall"
 	"time"
 
-	"tmux-agent/internal/sharedctx"
-	"tmux-agent/internal/workflow"
+	"tagent/internal/sharedctx"
+	"tagent/internal/workflow"
 )
 
 type Task struct {

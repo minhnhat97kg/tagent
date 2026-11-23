@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"tmux-agent/internal/tmux"
+	"tagent/internal/tmux"
 )
 
 type Attachment struct {

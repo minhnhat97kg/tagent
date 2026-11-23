@@ -1,7 +1,7 @@
-// Package web is the browser UI (`tmux-agent web`): a JSON API over the same
+// Package web is the browser UI (`tagent web`): a JSON API over the same
 // tmux state the sidebar reads, plus the embedded React app in dist/.
 // Actions that already exist as commands (new, kill, answer) run the
-// tmux-agent binary itself, so the web and the CLI behave the same.
+// tagent binary itself, so the web and the CLI behave the same.
 package web
 
 import (
@@ -25,13 +25,13 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"tagent/internal/board"
 	"time"
-	"tmux-agent/internal/board"
 
-	"tmux-agent/internal/roles"
-	"tmux-agent/internal/scrape"
-	"tmux-agent/internal/tasks"
-	"tmux-agent/internal/tmux"
+	"tagent/internal/roles"
+	"tagent/internal/scrape"
+	"tagent/internal/tasks"
+	"tagent/internal/tmux"
 )
 
 //go:embed all:dist
@@ -114,7 +114,7 @@ func (s *server) auth(next http.Handler) http.Handler {
 				http.Error(w, "unauthorized", http.StatusUnauthorized)
 			} else {
 				w.WriteHeader(http.StatusUnauthorized)
-				io.WriteString(w, "<p style='font-family:sans-serif'>tmux-agent: open the link printed by <code>tmux-agent web</code> (it carries the access token).</p>")
+				io.WriteString(w, "<p style='font-family:sans-serif'>tagent: open the link printed by <code>tagent web</code> (it carries the access token).</p>")
 			}
 			return
 		}
@@ -137,7 +137,7 @@ func readBody(r *http.Request, v any) error {
 	return json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(v)
 }
 
-// self runs the tmux-agent binary with args and returns its output.
+// self runs the tagent binary with args and returns its output.
 func self(args ...string) (string, error) {
 	bin, err := os.Executable()
 	if err != nil {

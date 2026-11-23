@@ -13,23 +13,23 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"tagent/internal/intake"
 	"time"
-	"tmux-agent/internal/intake"
 
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"tmux-agent/internal/clock"
-	"tmux-agent/internal/git"
-	"tmux-agent/internal/hook"
-	"tmux-agent/internal/metrics"
-	"tmux-agent/internal/roles"
-	"tmux-agent/internal/scrape"
-	"tmux-agent/internal/tasks"
-	"tmux-agent/internal/tmux"
-	"tmux-agent/internal/workflow"
-	"tmux-agent/internal/worktree"
+	"tagent/internal/clock"
+	"tagent/internal/git"
+	"tagent/internal/hook"
+	"tagent/internal/metrics"
+	"tagent/internal/roles"
+	"tagent/internal/scrape"
+	"tagent/internal/tasks"
+	"tagent/internal/tmux"
+	"tagent/internal/workflow"
+	"tagent/internal/worktree"
 )
 
 const (
@@ -1071,7 +1071,7 @@ func (m *Model) detailRefreshCmd() tea.Cmd {
 // correct current pane).
 // focusDir is the repo the definitions list follows: a pane of the sidebar's
 // own window (so other sessions do not change it); outside tmux (standalone)
-// the selected agent's directory, else where tmux-agent was started.
+// the selected agent's directory, else where tagent was started.
 func (m Model) focusDir(selected string) string {
 	for _, s := range m.sessions {
 		for _, w := range s.Windows {
@@ -1393,7 +1393,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// OpenSettings opens the settings screen (`tmux-agent config`) in a tmux
+// OpenSettings opens the settings screen (`tagent config`) in a tmux
 // popup over the client looking at pane. The popup blocks until closed, so
 // it runs as a command; the sidebar picks changed options up on its next
 // refresh.
@@ -1401,7 +1401,7 @@ func OpenSettings(pane string) tea.Cmd {
 	return func() tea.Msg {
 		bin, err := os.Executable()
 		if err != nil {
-			bin = "tmux-agent"
+			bin = "tagent"
 		}
 		args := []string{"display-popup", "-E", "-w", "76", "-h", "32"}
 		// The popup inherits the terminal background, so a dark theme's light

@@ -3,9 +3,9 @@ package sidebar
 import (
 	"os"
 	"strings"
+	"tagent/internal/tasks"
+	"tagent/internal/workflow"
 	"testing"
-	"tmux-agent/internal/tasks"
-	"tmux-agent/internal/workflow"
 
 	tea "github.com/charmbracelet/bubbletea"
 )

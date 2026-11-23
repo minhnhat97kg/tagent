@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"tmux-agent/internal/tmux"
+	"tagent/internal/tmux"
 
-	"tmux-agent/internal/adapter"
-	"tmux-agent/internal/event"
+	"tagent/internal/adapter"
+	"tagent/internal/event"
 )
 
 func argAt(args []string, i int) string {
@@ -43,7 +43,7 @@ func readStdinJSON(r io.Reader) map[string]any {
 	return payload
 }
 
-// Dispatch is the router for the `tmux-agent hook <agent> <event>` command.
+// Dispatch is the router for the `tagent hook <agent> <event>` command.
 // args is the argument slice after "hook"; stdin/stdout are passed in
 // (instead of reading os.Stdin/writing os.Stdout directly) so tests don't
 // need a real pipe.

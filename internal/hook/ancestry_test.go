@@ -3,7 +3,7 @@ package hook
 import (
 	"testing"
 
-	"tmux-agent/internal/process"
+	"tagent/internal/process"
 )
 
 func TestFindPaneWalksUpToPaneRoot(t *testing.T) {

@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"tmux-agent/internal/tmux"
+	"tagent/internal/tmux"
 )
 
 // Dispatch wires the "spawn" CLI command up to Spawn: reads the current
@@ -15,7 +15,7 @@ import (
 // every error is printed to stderr clearly, never silently swallowed.
 func Dispatch(args []string, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
-		fmt.Fprintln(stderr, "usage: tmux-agent spawn <task name>")
+		fmt.Fprintln(stderr, "usage: tagent spawn <task name>")
 		return 2
 	}
 

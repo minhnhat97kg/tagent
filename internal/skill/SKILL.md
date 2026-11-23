@@ -1,14 +1,14 @@
 ---
-name: tmux-agent
+name: tagent
 description: Coordinate coding agents in tmux panes, delegate repository tasks, and track tickets.
 ---
 
-# tmux-agent: tickets and agents
+# tagent: tickets and agents
 
 ## Blocked tickets
 
 Block with exactly one concrete question in the move comment. To resume, reply
-with `tmux-agent task comment ID "@implementer answer"`, or press `c` on the
+with `tagent task comment ID "@implementer answer"`, or press `c` on the
 blocked row (the editor prefills the interrupted role). The row shows the question.
 The same role returns to its interrupted step; another role selects its first
 status in the ticket's flow. Unknown or multiple distinct tags save without
@@ -74,7 +74,7 @@ Re-entering a limited status beyond its cap blocks with an explanation.
 - `board init|run [--dir DIR]`: shared config/dispatcher.
 
 Main-worktree `.tasks/board.yaml` falls back to
-`$XDG_CONFIG_HOME/tmux-agent/board.yaml` (default `~/.config/tmux-agent/board.yaml`).
+`$XDG_CONFIG_HOME/tagent/board.yaml` (default `~/.config/tagent/board.yaml`).
 Missing config yields roleless defaults. Todo/done are required; automation needs
 blocked. CLI moves register automated tickets for discovery without a pane.
 Events are reserved before firing: at-most-once, no replay after failure/crash.

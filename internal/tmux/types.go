@@ -173,7 +173,7 @@ type PaneInfo struct {
 	// project edits the same file.
 	Stuck    string
 	Conflict string
-	// Name is the user/agent-given label (@pane_name, `tmux-agent name`);
+	// Name is the user/agent-given label (@pane_name, `tagent name`);
 	// empty when unnamed.
 	Name string
 	// Unseen is true when the agent finished while the user wasn't looking

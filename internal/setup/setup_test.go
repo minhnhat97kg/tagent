@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"tmux-agent/internal/adapter"
-	"tmux-agent/internal/version"
+	"tagent/internal/adapter"
+	"tagent/internal/version"
 )
 
 const fakeHook = "/fake/hook.sh"
@@ -21,8 +21,8 @@ func TestShellQuoteSafeStringUnchanged(t *testing.T) {
 	cases := []string{
 		"hello",
 		"/fake/hook.sh",
-		"~/.tmux/plugins/tmux-agent/assets/hook.sh",
-		"/Users/alice/.tmux/plugins/tmux-agent/assets/hook.sh",
+		"~/.tmux/plugins/tagent/assets/hook.sh",
+		"/Users/alice/.tmux/plugins/tagent/assets/hook.sh",
 	}
 	for _, s := range cases {
 		if got := ShellQuote(s); got != s {
@@ -435,7 +435,7 @@ func TestDispatchNoArgsReturnsFullOutputAndVersion(t *testing.T) {
 
 func TestHookScriptAroundSymlinkedBinary(t *testing.T) {
 	root := t.TempDir()
-	bin := filepath.Join(root, "bin", "tmux-agent")
+	bin := filepath.Join(root, "bin", "tagent")
 	hook := filepath.Join(root, "assets", "hook.sh")
 	if err := os.MkdirAll(filepath.Dir(bin), 0755); err != nil {
 		t.Fatal(err)
@@ -449,7 +449,7 @@ func TestHookScriptAroundSymlinkedBinary(t *testing.T) {
 	if err := os.WriteFile(hook, []byte("#!/bin/sh\n"), 0755); err != nil {
 		t.Fatal(err)
 	}
-	link := filepath.Join(t.TempDir(), "tmux-agent")
+	link := filepath.Join(t.TempDir(), "tagent")
 	if err := os.Symlink(bin, link); err != nil {
 		t.Fatal(err)
 	}

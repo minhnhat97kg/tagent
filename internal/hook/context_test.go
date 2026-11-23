@@ -3,8 +3,8 @@ package hook
 import (
 	"testing"
 
-	"tmux-agent/internal/event"
-	"tmux-agent/internal/tmux"
+	"tagent/internal/event"
+	"tagent/internal/tmux"
 )
 
 func TestNewAgentContextCopiesFields(t *testing.T) {

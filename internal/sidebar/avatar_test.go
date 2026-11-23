@@ -7,7 +7,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 
-	"tmux-agent/internal/tmux"
+	"tagent/internal/tmux"
 )
 
 func TestAlertsMostUrgentFirst(t *testing.T) {

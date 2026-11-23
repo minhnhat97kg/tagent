@@ -3,9 +3,9 @@ package metrics
 import (
 	"fmt"
 	"strings"
+	"tagent/internal/tasks"
+	"tagent/internal/tmux"
 	"time"
-	"tmux-agent/internal/tasks"
-	"tmux-agent/internal/tmux"
 )
 
 type Day struct {

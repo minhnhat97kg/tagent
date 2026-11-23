@@ -52,7 +52,7 @@ func Normalize(raw string) string {
 func RunScenario(t *testing.T, scenarioPath, goldenPath string) {
 	t.Helper()
 
-	socket := "tmux-agent-test-" + filepath.Base(filepath.Dir(scenarioPath))
+	socket := "tagent-test-" + filepath.Base(filepath.Dir(scenarioPath))
 	t.Cleanup(func() {
 		exec.Command("tmux", "-L", socket, "kill-server").Run()
 	})

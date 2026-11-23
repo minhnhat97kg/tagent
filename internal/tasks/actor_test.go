@@ -1,8 +1,8 @@
 package tasks
 
 import (
+	"tagent/internal/tmux"
 	"testing"
-	"tmux-agent/internal/tmux"
 )
 
 func TestCallerActorPaneMetadata(t *testing.T) {

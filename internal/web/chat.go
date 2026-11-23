@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"tmux-agent/internal/intake"
-	"tmux-agent/internal/tasks"
-	"tmux-agent/internal/tmux"
-	"tmux-agent/internal/workflow"
+	"tagent/internal/intake"
+	"tagent/internal/tasks"
+	"tagent/internal/tmux"
+	"tagent/internal/workflow"
 )
 
 type draftJSON struct {

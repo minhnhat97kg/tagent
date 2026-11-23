@@ -1,4 +1,4 @@
-<h1 align="center">tmux-agent</h1>
+<h1 align="center">tagent</h1>
 
 <p align="center"><strong>A tmux-based coding agent.</strong></p>
 
@@ -7,11 +7,11 @@
   <a href="go.mod"><img alt="Go 1.26" src="https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&amp;logoColor=white"></a>
 </p>
 
-tmux-agent brings Claude Code, Antigravity (AGY), Codex, OpenCode, Pi, Gemini, Copilot, Amp and other coding agents into one workspace. See what each agent is doing, find the ones waiting for you, and coordinate work across panes and projects.
+tagent brings Claude Code, Antigravity (AGY), Codex, OpenCode, Pi, Gemini, Copilot, Amp and other coding agents into one workspace. See what each agent is doing, find the ones waiting for you, and coordinate work across panes and projects.
 
 ## Demo
 
-![tmux-agent dashboard displaying Claude, Antigravity, Codex and OpenCode](examples/demo-four-harnesses.png)
+![tagent dashboard displaying Claude, Antigravity, Codex and OpenCode](examples/demo-four-harnesses.png)
 
 *The demo uses simulated agent sessions and sample project data.*
 
@@ -40,10 +40,10 @@ tmux-agent brings Claude Code, Antigravity (AGY), Codex, OpenCode, Pi, Gemini, C
 After [installing](#install), open tmux and start a supported agent. The sidebar shows detected agents in your windows. Use the tmux prefix followed by **`e`** to toggle the sidebar and **`A`** to open the dashboard.
 
 ```sh
-tmux-agent list                         # see your agents
-tmux-agent ctx add "API contract: …"   # share a project note
-tmux-agent new --name tester --role tester
-tmux-agent send tester --wait "Run the tests and report failures"
+tagent list                         # see your agents
+tagent ctx add "API contract: …"   # share a project note
+tagent new --name tester --role tester
+tagent send tester --wait "Run the tests and report failures"
 ```
 
 See the [keybindings](#keys) and [CLI reference](#cli) for the full workflow.
@@ -54,9 +54,9 @@ See the [keybindings](#keys) and [CLI reference](#cli) for the full workflow.
 curl -fsSL https://raw.githubusercontent.com/minhnhat97kg/tmux-agent/main/install.sh | bash
 ```
 
-The script clones into `~/.local/share/tmux-agent` → builds → links
-`~/.local/bin/tmux-agent` → adds one `run-shell` line to `~/.tmux.conf` (only
-once) → loads it into the running tmux → runs `tmux-agent install` for every
+The script clones into `~/.local/share/tagent` → builds → links
+`~/.local/bin/tagent` → adds one `run-shell` line to `~/.tmux.conf` (only
+once) → loads it into the running tmux → runs `tagent install` for every
 harness it finds. Run it again to **update**.
 
 Requirements: tmux ≥ 2.9, git, Go (the version in `go.mod`).
@@ -70,30 +70,30 @@ Options (environment variables): `TMUX_AGENT_DIR` (clone location),
 <summary>Manual install</summary>
 
 ```sh
-git clone <repo> ~/.local/share/tmux-agent && cd ~/.local/share/tmux-agent
-make build && ln -s "$PWD/bin/tmux-agent" ~/.local/bin/tmux-agent
-echo "run-shell '$PWD/assets/tmux-agent.tmux'" >> ~/.tmux.conf
+git clone <repo> ~/.local/share/tagent && cd ~/.local/share/tagent
+make build && ln -s "$PWD/bin/tagent" ~/.local/bin/tagent
+echo "run-shell '$PWD/assets/tagent.tmux'" >> ~/.tmux.conf
 tmux source ~/.tmux.conf
-tmux-agent install
+tagent install
 ```
 </details>
 
 ### Harness integration
 
 ```sh
-tmux-agent install --list          # support matrix + which harnesses are on this machine
-tmux-agent install                 # every harness found
-tmux-agent install claude pi       # specific ones
-tmux-agent install --dry-run       # show what would be written
-tmux-agent uninstall <harness>     # remove exactly what install wrote
+tagent install --list          # support matrix + which harnesses are on this machine
+tagent install                 # every harness found
+tagent install claude pi       # specific ones
+tagent install --dry-run       # show what would be written
+tagent uninstall <harness>     # remove exactly what install wrote
 ```
 
 | Harness | Exact status | Agent learns the CLI from |
 |---|---|---|
 | claude | hooks → `~/.claude/settings.json` | skill |
 | codex | hooks → `~/.codex/hooks.json` | skill |
-| pi | extension → `~/.pi/agent/extensions/tmux-agent.ts` | skill |
-| opencode | plugin → `~/.config/opencode/plugins/tmux-agent.js` | block in `AGENTS.md` |
+| pi | extension → `~/.pi/agent/extensions/tagent.ts` | skill |
+| opencode | plugin → `~/.config/opencode/plugins/tagent.js` | block in `AGENTS.md` |
 | gemini · copilot · amp | screen detection (scraper) | block in its instructions file |
 
 Hooks are **merged** into the config (nothing else is overwritten; the
@@ -102,7 +102,7 @@ Agents without hooks (Cursor, Aider…) are still detected from the screen.
 
 To let agents use the CLI (post to the board, start helpers) without asking
 you each time, allow it in the harness — for Claude, in
-`~/.claude/settings.json`: `"permissions": { "allow": ["Bash(tmux-agent:*)"] }`.
+`~/.claude/settings.json`: `"permissions": { "allow": ["Bash(tagent:*)"] }`.
 
 ## Usage
 
@@ -132,47 +132,47 @@ side by side, with session history below.
 
 ### CLI
 
-Run `tmux-agent help` to see the commands and the agents defined in the current repo.
+Run `tagent help` to see the commands and the agents defined in the current repo.
 
 | Command | Does |
 |---|---|
-| `tmux-agent new --repo-agent <name> [--name <pane-name>] [--agent claude\|codex\|opencode] [--model model] [--worktree]` | Start a repo agent defined in the selected harness's native format; harness/model are chosen by tmux-agent config or flags |
-| `tmux-agent agents [<name>]` | List repo agent definitions or print one; `roles` remains an alias |
-| `tmux-agent answer <pane> <1\|2\|…\|y\|n\|?>` | Answer an agent's approval prompt (also right in the sidebar) |
-| `tmux-agent diff <name> [--stat]` · `merge <name> [--discard]` · `discard <name>` | Review / merge / drop the changes of an agent running in a worktree |
-| `tmux-agent fanout -n 3 [--role r] [--wait] "<prompt>"` · `compare <prefix>` | Best-of-N: the same task to N agents in N worktrees, compare, keep the best |
-| `tmux-agent task [ls]` · `task add --to <name> "<text>"` · `task start <id> <pane>` · `task set <id> <todo\|doing\|blocked\|done>` · `task assign <id> <name[,name]>` · `task rm <id>` | Create, dispatch, and track tasks on the repo board |
-| `tmux-agent stats [ls\|clear]` | Show or delete local Claude, Codex, OpenCode and Pi usage history |
-| `tmux-agent save` · `restore [--dry-run]` | Save / bring back your agents after a restart (Claude resumes its session); auto-saved every 30s |
-| `tmux-agent tokens` | Tokens used per Claude agent + total |
-| `tmux-agent config [list\|get\|set\|reset\|path]` | Central configuration; no arguments = the settings screen (also `,` in the sidebar, or the Settings tab in the dashboard) |
-| `tmux-agent list [--json]` | pane · name · agent · status · window · cwd |
-| `tmux-agent name [<pane>] <name>` | Name an agent; the name works instead of a pane id everywhere |
-| `tmux-agent send <pane> [--now] [--wait] [--timeout D] [--report FILE] <prompt>` | Type a prompt + Enter. A busy agent (working, or waiting on you) gets it **queued** and delivered when idle; `--now` types right away |
-| `tmux-agent report wait <file> [--timeout D]` · `report show <file>` | Wait (file events, no polling) for a worker's JSON report and print a one-line summary; `send --report` asks the worker to write it |
-| `tmux-agent ask [--role r] [--wait] "<task>"` | Give a task to an idle agent of this repo (with that role), or start a new one if nobody is free |
-| `tmux-agent queue [pane]` · `queue clear <pane>` | Show / drop queued messages |
-| `tmux-agent checkpoints <agent>` · `undo <agent> [n]` | Every turn starts with a snapshot of the repo; `undo` rolls the files (and the branch, if the agent committed) back to before the last turn — or n turns back. `undo <agent> --redo <ref>` undoes the undo |
-| `tmux-agent wait <pane> [--until stopped\|idle\|waiting] [--timeout D]` | Wait for a status (exit 124 on timeout) |
-| `tmux-agent read <pane> [-n 50]` | Last N lines of the screen |
-| `tmux-agent events [--json]` | Stream status changes / tool calls (one event per line) |
-| `tmux-agent next` | The avatar's quick action (most urgent agent: waiting → error → just finished) |
-| `tmux-agent kill <pane…>` | Close agent panes (refuses non-agent panes) |
-| `tmux-agent ctx [--global] [ls] \| add <text> \| rm <id> \| clear [--mine] \| scope` | Shared context |
-| `tmux-agent reload` | After a rebuild: restart the sidebars + scraper |
-| `tmux-agent explain <pane>` | Why a pane has its status: hook vs screen, matched rule, CPU/tool evidence |
-| `tmux-agent install` / `uninstall` | Harness integration (see above) |
+| `tagent new --repo-agent <name> [--name <pane-name>] [--agent claude\|codex\|opencode] [--model model] [--worktree]` | Start a repo agent defined in the selected harness's native format; harness/model are chosen by tagent config or flags |
+| `tagent agents [<name>]` | List repo agent definitions or print one; `roles` remains an alias |
+| `tagent answer <pane> <1\|2\|…\|y\|n\|?>` | Answer an agent's approval prompt (also right in the sidebar) |
+| `tagent diff <name> [--stat]` · `merge <name> [--discard]` · `discard <name>` | Review / merge / drop the changes of an agent running in a worktree |
+| `tagent fanout -n 3 [--role r] [--wait] "<prompt>"` · `compare <prefix>` | Best-of-N: the same task to N agents in N worktrees, compare, keep the best |
+| `tagent task [ls]` · `task add --to <name> "<text>"` · `task start <id> <pane>` · `task set <id> <todo\|doing\|blocked\|done>` · `task assign <id> <name[,name]>` · `task rm <id>` | Create, dispatch, and track tasks on the repo board |
+| `tagent stats [ls\|clear]` | Show or delete local Claude, Codex, OpenCode and Pi usage history |
+| `tagent save` · `restore [--dry-run]` | Save / bring back your agents after a restart (Claude resumes its session); auto-saved every 30s |
+| `tagent tokens` | Tokens used per Claude agent + total |
+| `tagent config [list\|get\|set\|reset\|path]` | Central configuration; no arguments = the settings screen (also `,` in the sidebar, or the Settings tab in the dashboard) |
+| `tagent list [--json]` | pane · name · agent · status · window · cwd |
+| `tagent name [<pane>] <name>` | Name an agent; the name works instead of a pane id everywhere |
+| `tagent send <pane> [--now] [--wait] [--timeout D] [--report FILE] <prompt>` | Type a prompt + Enter. A busy agent (working, or waiting on you) gets it **queued** and delivered when idle; `--now` types right away |
+| `tagent report wait <file> [--timeout D]` · `report show <file>` | Wait (file events, no polling) for a worker's JSON report and print a one-line summary; `send --report` asks the worker to write it |
+| `tagent ask [--role r] [--wait] "<task>"` | Give a task to an idle agent of this repo (with that role), or start a new one if nobody is free |
+| `tagent queue [pane]` · `queue clear <pane>` | Show / drop queued messages |
+| `tagent checkpoints <agent>` · `undo <agent> [n]` | Every turn starts with a snapshot of the repo; `undo` rolls the files (and the branch, if the agent committed) back to before the last turn — or n turns back. `undo <agent> --redo <ref>` undoes the undo |
+| `tagent wait <pane> [--until stopped\|idle\|waiting] [--timeout D]` | Wait for a status (exit 124 on timeout) |
+| `tagent read <pane> [-n 50]` | Last N lines of the screen |
+| `tagent events [--json]` | Stream status changes / tool calls (one event per line) |
+| `tagent next` | The avatar's quick action (most urgent agent: waiting → error → just finished) |
+| `tagent kill <pane…>` | Close agent panes (refuses non-agent panes) |
+| `tagent ctx [--global] [ls] \| add <text> \| rm <id> \| clear [--mine] \| scope` | Shared context |
+| `tagent reload` | After a rebuild: restart the sidebars + scraper |
+| `tagent explain <pane>` | Why a pane has its status: hook vs screen, matched rule, CPU/tool evidence |
+| `tagent install` / `uninstall` | Harness integration (see above) |
 
 An orchestration example (agents can do this themselves through the skill):
 
 ```sh
-tmux-agent name lead
-tmux-agent ctx add "API contract: …"            # every agent of this repo can read it
-tmux-agent new --name tester --role tester
-tmux-agent send tester "Run the tests and fix failures"
+tagent name lead
+tagent ctx add "API contract: …"            # every agent of this repo can read it
+tagent new --name tester --role tester
+tagent send tester "Run the tests and fix failures"
 ```
 
-For non-blocking monitoring of one agent, run `tmux-agent wait tester --timeout
+For non-blocking monitoring of one agent, run `tagent wait tester --timeout
 30m` once using your harness's background command tool, if it delivers command
 completion notifications to the conversation. Use `list --json`, `queue
 tester`, and `read tester -n 80` to verify the result: `wait` observes pane
@@ -195,8 +195,8 @@ harness notifications, check status when the user asks.
 - **Undo a turn:** before each agent turn the repo's files are snapshotted
   (`@agent_checkpoints`, on by default; a throwaway index and refs under
   `refs/tmux-agent/` — your index, branch and files aren't touched).
-  `tmux-agent undo <agent>` puts things back as they were before its last turn.
-- **Phone:** `tmux-agent config set notify_url https://ntfy.sh/<topic>` (or a
+  `tagent undo <agent>` puts things back as they were before its last turn.
+- **Phone:** `tagent config set notify_url https://ntfy.sh/<topic>` (or a
   Telegram bot `sendMessage` URL) to get a phone message when an agent needs
   approval and when a ticket reaches `done` or `blocked` (with assignees).
   Intermediate workflow steps and finished agent turns stay on the desktop.
@@ -210,15 +210,15 @@ optional roles. Entering a role-owned status dispatches its agent; returning to
 that status reuses the same role/task pane and context. Comments carry handoffs.
 
 ```sh
-tmux-agent board init
-tmux-agent board validate # read-only check of effective config
-tmux-agent task add "Implement the feature"  # prints ID
-tmux-agent task move ID plan "Requirements and acceptance criteria"
+tagent board init
+tagent board validate # read-only check of effective config
+tagent task add "Implement the feature"  # prints ID
+tagent task move ID plan "Requirements and acceptance criteria"
 # Worker reads the entire ticket, then hands it on:
-tmux-agent task show ID
+tagent task show ID
 # Inspect dispatch errors, repair the cause, then explicitly retry current work:
-tmux-agent task retry ID
-tmux-agent task move ID build "Plan and verification strategy"
+tagent task retry ID
+tagent task move ID build "Plan and verification strategy"
 ```
 
 `run:` statuses execute shell checks asynchronously and comment as `ci`, then
@@ -234,7 +234,7 @@ queued prompts, but keeps the worktree and artifacts. `fresh_after: 1` replaces
 on every subsequent entry; this is independent of `max_loops`.
 
 Blocked rows show the blocking question. Press `c` to reply in the existing editor,
-prefilled with the interrupted role, or run `tmux-agent task comment ID "@implementer answer"`.
+prefilled with the interrupted role, or run `tagent task comment ID "@implementer answer"`.
 The tagged role resumes in the ticket's own flow with only that reply; another role
 routes to its first status. Unknown or multiple distinct tags save the comment but
 leave the ticket blocked with a notice. With missing history or a roleless step,
@@ -253,42 +253,42 @@ See [docs/board.md](docs/board.md) for schema, migration and delivery guarantees
 
 ### Central configuration
 
-`,` in the sidebar opens the settings popup (also `tmux-agent config`): theme,
+`,` in the sidebar opens the settings popup (also `tagent config`): theme,
 avatar, sidebar position/width, default agent/model, stuck threshold and
 notifications. Changes apply at once and are saved to
-`~/.config/tmux-agent/config.conf` (tmux syntax, loaded by the plugin at
+`~/.config/tagent/config.conf` (tmux syntax, loaded by the plugin at
 startup). Less common options (avatar LLM/personality, key bindings…) are
-not in the screen: `tmux-agent config list` shows all of them, and
-`tmux-agent config set <key> <value>` changes any — short names work
+not in the screen: `tagent config list` shows all of them, and
+`tagent config set <key> <value>` changes any — short names work
 (`avatar`, `width`, `notify_url`…).
 
 ### Repo agents and task board
 
-Define agents using the selected harness's own files: `.claude/agents/<name>.md`, `.codex/agents/<name>.toml`, or `.opencode/agents/<name>.md`. `tmux-agent agents`, the sidebar below running panes, and the dashboard's left pane read those definitions from the repo. The Repo agents tab shows each native file and can open it in `$EDITOR`. Claude and OpenCode launch with their native `--agent` option. Codex does not expose a standalone agent selector, so tmux-agent passes the TOML `developer_instructions` to a new Codex session.
+Define agents using the selected harness's own files: `.claude/agents/<name>.md`, `.codex/agents/<name>.toml`, or `.opencode/agents/<name>.md`. `tagent agents`, the sidebar below running panes, and the dashboard's left pane read those definitions from the repo. The Repo agents tab shows each native file and can open it in `$EDITOR`. Claude and OpenCode launch with their native `--agent` option. Codex does not expose a standalone agent selector, so tagent passes the TOML `developer_instructions` to a new Codex session.
 
-Choose how they run in tmux-agent configuration:
+Choose how they run in tagent configuration:
 
 ```sh
-tmux-agent config set default_agent codex
-tmux-agent config set model o3
-tmux-agent new --repo-agent reviewer
+tagent config set default_agent codex
+tagent config set model o3
+tagent new --repo-agent reviewer
 # or override one launch:
-tmux-agent new --repo-agent reviewer --agent claude --model sonnet
+tagent new --repo-agent reviewer --agent claude --model sonnet
 ```
 
 The task list and agent list remain visible in both widths. Press `tab` to focus tasks, then `j`/`k` to choose one; detail appears below. Press `s` to send it to the agent selected in the other list, or `x` to confirm deletion. A task is marked done only when an agent or user explicitly sets it. The board is shared by all worktrees of the same git repo. Create and update tasks from the CLI:
 
 ```sh
-tmux-agent task add --to reviewer "Review the auth change"
-tmux-agent task ls
-tmux-agent task start <id> <pane>
-tmux-agent task set <id> doing
-tmux-agent task set <id> blocked
-tmux-agent task set <id> done
-tmux-agent task assign <id> reviewer,tester
-tmux-agent task rm <id>
-tmux-agent stats ls
-tmux-agent stats clear  # deletes local session and task-usage history
+tagent task add --to reviewer "Review the auth change"
+tagent task ls
+tagent task start <id> <pane>
+tagent task set <id> doing
+tagent task set <id> blocked
+tagent task set <id> done
+tagent task assign <id> reviewer,tester
+tagent task rm <id>
+tagent stats ls
+tagent stats clear  # deletes local session and task-usage history
 ```
 
 Pi stats sum assistant token usage across all session branches from
@@ -352,12 +352,12 @@ set -ga status-right '#{E:@agent_session_status_format}'
 set -ga status-right '#{E:@agent_hidden_status_format}'   # standalone agents
 ```
 
-**Standalone:** `tmux-agent new` outside tmux (a plain terminal) starts the agent
-in a detached background session, `tmux-agent-bg`, instead of failing. The
+**Standalone:** `tagent new` outside tmux (a plain terminal) starts the agent
+in a detached background session, `tagent-bg`, instead of failing. The
 last status-line format lists those agents (name + status icon); attach with
-`tmux attach -t tmux-agent-bg`.
+`tmux attach -t tagent-bg`.
 
-Plain `tmux-agent` outside tmux opens a split screen: the dashboard on the
+Plain `tagent` outside tmux opens a split screen: the dashboard on the
 left, the live screen of the selected agent on the right. `Enter` (or a click)
 types into that agent (cursor, F-keys, ctrl/alt combos and — when the agent enables mouse reporting — mouse events are passed through), `ctrl+]` returns to the list, `N` starts a new agent in
 the current directory. Panes of the background session are resized to fit; your
@@ -365,7 +365,7 @@ own tmux sessions are only viewed, never resized.
 
 ## Configuration
 
-Set options with `set -g …` before loading the plugin, or use `tmux-agent config`.
+Set options with `set -g …` before loading the plugin, or use `tagent config`.
 
 | Option | Default | |
 |---|---|---|
@@ -396,7 +396,7 @@ Set options with `set -g …` before loading the plugin, or use `tmux-agent conf
 ## Development
 
 ```sh
-make build && tmux-agent reload   # build + reload the running sidebars/scraper
+make build && tagent reload   # build + reload the running sidebars/scraper
 make test
 make update-frames                # re-capture the sidebar's golden frames (check them by eye first)
 ```

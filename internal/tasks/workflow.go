@@ -2,7 +2,7 @@ package tasks
 
 import (
 	"fmt"
-	"tmux-agent/internal/workflow"
+	"tagent/internal/workflow"
 )
 
 // ConfigForTask is the single per-ticket configuration boundary.
