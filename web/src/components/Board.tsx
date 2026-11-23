@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from "react"
-import { KanbanSquare, MessageSquare, OctagonAlert, Search, Settings } from "lucide-react"
+import { KanbanSquare, MessageSquare, Search, Settings } from "lucide-react"
 import { Avatar, BoardDrawer, shortId, statusColor, title } from "./BoardDrawer"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { act, post } from "@/api"
 import type { Project, Task } from "@/types"
-import { Workflows } from "./Workflows"
 import "./board.css"
 
 function useMedia(q: string) {
@@ -34,7 +33,6 @@ const laneOf = (status: string) => (status === "todo" || status === "blocked" ||
 export function Board({ dir, proj, reload }: { dir: string; proj?: Project; reload: () => void }) {
   const [query, setQuery] = useState("")
   const [role, setRole] = useState("")
-  const [blocked, setBlocked] = useState(false)
   const [selectedID, setSelectedID] = useState<string>()
   const [over, setOver] = useState("")
   const origin = useRef<HTMLElement | null>(null)
@@ -42,7 +40,7 @@ export function Board({ dir, proj, reload }: { dir: string; proj?: Project; relo
   const taskRole = (t: Task) => proj?.workers?.[t.id]?.role || statuses.find(s => s.id === t.status)?.role || t.assignees?.[0] || ""
   const roles = Array.from(new Set([...(proj?.roles ?? []), ...(proj?.tasks ?? []).map(taskRole)])).filter(Boolean)
   const all = proj?.tasks ?? []
-  const tasks = all.filter(t => (!blocked || t.status === "blocked") && (!role || taskRole(t) === role || t.assignees?.includes(role)) && (!query || `${t.id} ${t.title} ${t.text}`.toLowerCase().includes(query.toLowerCase())))
+  const tasks = all.filter(t => (!role || taskRole(t) === role || t.assignees?.includes(role)) && (!query || `${t.id} ${t.title} ${t.text}`.toLowerCase().includes(query.toLowerCase())))
   const move = (id: string, status: string) => act(post("/api/tasks", { Dir: dir, Op: "set", ID: id, Status: status }).then(reload))
   return <section className={`task-board ${selectedID ? "has-drawer" : ""}`}>
     <header className="board-tools">
@@ -50,8 +48,6 @@ export function Board({ dir, proj, reload }: { dir: string; proj?: Project; relo
       {proj?.defaultWorkflow && <a href="#/board/config" className="board-muted" title="Default workflow">default: {proj.defaultWorkflow}</a>}
       <label className="board-search"><Search /><input aria-label="Search tasks" placeholder="Search" value={query} onChange={e => setQuery(e.target.value)} /></label>
       <select aria-label="Filter role" value={role} onChange={e => setRole(e.target.value)}><option value="">All roles</option>{roles.map(r => <option key={r}>{r}</option>)}</select>
-      <button aria-pressed={blocked} onClick={() => setBlocked(!blocked)}><OctagonAlert />Blocked</button>
-      <Workflows workflows={proj?.workflows ?? []} />
       <a href="#/board/config" className="board-settings" aria-label="Board settings" title="Board settings"><Settings /></a>
       <span className="board-muted ml-auto">{tasks.length === all.length ? `${all.length} tasks` : `${tasks.length} of ${all.length}`}</span>
     </header>
@@ -83,7 +79,7 @@ export function Board({ dir, proj, reload }: { dir: string; proj?: Project; relo
               <Avatar role={taskRole(t)} />
             </span>
           </button>
-        })}{!column.length && <p className="board-empty">{query || role || blocked ? "No match" : "Empty"}</p>}</div>
+        })}{!column.length && <p className="board-empty">{query || role ? "No match" : "Empty"}</p>}</div>
       </section>
     })}</div>
     <TaskDrawer proj={proj} dir={dir} reload={reload} id={selectedID} onClose={() => setSelectedID(undefined)} origin={origin} />
