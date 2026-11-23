@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 	"time"
 
@@ -96,45 +97,50 @@ func (m Model) dashboardView() string {
 	}
 	bar := m.topBar(repo, max(6, w-1))
 
-	agents := m.dashboardPanel(fmt.Sprintf("Agents · %d", paneRowCount(m.rows)), m.agentRows(g.agents.w-4, g.agents.h-2), g.agents.w, g.agents.h, m.agentFocus == 0)
-	usage := m.dashboardPanel("▥ Usage · "+m.rangeText(), g.usageLines, g.usage.w, g.usage.h, m.agentFocus == 3)
-	var left []string
-	left = append(left, agents, usage)
+	focus := func(f int) bool { return m.agentFocus == f }
+	usageName, uw := m.cardName(paneNum(3), "▥ Usage")
+	rng, _ := m.tabStrip([]string{"1d", "7d", "30d"}, slices.Index([]int{1, 7, 30}, m.chartDaysOrDefault()), 3+uw+2)
+	agentsName, _ := m.cardName(paneNum(0), "Agents")
+	rolesName, _ := m.cardName(paneNum(1), "Agent definitions")
+	rolesLines, _ := m.roleLines(g.roles.w-4, g.roles.h-2)
+	card := func(r rect, title, pos string, lines []string, focused bool) string {
+		return m.boardPanel(title, pos, lines, r.w, r.h, focused)
+	}
+	cards := map[string]string{
+		"agents": card(g.agents, agentsName, position(m.cursor, paneRowCount(m.rows)), m.agentRows(g.agents.w-4, g.agents.h-2), focus(0)),
+		"usage":  card(g.usage, usageName+"  "+rng, "", g.usageLines, focus(3)),
+		"roles":  card(g.roles, rolesName, position(m.definitionCursor, m.roleCount()), rolesLines, focus(1)),
+		"tasks":  m.tasksCard(g.tasks.w, g.tasks.h, paneNum(2), focus(2)),
+		"wf":     m.workflowCard(g.wf.w, g.wf.h, paneNum(4)),
+	}
 	if g.comp.h > 0 {
 		_, avatar := m.companionPanel(g.comp.w)
-		left = append(left, m.dashboardPanel("◈ Companion", avatar, g.comp.w, g.comp.h, false))
+		cards["comp"] = card(g.comp, m.boardStyle(m.theme.TextPrimary).Bold(true).Render("◈ Companion"), "", avatar, false)
 	}
-	if g.roles.h > 0 {
-		lines, _ := m.roleLines(g.roles.w-4, g.roles.h-2)
-		left = append(left, m.dashboardPanel("Agent definitions", lines, g.roles.w, g.roles.h, m.agentFocus == 1))
-	}
-	taskTitle := fmt.Sprintf("☷ Tasks · %d", len(m.notes))
-	if m.taskTitle {
-		taskTitle += " · Enter board"
-	}
-	// Same kanban columns as the board, under a one-line header, then Workflows.
-	head := m.boardStyle(m.theme.TextPrimary).Bold(true).Render(boardFit(" "+taskTitle, g.tasks.w))
-	tasksCard := head + "\n" + m.boardColumnView(g.tasks.w, g.tasks.h-1, m.taskFocus, m.theme.BorderFocus, m.theme.Border)
-	if g.wf.h > 0 {
-		tasksCard += "\n" + m.workflowCard(g.wf.w, g.wf.h)
+	stack := func(names ...string) string {
+		var parts []string
+		for _, n := range names {
+			if c, ok := cards[n]; ok {
+				parts = append(parts, c)
+			}
+		}
+		return strings.Join(parts, "\n")
 	}
 	var body string
 	if g.wide {
-		body = lipgloss.JoinHorizontal(lipgloss.Top, strings.Join(left, "\n"), tasksCard)
+		body = lipgloss.JoinHorizontal(lipgloss.Top, stack("agents", "usage", "roles", "comp"), stack("tasks", "wf"))
 	} else {
-		// Stacked: Agents, Usage, Tasks, then Companion/Roles when rows remain.
-		parts := []string{left[0], left[1], tasksCard}
-		body = strings.Join(append(parts, left[2:]...), "\n")
+		body = stack("agents", "usage", "roles", "tasks", "wf", "comp")
 	}
-	help := " Tab focus · ↑↓ select · Enter open · N new agent · l log · i prompt · b board"
+	help := " Tab/S-Tab panel · ↑↓ select · Enter open · N new agent · l log · i prompt · b board"
 	if m.agentFocus == 3 {
-		help = " h/l or [ ] range · Tab focus"
+		help = " h/l or [ ] range · Tab/S-Tab panel"
 	}
 	if m.agentFocus == 1 {
-		help = " ↑↓ role · e edit instruction · Tab focus"
+		help = " ↑↓ role · e edit instruction · Tab/S-Tab panel"
 	}
 	if m.agentFocus == 4 {
-		help = m.keyHints("j/k workflow", "enter view", "a add", "e edit", "x delete", "Tab focus")
+		help = m.keyHints("j/k workflow", "enter view", "a add", "e edit", "x delete", "t agents", "Tab/S-Tab panel")
 	}
 	if m.taskFocus {
 		help = m.ticketHints()
@@ -166,19 +172,6 @@ func (m Model) topBar(repo string, width int) string {
 	}
 	pad := max(1, width-lipgloss.Width(left)-lipgloss.Width(right))
 	return left + strings.Repeat(" ", pad) + lipgloss.NewStyle().Foreground(m.theme.TextMuted).Render(right)
-}
-
-// rangeText is "1d [7d] 30d" as plain text (the Usage card's header hint).
-func (m Model) rangeText() string {
-	var parts []string
-	for _, d := range []int{1, 7, 30} {
-		if d == m.chartDaysOrDefault() {
-			parts = append(parts, fmt.Sprintf("[%dd]", d))
-		} else {
-			parts = append(parts, fmt.Sprintf("%dd", d))
-		}
-	}
-	return strings.Join(parts, " ")
 }
 
 // meterLine renders "5h ▰▰▱▱▱ 42%" like the web Meter: green <70, amber >=70, red >=90, muted when unknown.
@@ -333,43 +326,6 @@ func (m Model) sectionTitle(label string, width int, focused bool) string {
 	return st.Render(fitLine(" "+label, width))
 }
 
-// dashboardPanel is a web-style card: rounded Border-coloured frame (BorderFocus
-// when focused); the top edge carries the bold header, "Title · hint" shows the
-// hint muted at the right. Same height as before: header sits on the top edge.
-func (m Model) dashboardPanel(title string, lines []string, width, height int, focused bool) string {
-	width = max(4, width)
-	height = max(3, height)
-	color := m.theme.Border
-	if focused {
-		color = m.theme.BorderFocus
-	}
-	var content []string
-	for _, line := range lines {
-		if len(content) >= height-2 {
-			break
-		}
-		content = append(content, fitLine(line, width-4))
-	}
-	for len(content) < height-2 {
-		content = append(content, "")
-	}
-	box := lipgloss.NewStyle().Border(lipgloss.RoundedBorder(), false, true, true, true).BorderForeground(color).Padding(0, 1).Width(width - 2).Render(strings.Join(content, "\n"))
-	title, hint, _ := strings.Cut(title, " · ")
-	bc := lipgloss.NewStyle().Foreground(color)
-	label := " " + fitLine(title, max(1, width-6)) + " "
-	right := ""
-	if hint != "" {
-		right = " " + fitLine(hint, max(1, width-6-lipgloss.Width(label))) + " "
-		if lipgloss.Width(label)+lipgloss.Width(right) > width-4 {
-			right = ""
-		}
-	}
-	fill := max(0, width-2-1-lipgloss.Width(label)-lipgloss.Width(right))
-	top := bc.Render("╭─") + lipgloss.NewStyle().Foreground(m.theme.TextPrimary).Bold(true).Render(label) +
-		bc.Render(strings.Repeat("─", fill)) + lipgloss.NewStyle().Foreground(m.theme.TextMuted).Render(right) + bc.Render("╮")
-	return top + "\n" + box
-}
-
 // agentRows is the Agents card body: running agents (definitions live in Roles).
 func (m Model) agentRows(width, height int) []string {
 	running := m
@@ -417,7 +373,7 @@ func (m Model) roleLines(width, visible int) ([]string, int) {
 		defs = append(defs, left+strings.Repeat(" ", pad)+tag)
 	}
 	start := 0
-	if m.agentFocus == 1 && visible > 0 && len(defs) > visible {
+	if visible > 0 && len(defs) > visible {
 		start = min(max(0, m.definitionCursor-visible+1), len(defs)-visible)
 	}
 	return defs[start:], start
@@ -463,9 +419,16 @@ type dashGeom struct {
 	usageLines                            []string
 }
 
-// dashGeometry mirrors the web home: wide = left column (Agents over Usage,
-// then Companion/Roles when rows remain) beside Tasks (+ Workflows);
-// narrow = Agents, Usage, Tasks stacked, Companion/Roles after when rows remain.
+// focusOrder is the Tab order (agentFocus values): Agents, Usage, Agent
+// definitions, Tasks, Workflows. Its index + 1 is the card's [n] number.
+var focusOrder = []int{0, 3, 1, 2, 4}
+
+func paneNum(focus int) int { return slices.Index(focusOrder, focus) + 1 }
+
+// dashGeometry: wide = left column (Agents, Usage, Agent definitions, Companion)
+// beside Tasks over Workflows; narrow or short = all cards stacked in Tab
+// order. Every card is always present; heights come from accordion (terminal
+// size and focus only), the focused card growing at the others' expense.
 func (m Model) dashGeometry() dashGeom {
 	w, h := m.width, m.height
 	if w <= 0 {
@@ -483,66 +446,46 @@ func (m Model) dashGeometry() dashGeom {
 	}
 	g.usageLines = m.usageLines(left-4, bh)
 	usageH := len(g.usageLines) + 2
-	rolesH := 0
-	if n := m.roleCount(); n > 0 || m.agentFocus == 1 {
-		rolesH = max(3, min(n, 4)+2)
-	}
 	compH, _ := m.companionPanel(left)
-	const minAgents, minTasks = 5, 6
-	if g.wide {
-		if compH > 0 && bh-usageH-rolesH-compH < 8 {
-			compH = 0
-		}
-		if rolesH > 0 && m.agentFocus != 1 && bh-usageH-rolesH < 6 {
-			rolesH = 0
-		}
-		agentsH := max(minAgents, bh-usageH-rolesH-compH)
-		y := 1
-		stack := func(r *rect, hh int) {
-			if hh > 0 {
-				*r = rect{0, y, left, hh}
-				y += hh
+	if compH > 0 && bh-compH < map[bool]int{true: 15, false: 24}[g.wide] {
+		compH = 0
+	}
+	// Per card: height at rest, height when focused.
+	type spec struct {
+		r          *rect
+		focus      int
+		rest, want int
+	}
+	agentsS := spec{&g.agents, 0, 6, 14}
+	usageS := spec{&g.usage, 3, usageH, usageH}
+	rolesS := spec{&g.roles, 1, 3, 8}
+	tasksS := spec{&g.tasks, 2, 8, flexH}
+	wfS := spec{&g.wf, 4, 3, 8}
+	column := func(x, w, y, total int, specs ...spec) {
+		rest, want := make([]int, len(specs)), make([]int, len(specs))
+		fi := 0
+		for i, s := range specs {
+			rest[i], want[i] = s.rest, s.want
+			if s.focus == m.agentFocus {
+				fi = i
 			}
 		}
-		stack(&g.agents, agentsH)
-		stack(&g.usage, usageH)
-		stack(&g.comp, compH)
-		stack(&g.roles, rolesH)
-		g.tasks = rect{left, 1, width - left, bh}
-	} else {
-		extras := 0
-		if compH > 0 && bh-usageH-compH >= minAgents+minTasks+8 {
-			extras += compH
-		} else {
-			compH = 0
-		}
-		if rolesH > 0 && bh-usageH-extras-rolesH >= minAgents+minTasks+4 {
-			extras += rolesH
-		} else {
-			rolesH = 0
-		}
-		rem := bh - usageH - extras
-		agentsH := max(minAgents, rem*2/5)
-		tasksH := max(minTasks, rem-agentsH)
-		y := 1
-		g.agents = rect{0, y, width, agentsH}
-		y += agentsH
-		g.usage = rect{0, y, width, usageH}
-		y += usageH
-		g.tasks = rect{0, y, width, tasksH}
-		y += tasksH
-		if compH > 0 {
-			g.comp = rect{0, y, width, compH}
-			y += compH
-		}
-		if rolesH > 0 {
-			g.roles = rect{0, y, width, rolesH}
+		for i, hh := range accordion(total, rest, want, fi) {
+			*specs[i].r = rect{x, y, w, hh}
+			y += hh
 		}
 	}
-	// Workflows card under the columns when they keep 8+ rows.
-	if wh := m.workflowCardHeight(g.tasks.h - 1); wh > 0 {
-		g.wf = rect{g.tasks.x, g.tasks.y + g.tasks.h - wh, g.tasks.w, wh}
-		g.tasks.h -= wh
+	if g.wide {
+		column(0, left, 1, bh-compH, agentsS, usageS, rolesS)
+		if compH > 0 {
+			g.comp = rect{0, 1 + bh - compH, left, compH}
+		}
+		column(left, width-left, 1, bh, tasksS, wfS)
+	} else {
+		column(0, width, 1, bh-compH, agentsS, usageS, rolesS, tasksS, wfS)
+		if compH > 0 {
+			g.comp = rect{0, 1 + bh - compH, width, compH}
+		}
 	}
 	return g
 }
@@ -560,6 +503,8 @@ func (m Model) usageLines(width, bodyHeight int) []string {
 	}
 	if len(now) > 0 {
 		out = append(out, lipgloss.NewStyle().Foreground(m.theme.StatusRunning).Render(fitLine("Now  "+strings.Join(now, " · "), width)))
+	} else {
+		out = append(out, "") // a fixed row count keeps the card height steady
 	}
 	if bodyHeight >= 22 { // short panes keep the space for agents and tasks
 		q := quota.Get()

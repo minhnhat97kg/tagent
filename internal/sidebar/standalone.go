@@ -131,9 +131,10 @@ func (m standaloneModel) listKeys() bool {
 	return l.agentFocus == 0 && !l.taskFocus && !l.boardMode && !l.helpOpen && l.taskForm == ""
 }
 
-// rightSize is the area for the agent's screen (one row is the title).
+// rightSize is the area inside the agent's frame: the frame takes 2 columns and
+// 3 rows (top border with the title, bottom border, and the hint line under it).
 func (m standaloneModel) rightSize() (int, int) {
-	return max(0, m.w-m.rightX()), max(3, m.h-1)
+	return max(0, m.w-m.rightX()-2), max(3, m.h-3)
 }
 
 func (m standaloneModel) Init() tea.Cmd {
@@ -266,12 +267,15 @@ func (m standaloneModel) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case tea.MouseMsg:
-		if m.layout != layoutDashboard && msg.X >= m.rightX() && msg.Y >= 1 {
+		if m.layout != layoutDashboard && msg.X >= m.rightX() && msg.Y >= 0 {
 			if msg.Button == tea.MouseButtonLeft && msg.Action == tea.MouseActionPress && m.paneID != "" {
 				m.focusRight = true
 			}
 			if m.focusRight {
-				forwardMouse(m.paneID, msg, msg.X-m.rightX(), msg.Y-1)
+				rw, rh := m.rightSize()
+				if x, y := msg.X-m.rightX()-1, msg.Y-1; x >= 0 && x < rw && y >= 0 && y < rh { // inside the frame
+					forwardMouse(m.paneID, msg, x, y)
+				}
 			}
 			return m, nil
 		}
@@ -512,41 +516,59 @@ func (m standaloneModel) View() string {
 	rw, rh := m.rightSize()
 
 	dim := lipgloss.NewStyle().Foreground(m.left.theme.TextDim)
-	title := " no agent selected — N starts one in this directory"
+	title := "no agent selected — N starts one in this directory"
+	hint := [][2]string{{"N", "new agent"}, {"z", "layout: " + layoutNames[m.layout]}}
 	if m.paneID != "" {
-		title = " " + m.paneID
+		title = m.paneID
 		if m.paneID == m.shell && m.selected() == "" {
-			title = " shell · N starts an agent"
+			title = "shell"
+			hint = [][2]string{{"N", "start an agent"}}
 		}
 		if r, ok := paneRowAt(m.left.rows, m.left.cursor); ok {
-			title = " " + r.Base + " · " + string(r.Agent) + " · " + string(r.Status)
+			title = r.Base + " · " + string(r.Agent) + " · " + string(r.Status)
 		}
 		if m.focusRight {
-			title += "   [typing into the agent · ctrl+] or ctrl+\\ or click the list to leave]"
+			hint = [][2]string{{"typing into the agent", ""}, {"ctrl+]", "leave"}, {"ctrl+\\", "leave"}, {"click list", "leave"}}
 		} else {
-			title += "   [enter to type · N new agent · z layout: " + layoutNames[m.layout] + "]"
+			hint = append([][2]string{{"enter", "type"}}, hint...)
 		}
 	}
-	style := dim
+	th := m.left.theme
+	frame := th.Border
 	if m.focusRight {
-		style = lipgloss.NewStyle().Foreground(m.left.theme.Accent).Bold(true)
+		frame = th.BorderFocus
 	}
-	lines := []string{style.Render(ansi.Truncate(title, rw, "…"))}
+	fs := lipgloss.NewStyle().Foreground(frame)
+	ts := lipgloss.NewStyle().Foreground(th.TextPrimary).Bold(true)
+	label := " " + ansi.Truncate(title, max(1, rw-4), "…") + " "
+	lines := []string{fs.Render("╭─") + ts.Render(label) + fs.Render(strings.Repeat("─", max(0, rw-ansi.StringWidth(label)-1))+"╮")}
 	body := strings.Split(strings.TrimRight(m.screen, "\n"), "\n")
 	if len(body) > rh { // keep the bottom: that's where the agent's prompt is
 		body = body[len(body)-rh:]
 	}
 	skipped := len(strings.Split(strings.TrimRight(m.screen, "\n"), "\n")) - len(body)
+	edge := fs.Render("│")
 	for i, l := range body {
 		l = ansi.Truncate(l, rw, "")
 		if m.cursorOn && i+skipped == m.cy && m.cx < rw {
 			l = withCursor(l, m.cx, rw, m.focusRight)
 		}
-		lines = append(lines, l)
+		lines = append(lines, edge+l+"\x1b[0m"+strings.Repeat(" ", max(0, rw-ansi.StringWidth(l)))+edge)
 	}
 	for len(lines) < rh+1 {
-		lines = append(lines, "")
+		lines = append(lines, edge+strings.Repeat(" ", rw)+edge)
 	}
+	lines = append(lines, fs.Render("╰"+strings.Repeat("─", rw)+"╯"))
+	keyStyle := lipgloss.NewStyle().Foreground(th.Accent).Bold(true)
+	var hints []string
+	for _, h := range hint {
+		if h[1] == "" {
+			hints = append(hints, dim.Render(h[0]))
+			continue
+		}
+		hints = append(hints, keyStyle.Render(h[0])+" "+dim.Render(h[1]))
+	}
+	lines = append(lines, " "+ansi.Truncate(strings.Join(hints, "  "), max(0, rw), "…"))
 	// Joined by hand: lipgloss re-measuring every ANSI line of the agent's
 	// screen on each poll was the main cost of a frame.
 	sep := dim.Render("│")

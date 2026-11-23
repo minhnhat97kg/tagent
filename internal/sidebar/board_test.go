@@ -47,7 +47,7 @@ func TestBoardScreenUsesColumnsAtEveryWidth(t *testing.T) {
 		m.width, m.height = size[0], size[1]
 		lines := strings.Split(m.View(), "\n")
 		view := ansi.Strip(strings.Join(lines, "\n"))
-		if !strings.Contains(view, "todo · 2") || !strings.Contains(view, "Workflows") {
+		if !strings.Contains(view, "[todo 2] · in progress 2 · done 1") || !strings.Contains(view, "[Workflows] · Agents") {
 			t.Errorf("%v: no columns/workflows card:\n%s", size, view)
 		}
 		for i, l := range lines {
@@ -434,15 +434,16 @@ func TestBoardListsWorkflowsBelow(t *testing.T) {
 	m := boardTestModel()
 	m.boardWorkflows = []workflow.Workflow{{Name: "research", Jobs: make([]workflow.Job, 1)}, {Name: "deploy", Global: true, Jobs: make([]workflow.Job, 3)}}
 	m.notes = append(m.notes, tasks.Task{ID: "9", Title: "Run", Status: "researching", Workflow: "research"})
+	m.workflowFocus = true // an unfocused Workflows card collapses to its selected row
 	for _, w := range []int{160, 45} {
 		m.width = w
 		view := ansi.Strip(m.View())
-		for _, want := range []string{"Workflows 2", "▸ research", "local · 1 jobs", "● 1 running", "▸ deploy", "global · 3 jobs"} {
+		for _, want := range []string{"[Workflows] · Agents", "1 of 2", "❯ research", "local · 1 jobs", "● 1 running", "▸ deploy", "global · 3 jobs"} {
 			if !strings.Contains(view, want) {
 				t.Errorf("width %d lacks %q:\n%s", w, want, view)
 			}
 		}
-		if strings.Index(view, "First card") > strings.Index(view, "Workflows 2") {
+		if strings.Index(view, "First card") > strings.Index(view, "[Workflows]") {
 			t.Fatal("workflows are not below the ticket list")
 		}
 	}
@@ -451,12 +452,12 @@ func TestBoardListsWorkflowsBelow(t *testing.T) {
 func TestBoardColumnsAndNavigation(t *testing.T) {
 	m := boardTestModel()
 	view := ansi.Strip(m.View())
-	if !strings.Contains(view, "todo · 2") || !strings.Contains(view, "done · 1") {
+	if !strings.Contains(view, "[todo 2]") || !strings.Contains(view, "done 1") {
 		t.Fatal(view)
 	}
 	lines := strings.Split(view, "\n")
 	if !strings.Contains(lines[1], "todo") || !strings.Contains(lines[1], "done") {
-		t.Fatal("headers not side by side")
+		t.Fatal("lane tabs not in the card title")
 	}
 	for _, tc := range []struct {
 		key    string
@@ -477,12 +478,12 @@ func TestBoardColumnsAndNavigation(t *testing.T) {
 			t.Fatalf("%s no status mutation", key)
 		}
 	}
-	if len(m.boardCard(2, 40)) != 1 || len(m.boardCard(0, 40)) != 3 {
+	if len(m.boardCard(2, 40)) != 1 || len(m.boardCard(0, 40)) != 2 {
 		t.Fatal("card heights")
 	}
 	m.width = 119
 	view = ansi.Strip(m.View())
-	if !strings.Contains(view, "todo · 2") || !strings.Contains(view, "First card") {
-		t.Fatal("missing columns at width 119")
+	if !strings.Contains(view, "todo 2") || !strings.Contains(view, "Third card") {
+		t.Fatal("missing lanes at width 119")
 	}
 }

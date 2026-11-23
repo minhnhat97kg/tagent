@@ -70,7 +70,7 @@ func (m Model) workflowPanelKey(key string) (Model, tea.Cmd, bool) {
 		return m, nil, true
 	}
 	switch key {
-	case "tab":
+	case "tab", "shift+tab":
 		m.workflowFocus = false
 	case "j", "down":
 		m.workflowCursor = min(max(0, len(m.boardWorkflows)-1), m.workflowCursor+1)

@@ -12,7 +12,7 @@ func TestBlockedRowQuestion(t *testing.T) {
 	m.notes = []tasks.Task{{ID: "blocked", Title: "Ticket", Status: "blocked", Comments: []tasks.TaskComment{{ID: "question", Body: "Token nằm\nở đâu?"}, {ID: "reply", Body: "unrelated reply"}}}}
 	m.boardHistory = []tasks.Event{{Task: "blocked", Kind: "status", From: "build", To: "blocked", CommentID: "question"}}
 	row := m.boardCard(0, 80)
-	if len(row) != 3 || !strings.Contains(row[1], "Token nằm ở đâu?") || strings.Contains(row[1], "unrelated") {
+	if len(row) != 3 || !strings.Contains(row[2], "Token nằm ở đâu?") || strings.Contains(row[2], "unrelated") {
 		t.Fatal(row)
 	}
 	for _, width := range []int{1, 5, 12} {
@@ -24,7 +24,7 @@ func TestBlockedRowQuestion(t *testing.T) {
 	}
 	m.boardHistory = nil
 	row = m.boardCard(0, 80)
-	if !strings.Contains(row[1], "reply with @role") {
+	if !strings.Contains(row[2], "reply with @role") {
 		t.Fatal(row)
 	}
 }

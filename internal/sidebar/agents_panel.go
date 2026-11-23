@@ -2,6 +2,7 @@ package sidebar
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"tagent/internal/agents"
@@ -19,7 +20,11 @@ type agentsEditedMsg struct{ err error }
 func (m Model) agentHarness() string { h, _ := tmux.GetOption(tmux.AgentOption); return h }
 
 func (m Model) loadAgents() Model {
+	name := m.selectedAgentName()
 	m.agents = agents.List(m.boardDir, m.agentHarness(), agents.LivePanes())
+	if i := slices.IndexFunc(m.agents, func(a agents.Agent) bool { return a.Name == name }); name != "" && i >= 0 {
+		m.agentCursor = i
+	}
 	m.agentCursor = max(0, min(m.agentCursor, len(m.agents)-1))
 	return m
 }
@@ -75,12 +80,12 @@ func agentSummary(a agents.Agent) string {
 	return a.Harness + " · " + model + " · " + a.Source
 }
 
-// stripPanel is the board's bottom strip: workflows, or agents while the agents panel is open.
-func (m Model) stripPanel(width int) (string, []string, int) {
+// stripPanel is the bottom card's body: workflows, or agents while the agents panel is open.
+func (m Model) stripPanel(width int) (lines []string, cursor, n int) {
 	if m.agentsOpen {
-		return fmt.Sprintf("Agents %d · m model · e edit · a add · x delete", len(m.agents)), m.agentStripLines(width), m.agentCursor
+		return m.agentStripLines(width), m.agentCursor, len(m.agents)
 	}
-	return fmt.Sprintf("Workflows %d · a add · e edit", len(m.boardWorkflows)), m.workflowLines(width), m.workflowCursor
+	return m.workflowLines(width), m.workflowCursor, len(m.boardWorkflows)
 }
 
 func (m Model) agentPanelKey(key string) (Model, tea.Cmd, bool) {
@@ -96,7 +101,7 @@ func (m Model) agentPanelKey(key string) (Model, tea.Cmd, bool) {
 		return m, nil, true
 	}
 	switch key {
-	case "tab":
+	case "tab", "shift+tab":
 		m.workflowFocus, m.agentsOpen, m.agentDetail = false, false, false
 	case "j", "down":
 		m.agentCursor = min(max(0, len(m.agents)-1), m.agentCursor+1)

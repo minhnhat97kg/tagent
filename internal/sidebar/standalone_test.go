@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/x/ansi"
 )
 
 func TestTmuxKey(t *testing.T) {
@@ -69,11 +70,11 @@ func TestStandaloneLayoutsAndEnterOnlyFromList(t *testing.T) {
 		m.layout = i
 		rw, _ := m.rightSize()
 		widths = append(widths, m.leftWidth(), rw)
-		if m.layout != layoutDashboard && m.leftWidth()+rw+min(1, m.leftWidth()) != 120 {
+		if m.layout != layoutDashboard && m.leftWidth()+rw+2+min(1, m.leftWidth()) != 120 { // +2: the frame's side borders
 			t.Fatalf("layout %d: %d + %d", i, m.leftWidth(), rw)
 		}
 	}
-	if widths[4] != 0 || widths[5] != 120 || widths[6] != 120 {
+	if widths[4] != 0 || widths[5] != 118 || widths[6] != 120 {
 		t.Fatalf("agent/dashboard layouts: %v", widths)
 	}
 	m.layout = layoutSplit
@@ -92,5 +93,29 @@ func TestStandaloneFollowFallsBackToShell(t *testing.T) {
 	next, _ := m.follow(nil)
 	if got := next.(standaloneModel).paneID; got != m.shell {
 		t.Fatalf("pane = %q, want shell %q", got, m.shell)
+	}
+}
+
+func TestStandaloneFrameLinesHaveEqualWidth(t *testing.T) {
+	for _, focus := range []bool{false, true} {
+		m := standaloneModel{w: 100, h: 24, paneID: "%1", focusRight: focus, screen: "hello\nworld", left: Model{dashboard: true, theme: DefaultTheme()}}
+		for layout := 0; layout < layoutCount; layout++ {
+			m.layout = layout
+			if layout == layoutDashboard {
+				continue
+			}
+			lines := strings.Split(ansi.Strip(m.View()), "\n")
+			if len(lines) != m.h {
+				t.Fatalf("layout %d: %d lines, want %d", layout, len(lines), m.h)
+			}
+			for i, l := range lines {
+				if ansi.StringWidth(l) > m.w {
+					t.Fatalf("layout %d line %d is %d wide", layout, i, ansi.StringWidth(l))
+				}
+			}
+			if !strings.Contains(lines[m.h-1], "enter") && !strings.Contains(lines[m.h-1], "typing") {
+				t.Fatalf("layout %d: no hint on the last line: %q", layout, lines[m.h-1])
+			}
+		}
 	}
 }

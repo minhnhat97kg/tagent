@@ -8,7 +8,7 @@ import (
 
 func TestTasksPanelEnterOpensBoardDrawer(t *testing.T) {
 	m := boardTestModel()
-	m.boardMode, m.taskTitle = false, false
+	m.boardMode = false
 	m.boardDir, m.repoDir = t.TempDir(), ""
 	next, _ := boardPress(m, "enter")
 	if !next.boardMode || !next.boardDrawer {

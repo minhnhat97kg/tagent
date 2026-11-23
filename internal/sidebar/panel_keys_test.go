@@ -12,7 +12,6 @@ func TestPanelUsesBoardActions(t *testing.T) {
 			panel := boardTestModel()
 			panel.repoDir = t.TempDir()
 			panel.boardMode = false
-			panel.taskTitle = false
 			panel = panel.boardContext()
 			board := panel
 			board.boardMode = true
