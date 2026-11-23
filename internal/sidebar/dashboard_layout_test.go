@@ -235,17 +235,17 @@ func TestCardHeightsGrowTasksAndWorkflowsFirst(t *testing.T) {
 	for len(rows) > 0 && strings.TrimSpace(rows[len(rows)-1]) == "" {
 		rows = rows[:len(rows)-1]
 	}
-	if got := g.agents.h; got != len(rows)+2 {
-		t.Fatalf("agents grew past its content: %d rows for %d lines", got, len(rows))
+	if got := g.agents.h; got < len(rows)+2 {
+		t.Fatalf("agents shrank below its content: %d rows for %d lines", got, len(rows))
 	}
-	if g.tasks.h < minTasksH+10 || g.wf.h < minWfH+5 {
+	if g.tasks.h < minTasksH+5 || g.wf.h < minWfH+3 {
 		t.Fatalf("spare rows did not reach tasks/workflows: tasks %d wf %d", g.tasks.h, g.wf.h)
 	}
 }
 
 func TestFitHeightsFillsTheColumn(t *testing.T) {
 	low := []int{minAgentsH, minUsageH, minTasksH, minWfH}
-	need := []int{5, 10, 12, 5}
+	need := []int{8, 10, 12, 5}
 	weight := []int{0, 0, 3, 2}
 	check := func(got []int, want int) []int {
 		t.Helper()
@@ -257,15 +257,15 @@ func TestFitHeightsFillsTheColumn(t *testing.T) {
 	// Tall: the content needs are met top to bottom, all spare rows go to
 	// Tasks and Workflows.
 	tall := check(fitHeights(60, low, need, weight, 0), 60)
-	if tall[0] != 5 || tall[1] != 10 || tall[2] <= 12 || tall[3] <= minWfH || tall[2]+tall[3] != 60-15 {
+	if tall[0] != 8 || tall[1] != 10 || tall[2] <= 12 || tall[3] <= minWfH || tall[2]+tall[3] != 60-18 {
 		t.Fatalf("tall column: %v", tall)
 	}
 	// A column with just the fixed cards grows both of them.
-	if got := check(fitHeights(40, low[:2], need[:2], weight[:2], 0), 40); got[0] <= 5 || got[1] <= 10 {
+	if got := check(fitHeights(40, low[:2], need[:2], weight[:2], 0), 40); got[0] <= 8 || got[1] <= 10 {
 		t.Fatalf("fixed column: %v", got)
 	}
 	// Want rows run out: the top card keeps its content, the lower ones wait.
-	if got := check(fitHeights(30, low, []int{5, 20, 6, 5}, weight, 0), 30); got[0] != 5 || got[1] != 14 {
+	if got := check(fitHeights(30, low, []int{8, 20, 6, 5}, weight, 0), 30); got[0] != 8 || got[1] != 11 {
 		t.Fatalf("short of want: %v", got)
 	}
 	// Too short for the minimums: never a gap, the tallest unfocused card

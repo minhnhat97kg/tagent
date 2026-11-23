@@ -364,7 +364,7 @@ func paneNum(focus int) int { return slices.Index(focusOrder, focus) + 1 }
 // Card minimum heights (borders included): a tall column gives the spare rows
 // to the cards that grow, a short one keeps these for as long as it can.
 const (
-	minAgentsH = 4
+	minAgentsH = 8
 	minUsageH  = 8
 	minTasksH  = 6
 	minWfH     = 5
@@ -451,7 +451,7 @@ func (m Model) dashGeometry() dashGeom {
 		// Stacked: Tasks can list hundreds of rows; cap it so Agents and
 		// Workflows keep their share and spare rows go to Workflows first.
 		tasksS.need = min(tasksS.need, max(minTasksH, (bh-compH)*25/100))
-		tasksS.weight, wfS.weight = 1, 2
+		agentsS.weight, tasksS.weight, wfS.weight = 2, 1, 1
 		column(0, width, 1, bh-compH, agentsS, usageS, tasksS, wfS)
 		if compH > 0 {
 			g.comp = rect{0, 1 + bh - compH, width, compH}
