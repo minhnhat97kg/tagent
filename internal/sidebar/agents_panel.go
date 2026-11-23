@@ -57,7 +57,7 @@ func (m Model) agentStripLines(width int) []string {
 	}
 	var lines []string
 	for i, a := range m.agents {
-		mark := "▸ "
+		mark := "  "
 		if m.workflowFocus && i == m.agentCursor {
 			mark = "❯ "
 		}
@@ -74,6 +74,9 @@ func agentSummary(a agents.Agent) string {
 	model := a.Model
 	if model == "" {
 		model = "default model"
+	}
+	if i := strings.LastIndex(model, "/"); i >= 0 {
+		model = model[i+1:] // drop the provider prefix, it only crowds the row
 	}
 	return a.Harness + " · " + model
 }
