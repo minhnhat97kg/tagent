@@ -41,9 +41,14 @@ func TestDashboardFitsBothWidthsAndKeepsTaskSelection(t *testing.T) {
 			}
 		}
 	}
-	updated, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyTab}) // running → agents
+	updated, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyTab}) // agents → usage
 	m = updated.(Model)
-	updated, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyTab}) // agents → tasks
+	if m.agentFocus != 3 {
+		t.Fatal("tab did not focus usage")
+	}
+	updated, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyTab}) // usage → definitions
+	m = updated.(Model)
+	updated, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyTab}) // definitions → tasks
 	m = updated.(Model)
 	if !m.taskFocus {
 		t.Fatal("tab did not focus tasks")
@@ -57,5 +62,24 @@ func TestDashboardFitsBothWidthsAndKeepsTaskSelection(t *testing.T) {
 	m = updated.(Model)
 	if !m.taskDelete {
 		t.Fatal("task delete was not confirmed")
+	}
+}
+
+func TestUsageFocusChangesRange(t *testing.T) {
+	m := Model{dashboard: true, width: 100, height: 30, agentFocus: 3, chartDays: 7}
+	for _, c := range []struct {
+		key  string
+		want int
+	}{{"l", 30}, {"h", 7}, {"h", 1}, {"l", 7}} {
+		next, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(c.key)})
+		m = next.(Model)
+		if m.chartDays != c.want {
+			t.Fatalf("after %q chartDays=%d, want %d", c.key, m.chartDays, c.want)
+		}
+	}
+	m.agentFocus = 0 // h/l must not change the range outside the Usage card
+	next, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("l")})
+	if got := next.(Model).chartDays; got != 7 {
+		t.Fatalf("l outside Usage changed range to %d", got)
 	}
 }

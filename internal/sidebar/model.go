@@ -1478,6 +1478,10 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	}
 	if m.dashboard && msg.Button == tea.MouseButtonLeft && msg.Action == tea.MouseActionPress {
 		g := m.dashGeometry()
+		if g.usage.h > 0 && g.usage.contains(msg.X, msg.Y) {
+			m.agentFocus, m.taskFocus = 3, false
+			return m, nil
+		}
 		if g.tasks.contains(msg.X, g.tasks.y) {
 			m.agentFocus, m.taskFocus, m.taskTitle = 2, true, true
 			return m, nil
@@ -1620,18 +1624,26 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		switch msg.String() {
 		case "tab":
-			m.agentFocus = (m.agentFocus + 1) % 3
+			// Visual order: Agents, Usage, Agent definitions, Tasks.
+			next := map[int]int{0: 3, 3: 1, 1: 2, 2: 0}
+			m.agentFocus = next[m.agentFocus]
 			m.taskFocus = m.agentFocus == 2
 			m.definitionCursor = 0
 			return m, nil
-		case "[":
+		case "[", "h", "left":
+			if m.agentFocus != 3 && msg.String() != "[" {
+				break
+			}
 			if m.chartDays == 30 {
 				m.chartDays = 7
 			} else if m.chartDays == 7 {
 				m.chartDays = 1
 			}
 			return m, nil
-		case "]":
+		case "]", "l", "right":
+			if m.agentFocus != 3 && msg.String() != "]" {
+				break
+			}
 			if m.chartDays == 1 {
 				m.chartDays = 7
 			} else if m.chartDays == 7 {

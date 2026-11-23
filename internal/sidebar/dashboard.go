@@ -95,7 +95,7 @@ func (m Model) dashboardView() string {
 	bar := m.topBar(repo, max(6, w-1))
 
 	agents := m.dashboardPanel(fmt.Sprintf("Agents · %d", paneRowCount(m.rows)), m.agentRows(g.agents.w-4, g.agents.h-2), g.agents.w, g.agents.h, m.agentFocus == 0)
-	usage := m.dashboardPanel("▥ Usage · "+m.rangeText(), g.usageLines, g.usage.w, g.usage.h, false)
+	usage := m.dashboardPanel("▥ Usage · "+m.rangeText(), g.usageLines, g.usage.w, g.usage.h, m.agentFocus == 3)
 	var left []string
 	left = append(left, agents, usage)
 	if g.comp.h > 0 {
@@ -131,6 +131,9 @@ func (m Model) dashboardView() string {
 		body = strings.Join(append(parts, left[2:]...), "\n")
 	}
 	help := " Tab focus · ↑↓ select · Enter open · N new agent · l log · i prompt · b board"
+	if m.agentFocus == 3 {
+		help = " h/l or [ ] range · Tab focus"
+	}
 	if m.agentFocus == 1 {
 		help = " ↑↓ role · e edit instruction · Tab focus"
 	}
