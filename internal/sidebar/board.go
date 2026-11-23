@@ -969,7 +969,7 @@ func (m Model) triggerSummary() string {
 		parts = append(parts, event+" ▸ "+target)
 	}
 	if len(parts) == 0 {
-		return "Triggers: none · c edit board config"
+		return "Triggers: none · E edit board config"
 	}
 	return "Triggers: " + strings.Join(parts, " · ")
 }
@@ -1063,7 +1063,7 @@ func (m Model) boardKey(key string) (Model, tea.Cmd, bool) {
 				m.flowWorkflow = ws[i].File
 			}
 			return m, nil, true
-		case "e", "c":
+		case "e", "E":
 			path := m.flowWorkflow
 			if path == "" && len(m.notes) > 0 && m.notes[m.taskCursor].Workflow != "" {
 				w, e := workflow.Find(tasks.MainRoot(m.boardDir), m.notes[m.taskCursor].Workflow)
@@ -1120,15 +1120,12 @@ func (m Model) boardKey(key string) (Model, tea.Cmd, bool) {
 	case "q", "b":
 		m.boardMode, m.boardDrawer = false, false
 		return m, nil, true
-	case "C":
+	case "c", "C": // comment on the selected ticket (a blocked one prefills the @role)
 		if len(m.notes) > 0 {
 			return m, editTaskText(m.notesScope, m.notes[m.taskCursor], m.tmuxPane, true), true
 		}
 		return m, nil, true
-	case "c":
-		if len(m.notes) > 0 && m.notes[m.taskCursor].Status == "blocked" {
-			return m, editTaskText(m.notesScope, m.notes[m.taskCursor], m.tmuxPane, true), true
-		}
+	case "E": // edit .tasks/board.yaml
 		return m, editBoardConfig(m.boardDir, m.tmuxPane), true
 	case "n":
 		return m, editTaskText(m.notesScope, tasks.Task{}, m.tmuxPane, false), true

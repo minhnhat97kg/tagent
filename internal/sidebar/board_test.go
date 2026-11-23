@@ -319,7 +319,7 @@ func TestBoardConfigEditor(t *testing.T) {
 	t.Setenv("EDITOR", "")
 	m := boardTestModel()
 	m.boardDir = dir
-	_, cmd := boardPress(m, "c")
+	_, cmd := boardPress(m, "E")
 	if cmd == nil {
 		t.Fatal("c did not launch editor")
 	}
