@@ -167,32 +167,121 @@ func TestDashboardCardSetIsStable(t *testing.T) {
 	}
 }
 
-// Cards are as tall as their content: Agents with 3 rows is 5 high even when
-// focused on a tall terminal; Tasks does not stretch either.
-func TestCardHeightFollowsContent(t *testing.T) {
-	m := dashSample()
-	m.width, m.height = 50, 60
-	for _, f := range focusOrder {
-		m.agentFocus, m.taskFocus, m.workflowFocus = f, f == 2, f == 4
-		g := m.dashGeometry()
-		if g.agents.h != 5 {
-			t.Fatalf("focus %d: agents height %d, want 5", f, g.agents.h)
-		}
-		if g.tasks.h > 12 {
-			t.Fatalf("focus %d: tasks stretched to %d", f, g.tasks.h)
-		}
-		if g.wf.h != 3 {
-			t.Fatalf("focus %d: workflows height %d, want 3", f, g.wf.h)
+// Every column fills the body (h-2 rows): no blank gap under the last card,
+// each card keeps its minimum height, and the spare rows go to Tasks and
+// Workflows first, in the stacked and the wide 2-column layout alike.
+func TestDashboardCardsFillTheBody(t *testing.T) {
+	minTotal := minAgentsH + minUsageH + minTasksH + minWfH
+	for _, size := range [][2]int{{32, 22}, {32, 40}, {32, 60}, {70, 22}, {70, 40}, {70, 60}, {120, 22}, {120, 40}, {120, 60}} {
+		for _, f := range focusOrder {
+			m := dashSample()
+			m.width, m.height = size[0], size[1]
+			m.agentFocus, m.taskFocus, m.workflowFocus = f, f == 2, f == 4
+			g := m.dashGeometry()
+			bh := max(6, m.height-2)
+			if g.wide {
+				if got := g.agents.h + g.usage.h + g.comp.h; got != bh {
+					t.Fatalf("%v focus %d: left column fills %d of %d rows", size, f, got, bh)
+				}
+				if got := g.tasks.h + g.wf.h; got != bh {
+					t.Fatalf("%v focus %d: right column fills %d of %d rows", size, f, got, bh)
+				}
+			} else if got := g.agents.h + g.usage.h + g.tasks.h + g.wf.h + g.comp.h; got != bh {
+				t.Fatalf("%v focus %d: column fills %d of %d rows", size, f, got, bh)
+			}
+			if g.agents.y != 1 {
+				t.Fatalf("%v: agents start at row %d", size, g.agents.y)
+			}
+			if g.wide && g.agents.h+g.usage.h+g.comp.h != bh {
+				t.Fatalf("%v: left column ends above the footer", size)
+			}
+			last := g.wf.y + g.wf.h
+			if g.comp.h > 0 {
+				last = g.comp.y + g.comp.h
+			}
+			if last != bh+1 {
+				t.Fatalf("%v focus %d: last card ends at row %d, footer at %d", size, f, last, bh+1)
+			}
+			if bh >= minTotal {
+				for _, c := range []struct {
+					name  string
+					h, lo int
+				}{{"agents", g.agents.h, minAgentsH}, {"usage", g.usage.h, minUsageH}, {"tasks", g.tasks.h, minTasksH}, {"wf", g.wf.h, minWfH}} {
+					if c.h < c.lo {
+						t.Fatalf("%v focus %d: %s is %d high, minimum %d", size, f, c.name, c.h, c.lo)
+					}
+				}
+			}
+			plain := strings.Split(ansi.Strip(m.dashboardView()), "\n")
+			if len(plain) != m.height {
+				t.Fatalf("%v: %d lines", size, len(plain))
+			}
+			for i := 1; i < m.height-1; i++ {
+				if strings.TrimSpace(plain[i]) == "" {
+					t.Fatalf("%v focus %d: blank body row %d:\n%s", size, f, i, strings.Join(plain, "\n"))
+				}
+			}
 		}
 	}
 }
 
-func TestFitHeightsShrinksUnfocusedFirst(t *testing.T) {
-	if got := fitHeights(20, []int{10, 10, 10}, 0); got[0] != 10 || got[1] != 7 || got[2] != 3 {
-		t.Fatalf("got %v", got)
+// Spare rows go to Tasks and Workflows: with a tall pane the fixed cards keep
+// their content height and the two scrollable ones take the rest.
+func TestCardHeightsGrowTasksAndWorkflowsFirst(t *testing.T) {
+	m := dashSample()
+	m.width, m.height = 70, 60
+	g := m.dashGeometry()
+	rows := m.agentRows(g.agents.w-4, 10)
+	for len(rows) > 0 && strings.TrimSpace(rows[len(rows)-1]) == "" {
+		rows = rows[:len(rows)-1]
 	}
-	if got := fitHeights(50, []int{10, 10}, 0); got[0] != 10 || got[1] != 10 {
-		t.Fatalf("got %v", got)
+	if got := g.agents.h; got != len(rows)+2 {
+		t.Fatalf("agents grew past its content: %d rows for %d lines", got, len(rows))
+	}
+	if g.tasks.h < minTasksH+10 || g.wf.h < minWfH+5 {
+		t.Fatalf("spare rows did not reach tasks/workflows: tasks %d wf %d", g.tasks.h, g.wf.h)
+	}
+}
+
+func TestFitHeightsFillsTheColumn(t *testing.T) {
+	low := []int{minAgentsH, minUsageH, minTasksH, minWfH}
+	need := []int{5, 10, 12, 5}
+	weight := []int{0, 0, 3, 2}
+	check := func(got []int, want int) []int {
+		t.Helper()
+		if sum(got) != want {
+			t.Fatalf("filled %d of %d rows: %v", sum(got), want, got)
+		}
+		return got
+	}
+	// Tall: the content needs are met top to bottom, all spare rows go to
+	// Tasks and Workflows.
+	tall := check(fitHeights(60, low, need, weight, 0), 60)
+	if tall[0] != 5 || tall[1] != 10 || tall[2] <= 12 || tall[3] <= minWfH || tall[2]+tall[3] != 60-15 {
+		t.Fatalf("tall column: %v", tall)
+	}
+	// A column with just the fixed cards grows both of them.
+	if got := check(fitHeights(40, low[:2], need[:2], weight[:2], 0), 40); got[0] <= 5 || got[1] <= 10 {
+		t.Fatalf("fixed column: %v", got)
+	}
+	// Want rows run out: the top card keeps its content, the lower ones wait.
+	if got := check(fitHeights(30, low, []int{5, 20, 6, 5}, weight, 0), 30); got[0] != 5 || got[1] != 14 {
+		t.Fatalf("short of want: %v", got)
+	}
+	// Too short for the minimums: never a gap, the tallest unfocused card
+	// shrinks first and the focused one shrinks last.
+	short := check(fitHeights(18, low, need, weight, 0), 18)
+	if short[0] != minAgentsH || short[2] < 3 || short[3] < 3 {
+		t.Fatalf("short column: %v", short)
+	}
+	focused := check(fitHeights(12, low, need, weight, 3), 12)
+	if focused[3] != minWfH {
+		t.Fatalf("focused card shrank before the others: %v", focused)
+	}
+	for _, h := range focused {
+		if h < 1 {
+			t.Fatalf("card vanished: %v", focused)
+		}
 	}
 }
 

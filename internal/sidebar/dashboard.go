@@ -147,8 +147,8 @@ func (m Model) dashboardView() string {
 	footer := lipgloss.NewStyle().Foreground(m.theme.Accent).Bold(true).Render(fitLine(help, max(6, w-1)))
 	result := strings.Split(bar+"\n"+body, "\n")
 	result = result[:min(len(result), h-1)]
-	for len(result) < h-1 {
-		result = append(result, "") // spare rows stay empty above the footer
+	for len(result) < h-1 { // safety net: the cards normally fill the body
+		result = append(result, "")
 	}
 	result = append(result, footer)
 	return strings.Join(result, "\n")
@@ -361,9 +361,21 @@ var focusOrder = []int{0, 3, 2, 4}
 
 func paneNum(focus int) int { return slices.Index(focusOrder, focus) + 1 }
 
+// Card minimum heights (borders included): a tall column gives the spare rows
+// to the cards that grow, a short one keeps these for as long as it can.
+const (
+	minAgentsH = 4
+	minUsageH  = 8
+	minTasksH  = 6
+	minWfH     = 5
+)
+
 // dashGeometry: wide = left column (Agents, Usage, Companion)
 // beside Tasks over Workflows; narrow or short = all cards stacked in Tab
-// order. Every card is always present; heights follow content (fitHeights).
+// order. Every card is always present and the cards together fill the body
+// (h-2 rows) exactly: each keeps a minimum height, Tasks and Workflows take
+// the spare rows, and a short column shrinks the cards instead of leaving a
+// gap under the last one (fitHeights).
 func (m Model) dashGeometry() dashGeom {
 	w, h := m.width, m.height
 	if w <= 0 {
@@ -385,8 +397,10 @@ func (m Model) dashGeometry() dashGeom {
 	if compH > 0 && bh-compH < map[bool]int{true: 15, false: 24}[g.wide] {
 		compH = 0
 	}
-	// Every card is as tall as its content (+2 borders), at least 3; spare
-	// rows stay empty. Only when the column is too short do the cards shrink.
+	// Need is the content height (+2 borders); low is what the card keeps even
+	// when the column is short. Weight splits the spare rows: Tasks and
+	// Workflows grow first (weight 0 cards only grow when the column has
+	// nothing else to fill, e.g. Agents/Usage on the wide left column).
 	trim := func(l []string) int {
 		for len(l) > 0 && strings.TrimSpace(l[len(l)-1]) == "" {
 			l = l[:len(l)-1]
@@ -403,24 +417,26 @@ func (m Model) dashGeometry() dashGeom {
 	}
 	lanes, _ := m.laneLayout(tw)
 	type spec struct {
-		r     *rect
-		focus int
-		need  int
+		r      *rect
+		focus  int
+		need   int
+		low    int
+		weight int
 	}
-	agentsS := spec{&g.agents, 0, trim(m.agentRows(left-4, 1000)) + 2}
-	usageS := spec{&g.usage, 3, usageH}
-	tasksS := spec{&g.tasks, 2, len(lanes) + 2}
-	wfS := spec{&g.wf, 4, len(wfLines) + 2}
+	agentsS := spec{&g.agents, 0, trim(m.agentRows(left-4, 1000)) + 2, minAgentsH, 0}
+	usageS := spec{&g.usage, 3, usageH, minUsageH, 0}
+	tasksS := spec{&g.tasks, 2, len(lanes) + 2, minTasksH, 3}
+	wfS := spec{&g.wf, 4, len(wfLines) + 2, minWfH, 2}
 	column := func(x, w, y, total int, specs ...spec) {
-		need := make([]int, len(specs))
+		low, need, weight := make([]int, len(specs)), make([]int, len(specs)), make([]int, len(specs))
 		fi := 0
 		for i, s := range specs {
-			need[i] = max(3, s.need)
+			low[i], need[i], weight[i] = s.low, max(3, s.need), s.weight
 			if s.focus == m.agentFocus {
 				fi = i
 			}
 		}
-		for i, hh := range fitHeights(total, need, fi) {
+		for i, hh := range fitHeights(total, low, need, weight, fi) {
 			*specs[i].r = rect{x, y, w, hh}
 			y += hh
 		}
@@ -432,7 +448,6 @@ func (m Model) dashGeometry() dashGeom {
 		}
 		column(left, width-left, 1, bh, tasksS, wfS)
 	} else {
-		agentsS.need = trim(m.agentRows(width-4, 1000)) + 2
 		column(0, width, 1, bh-compH, agentsS, usageS, tasksS, wfS)
 		if compH > 0 {
 			g.comp = rect{0, 1 + bh - compH, width, compH}
