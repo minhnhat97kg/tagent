@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from "react"
-import Markdown from "react-markdown"
 import { ArrowUp, Bot, ChevronRight, MessageSquare, SquarePen, Wrench } from "lucide-react"
 import { api, post } from "@/api"
 import { Panel } from "@/components/Panel"
 import { Button } from "@/components/ui/button"
-import { Bubble, Composer, Typing, chatColumn, composerInput, sendButton } from "@/components/ChatParts"
+import { Bubble, Composer, Markup, Typing, chatColumn, composerInput, sendButton } from "@/components/ChatParts"
 import { usePoll } from "@/hooks/usePoll"
 import { enc } from "@/hooks/useRoute"
 import type { Chat, Draft } from "@/types"
@@ -56,7 +55,7 @@ export function ChatPanel({dir, onTasks, className}: {dir: string; onTasks: () =
   <span className="inline-flex items-center gap-1 rounded-full bg-background px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground"><Wrench className="size-3" />{m.tool.Status}</span>
   {m.tool.Calls.map((c,n) => <details key={n} open className="group rounded-lg border bg-background"><summary className="flex cursor-pointer list-none items-center gap-1.5 px-2 py-1 font-mono [&::-webkit-details-marker]:hidden"><ChevronRight className="size-3 transition-transform group-open:rotate-90" /><span>{c.name}{c.args.pane ? ` → ${c.args.pane}` : ""}</span></summary><pre className="overflow-x-auto border-t p-2 whitespace-pre-wrap">{JSON.stringify(c.args,null,2)}</pre></details>)}
   {m.tool.Output && (m.tool.Calls[0]?.name==="open_view" && m.tool.Output.startsWith("#/") ? <a className="text-sm underline" href={m.tool.Output}>Open view</a> : <pre className="max-h-64 overflow-auto whitespace-pre-wrap">{m.tool.Output}</pre>)}
- </div> : <Bubble key={`${m.revision}-${i}`} who={label(m.role)}>{m.role === "user" ? <span className="whitespace-pre-wrap">{m.text}</span> : <div className="space-y-2 [&_a]:underline [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:font-mono [&_code]:text-[12px] [&_pre]:overflow-auto [&_pre]:rounded-lg [&_pre]:bg-muted [&_pre]:p-2.5 [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"><Markdown skipHtml>{m.text}</Markdown></div>}</Bubble>)}
+ </div> : <Bubble key={`${m.revision}-${i}`} who={label(m.role)}>{m.role === "user" ? <span className="whitespace-pre-wrap">{m.text}</span> : <Markup text={m.text} />}</Bubble>)}
  {chat.response.draft && <div className="ml-8 space-y-1 rounded-xl border bg-card p-3 text-sm shadow-sm"><div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Ticket draft</div><strong>{chat.response.draft.title}</strong><p>{chat.response.draft.goal}</p>{chat.response.draft.acceptance.map((a,i) => <p key={i} className="text-muted-foreground">• {a}</p>)}{chat.response.draft.workflow && <span className="inline-block rounded-full bg-muted px-2 py-0.5 text-xs">{chat.response.draft.workflow}</span>}</div>}
  {chat.status === "uncertain" && <p role="alert" className="ml-8 rounded-lg border border-amber-500/40 bg-amber-500/5 p-2 text-xs text-amber-700 dark:text-amber-400">Approval interrupted: inspect the project; outcome uncertain.</p>}
  {["running","approving"].includes(chat.status) && <Typing label={chat.status === "running" ? "Receptionist is typing…" : "Running approved action…"} />}

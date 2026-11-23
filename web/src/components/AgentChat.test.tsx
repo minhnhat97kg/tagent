@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest"
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { AgentChat } from "./AgentChat"
+import { AgentChat, cleanAnswer as cleanAnswerOf } from "./AgentChat"
 import type { Feed } from "@/lib/transcript"
 
 const mocks = vi.hoisted(() => ({ api: vi.fn(), post: vi.fn() }))
@@ -109,7 +109,39 @@ test("a pending question read off the screen is a card whose option is clickable
   expect(screen.queryByText(/Approval needed/)).toBeNull()
   await userEvent.click(screen.getByRole("button", { name: /2\s*Green/ }))
   expect(mocks.post).toHaveBeenCalledWith("/api/pane/input", { pane: "%1", data: "2" })
-  expect(screen.getByRole("button", { name: /Type another answer in Terminal/ })).toBeTruthy()
+  expect(screen.getByRole("button", { name: /Answer another way in Terminal/ })).toBeTruthy()
+})
+
+test("multi-select ticks by number, a typed answer picks the Type something row, review submits", async () => {
+  mocks.api.mockReset().mockResolvedValue(feed({ status: "waiting", items: [], ask: { question: "Pick toppings", multi: true, otherN: 3, options: [{ n: 1, label: "Cheese", checked: true }, { n: 2, label: "Ham" }] } }))
+  mount()
+  expect((await screen.findByRole("checkbox", { name: /Cheese/ })).getAttribute("aria-checked")).toBe("true")
+  expect(screen.getByRole("checkbox", { name: /Ham/ }).getAttribute("aria-checked")).toBe("false")
+  await userEvent.click(screen.getByRole("checkbox", { name: /Ham/ }))
+  expect(mocks.post).toHaveBeenCalledWith("/api/pane/input", { pane: "%1", data: "2" })
+  await userEvent.click(screen.getByRole("button", { name: /Review & submit/ }))
+  expect(mocks.post).toHaveBeenCalledWith("/api/pane/input", { pane: "%1", data: "\u001b[C" })
+  await userEvent.type(screen.getByLabelText("Type your own answer"), "Tuna")
+  await userEvent.click(screen.getByRole("button", { name: "Send answer" }))
+  await waitFor(() => expect(mocks.post).toHaveBeenCalledWith("/api/pane/input", { pane: "%1", data: "\r" }))
+  const sent = mocks.post.mock.calls.map(c => (c[1] as { data: string }).data)
+  expect(sent.slice(-3)).toEqual(["3", "Tuna", "\r"])
+})
+
+test("an answered question collapses to one line and expands on tap", async () => {
+  const input = JSON.stringify({ questions: [{ question: "Which chat?", options: [{ label: "Both" }, { label: "Agent" }] }] })
+  mocks.api.mockReset().mockResolvedValue(feed({ items: [
+    { id: "q.0", role: "tool", tool: { name: "AskUserQuestion", label: "AskUserQuestion", callId: "q1", input } },
+    { id: "q.1", role: "tool", tool: { callId: "q1", output: 'Your questions have been answered: "Which chat?"="Agent". You can now continue' } },
+  ] }))
+  mount()
+  const row = await screen.findByRole("button", { name: /Question: Which chat\?/ })
+  expect(row.textContent).toContain("Agent")
+  expect(row.textContent).not.toContain("answered")
+  expect(screen.queryByText("Both")).toBeNull()
+  await userEvent.click(row)
+  expect(screen.getByText("Both")).toBeTruthy()
+  expect(cleanAnswerOf('The user answered: "A?"="x y", "B?"="z". Read the answers carefully')).toBe("x y · z")
 })
 
 test("offers the harness's slash commands and completes one", async () => {
@@ -128,4 +160,19 @@ test("shows the model and switches it with /model", async () => {
   await userEvent.click(await screen.findByRole("button", { name: "Model: claude-opus-5-5" }))
   await userEvent.click(await screen.findByRole("menuitem", { name: "haiku" }))
   expect(mocks.post).toHaveBeenCalledWith("/api/pane/send", { pane: "%1", data: "/model haiku" })
+})
+
+test("folds consecutive tool calls into one line and keeps the status in the bar", async () => {
+  mocks.api.mockReset().mockResolvedValue(feed({ status: "running", queued: ["/model haiku"], items: [
+    { id: "a.0", role: "tool", tool: { name: "Bash", label: "Bash ls", callId: "t1", input: "{}" } },
+    { id: "r.0", role: "tool", tool: { callId: "t1", output: "ok" } },
+    { id: "a.1", role: "tool", tool: { name: "Bash", label: "Bash pwd", callId: "t2", input: "{}" } },
+    { id: "r.1", role: "tool", tool: { callId: "t2", output: "ok" } },
+    { id: "a.2", role: "tool", tool: { name: "Read", label: "Read a.ts", callId: "t3", input: "{}" } },
+    { id: "m.0", role: "assistant", text: "| a | b |\n|---|---|\n| 1 | 2 |" },
+  ] }))
+  mount()
+  expect(await screen.findByText("Bash ×2 · Read")).toBeTruthy()
+  expect(screen.getByText("1 queued")).toBeTruthy()
+  expect((await screen.findAllByRole("table")).length).toBe(1)
 })

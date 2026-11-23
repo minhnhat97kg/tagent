@@ -1,4 +1,6 @@
 import type { FormEvent, ReactNode } from "react"
+import Markdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 import { Bot, ChevronRight, CircleAlert } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -8,7 +10,7 @@ export const chatColumn = "mx-auto w-full max-w-3xl"
 
 // Bubble: the user's message is a soft bubble on the right; replies are plain text beside a small avatar.
 export function Bubble({ who, label, children }: { who: "user" | "assistant" | "error"; label?: string; children: ReactNode }) {
-  if (who === "user") return <div className="ml-auto w-fit max-w-[85%] rounded-2xl rounded-br-md bg-muted px-3.5 py-2 text-sm break-words">{children}</div>
+  if (who === "user") return <div className="ml-auto w-fit max-w-[85%] rounded-2xl rounded-br-md bg-muted px-3 py-1.5 text-sm break-words">{children}</div>
   const error = who === "error"
   return <div className="flex gap-2.5">
     <span className={cn("mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full border bg-card [&_svg]:size-3.5", error && "border-destructive/40 text-destructive")}>
@@ -24,7 +26,7 @@ export function Bubble({ who, label, children }: { who: "user" | "assistant" | "
 // Fold: a one-line card that opens to show details (tool calls, reasoning).
 export function Fold({ icon, title, end, open, children }: { icon?: ReactNode; title: ReactNode; end?: ReactNode; open?: boolean; children: ReactNode }) {
   return <details open={open} className="group ml-8 rounded-lg border bg-muted/30 text-xs">
-    <summary className="flex cursor-pointer list-none items-center gap-2 px-2.5 py-1.5 text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden">
+    <summary className="flex cursor-pointer list-none items-center gap-2 px-2.5 py-1 text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden">
       <ChevronRight className="size-3 shrink-0 transition-transform group-open:rotate-90" />
       {icon}
       <span className="min-w-0 truncate font-mono">{title}</span>
@@ -54,3 +56,10 @@ export function Composer({ onSubmit, hint, above, children }: { onSubmit: () => 
 
 export const composerInput = "max-h-40 min-h-9 flex-1 resize-none bg-transparent py-2 text-sm outline-none [field-sizing:content] placeholder:text-muted-foreground disabled:opacity-60"
 export const sendButton = "mb-0.5 size-8 shrink-0 rounded-full max-md:size-10"
+
+// Markdown: GitHub-flavoured (tables, task lists, strikethrough); raw HTML is dropped. Links open in a new tab.
+export function Markup({ text }: { text: string }) {
+  return <div className="space-y-2 [&_a]:underline [&_blockquote]:border-l-2 [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:font-mono [&_code]:text-[12px] [&_h1]:text-base [&_h1]:font-semibold [&_h2]:text-[15px] [&_h2]:font-semibold [&_h3]:font-semibold [&_hr]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_pre]:overflow-auto [&_pre]:rounded-lg [&_pre]:bg-muted [&_pre]:p-2.5 [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_table]:block [&_table]:overflow-x-auto [&_td]:border [&_td]:px-2 [&_td]:py-1 [&_th]:border [&_th]:bg-muted/50 [&_th]:px-2 [&_th]:py-1 [&_th]:text-left [&_ul]:list-disc [&_ul]:pl-5 [&_li]:my-0.5">
+    <Markdown skipHtml remarkPlugins={[remarkGfm]} components={{ a: ({ node: _n, ...p }) => <a {...p} target="_blank" rel="noreferrer" /> }}>{text}</Markdown>
+  </div>
+}

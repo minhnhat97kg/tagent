@@ -99,12 +99,13 @@ func (s *server) send(w http.ResponseWriter, r *http.Request) {
 }
 
 // chatSize gives a pane room while one of its questions is clipped: in Chat the Terminal is hidden, so
-// a pane in a shared tmux window can be a few rows tall and Claude then hides options. It only acts
-// when nobody owns the pane's size, and hands it back as soon as the question is gone.
+// a pane in a shared tmux window (or one the hidden Terminal sized at 40x10) is a few rows tall and
+// Claude then hides options. Chat is the view in use while a question is open, so it takes the size
+// and hands it back as soon as the question is gone.
 func (s *server) chatSize(pane string, ask *transcript.Ask) {
 	const viewer = "chat"
 	if ask != nil && ask.Clipped {
-		if _, held := s.chatClaims.Load(pane); !held && s.sizeOwners.resize(pane, viewer, terminalSize{Cols: 100, Rows: 40}, false, true) == nil && s.sizeOwners.owns(pane, viewer) {
+		if _, held := s.chatClaims.Load(pane); !held && s.sizeOwners.resize(pane, viewer, terminalSize{Cols: 100, Rows: 40}, true, false) == nil && s.sizeOwners.owns(pane, viewer) {
 			s.chatClaims.Store(pane, true)
 		}
 		return

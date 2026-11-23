@@ -17,7 +17,7 @@ export interface Feed {
 }
 
 // A pending AskUserQuestion read off the agent's screen (the transcript has it only once answered).
-export interface Ask { header?: string; question: string; options: { n: number; label: string; description?: string }[]; multi?: boolean; other?: boolean }
+export interface Ask { header?: string; question: string; summary?: string; options: { n: number; label: string; description?: string; checked?: boolean }[]; multi?: boolean; other?: boolean; otherN?: number }
 
 export type Row = { kind: "msg"; item: Item } | { kind: "tool"; call: Item; output?: string }
 

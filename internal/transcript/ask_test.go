@@ -61,3 +61,22 @@ func TestParseAskStaleFooter(t *testing.T) {
 		t.Fatal("footer far above the bottom must not count as a pending question")
 	}
 }
+
+func TestParseAskMultiAndReview(t *testing.T) {
+	multi := "←  ☐ Toppings  ✔ Submit  →\nPick toppings\n❯ 1. [✔] Cheese\n         Cheese topping\n  2. [ ] Ham\n  3. [ ] Type something\n     Submit\n──────\n  4. Chat about this\nEnter to select · Esc to cancel\n"
+	a := ParseAsk(multi)
+	if a == nil || !a.Multi || len(a.Options) != 2 || !a.Options[0].Checked || a.Options[1].Checked || a.Options[0].Label != "Cheese" || a.OtherN != 3 {
+		t.Fatalf("multi: %+v", a)
+	}
+	r := ParseAsk("←  ☒ Toppings  ✔ Submit  →\nReview your answers\n ● Pick toppings\n   → Cheese, Olives\n❯ 1. Submit answers\n  2. Cancel\n──────\n")
+	if r == nil || r.Question != "Review your answers" || r.Summary != "Pick toppings · Cheese, Olives" || len(r.Options) != 2 || r.Options[0].Label != "Submit answers" {
+		t.Fatalf("review: %+v", r)
+	}
+}
+
+func TestParseAskTabBarHeader(t *testing.T) {
+	a := ParseAsk("←  ☒ Colours  ✔ Submit  →\nPick colours\n❯ 1. [✔] Red\n  2. [ ] Green\nEnter to select · Esc to cancel\n")
+	if a == nil || a.Header != "Colours" || a.Question != "Pick colours" {
+		t.Fatalf("got %+v", a)
+	}
+}
