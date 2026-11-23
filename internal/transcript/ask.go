@@ -43,6 +43,16 @@ func ParseAsk(screen string) *Ask {
 	if foot < 0 {
 		return nil
 	}
+	// The box sits at the bottom of the screen; an old footer in the scrollback is not a pending question.
+	below := 0
+	for _, l := range lines[foot+1:] {
+		if strings.TrimSpace(l) != "" {
+			below++
+		}
+	}
+	if below > 4 {
+		return nil
+	}
 	a := &Ask{Multi: strings.Contains(lines[foot], "Space")}
 	var rev []AskOption
 	started := false

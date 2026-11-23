@@ -54,3 +54,10 @@ func TestParseAskClipped(t *testing.T) {
 		t.Fatalf("complete screen flagged: %+v", c)
 	}
 }
+
+func TestParseAskStaleFooter(t *testing.T) {
+	old := askScreen + "● Answered\n● Beta\n❯ a\n──────\n❯ \n──────\n  Haiku\n  -- INSERT --\n"
+	if ParseAsk(old) != nil {
+		t.Fatal("footer far above the bottom must not count as a pending question")
+	}
+}

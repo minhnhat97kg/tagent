@@ -47,7 +47,7 @@ func (s *server) transcript(w http.ResponseWriter, r *http.Request) {
 	default:
 		out.Items, out.Cursor, out.Reset, out.More = page.Items, page.Cursor, page.Reset, page.More
 	}
-	if out.Harness == "claude" && status != string(tmux.StatusRunning) {
+	if out.Harness == "claude" {
 		// A pending AskUserQuestion is not in the transcript until answered; read it off the screen.
 		if screen, err := tmux.CaptureTail(pane, 40); err == nil {
 			if out.Ask = transcript.ParseAsk(screen); out.Ask != nil {
