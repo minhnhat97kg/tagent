@@ -448,6 +448,10 @@ func (m Model) dashGeometry() dashGeom {
 		}
 		column(left, width-left, 1, bh, tasksS, wfS)
 	} else {
+		// Stacked: Tasks can list hundreds of rows; cap it so Agents and
+		// Workflows keep their share and spare rows go to Workflows first.
+		tasksS.need = min(tasksS.need, max(minTasksH, (bh-compH)*25/100))
+		tasksS.weight, wfS.weight = 1, 2
 		column(0, width, 1, bh-compH, agentsS, usageS, tasksS, wfS)
 		if compH > 0 {
 			g.comp = rect{0, 1 + bh - compH, width, compH}
