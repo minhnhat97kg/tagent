@@ -42,9 +42,9 @@ test("shows the same summary as the TUI and previews the draft", async () => {
   expect(screen.getAllByText("feature").length).toBeGreaterThan(0)
   expect(screen.getByText(/flows live in \.tasks\/workflows/i)).toBeTruthy()
   expect(screen.getByText("planner")).toBeTruthy()
-  expect(screen.getByText(/pi gpt · effort high/)).toBeTruthy()
-  expect(screen.getByText("mention")).toBeTruthy()
-  expect(screen.getByText(/agent \{\{event.name\}\}/)).toBeTruthy()
+  expect(screen.getByText(/gpt · effort high/)).toBeTruthy()
+  expect(screen.getByText("@mention")).toBeTruthy()
+  expect(screen.getByText(/the mentioned agent/)).toBeTruthy()
   expect(saveButton().disabled).toBe(true)
 
   fireEvent.change(editor(), { target: { value: "default_workflow: release\n" } })
@@ -74,7 +74,9 @@ test("a validation error names its line and blocks Save", async () => {
 test("Restore defaults fills the editor and Revert returns to the saved text", async () => {
   render(<BoardConfigPage dir="/repo" />)
   await waitFor(() => expect(editor().value).toBe(initial.yaml))
-  fireEvent.click(screen.getByRole("button", { name: /restore defaults/i }))
+  const more = screen.getByRole("button", { name: /more actions/i })
+  fireEvent.pointerDown(more, { button: 0, ctrlKey: false })
+  fireEvent.click(await screen.findByRole("menuitem", { name: /restore defaults/i }))
   expect(editor().value).toBe(initial.default)
   fireEvent.click(screen.getByRole("button", { name: /revert/i }))
   expect(editor().value).toBe(initial.yaml)

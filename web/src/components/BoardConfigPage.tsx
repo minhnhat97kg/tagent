@@ -1,5 +1,6 @@
 import { Suspense, lazy, useEffect, useRef, useState } from 'react'
-import { Bot, RotateCcw, Save, Terminal, Undo2 } from 'lucide-react'
+import { MoreHorizontal, RotateCcw, Save, Undo2 } from 'lucide-react'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { api, send } from '@/api'
 import { Button } from '@/components/ui/button'
 import { enc } from '@/hooks/useRoute'
@@ -23,37 +24,58 @@ function parseError(text: string): { error: string; line: number } {
   return { error: text, line: 0 }
 }
 
-// BoardSummaryView is the readable side of the page: the default workflow,
-// roles with harness and model, triggers. It follows the draft live.
-export function BoardSummaryView({ summary }: { summary?: BoardSummary }) {
-  if (!summary) return <p className="text-sm text-muted-foreground">No valid configuration to preview.</p>
-  return <div className="space-y-5">
-    <section aria-labelledby="board-config-workflow">
-      <h3 id="board-config-workflow" className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Default workflow</h3>
-      <p className="rounded-md border bg-card px-2.5 py-1.5 text-[12.5px] font-semibold">{summary.defaultWorkflow || 'None — pick a workflow when starting a ticket'}</p>
-      <p className="mt-1 text-[11px] text-muted-foreground">Flows live in .tasks/workflows/*.yml. Lanes are fixed: todo, in progress, blocked, done.</p>
-    </section>
-    <section aria-labelledby="board-config-roles">
-      <h3 id="board-config-roles" className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Roles</h3>
-      {summary.roles.length ? <ul className="space-y-1">
-        {summary.roles.map(r => <li key={r.name} className="flex items-center gap-2 rounded-md border bg-card px-2.5 py-1.5 text-[12px]">
-          <Bot className="size-3.5 shrink-0 text-indigo-600" aria-hidden />
-          <b>{r.name}</b>
-          <span className="truncate text-[11.5px] text-muted-foreground">{[r.agent, r.model].filter(Boolean).join(' ')}{r.effort ? ` · effort ${r.effort}` : ''}{r.freshAfter != null ? ` · fresh after ${r.freshAfter}` : ''}</span>
-        </li>)}
-      </ul> : <p className="text-[11.5px] text-muted-foreground">No roles configured.</p>}
-    </section>
-    <section aria-labelledby="board-config-triggers">
-      <h3 id="board-config-triggers" className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Triggers</h3>
-      {summary.triggers.length ? <ul className="space-y-1">
-        {summary.triggers.map((t, i) => <li key={i} className="rounded-md border bg-card px-2.5 py-1.5 text-[12px]">
-          <div className="flex items-center gap-2"><Terminal className="size-3.5 shrink-0 text-sky-600" aria-hidden /><b>{t.on}</b>{t.when && <span className="truncate text-[11.5px] text-muted-foreground">{t.when}</span>}</div>
-          <p className="pl-5 text-[11px] text-muted-foreground">agent {t.agent}</p>
-        </li>)}
-      </ul> : <p className="text-[11.5px] text-muted-foreground">No triggers configured.</p>}
-    </section>
-    <p className="text-[11px] text-muted-foreground">max_fires_per_hour: {summary.maxFiresPerHour}</p>
+// One settings row: label and a short hint on the left, the value or control on the right.
+function Row({ label, hint, children, id }: { label: string; hint?: string; children?: React.ReactNode; id?: string }) {
+  return <div className="flex items-start gap-4 border-b px-4 py-3 last:border-b-0">
+    <div className="min-w-0 flex-1">
+      <h3 id={id} className="text-[13px] font-medium">{label}</h3>
+      {hint && <p className="mt-0.5 text-[11.5px] text-muted-foreground">{hint}</p>}
+    </div>
+    {children && <div className="shrink-0">{children}</div>}
   </div>
+}
+
+const shortModel = (m?: string) => (m ? m.slice(m.lastIndexOf('/') + 1) : 'default')
+
+// BoardSummaryView is the readable side of the page: agents and triggers, as
+// one list of settings rows. It follows the draft live.
+export function BoardSummaryView({ summary }: { summary?: BoardSummary }) {
+  if (!summary) return <p className="px-4 py-3 text-sm text-muted-foreground">No valid configuration to preview.</p>
+  return <>
+    <section aria-labelledby="board-config-roles" className="border-b">
+      <div className="flex items-baseline gap-2 px-4 pt-3">
+        <h3 id="board-config-roles" className="flex-1 text-[13px] font-medium">Agents</h3>
+        <a href="#/agents" className="text-[11.5px] text-muted-foreground hover:text-foreground hover:underline">Manage agents →</a>
+      </div>
+      {summary.roles.length ? <table className="mx-4 mb-3 mt-1.5 w-[calc(100%-2rem)] text-[12px]">
+        <tbody>{summary.roles.map(r => <tr key={r.name} className="border-t first:border-t-0">
+          <td className="py-1.5 pr-3 font-medium">{r.name}</td>
+          <td className="py-1.5 pr-3 text-muted-foreground">{r.agent}</td>
+          <td className="w-full truncate py-1.5 font-mono text-[11.5px] text-muted-foreground" title={[r.agent, r.model].filter(Boolean).join(' ')}>
+            {shortModel(r.model)}{r.effort ? ` · effort ${r.effort}` : ''}{r.freshAfter != null ? ` · fresh after ${r.freshAfter}` : ''}
+          </td>
+        </tr>)}</tbody>
+      </table> : <p className="px-4 pb-3 pt-1 text-[11.5px] text-muted-foreground">No agents yet.</p>}
+    </section>
+    <section aria-labelledby="board-config-triggers" className="border-b">
+      <h3 id="board-config-triggers" className="px-4 pt-3 text-[13px] font-medium">Triggers</h3>
+      {summary.triggers.length ? <ul className="px-4 pb-2 pt-1">
+        {summary.triggers.map((t, i) => <li key={i}>
+          <details className="group border-t py-1.5 text-[12px] first:border-t-0">
+            <summary className="flex cursor-pointer list-none items-center gap-2">
+              <span className="font-medium">{t.on === 'mention' ? '@mention' : t.on}</span>
+              <span className="truncate text-muted-foreground">→ {t.agent === '{{event.name}}' ? 'the mentioned agent' : t.agent}{t.when && t.when !== 'to=*' ? ` · ${t.when}` : ''}</span>
+              <span className="ml-auto text-muted-foreground transition-transform group-open:rotate-90" aria-hidden>▸</span>
+            </summary>
+            {t.prompt && <p className="mt-1 whitespace-pre-wrap font-mono text-[11px] text-muted-foreground">{t.prompt}</p>}
+          </details>
+        </li>)}
+      </ul> : <p className="px-4 pb-3 pt-1 text-[11.5px] text-muted-foreground">No triggers.</p>}
+    </section>
+    <Row label="Dispatch limit" hint="Most agent runs one ticket may start in an hour.">
+      <span className="text-[12px] tabular-nums">{summary.maxFiresPerHour} / hour</span>
+    </Row>
+  </>
 }
 
 export function BoardConfigPage({ dir }: { dir: string }) {
@@ -133,12 +155,18 @@ export function BoardConfigPage({ dir }: { dir: string }) {
 
   return <section aria-label="Board config" className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg border bg-card">
     <header className="flex h-10 shrink-0 items-center gap-2 border-b px-3">
-      <h2 className="text-[13px] font-semibold">Board config</h2>
-      <span className="truncate text-[11px] text-muted-foreground">{dir}/.tasks/board.yaml{!exists && ' · not created yet'}</span>
-      <div className="ml-auto flex items-center gap-1.5">
-        <Button size="xs" variant="ghost" disabled={busy || !defaults} onClick={() => setDraft(defaults)}><RotateCcw />Restore defaults</Button>
+      <h2 className="text-[13px] font-semibold">Board</h2>
+      <span className="truncate font-mono text-[11px] text-muted-foreground" title={`${dir}/.tasks/board.yaml`}>.tasks/board.yaml{!exists && ' · not created yet'}</span>
+      {dirty && <span className="text-[11px] text-amber-600">● Unsaved</span>}
+      <div className="ml-auto flex items-center gap-1">
         <Button size="xs" variant="ghost" disabled={busy || !dirty} onClick={() => setDraft(saved)}><Undo2 />Revert</Button>
         <Button size="xs" disabled={busy || !dirty || invalid} onClick={() => void save()}><Save />Save</Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild><Button size="icon-xs" variant="ghost" aria-label="More actions"><MoreHorizontal /></Button></DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem disabled={busy || !defaults} onSelect={() => setDraft(defaults)}><RotateCcw />Restore defaults</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
     {(validation || error) && <p role="alert" className="shrink-0 whitespace-pre-wrap border-b bg-destructive/5 px-3 py-1.5 text-xs text-destructive">
@@ -147,17 +175,17 @@ export function BoardConfigPage({ dir }: { dir: string }) {
         : validation || error}
     </p>}
     <div className="grid min-h-0 flex-1 grid-rows-2 md:grid-cols-2 md:grid-rows-1">
-      <div className="min-h-0 overflow-auto border-b p-3 md:border-b-0 md:border-r">
-        <label className="mb-4 block text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Default workflow
-          <select aria-label="Default workflow" disabled={busy || !ready} value={summary?.defaultWorkflow ?? ''} onChange={e => void chooseDefault(e.target.value)} className="mt-1 w-full rounded-md border bg-background px-2 py-1 text-[12px] normal-case tracking-normal text-foreground">
-            <option value="">None — pick when starting a ticket</option>
+      <div className="min-h-0 overflow-auto border-b md:border-b-0 md:border-r">
+        <Row id="board-config-workflow" label="Default workflow" hint="New tickets run this flow. Flows live in .tasks/workflows/*.yml.">
+          <select aria-label="Default workflow" disabled={busy || !ready} value={summary?.defaultWorkflow ?? ''} onChange={e => void chooseDefault(e.target.value)} className="h-7 rounded-md border bg-background px-2 text-[12px]">
+            <option value="">None</option>
             {workflows.map(w => <option key={w.name} value={w.name}>{w.name}{w.global ? ' (global)' : ''}</option>)}
           </select>
-        </label>
+        </Row>
         <BoardSummaryView summary={summary} />
       </div>
       <div className="flex min-h-0 flex-col">
-        <div className="shrink-0 px-3 pt-2 text-[11px] font-medium text-muted-foreground">YAML · saved to .tasks/board.yaml, comments and order kept</div>
+        <div className="shrink-0 border-b px-3 py-1.5 text-[11px] text-muted-foreground">YAML · comments and order are kept</div>
         <div className="min-h-0 flex-1">
           <Suspense fallback={<pre className="h-full overflow-auto p-3 font-mono text-[12px] leading-5">{draft}</pre>}>
             <WorkflowYamlEditor key={dir} value={draft} onChange={setDraft} readOnly={false} errorLine={validationLine} errorMessage={validation} goto={goto} label="Board config YAML" />
@@ -165,6 +193,6 @@ export function BoardConfigPage({ dir }: { dir: string }) {
         </div>
       </div>
     </div>
-    <p className="shrink-0 border-t px-3 py-1.5 text-[11px] text-muted-foreground">run: commands execute locally on this machine. Saving validates first; a broken config is never written.</p>
+    <p className="shrink-0 border-t px-3 py-1.5 text-[11px] text-muted-foreground">Commands in workflows run on this machine. Invalid YAML is never saved.</p>
   </section>
 }
