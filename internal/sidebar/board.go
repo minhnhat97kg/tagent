@@ -1285,5 +1285,5 @@ func (m Model) detailMaxScroll() int {
 }
 
 func (m Model) ticketHints() string {
-	return m.keyHints("h/l lane", "j/k card", "n new", "s start", "enter detail", "e edit", "C comment", "H/L status", "a files", "x delete", "w workflow", "B config", "? help")
+	return m.keyHints("h/l lane", "j/k card", "n new", "s start", "enter detail", "B config", "e edit", "C comment", "H/L status", "a files", "x delete", "w workflow", "? help")
 }

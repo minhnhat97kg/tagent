@@ -14,7 +14,7 @@ type shortcutSection struct {
 
 // helpSections is the complete reference, available with a from contextual help.
 var helpSections = []shortcutSection{
-	{"Everywhere", [][2]string{{"?", "help"}, {",", "settings"}, {"q", "quit"}, {"Tab S-Tab", "next / previous card: Agents, Usage, Tasks, Workflows"}, {"[ ]", "chart range (1 / 7 / 30 days)"}, {"o", "expand / collapse (prefix + A)"}, {"b", "board (from the Tasks card)"}}},
+	{"Everywhere", [][2]string{{"?", "help"}, {",", "settings"}, {"B", "board config (default workflow, agents, triggers)"}, {"q", "quit"}, {"Tab S-Tab", "next / previous card: Agents, Usage, Tasks, Workflows"}, {"[ ]", "chart range (1 / 7 / 30 days)"}, {"o", "expand / collapse (prefix + A)"}, {"b", "board (from the Tasks card)"}}},
 	{"Agents", [][2]string{
 		{"N", "new agent"}, {"j k ↑ ↓", "select agent"}, {"n", "next agent needing you"}, {"enter", "on ! row: answers; again: jump to pane"}, {"1-4", "answer open approval"}, {"space", "quick action on first alert"}, {"1-9", "jump to window"}, {"/", "filter"}, {"r", "switch repo"}, {"p", "pin"}, {"f", "handoff sizing to this terminal"}, {"v x", "select / delete worktrees"}, {"S", "clear subagents"}, {"u", "undo"}, {"l", "agent log"}, {"i", "send prompt"},
 	}},

@@ -1729,6 +1729,10 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.taskFocus = m.agentFocus == 2
 			m.workflowFocus = m.agentFocus == 4
 			return m, nil
+		case "B": // board config, from any dashboard card; esc returns here
+			m.boardMode, m.boardFlow, m.boardConfigView, m.boardDrawer = true, true, true, false
+			m.flowWorkflow, m.boardConfigScroll, m.flowFromDash = "", 0, true
+			return m, nil
 		case "[", "h", "left":
 			if m.agentFocus != 3 && msg.String() != "[" {
 				break
