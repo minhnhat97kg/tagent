@@ -201,6 +201,14 @@ func (m *Model) setNotes(notes []tasks.Task) {
 		m.taskCursor = i
 	}
 	m.taskCursor = max(0, min(m.taskCursor, len(notes)-1))
+	if id == "" { // first load: open on work in progress, else todo, never on done history
+		for _, lane := range []string{"in progress", "todo"} {
+			if cards := m.laneCards(lane); len(cards) > 0 {
+				m.taskCursor = cards[0]
+				break
+			}
+		}
+	}
 }
 
 // setWorkflows replaces the workflow list and keeps the selection on the same name.
@@ -585,6 +593,88 @@ func (m Model) flowLines(width int) []string {
 	return lines
 }
 
+// boardConfigLines is the read-only config summary (B): the same
+// tasks.BoardSummary the web config page renders.
+func (m Model) boardConfigLines(width int) []string {
+	sum := m.boardConfig.Summary()
+	dim := m.boardStyle(m.theme.TextMuted)
+	title := m.boardStyle(m.theme.TextPrimary).Bold(true)
+	lines := []string{boardFit(title.Render("Statuses")+"  "+dim.Render(fmt.Sprintf("%d statuses · %d roles · %d triggers", len(sum.Statuses), len(sum.Roles), len(sum.Triggers))), width)}
+	roleInfo := map[string]string{}
+	for _, r := range sum.Roles {
+		roleInfo[r.Name] = strings.TrimSpace(r.Agent + " " + r.Model)
+	}
+	for _, s := range sum.Statuses {
+		glyph, color := m.boardGlyph(s.ID)
+		who := "you move it"
+		switch {
+		case s.Role != "":
+			who = s.Role
+			if info := roleInfo[s.Role]; info != "" {
+				who += " · " + info
+			}
+		case s.Run != "":
+			who = "run: " + strings.SplitN(s.Run, "\n", 2)[0]
+		case s.ID == "blocked":
+			who = "waiting for you"
+		case m.boardConfig.Lane(s.ID) == "done":
+			who = "finished"
+		}
+		lines = append(lines, boardFit(m.boardStyle(color).Render(glyph)+" "+title.Render(s.ID)+"  "+who, width))
+		next := ""
+		switch {
+		case s.Run != "":
+			next = "pass → " + s.Pass + " · fail → " + s.Fail
+		case s.Next != nil && len(s.Next) == 0:
+			next = "end"
+		case s.Next != nil:
+			next = "→ " + strings.Join(s.Next, ", ")
+		case m.boardConfig.Lane(s.ID) == "done":
+			next = "end"
+		default:
+			next = "→ any status"
+		}
+		if s.MaxLoops > 0 {
+			next += fmt.Sprintf(" · max %d loops, then blocked", s.MaxLoops)
+		}
+		if s.FreshAfter != nil {
+			next += fmt.Sprintf(" · fresh after %d", *s.FreshAfter)
+		}
+		if s.Column != "" {
+			next += " · column " + s.Column
+		}
+		lines = append(lines, boardFit("  "+dim.Render(next), width))
+	}
+	lines = append(lines, "", title.Render("Roles"))
+	if len(sum.Roles) == 0 {
+		lines = append(lines, dim.Render("  none"))
+	}
+	for _, r := range sum.Roles {
+		info := strings.TrimSpace(r.Agent + " " + r.Model)
+		if r.Effort != "" {
+			info += " · effort " + r.Effort
+		}
+		if r.FreshAfter != nil {
+			info += fmt.Sprintf(" · fresh after %d", *r.FreshAfter)
+		}
+		lines = append(lines, boardFit("  "+title.Render(r.Name)+"  "+dim.Render(info), width))
+	}
+	lines = append(lines, "", title.Render("Triggers"))
+	if len(sum.Triggers) == 0 {
+		lines = append(lines, dim.Render("  none"))
+	}
+	for _, t := range sum.Triggers {
+		line := "  on " + t.On
+		if t.When != "" {
+			line += " " + t.When
+		}
+		line += " ▸ agent " + t.Agent
+		lines = append(lines, boardFit(dim.Render(line), width))
+	}
+	lines = append(lines, "", dim.Render(fmt.Sprintf("max_fires_per_hour: %d · run: commands execute locally · E edit", sum.MaxFiresPerHour)))
+	return lines
+}
+
 // boardFit operates on terminal cells, without Lip Gloss wrapping a second time.
 func boardFit(line string, width int) string {
 	if width <= 0 {
@@ -799,7 +889,12 @@ func (m Model) boardView() string {
 	}
 	h := m.height - 3
 	var body string
-	if m.boardFlow {
+	if m.boardConfigView {
+		lines := m.boardConfigLines(m.width - 4)
+		rows := max(0, h-2)
+		start := min(m.boardConfigScroll, max(0, len(lines)-rows))
+		body = m.boardPanel("Board config · .tasks/board.yaml", "B", lines[start:], m.width, h, true)
+	} else if m.boardFlow {
 		label := ".tasks/board.yaml"
 		if m.flowWorkflow != "" {
 			label = m.flowWorkflow
@@ -829,7 +924,9 @@ func (m Model) boardView() string {
 	} else if m.workflowFocus && !m.boardFlow && !m.boardDrawer {
 		hint = m.keyHints("enter view", "a add", "e edit", "t agents", "Tab tickets", "? help")
 	}
-	if m.boardFlow {
+	if m.boardConfigView {
+		hint = m.keyHints("esc close", "j/k scroll", "E edit", "? help")
+	} else if m.boardFlow {
 		hint = m.keyHints("esc close", "[/] browse", "e edit", "? help")
 	} else if m.boardDrawer {
 		hint = m.keyHints("esc close", "j/k scroll", "e edit", "C comment", "? help")
@@ -1036,6 +1133,25 @@ func (m Model) boardKey(key string) (Model, tea.Cmd, bool) {
 			return m, nil, true
 		}
 	}
+	if m.boardFlow && m.boardConfigView {
+		switch key {
+		case "esc", "w", "q", "b", "B":
+			m.boardFlow, m.boardConfigView = false, false
+		case "j", "down":
+			m.boardConfigScroll++
+		case "k", "up":
+			m.boardConfigScroll = max(0, m.boardConfigScroll-1)
+		case "g":
+			m.boardConfigScroll = 0
+		case "G":
+			m.boardConfigScroll = 1 << 20 // the renderer clamps to the last page
+		case "e", "E":
+			return m, editBoardConfig(m.boardDir, m.tmuxPane), true
+		case "ctrl+c":
+			return m, tea.Quit, true
+		}
+		return m, nil, true
+	}
 	if m.boardFlow {
 		switch key {
 		case "[", "]":
@@ -1100,8 +1216,13 @@ func (m Model) boardKey(key string) (Model, tea.Cmd, bool) {
 		return m, nil, true
 	case "w":
 		m.boardMode = true
-		m.boardFlow, m.boardDrawer = true, false
+		m.boardFlow, m.boardConfigView, m.boardDrawer = true, false, false
 		m.flowWorkflow = ""
+		return m, nil, true
+	case "B": // read-only board config summary; E edits, like the workflow view
+		m.boardMode = true
+		m.boardFlow, m.boardConfigView, m.boardDrawer = true, true, false
+		m.flowWorkflow, m.boardConfigScroll = "", 0
 		return m, nil, true
 	case "enter", "i":
 		m.boardMode = true
@@ -1201,5 +1322,5 @@ func (m Model) detailMaxScroll() int {
 }
 
 func (m Model) ticketHints() string {
-	return m.keyHints("h/l lane", "j/k card", "n new", "s start", "enter detail", "e edit", "C comment", "H/L status", "a files", "x delete", "w workflow", "? help")
+	return m.keyHints("h/l lane", "j/k card", "n new", "s start", "enter detail", "e edit", "C comment", "H/L status", "a files", "x delete", "w workflow", "B config", "? help")
 }
