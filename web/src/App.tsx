@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { bindVisualViewport } from '@/lib/touchViewport'
-import { ArrowLeft, Bot, Kanban, Maximize2, Minimize2, Plus, Settings, SquareTerminal, Workflow } from "lucide-react"
+import { ArrowLeft, Bot, Kanban, Maximize2, Minimize2, PanelLeftClose, PanelLeftOpen, Plus, Settings, SquareTerminal, Workflow } from "lucide-react"
 import { SettingsDialog } from "@/components/SettingsDialog"
 import { api } from "@/api"
 import { AgentView } from "@/components/AgentView"
@@ -10,6 +10,7 @@ import { Board, TaskDrawer } from "@/components/Board"
 import { HelpDialog } from "@/components/HelpDialog"
 import { NewAgentDialog } from "@/components/NewAgentDialog"
 import { ProjectSelect } from "@/components/ProjectSelect"
+import { RailStrip } from "@/components/Rail"
 import { AgentsPanel } from "@/components/panels/AgentsPanel"
 import { WorkflowsPage } from "@/components/WorkflowsPage"
 import { RunPage } from "@/components/RunPage"
@@ -22,13 +23,15 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 import { useKeys } from "@/hooks/useKeys"
 import { usePoll } from "@/hooks/usePoll"
 import { useProjectDir } from "@/hooks/useProjectDir"
+import { useRailCollapsed } from "@/hooks/useRail"
 import { enc, nav, parseSel, useRoute } from "@/hooks/useRoute"
 import { baseName } from "@/lib/status"
 import { useAppState } from "@/state"
 import type { Agent, Overview, Project } from "@/types"
 
-// App is a fixed shell: top bar, a left rail (usage, agents, roles, tasks) and one main view.
-// Home shows the board; /agent/<pane> shows that agent's terminal.
+// App is a fixed shell: top bar, a left rail (usage, agents, tasks) and one main view.
+// The rail collapses to an icon strip (remembered per device). Home shows the
+// board; /agent/<pane> shows that agent's terminal.
 export default function App() {
   useLayoutEffect(() => bindVisualViewport(document.documentElement), [])
   const route = useRoute()
@@ -37,6 +40,8 @@ export default function App() {
   const [newOpen, setNewOpen] = useState(false)
   const [help, setHelp] = useState(false)
   const [settings, setSettings] = useState(false)
+  // Rail collapsed state: an icon strip keeps the board room to itself.
+  const [railCollapsed, setRailCollapsed] = useRailCollapsed()
   // Whole app full screen (browser chrome hidden). iPhone Safari has no Fullscreen API, so the button hides there.
   const [full, setFull] = useState(false)
   useEffect(() => {
@@ -123,6 +128,7 @@ export default function App() {
       <div className="app-viewport flex flex-col bg-sidebar">
         <header className="flex h-11 shrink-0 items-center gap-1 border-b bg-card px-2 md:gap-2 md:px-3">
           {!home && <Button variant="ghost" size="icon-xs" className={boardRoute ? "md:hidden" : ""} onClick={() => nav("/")} aria-label="Back to home" title="Back to home"><ArrowLeft /></Button>}
+          <Button variant="ghost" size="icon-xs" className="hidden md:inline-flex" onClick={() => setRailCollapsed(!railCollapsed)} aria-label={railCollapsed ? "Show sidebar" : "Hide sidebar"} title={railCollapsed ? "Show sidebar" : "Hide sidebar"}>{railCollapsed ? <PanelLeftOpen /> : <PanelLeftClose />}</Button>
           <a href="#/" className="flex shrink-0 items-center gap-1.5 text-[13px] font-semibold"><span className="flex size-6 items-center justify-center rounded-md bg-primary text-primary-foreground"><SquareTerminal className="size-3.5" /></span><span className="hidden sm:inline">tagent</span><span className="hidden font-normal text-muted-foreground lg:inline"> · {state?.host ?? ""}</span></a>
           <div className="min-w-0 flex-1 overflow-hidden [&_button]:max-w-full"><ProjectSelect value={dir} projects={state?.projects ?? []} onChange={(d) => { setDir(d); nav("/") }} /></div>
           <div className="ml-auto flex items-center gap-1">
@@ -138,7 +144,7 @@ export default function App() {
         </header>
 
         <div className="flex min-h-0 flex-1 gap-2 p-2">
-          {<aside className="hidden w-72 shrink-0 flex-col gap-2 md:flex">
+          {railCollapsed ? <RailStrip tasks={!home} onExpand={() => setRailCollapsed(false)} /> : <aside className="hidden w-72 shrink-0 flex-col gap-2 md:flex">
             <OverviewPanel days={usageDays} onDays={setUsageDays} overview={overview} className="shrink-0" />
             <AgentsPanel ordered={ordered} selPane={agent?.pane} className={home ? "min-h-24 flex-1" : "max-h-[35%] shrink-0"} />
             {!home && tasks}

@@ -118,3 +118,14 @@
 
 /* Docked drawer (md+): the board keeps its own room beside it. */
 @media (min-width: 768px) { .task-board.has-drawer { padding-right: 520px; } }
+
+/* Tabs: Details / Activity / Run. The strip sits under the ticket's own
+   controls and stays put while the body scrolls with the drawer. */
+.drawer-tabs { display: flex; gap: 2px; margin: 0 -24px; padding: 0 24px; border-bottom: 1px solid var(--line); }
+.drawer-tabs button { position: relative; height: 32px; padding: 0 10px; margin-bottom: -1px; border-bottom: 2px solid transparent; font-size: 12.5px; color: var(--muted-foreground); display: inline-flex; align-items: center; }
+.drawer-tabs button:hover { color: var(--foreground); }
+.drawer-tabs button[aria-selected=true] { color: var(--foreground); font-weight: 600; border-bottom-color: var(--foreground); }
+.drawer-tabs button:focus-visible { outline: 2px solid var(--line-strong); outline-offset: -2px; border-radius: 4px 4px 0 0; }
+/* Each tab body is its own column so the comment form still sticks to the bottom. */
+.drawer-panel { display: flex; flex-direction: column; gap: 18px; min-height: 0; }
+.drawer-panel > * { flex-shrink: 0; }

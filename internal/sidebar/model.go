@@ -680,6 +680,7 @@ type Model struct {
 	boardWorkflows []workflow.Workflow // listed under the board
 	boardFlow      bool                // workflow view: the configured statuses and who acts in each
 	detailScroll   int
+	detailTab      int  // the ticket panel's tab: Details, Activity or Run
 	detailDescOpen bool // the drawer shows the whole description
 	detailSysOpen  bool // the drawer shows the dispatch/system events
 	boardDir       string

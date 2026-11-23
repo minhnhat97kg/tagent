@@ -96,7 +96,13 @@ and deleting target the selected file, including global workflows marked `global
 The sidebar opens on tickets grouped by configured status order. At pane widths of 120 columns or more it shows status columns, windowed around
 the selection when necessary. `h/l` selects a column; `j/k` selects a card within
 it. Narrow panes retain the list with status group headers. `H/L` still moves
-the ticket's status. Enter opens the detail drawer; Escape closes it.
+the ticket's status. Enter opens the detail drawer; Escape closes it. At 100
+ columns or more it is a right pane beside the tickets, narrower panes show it
+ full width. The drawer has three tabs: **Details** (description, attachments, note, agent runs),
+ **Activity** (comments and the folded dispatch noise) and **Run** (the ticket's
+ run, same data as the web). `Tab`/`l` and `Shift-Tab`/`h` cycle the tabs; `1`,
+ `2`, `3` jump to Details, Activity, Run. Opening the drawer always starts on
+ Details.
 
 Cards show the current status role and its live pane state, comment count, and
 repeated workflow-entry count when greater than one. Blocked tickets and tickets
@@ -248,7 +254,10 @@ The web Workflows page edits YAML with line numbers, syntax colours and soft wra
 
 ### Run view
 
-The task drawer's **View run** opens `#/runs/<ticket>` (old `#/workflows/<wf>/<ticket>` links land there too). It shows that ticket's run only:
+A ticket's run is the drawer's **Run** tab (web) and the third tab of the TUI
+detail drawer, from the same events: steps ran, loops and history. `#/runs/<ticket>`
+still opens the same run as a full page (old `#/workflows/<wf>/<ticket>` links
+land there too). It shows that ticket's run only:
 
 - header: title, workflow name, inputs used, overall status, total time, and **Edit workflow** to the editor;
 - a compact flow strip of the steps with entry counts and the current one;

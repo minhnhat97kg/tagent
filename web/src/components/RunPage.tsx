@@ -9,12 +9,13 @@ import { Avatar, Md, shortId, statusColor } from "@/components/BoardDrawer"
 import { attachmentURL } from "@/lib/attachments"
 import { entryLabel, findAttachment, formatDuration, resultChip } from "@/lib/run"
 import { Button } from "@/components/ui/button"
-import type { RunEntry, RunView } from "@/types"
+import type { RunEntry, RunView as RunData } from "@/types"
 
-// RunPage shows one ticket's run and nothing else: every entry into every step,
-// with what was sent, what came back and how long it took. No YAML, no workflow list.
-export function RunPage({ dir, id }: { dir: string; id: string }) {
-  const poll = usePoll(() => api<RunView>(`/api/tasks/${enc(id)}/run?dir=${enc(dir)}`), 2000, dir + id)
+// RunView shows one ticket's run: every entry into every step, with what was
+// sent, what came back and how long it took. No YAML, no workflow list.
+// page=false embeds it in the ticket drawer's Run tab; page=true is #/runs/<ticket>.
+export function RunView({ dir, id, page = false }: { dir: string; id: string; page?: boolean }) {
+  const poll = usePoll(() => api<RunData>(`/api/tasks/${enc(id)}/run?dir=${enc(dir)}`), 2000, dir + id)
   const run = poll.data
   const entries = run?.entries ?? []
   const { state } = useAppState()
@@ -40,6 +41,30 @@ export function RunPage({ dir, id }: { dir: string; id: string }) {
     </button>
   )
 
+  const list = <div className="mx-auto w-full max-w-3xl space-y-3">
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11.5px] text-muted-foreground">
+      <span className="rounded px-1.5 py-px font-medium" style={{ color: statusColor(run.status), background: "var(--muted)" }}>{run.status}</span>
+      <span>{entries.length} {entries.length === 1 ? "entry" : "entries"}</span>
+      {run.started && <span>started {clock(run.started)}</span>}
+      <span>total {formatDuration(run.total)}</span>
+    </div>
+    {!!Object.keys(run.inputs ?? {}).length && <dl className="flex flex-wrap gap-x-3 gap-y-1 rounded-md border bg-muted/30 px-2 py-1.5 text-[11.5px]">
+      {Object.entries(run.inputs ?? {}).map(([k, v]) => <div key={k} className="flex min-w-0 gap-1"><dt className="shrink-0 text-muted-foreground">{k}:</dt><dd className="truncate font-medium" title={v}>{v}</dd></div>)}
+    </dl>}
+    <ol aria-label="Flow" className="flex gap-1 overflow-x-auto pb-1">
+      {run.flow.map(s => <li key={s.job} title={`${s.status} · entered ${s.count}×`} className={`flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] ${s.current ? "border-foreground/70 bg-foreground/5 font-medium" : s.count ? "text-foreground" : "text-muted-foreground"}`}>
+        {s.current ? <Loader2 className="size-3 animate-spin" /> : <CircleDot className="size-3" />}{s.job}{s.count > 0 && <span className="text-amber-700 dark:text-amber-400">{s.count}×</span>}
+      </li>)}
+    </ol>
+    {!entries.length && <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">This ticket has not entered a step yet.</p>}
+    <ol aria-label="Run entries" className="space-y-2">
+      {entries.map((e, i) => <Entry key={e.seq} e={e} prev={i > 0 ? entries[i - 1] : undefined} live={live.has(e.pane ?? "")} clock={clock} attachment={attachment} open={setSelected} openButton={openButton} />)}
+    </ol>
+    <p className="text-[11px] text-muted-foreground">Prompt, pane and outputs are recorded from now on; older entries (including finished runs) show their status moves, times and results only.</p>
+  </div>
+  const viewer = selected && <AttachmentViewer key={selected.ref} a={selected} url={url} close={() => setSelected(null)} />
+
+  if (!page) return <>{list}{viewer}</>
   return <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg border bg-card">
     <header className="flex h-10 shrink-0 items-center gap-1.5 border-b px-3">
       <Button variant="ghost" size="icon-xs" className="md:hidden" aria-label="Back to home" onClick={() => nav("/")}><ArrowLeft /></Button>
@@ -49,31 +74,14 @@ export function RunPage({ dir, id }: { dir: string; id: string }) {
       <span className="hidden shrink-0 text-[11px] text-muted-foreground sm:inline">{run.workflow}</span>
       <a href={`#/workflows/${enc(run.workflow)}`} className="ml-auto inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-teal-700 underline-offset-2 hover:bg-accent hover:underline dark:text-teal-400"><Pencil className="size-3" />Edit workflow</a>
     </header>
-    <div className="min-h-0 flex-1 overflow-y-auto p-3">
-      <div className="mx-auto w-full max-w-3xl space-y-3">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11.5px] text-muted-foreground">
-          <span className="rounded px-1.5 py-px font-medium" style={{ color: statusColor(run.status), background: "var(--muted)" }}>{run.status}</span>
-          <span>{entries.length} {entries.length === 1 ? "entry" : "entries"}</span>
-          {run.started && <span>started {clock(run.started)}</span>}
-          <span>total {formatDuration(run.total)}</span>
-        </div>
-        {!!Object.keys(run.inputs ?? {}).length && <dl className="flex flex-wrap gap-x-3 gap-y-1 rounded-md border bg-muted/30 px-2 py-1.5 text-[11.5px]">
-          {Object.entries(run.inputs ?? {}).map(([k, v]) => <div key={k} className="flex min-w-0 gap-1"><dt className="shrink-0 text-muted-foreground">{k}:</dt><dd className="truncate font-medium" title={v}>{v}</dd></div>)}
-        </dl>}
-        <ol aria-label="Flow" className="flex gap-1 overflow-x-auto pb-1">
-          {run.flow.map(s => <li key={s.job} title={`${s.status} · entered ${s.count}×`} className={`flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] ${s.current ? "border-foreground/70 bg-foreground/5 font-medium" : s.count ? "text-foreground" : "text-muted-foreground"}`}>
-            {s.current ? <Loader2 className="size-3 animate-spin" /> : <CircleDot className="size-3" />}{s.job}{s.count > 0 && <span className="text-amber-700 dark:text-amber-400">{s.count}×</span>}
-          </li>)}
-        </ol>
-        {!entries.length && <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">This ticket has not entered a step yet.</p>}
-        <ol aria-label="Run entries" className="space-y-2">
-          {entries.map((e, i) => <Entry key={e.seq} e={e} prev={i > 0 ? entries[i - 1] : undefined} live={live.has(e.pane ?? "")} clock={clock} attachment={attachment} open={setSelected} openButton={openButton} />)}
-        </ol>
-        <p className="text-[11px] text-muted-foreground">Prompt, pane and outputs are recorded from now on; older entries (including finished runs) show their status moves, times and results only.</p>
-      </div>
-    </div>
-    {selected && <AttachmentViewer key={selected.ref} a={selected} url={url} close={() => setSelected(null)} />}
+    <div className="min-h-0 flex-1 overflow-y-auto p-3">{list}</div>
+    {viewer}
   </section>
+}
+
+// RunPage is the standalone #/runs/<ticket> view.
+export function RunPage({ dir, id }: { dir: string; id: string }) {
+  return <RunView dir={dir} id={id} page />
 }
 
 function Entry({ e, prev, live, clock, attachment, open, openButton }: {

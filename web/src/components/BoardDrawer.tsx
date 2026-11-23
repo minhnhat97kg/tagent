@@ -5,7 +5,12 @@ import { Fragment, useEffect, useRef, useState, type ReactNode } from "react"
 import { DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { act, post } from "@/api"
 import { ArrowRight, Check, Paperclip, Pencil, Play, Reply, Trash2 } from "lucide-react"
+import { RunView } from "./RunPage"
 import type { Task, Workflow } from "@/types"
+
+// TABS splits the ticket panel: the facts, the conversation, and what actually ran.
+const TABS = [{ id: "details", label: "Details" }, { id: "activity", label: "Activity" }, { id: "run", label: "Run" }] as const
+type TabID = (typeof TABS)[number]["id"]
 
 // Status colours are reserved and always sit next to a text label.
 const COLORS: Record<string, string> = { todo: "#a1a1aa", plan: "#3b82f6", planning: "#3b82f6", researching: "#3b82f6", reproducing: "#3b82f6", build: "#6366f1", building: "#6366f1", refactoring: "#6366f1", fixing: "#6366f1", writing: "#6366f1", test: "#0ea5e9", testing: "#0ea5e9", review: "#f59e0b", reviewing: "#f59e0b", blocked: "#ef4444", done: "#10b981" }
@@ -55,7 +60,7 @@ export function Md({ text }: { text: string }) {
   })}</div>
 }
 
-export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, workflows, close, initialReply = '' }: { close?: () => void; initialReply?: string; task: Task; statuses: string[]; roles: string[]; role: string; reason?: string; dir: string; reload: () => void; workflows: Workflow[] }) {
+export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, workflows, initialReply = '' }: { initialReply?: string; task: Task; statuses: string[]; roles: string[]; role: string; reason?: string; dir: string; reload: () => void; workflows: Workflow[] }) {
   const [body, setBody] = useState(initialReply)
   const [sending, setSending] = useState(false)
   const [files, setFiles] = useState<File[]>([])
@@ -103,8 +108,16 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
   const [editing, setEditing] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [flow, setFlow] = useState(workflows.find(w => !w.error)?.name ?? "board")
+  // A notification that offers to reply opens the conversation, not the facts.
+  const [tab, setTab] = useState<TabID>(initialReply ? "activity" : "details")
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([])
+  const pickTab = (i: number) => {
+    const next = TABS[(i + TABS.length) % TABS.length]!
+    setTab(next.id); tabRefs.current[(i + TABS.length) % TABS.length]?.focus()
+  }
   const op = (body: Record<string, string>) => act(post("/api/tasks", { Dir: dir, ID: task.id, ...body }).then(reload))
-  const reply = () => { const who = role || roles[0] || ""; setBody(`@${who} `); requestAnimationFrame(() => { input.current?.focus(); input.current?.setSelectionRange(who.length + 2, who.length + 2) }) }
+  // Replying belongs to the conversation, so the reply lands in the Activity tab.
+  const reply = () => { const who = role || roles[0] || ""; setTab("activity"); setBody(`@${who} `); requestAnimationFrame(() => { input.current?.focus(); input.current?.setSelectionRange(who.length + 2, who.length + 2) }) }
   return <>
     <div className="drawer-actions">
       <span className="board-key" title={task.id}>{shortId(task.id)}</span>
@@ -128,7 +141,16 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
       <textarea aria-label="Task text" value={editing} onChange={e => setEditing(e.target.value)} rows={8} />
       <div><button className="board-send">Save</button><button type="button" onClick={() => setEditing(null)}>Cancel</button></div>
     </form>}
-    <dl className="board-fields">
+    <div className="drawer-tabs" role="tablist" aria-label="Ticket panel">
+      {TABS.map((t, i) => <button key={t.id} ref={el => { tabRefs.current[i] = el }} type="button" role="tab" id={`task-tab-${t.id}`} aria-selected={tab === t.id} aria-controls={`task-panel-${t.id}`} tabIndex={tab === t.id ? 0 : -1}
+        onClick={() => setTab(t.id)}
+        onKeyDown={e => {
+          if (e.key === "ArrowRight" || e.key === "ArrowLeft") { e.preventDefault(); pickTab(i + (e.key === "ArrowRight" ? 1 : -1)) }
+          if (e.key === "Home" || e.key === "End") { e.preventDefault(); pickTab(e.key === "Home" ? 0 : TABS.length - 1) }
+        }}>{t.label}</button>)}
+    </div>
+    {tab === "details" && <div role="tabpanel" id="task-panel-details" aria-labelledby="task-tab-details" className="drawer-panel">
+      <dl className="board-fields">
       <dt>Status</dt><dd><i className="status-dot" style={{ background: statusColor(task.status) }} /><select aria-label="Task status" value={task.status} onChange={e => act(post("/api/tasks", { Dir: dir, Op: "set", ID: task.id, Status: e.target.value }).then(reload))}>{statuses.map(s => <option key={s}>{s}</option>)}</select></dd>
       {role && <><dt>Role</dt><dd><Avatar role={role} />{role}</dd></>}
       {task.workflow && <><dt>Workflow</dt><dd className="flex flex-wrap items-center gap-1">{task.workflow}{(() => {
@@ -137,14 +159,16 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
         const at = task.status === "done" ? jobs.length : jobs.findIndex(j => j.status === task.status)
         return jobs.map((j, i) => <span key={j.id} title={j.agent || j.run || ""} className={`rounded px-1.5 py-px text-[11px] ${i === at ? "bg-foreground text-background" : i < at ? "text-emerald-600" : "text-muted-foreground"}`}>
           {i > 0 && <span className="mr-1 text-muted-foreground">›</span>}{i < at && <Check className="mr-0.5 inline size-3" />}{j.status}</span>)
-      })()}<a href={`#/runs/${encodeURIComponent(task.id)}`} onClick={close} className="ml-1 inline-flex items-center gap-0.5 text-[11px] text-teal-700 underline-offset-2 hover:underline dark:text-teal-400">View run<ArrowRight className="size-3" /></a></dd></>}
+      })()}<button type="button" onClick={() => setTab("run")} className="ml-1 inline-flex items-center gap-0.5 text-[11px] text-teal-700 underline-offset-2 hover:underline dark:text-teal-400">View run<ArrowRight className="size-3" /></button></dd></>}
       {!!task.assignees?.length && <><dt>Assignees</dt><dd>{task.assignees.join(", ")}</dd></>}
       <dt>Updated</dt><dd title={task.updated}>{rel(task.updated) || "—"}</dd>
-    </dl>
-    {desc && <section><h3>Description</h3><Md text={desc} /></section>}
-    {!!attachments.length && <section><h3>Attachments <span className="board-muted">{attachments.length}</span></h3><AttachmentRows items={attachments} open={setSelected} /></section>}
-    {selected && <AttachmentViewer key={selected.ref} a={selected} url={url} close={() => setSelected(null)} />}
-    <section>
+      </dl>
+      {desc && <section><h3>Description</h3><Md text={desc} /></section>}
+      {!!attachments.length && <section><h3>Attachments <span className="board-muted">{attachments.length}</span></h3><AttachmentRows items={attachments} open={setSelected} /></section>}
+      {!desc && !attachments.length && <p className="board-muted">No description or attachments yet.</p>}
+    </div>}
+    {tab === "activity" && <div role="tabpanel" id="task-panel-activity" aria-labelledby="task-tab-activity" className="drawer-panel">
+      <section>
       <h3>Activity <span className="board-muted">{task.comments?.length ?? 0}</span></h3>
       <ul className="board-activity">{task.comments?.map((c, i) => <li key={c.id ?? i}><Avatar role={c.author} /><div className="comment"><header><b>{c.author}</b><time className="board-muted" title={c.created}>{rel(c.created)}</time></header><Md text={c.body} /><AttachmentRows items={attachments.filter(a => a.commentId === c.id)} open={setSelected} /></div></li>)}</ul>
       {!task.comments?.length && <p className="board-muted">No activity yet.</p>}
@@ -159,6 +183,13 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
         onKeyDown={e => { if (!suggestions.length) return; if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setDismissed(true) } else if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); setIndex((index + (e.key === "ArrowDown" ? 1 : suggestions.length - 1)) % suggestions.length) } else if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); choose(suggestions[index % suggestions.length]) } }} />
       {!!suggestions.length && <ul id="role-suggestions" role="listbox" aria-label="Mention role">{suggestions.map((r, i) => <li role="option" aria-selected={i === index % suggestions.length} id={`role-option-${i}`} key={r} onMouseDown={e => e.preventDefault()} onClick={() => choose(r)}>@{r}</li>)}</ul>}
       <button className="board-send" disabled={sending || (!body.trim() && !files.length)}>{sending ? "Sending…" : "Comment"}</button>
-    </form>
+      </form>
+    </div>}
+    {tab === "run" && <div role="tabpanel" id="task-panel-run" aria-labelledby="task-tab-run" className="drawer-panel">
+      {task.workflow
+        ? <RunView dir={dir} id={task.id} />
+        : <p className="board-muted">This ticket has no workflow, so there is no run to show.</p>}
+    </div>}
+    {selected && <AttachmentViewer key={selected.ref} a={selected} url={url} close={() => setSelected(null)} />}
   </>
 }

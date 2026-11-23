@@ -19,16 +19,36 @@ const detailLabelWidth = 11
 // detailDescLines is how much of a long description is shown while collapsed.
 const detailDescLines = 8
 
+// The ticket panel's tabs: what the ticket is, the conversation about it, and
+// what actually ran. The summary above them never changes with the tab.
+const (
+	detailTabDetails = iota
+	detailTabActivity
+	detailTabRun
+)
+
+var detailTabs = []string{"Details", "Activity", "Run"}
+
 // detailFooter is the sticky key line inside the drawer, always the last row.
 func (m Model) detailFooter(w int) string {
-	keys := "j/k scroll · e edit · C comment · a files · s system events · esc close"
+	keys := "tab/1-3 tabs · j/k scroll · e edit · C comment · a files · s events · esc close"
 	if ansi.StringWidth(keys) > w {
-		keys = "j/k · e edit · C · a files · s events · esc"
+		keys = "tab tabs · j/k scroll · e edit · C · a files · s · esc"
 	}
 	if ansi.StringWidth(keys) > w {
-		keys = "j/k · esc"
+		keys = "tab · j/k · esc"
 	}
 	return m.boardStyle(m.theme.TextDim).Render(keys)
+}
+
+// detailTabStrip is the ticket panel's tab row, in the same lazygit style as
+// the card tabs: the active tab bracketed and bold, the others muted.
+func (m Model) detailTabStrip(w int) []string {
+	if w <= 0 {
+		return nil
+	}
+	strip, _ := m.tabStrip(detailTabs, m.detailTab, 2)
+	return []string{ansi.Truncate("  "+strip, w, "")}
 }
 
 // detailLayout splits the drawer into what never scrolls (the summary), the
@@ -86,6 +106,9 @@ func (m Model) taskDetailSummary(t tasks.Task, w int) []string {
 	title := m.boardStyle(m.theme.TextPrimary).Bold(true).Render(boardTitle(t))
 	for _, line := range strings.Split(ansi.Wrap(title, max(1, w), ""), "\n") {
 		add(line)
+	}
+	if tabs := m.detailTabStrip(w); len(tabs) > 0 {
+		lines = append(lines, tabs...)
 	}
 	if t.Status == "blocked" {
 		question := m.detailQuestion(t)
@@ -181,9 +204,24 @@ func (m Model) detailQuestion(t tasks.Task) string {
 	return strings.Join(strings.Fields(question), " ")
 }
 
-// taskDetailBody is the scrolling part: description, attachments, note, runs
-// and activity. Comments come last, newest last, as they always have.
+// taskDetailBody is the scrolling part of the ticket panel, for the active tab:
+// the ticket's own facts, the conversation, or the run.
 func (m Model) taskDetailBody(t tasks.Task, w int) []string {
+	if w <= 0 {
+		return nil
+	}
+	switch m.detailTab {
+	case detailTabActivity:
+		return m.taskDetailActivity(t, w)
+	case detailTabRun:
+		return m.taskDetailRun(t, w)
+	}
+	return m.taskDetailDetails(t, w)
+}
+
+// taskDetailDetails is the Details tab: description, attachments, note and the
+// agent runs the ticket's summary counts.
+func (m Model) taskDetailDetails(t tasks.Task, w int) []string {
 	if w <= 0 {
 		return nil
 	}
@@ -241,10 +279,163 @@ func (m Model) taskDetailBody(t tasks.Task, w int) []string {
 			lines = append(lines, m.detailBlock(m.boardStyle(m.theme.StatusError).Render("! no agent is running this task"), "  ", "", w)...)
 		}
 	}
-
-	section(fmt.Sprintf("Activity · %d", m.detailCommentCount(t)))
-	lines = append(lines, m.detailActivity(t, w, now)...)
 	return lines
+}
+
+// taskDetailActivity is the Activity tab: comments and the folded dispatch
+// noise, newest last, as they always have been.
+func (m Model) taskDetailActivity(t tasks.Task, w int) []string {
+	if w <= 0 {
+		return nil
+	}
+	lines := m.detailSection(fmt.Sprintf("Activity · %d", m.detailCommentCount(t)), w)
+	return append(lines, m.detailActivity(t, w, time.Now())...)
+}
+
+// taskDetailRun is the Run tab: every entry into every step, what it returned,
+// who ran it and how long it took, straight from the same events the web reads.
+func (m Model) taskDetailRun(t tasks.Task, w int) []string {
+	if w <= 0 {
+		return nil
+	}
+	now := time.Now()
+	dim := m.boardStyle(m.theme.TextDim)
+	if t.Workflow == "" {
+		return []string{ansi.Truncate("  "+dim.Render("No workflow on this ticket"), w, "")}
+	}
+	cfg, err := tasks.ConfigForTask(m.boardDir, m.boardConfig, t)
+	if err != nil {
+		return m.detailBlock(m.boardStyle(m.theme.StatusError).Render("! "+err.Error()), "  ", "", w)
+	}
+	entries := tasks.BuildRuns(t, cfg, m.boardHistory, now)
+	return m.detailRunLines(t, cfg, entries, w, now)
+}
+
+// detailRunLines renders a ticket's run: the totals, the flow strip and one
+// block per entry. Split from taskDetailRun so the rendering can be tested
+// without a real workflow on disk.
+func (m Model) detailRunLines(t tasks.Task, cfg tasks.BoardConfig, entries []tasks.RunEntry, w int, now time.Time) []string {
+	if w <= 0 {
+		return nil
+	}
+	dim := m.boardStyle(m.theme.TextDim)
+	var lines []string
+	push := func(l ...string) { lines = append(lines, l...) }
+	if len(entries) == 0 {
+		return []string{ansi.Truncate("  "+dim.Render("This ticket has not entered a step yet."), w, "")}
+	}
+	end := now
+	if last := entries[len(entries)-1]; last.End != nil {
+		end = *last.End
+	}
+	head := fmt.Sprintf("%d %s · total %s · started %s", len(entries), plural(len(entries), "entry", "entries"), shortDuration(end.Sub(entries[0].Start)), detailRelativeTime(entries[0].Start, now))
+	push(m.detailBlock(head, "  ", "", w)...)
+	push("")
+	// The flow: every step of the recipe, entered ones with their count.
+	counts := map[string]int{}
+	for _, e := range entries {
+		counts[e.Step]++
+	}
+	var flow []string
+	for _, s := range cfg.Statuses {
+		if s.Job == "" {
+			continue
+		}
+		label := s.Job
+		if n := counts[s.ID]; n > 0 {
+			label += fmt.Sprintf(" %d×", n)
+		}
+		switch {
+		case s.ID == t.Status:
+			label = m.boardStyle(m.theme.TextPrimary).Bold(true).Render(label)
+		case counts[s.ID] > 0:
+			label = m.boardStyle(m.theme.TextMuted).Render(label)
+		default:
+			label = dim.Render(label)
+		}
+		flow = append(flow, label)
+	}
+	if len(flow) > 0 {
+		push(m.detailBlock(strings.Join(flow, dim.Render(" › ")), "  ", "", w)...)
+		push("")
+	}
+	for i, e := range entries {
+		var prev tasks.RunEntry
+		if i > 0 {
+			push("")
+			prev = entries[i-1]
+		}
+		push(m.detailBlock(m.boardStyle(m.theme.TextPrimary).Render(detailRunLabel(e, prev, i > 0)), "  ", "● ", w)...)
+		parts := []string{m.detailRunResult(e.Result)}
+		if who := strings.Join(nonEmpty(e.Role, e.Harness, e.Model), " · "); who != "" {
+			parts = append(parts, who)
+		}
+		parts = append(parts, shortDuration(e.Duration))
+		if e.End == nil {
+			parts = append(parts, "(running)")
+		} else {
+			parts = append(parts, detailRelativeTime(e.Start, now))
+		}
+		push(m.detailBlock(strings.Join(parts, dim.Render(" · ")), "    ", "", w)...)
+	}
+	return lines
+}
+
+// detailRunLabel names an entry and why the step ran again, like the web run
+// view: "build #2 after review: changes".
+func detailRunLabel(e, prev tasks.RunEntry, hasPrev bool) string {
+	if e.Loop < 2 {
+		return e.Step
+	}
+	label := fmt.Sprintf("%s #%d", e.Step, e.Loop)
+	switch {
+	case !hasPrev:
+		return label
+	case prev.Result == "blocked":
+		return label + " after blocked"
+	case prev.Step == e.Step:
+		return label + " after retry"
+	}
+	return fmt.Sprintf("%s after %s: %s", label, prev.Step, prev.Result)
+}
+
+// detailRunResult colours how an entry ended: pass/fail/changes/blocked/retry.
+func (m Model) detailRunResult(result string) string {
+	label := result
+	color := m.theme.TextMuted
+	switch result {
+	case "pass":
+		color = m.theme.StatusDone
+	case "fail", "blocked":
+		color = m.theme.StatusError
+	case "changes", "retry":
+		color = m.theme.StatusWaiting
+	case "current":
+		color = m.theme.Accent
+	}
+	if label == "" {
+		label = "unknown"
+	}
+	return m.boardStyle(color).Render(label)
+}
+
+// plural picks the singular or the plural word for n.
+func plural(n int, one, many string) string {
+	if n == 1 {
+		return one
+	}
+	return many
+}
+
+// nonEmpty drops the empty strings from a list.
+func nonEmpty(values ...string) []string {
+	out := make([]string, 0, len(values))
+	for _, v := range values {
+		if v != "" {
+			out = append(out, v)
+		}
+	}
+	return out
 }
 
 // detailCommentCount is the number of human and agent comments: the system
@@ -460,6 +651,26 @@ func (m Model) detailViewport(lines []string, w, rows, offset int) []string {
 		out[i] = boardFit(out[i], w)
 	}
 	return out
+}
+
+// detailTabKey switches the ticket panel's tab: tab/l and shift+tab/h cycle,
+// 1-3 jump straight to Details, Activity or Run. Scrolling restarts at the top
+// so a new tab never opens half way down.
+func (m *Model) detailTabKey(key string) bool {
+	next := -1
+	switch key {
+	case "tab", "l":
+		next = m.detailTab + 1
+	case "shift+tab", "h":
+		next = m.detailTab - 1
+	case "1", "2", "3":
+		next = int(key[0] - '1')
+	default:
+		return false
+	}
+	m.detailTab = (next%len(detailTabs) + len(detailTabs)) % len(detailTabs)
+	m.detailScroll = 0
+	return true
 }
 
 func (m *Model) scrollDetail(key string) bool {

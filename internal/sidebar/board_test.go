@@ -104,8 +104,13 @@ func TestBoardDetailDrawerAndFields(t *testing.T) {
 		if !next.boardDrawer || next.taskForm != "" {
 			t.Fatalf("%s did not open drawer", key)
 		}
-		if view := ansi.Strip(next.View()); !strings.Contains(view, "hello @builder") || !strings.Contains(view, "esc close") {
+		if view := ansi.Strip(next.View()); !strings.Contains(view, "Description") || !strings.Contains(view, "esc close") || !strings.Contains(view, "[Details]") {
 			t.Fatalf("missing drawer detail: %s", view)
+		}
+		// The conversation lives on the Activity tab, one keypress away.
+		activity, _ := boardPress(next, "2")
+		if view := ansi.Strip(activity.View()); !strings.Contains(view, "hello @builder") || !strings.Contains(view, "[Activity]") {
+			t.Fatalf("missing activity tab: %s", view)
 		}
 		closed, _ := boardPress(next, "esc")
 		if closed.boardDrawer || !closed.boardMode {
@@ -236,6 +241,7 @@ func TestBoardMoveAndSelection(t *testing.T) {
 func TestBoardDetailScrollAndWorker(t *testing.T) {
 	m := boardTestModel()
 	m.boardDrawer = true
+	m.detailTab = detailTabActivity
 	m.rows = []Row{{PaneID: "%1", Base: "builder", Status: "running"}}
 	m.notes[0].Text = "First card\n" + strings.Repeat("description line\n", 80)
 	m.notes[0].Comments = []tasks.TaskComment{{Author: "user", Body: strings.Repeat("comment line\n", 40) + "LAST COMMENT LINE"}}
@@ -381,6 +387,7 @@ func TestBoardScrollAndRecentComments(t *testing.T) {
 	m.width = 160
 	m.detailScroll = 1000000
 	m.boardDrawer = true // Wide columns open details only in the drawer.
+	m.detailTab = detailTabActivity
 	m.notes[0].Comments = []tasks.TaskComment{{Author: "old", Body: strings.Repeat("old body ", 100), Created: time.Unix(1, 0)}, {Author: "new", Body: "newest @builder", Created: time.Unix(2, 0)}}
 	view := ansi.Strip(m.View())
 	if newest, old := strings.Index(view, "newest @builder"), strings.Index(view, "old body"); newest < 0 || (old >= 0 && old > newest) {

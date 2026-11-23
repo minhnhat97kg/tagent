@@ -19,6 +19,7 @@ func TestTaskAuditTimeline(t *testing.T) {
 	m := NewModel("%9")
 	m.notesScope = scope
 	m.detailSysOpen = true // dispatch audit lines stay folded in the drawer
+	m.detailTab = detailTabActivity
 	body := strings.Join(m.taskDetailLines(ticket, 100), "\n")
 	if !strings.Contains(body, "triggered builder") {
 		t.Fatal(body)

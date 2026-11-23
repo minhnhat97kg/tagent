@@ -209,6 +209,10 @@ harness notifications, check status when the user asks.
 
 Each agent in the web dashboard has **Terminal** and **Chat** views (Chat renders the conversation from the transcript; claude and pi agents). See [agent chat](docs/agent-chat.md).
 
+The web dashboard opens on the ticket board. The left rail (usage, agents,
+tickets) collapses to an icon strip with the toggle at the left of the top bar;
+the choice is remembered per device.
+
 Press `?` in the sidebar or dashboard for contextual help.
 
 ### Tickets and status handoffs

@@ -218,6 +218,8 @@ test("@ tags a ticket or a workflow and # tags tickets only", async () => {
   expect(screen.getAllByRole("option")).toHaveLength(1)
   await userEvent.keyboard("{Enter}")
   expect(input.value).toBe('see workflow "feature" ')
+  // The picker puts the caret back on the next frame; typing before it lands loses the query.
+  await new Promise(r => requestAnimationFrame(r))
   await userEvent.type(input, "and #2")
   const option = screen.getByRole("option")
   expect(option.textContent).toContain("Agents management")

@@ -124,6 +124,7 @@ func TestTaskDetailSystemEventsHiddenByDefault(t *testing.T) {
 	}
 	m.notes[0].Comments = []tasks.TaskComment{{Author: "builder", Body: "real comment", Created: time.Now()}}
 	m.boardDrawer = true
+	m.detailTab = detailTabActivity
 	hidden := ansi.Strip(strings.Join(m.boardDetail(76, 35), "\n"))
 	if !strings.Contains(hidden, "2 system events (dispatch) — s to show") {
 		t.Fatalf("system events not folded:\n%s", hidden)
@@ -155,19 +156,22 @@ func TestTaskDetailFitsWidth(t *testing.T) {
 	}
 	m.notes[0].Text = "First card\nAcceptance\n" + strings.Repeat("- a long bullet with 界 wide runes and more words than fit anywhere\n", 10)
 	m.notes[0].Comments = []tasks.TaskComment{{Author: "user", Body: strings.Repeat("comment body with 界 ", 20), Created: time.Now(), Attachments: []tasks.Attachment{{Name: "very-long-attachment-name-without-any-break.txt"}}}}
-	for _, sys := range []bool{false, true} {
-		for _, open := range []bool{false, true} {
-			m.detailSysOpen, m.detailDescOpen = sys, open
-			for _, w := range []int{12, 20, 40, 60, 100, 160} {
-				for _, rows := range []int{4, 8, 24, 40} {
-					for _, line := range m.boardDetail(w, rows) {
-						if ansi.StringWidth(line) > w {
-							t.Fatalf("drawer overflow at %dx%d: %q", w, rows, ansi.Strip(line))
+	for tab := range detailTabs {
+		m.detailTab = tab
+		for _, sys := range []bool{false, true} {
+			for _, open := range []bool{false, true} {
+				m.detailSysOpen, m.detailDescOpen = sys, open
+				for _, w := range []int{12, 20, 40, 60, 100, 160} {
+					for _, rows := range []int{4, 8, 24, 40} {
+						for _, line := range m.boardDetail(w, rows) {
+							if ansi.StringWidth(line) > w {
+								t.Fatalf("drawer overflow at %dx%d tab %d: %q", w, rows, tab, ansi.Strip(line))
+							}
 						}
-					}
-					for _, line := range m.taskDetailLines(m.notes[0], w) {
-						if ansi.StringWidth(line) > w {
-							t.Fatalf("detail overflow at width %d: %q", w, ansi.Strip(line))
+						for _, line := range m.taskDetailLines(m.notes[0], w) {
+							if ansi.StringWidth(line) > w {
+								t.Fatalf("detail overflow at width %d tab %d: %q", w, tab, ansi.Strip(line))
+							}
 						}
 					}
 				}
@@ -187,11 +191,17 @@ func TestSharedTaskDetailAndScroll(t *testing.T) {
 	}
 	m.boardDrawer = true
 	board := ansi.Strip(strings.Join(m.boardDetail(80, 194), "\n"))
-	for _, section := range []string{"Assignee", "Description", "Activity · 5"} {
+	for _, section := range []string{"Assignee", "Description", "[Details]", "Activity", "Run"} {
 		if !strings.Contains(board, section) {
 			t.Fatalf("missing %s:\n%s", section, board)
 		}
 	}
+	m.detailTab = detailTabActivity
+	activity := ansi.Strip(strings.Join(m.boardDetail(80, 194), "\n"))
+	if !strings.Contains(activity, "Activity · 5") || strings.Contains(activity, "Description ─") {
+		t.Fatalf("activity tab shows the wrong body:\n%s", activity)
+	}
+	m.detailTab = detailTabDetails
 	m.height = 20
 	top := m.boardDetail(80, 15)
 	for _, key := range []string{"j", "G", "g", "k", "pgdown", "pgup", "ctrl+d", "ctrl+u", "down", "up"} {
@@ -209,7 +219,7 @@ func TestSharedTaskDetailAndScroll(t *testing.T) {
 	}
 	m.detailScroll = 3
 	scrolled := m.boardDetail(80, 15)
-	if ansi.Strip(strings.Join(top[6:], "\n")) == ansi.Strip(strings.Join(scrolled[6:], "\n")) {
+	if ansi.Strip(strings.Join(top[1:], "\n")) == ansi.Strip(strings.Join(scrolled[1:], "\n")) {
 		t.Fatal("scroll did not change the body")
 	}
 	if ansi.Strip(top[0]) != ansi.Strip(scrolled[0]) {
@@ -250,22 +260,162 @@ func TestTaskDetailMetadataAndActivity(t *testing.T) {
 		{Author: "old", Body: "old body", Created: now.Add(-time.Hour)},
 	}}
 	m.metricState = metrics.State{Runs: []metrics.Run{{TaskID: task.ID, Agent: "builder", Started: now.Add(-time.Hour), Ended: now}}}
+	details := ansi.Strip(strings.Join(m.taskDetailLines(task, 80), "\n"))
+	for _, want := range []string{"unassigned", "overdue", "done ", "No description", "! no agent is running this task"} {
+		if !strings.Contains(details, want) {
+			t.Fatalf("details tab misses %q: %s", want, details)
+		}
+	}
+	m.detailTab = detailTabActivity
 	folded := ansi.Strip(strings.Join(m.taskDetailLines(task, 80), "\n"))
 	if !strings.Contains(folded, "1 system event (dispatch) — s to show") || strings.Contains(folded, "failure: send failed") {
 		t.Fatalf("dispatch audit not folded:\n%s", folded)
 	}
 	m.detailSysOpen = true
 	body := ansi.Strip(strings.Join(m.taskDetailLines(task, 80), "\n"))
-	for _, want := range []string{"failure: send failed", "task retry detail", "unassigned", "overdue", "done ", "No description", "! no agent is running this task", DefaultIcons().Attach + " trace.txt"} {
+	for _, want := range []string{"failure: send failed", "task retry detail", DefaultIcons().Attach + " trace.txt"} {
 		if !strings.Contains(body, want) {
-			t.Fatalf("missing %q: %s", want, body)
+			t.Fatalf("activity tab misses %q: %s", want, body)
 		}
 	}
 	if strings.Index(body, "old body") > strings.Index(body, "new body") {
 		t.Fatal("activity order")
 	}
 	task.Status = "done"
+	m.detailTab = detailTabDetails
 	if strings.Contains(ansi.Strip(strings.Join(m.taskDetailLines(task, 80), "\n")), "overdue") {
 		t.Fatal("completed task overdue")
+	}
+}
+
+func TestTaskDetailTabs(t *testing.T) {
+	m := boardTestModel()
+	m.width, m.height = 80, 24
+	m.boardDrawer = true
+	view := ansi.Strip(strings.Join(m.boardDetail(76, 19), "\n"))
+	for _, want := range []string{"[Details]", "Activity", "Run", "Description"} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("default tab misses %q:\n%s", want, view)
+		}
+	}
+	// 1-3 jump straight to a tab.
+	for _, c := range []struct {
+		key string
+		tab int
+	}{{"2", detailTabActivity}, {"3", detailTabRun}, {"1", detailTabDetails}} {
+		m, _ = boardPress(m, c.key)
+		if m.detailTab != c.tab {
+			t.Fatalf("%s selected tab %d, want %d", c.key, m.detailTab, c.tab)
+		}
+	}
+	// tab / shift+tab cycle, wrapping at the ends.
+	m, _ = boardPress(m, "tab")
+	if m.detailTab != detailTabActivity {
+		t.Fatal("tab did not cycle forward")
+	}
+	m, _ = boardPress(m, "shift+tab")
+	if m.detailTab != detailTabDetails {
+		t.Fatal("shift+tab did not cycle back")
+	}
+	m, _ = boardPress(m, "shift+tab")
+	if m.detailTab != detailTabRun {
+		t.Fatal("shift+tab did not wrap to the last tab")
+	}
+	m.detailScroll = 9
+	m, _ = boardPress(m, "1")
+	if m.detailScroll != 0 {
+		t.Fatal("switching tab did not reset the scroll")
+	}
+	// The strip marks the active tab, and the body follows it.
+	m.detailTab = detailTabRun
+	if body := ansi.Strip(strings.Join(m.taskDetailBody(m.notes[0], 76), "\n")); !strings.Contains(body, "No workflow on this ticket") {
+		t.Fatalf("run tab is not the run:\n%s", body)
+	}
+	// Opening the drawer always starts on Details.
+	m.boardDrawer, m.detailTab = false, detailTabRun
+	m, _ = boardPress(m, "enter")
+	if !m.boardDrawer || m.detailTab != detailTabDetails {
+		t.Fatal("opening the drawer did not reset the tab")
+	}
+	if view := ansi.Strip(strings.Join(m.boardDetail(76, 19), "\n")); !strings.Contains(view, "[Details]") {
+		t.Fatalf("re-opened drawer does not mark Details:\n%s", view)
+	}
+}
+
+func TestTaskDetailRunTab(t *testing.T) {
+	m := boardTestModel()
+	now := time.Now().UTC()
+	cfg := tasks.BoardConfig{Statuses: []tasks.Status{
+		{ID: "build", Job: "build", Role: "builder", Next: []string{"review"}},
+		{ID: "review", Job: "review", Role: "reviewer", Next: []string{"done"}},
+		{ID: "done", Job: "done"},
+	}}
+	buildEnd := now.Add(-10 * time.Minute)
+	reviewEnd := now.Add(-2 * time.Minute)
+	entries := []tasks.RunEntry{
+		{Seq: 1, Step: "build", Loop: 1, Role: "builder", Harness: "claude", Start: now.Add(-30 * time.Minute), End: &buildEnd, Duration: 20 * time.Minute, Result: "pass"},
+		{Seq: 2, Step: "review", Loop: 1, Role: "reviewer", Start: now.Add(-10 * time.Minute), End: &reviewEnd, Duration: 8 * time.Minute, Result: "changes"},
+		{Seq: 3, Step: "build", Loop: 2, Role: "builder", Start: now.Add(-2 * time.Minute), Duration: 2 * time.Minute, Result: "current"},
+	}
+	task := tasks.Task{ID: "1", Workflow: "feature", Status: "build"}
+	view := ansi.Strip(strings.Join(m.detailRunLines(task, cfg, entries, 80, now), "\n"))
+	for _, want := range []string{
+		"3 entries", "total", "started",
+		"build 2×", "review 1×", "pass", "changes", "running",
+		"build #2 after review: changes",
+		"builder · claude", "20m",
+	} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("run tab misses %q:\n%s", want, view)
+		}
+	}
+	if empty := ansi.Strip(strings.Join(m.detailRunLines(task, cfg, nil, 80, now), "\n")); !strings.Contains(empty, "has not entered a step yet") {
+		t.Fatalf("empty run not explained:\n%s", empty)
+	}
+	if none := ansi.Strip(strings.Join(m.taskDetailRun(tasks.Task{ID: "x"}, 80), "\n")); !strings.Contains(none, "No workflow on this ticket") {
+		t.Fatalf("workflow-less ticket not explained:\n%s", none)
+	}
+	for _, w := range []int{12, 20, 40, 80, 120} {
+		for _, line := range m.detailRunLines(task, cfg, entries, w, now) {
+			if ansi.StringWidth(line) > w {
+				t.Fatalf("run line overflows %d: %q", w, ansi.Strip(line))
+			}
+		}
+	}
+}
+
+func TestDetailRunLabel(t *testing.T) {
+	cases := []struct {
+		e, prev tasks.RunEntry
+		hasPrev bool
+		want    string
+	}{
+		{tasks.RunEntry{Step: "build", Loop: 1}, tasks.RunEntry{}, false, "build"},
+		{tasks.RunEntry{Step: "build", Loop: 2}, tasks.RunEntry{}, false, "build #2"},
+		{tasks.RunEntry{Step: "build", Loop: 2}, tasks.RunEntry{Step: "review", Result: "blocked"}, true, "build #2 after blocked"},
+		{tasks.RunEntry{Step: "build", Loop: 2}, tasks.RunEntry{Step: "build", Result: "fail"}, true, "build #2 after retry"},
+		{tasks.RunEntry{Step: "build", Loop: 2}, tasks.RunEntry{Step: "review", Result: "changes"}, true, "build #2 after review: changes"},
+	}
+	for _, c := range cases {
+		if got := detailRunLabel(c.e, c.prev, c.hasPrev); got != c.want {
+			t.Fatalf("detailRunLabel = %q, want %q", got, c.want)
+		}
+	}
+}
+
+// Wide panes show the ticket panel as a right pane beside the tickets, and
+// every row still fits the pane exactly.
+func TestTaskDetailRightPane(t *testing.T) {
+	m := boardTestModel()
+	m.width, m.height = 120, 24
+	m.boardDrawer = true
+	lines := strings.Split(ansi.Strip(m.View()), "\n")
+	if !strings.Contains(strings.Join(lines, "\n"), "Task · esc close") {
+		t.Fatalf("drawer is not beside the tickets:\n%s", strings.Join(lines, "\n"))
+	}
+	for i, line := range lines {
+		if w := ansi.StringWidth(line); w > m.width {
+			t.Fatalf("row %d is %d wide, pane is %d: %q", i, w, m.width, line)
+		}
 	}
 }

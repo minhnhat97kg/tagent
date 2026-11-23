@@ -765,6 +765,12 @@ func (m Model) boardView() string {
 			label = m.notes[m.taskCursor].Workflow
 		}
 		body = m.boardPanel("Workflow · "+label, "", m.flowLines(m.width-4), m.width, h, true)
+	} else if m.boardDrawer && m.width >= 100 {
+		// Wide panes: the ticket panel is a right pane beside the tickets.
+		dw := m.width * 2 / 5
+		left := m.tasksCard(m.width-dw, h, 0, false)
+		right := m.boardPanel("Task · esc close", "", m.boardDetail(dw-4, h-2), dw, h, true)
+		body = lipgloss.JoinHorizontal(lipgloss.Top, left, right)
 	} else if m.boardDrawer {
 		body = m.boardPanel("Task · esc close", "", m.boardDetail(m.width-4, h-2), m.width, h, true)
 	} else {
@@ -951,12 +957,19 @@ func (m Model) boardKey(key string) (Model, tea.Cmd, bool) {
 		}
 	}
 	if m.boardMode && m.boardDrawer {
+		if m.detailTabKey(key) {
+			return m, nil, true
+		}
 		switch key {
 		case "s": // the dispatch noise stays folded until asked for
-			m.detailSysOpen = !m.detailSysOpen
+			if m.detailTab == detailTabActivity {
+				m.detailSysOpen = !m.detailSysOpen
+			}
 			return m, nil, true
 		case "enter", " ": // expand or collapse a long description in place
-			m.detailDescOpen = !m.detailDescOpen
+			if m.detailTab == detailTabDetails {
+				m.detailDescOpen = !m.detailDescOpen
+			}
 			return m, nil, true
 		}
 		if m.scrollDetail(key) {
@@ -1034,6 +1047,7 @@ func (m Model) boardKey(key string) (Model, tea.Cmd, bool) {
 		m.boardMode = true
 		m.boardDrawer = !m.boardDrawer
 		m.detailScroll = 0
+		m.detailTab = detailTabDetails
 		m.detailDescOpen, m.detailSysOpen = false, false
 		return m, nil, true
 	case "esc":
