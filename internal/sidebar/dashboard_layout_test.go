@@ -238,7 +238,7 @@ func TestCardHeightsGrowTasksAndWorkflowsFirst(t *testing.T) {
 	if got := g.agents.h; got < len(rows)+2 {
 		t.Fatalf("agents shrank below its content: %d rows for %d lines", got, len(rows))
 	}
-	if g.tasks.h < minTasksH+5 || g.wf.h < minWfH+3 {
+	if g.tasks.h < minTasksH+5 || g.wf.h != minWfH {
 		t.Fatalf("spare rows did not reach tasks/workflows: tasks %d wf %d", g.tasks.h, g.wf.h)
 	}
 }
@@ -265,7 +265,7 @@ func TestFitHeightsFillsTheColumn(t *testing.T) {
 		t.Fatalf("fixed column: %v", got)
 	}
 	// Want rows run out: the top card keeps its content, the lower ones wait.
-	if got := check(fitHeights(30, low, []int{8, 20, 6, 5}, weight, 0), 30); got[0] != 8 || got[1] != 11 {
+	if got := check(fitHeights(36, low, []int{8, 20, 6, 8}, weight, 0), 36); got[0] != 8 || got[1] != 14 {
 		t.Fatalf("short of want: %v", got)
 	}
 	// Too short for the minimums: never a gap, the tallest unfocused card

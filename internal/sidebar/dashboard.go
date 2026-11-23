@@ -367,7 +367,7 @@ const (
 	minAgentsH = 8
 	minUsageH  = 8
 	minTasksH  = 6
-	minWfH     = 5
+	minWfH     = 8
 )
 
 // dashGeometry: wide = left column (Agents, Usage, Companion)
@@ -426,7 +426,7 @@ func (m Model) dashGeometry() dashGeom {
 	agentsS := spec{&g.agents, 0, trim(m.agentRows(left-4, 1000)) + 2, minAgentsH, 0}
 	usageS := spec{&g.usage, 3, usageH, minUsageH, 0}
 	tasksS := spec{&g.tasks, 2, len(lanes) + 2, minTasksH, 3}
-	wfS := spec{&g.wf, 4, len(wfLines) + 2, minWfH, 2}
+	wfS := spec{&g.wf, 4, min(len(wfLines)+2, minWfH), minWfH, 0} // the bottom card stays small: ~6 rows
 	column := func(x, w, y, total int, specs ...spec) {
 		low, need, weight := make([]int, len(specs)), make([]int, len(specs)), make([]int, len(specs))
 		fi := 0
@@ -451,7 +451,7 @@ func (m Model) dashGeometry() dashGeom {
 		// Stacked: Tasks can list hundreds of rows; cap it so Agents and
 		// Workflows keep their share and spare rows go to Workflows first.
 		tasksS.need = min(tasksS.need, max(minTasksH, (bh-compH)*25/100))
-		agentsS.weight, tasksS.weight, wfS.weight = 2, 1, 1
+		agentsS.weight, tasksS.weight = 2, 2
 		column(0, width, 1, bh-compH, agentsS, usageS, tasksS, wfS)
 		if compH > 0 {
 			g.comp = rect{0, 1 + bh - compH, width, compH}
