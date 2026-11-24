@@ -267,7 +267,7 @@ func (m standaloneModel) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case "N":
 			m.left.taskForm, m.left.taskInput, m.left.taskNotice = "new-agent", "", ""
-			m.left.newAgent = newAgentForm{harness: m.left.defaultNewAgentHarness()}
+			m.left.newAgent = newAgentForm{harness: m.left.defaultNewAgentHarness(), roles: m.left.newAgentRoles()}
 			return m, nil
 		case "z":
 			m.layout = (m.layout + 1) % layoutCount

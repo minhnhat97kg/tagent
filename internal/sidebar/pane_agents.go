@@ -43,7 +43,7 @@ func (m Model) agentsKey(key string) (Model, tea.Cmd, bool) {
 		// The web's New agent fields (new_agent.go): repo-agent, harness,
 		// model, worktree.
 		m.taskForm, m.taskInput, m.taskNotice = "new-agent", "", ""
-		m.newAgent = newAgentForm{harness: m.defaultNewAgentHarness()}
+		m.newAgent = newAgentForm{harness: m.defaultNewAgentHarness(), roles: m.newAgentRoles()}
 		return m, nil, true
 	case "n":
 		// Jump to the next agent that needs the user (waiting or error).

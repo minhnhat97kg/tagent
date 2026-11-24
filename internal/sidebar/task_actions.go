@@ -245,7 +245,7 @@ func (m Model) taskFormView() string {
 		body = strings.TrimRight(body, "\n")
 	case "new-agent":
 		title = "New agent"
-		hint = m.keyHints("↑↓ field", "enter next", "space change", "ctrl+s start", "esc cancel")
+		hint = m.keyHints("tab field", "←→ pick", "ctrl+s start", "esc cancel")
 		body = m.newAgentFormBody(width)
 		if m.taskNotice != "" {
 			body += "\n\n" + m.taskNotice

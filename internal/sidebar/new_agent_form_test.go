@@ -41,7 +41,21 @@ func openNewAgentForm(t *testing.T, m Model) Model {
 	}
 	// The configured harness comes from tmux; pin the row for a stable test.
 	m.newAgent.harness = 0
+	m.newAgent.roles = nil // free-text fallback; TestNewAgentFormPicksRepoAgent covers the picker
 	return m
+}
+
+// The repo-agent row lists the repo's agents and space cycles through them.
+func TestNewAgentFormPicksRepoAgent(t *testing.T) {
+	m := openNewAgentForm(t, newAgentTestModel(t))
+	m.newAgent.roles = m.newAgentRoles()
+	if !slices.Contains(m.newAgent.roles, "reviewer") {
+		t.Fatalf("roles: %v", m.newAgent.roles)
+	}
+	next, _ := m.handleTaskForm(tea.KeyMsg{Type: tea.KeySpace})
+	if got := next.(Model).newAgent.role; got == "" {
+		t.Fatalf("space did not pick a repo agent")
+	}
 }
 
 // TestNewAgentFormOffersWebFields reproduces ticket 43: the key that starts a

@@ -30,6 +30,7 @@ const (
 // edited (repo-agent or model); the other rows commit straight into f.
 type newAgentForm struct {
 	field    int
+	roles    []string // repo agents to pick from; empty means the role row is free text
 	role     string
 	harness  int
 	model    string
@@ -43,7 +44,7 @@ func (f newAgentForm) models() []string { return agents.Models()[f.harnessName()
 // typed reports whether the active row takes text: the repo agent, and the
 // model only for a harness with no model list.
 func (f newAgentForm) typed() bool {
-	return f.field == newAgentRole || (f.field == newAgentModel && len(f.models()) == 0)
+	return (f.field == newAgentRole && len(f.roles) == 0) || (f.field == newAgentModel && len(f.models()) == 0)
 }
 
 func (f newAgentForm) harnessName() string {
@@ -57,7 +58,9 @@ func (f newAgentForm) harnessName() string {
 func (f *newAgentForm) commit(input string) {
 	switch f.field {
 	case newAgentRole:
-		f.role = strings.TrimSpace(input)
+		if f.typed() {
+			f.role = strings.TrimSpace(input)
+		}
 	case newAgentModel:
 		if f.typed() {
 			f.model = strings.TrimSpace(input)
@@ -70,7 +73,9 @@ func (f *newAgentForm) commit(input string) {
 func (f newAgentForm) buffer() string {
 	switch f.field {
 	case newAgentRole:
-		return f.role
+		if f.typed() {
+			return f.role
+		}
 	case newAgentModel:
 		if f.typed() {
 			return f.model
@@ -89,6 +94,13 @@ func (f *newAgentForm) change(dir int) {
 		}
 		f.harness = ((f.harness+dir)%n + n) % n
 		f.model = "" // a model belongs to its harness
+	case newAgentRole:
+		opts := append([]string{""}, f.roles...)
+		i := slices.Index(opts, f.role)
+		if dir == 0 {
+			dir = 1
+		}
+		f.role = opts[((i+dir)%len(opts)+len(opts))%len(opts)]
 	case newAgentModel:
 		// "" (harness default) then each listed model, cycling.
 		opts := append([]string{""}, f.models()...)
@@ -214,8 +226,12 @@ func (m Model) newAgentFormBody(width int) string {
 		}
 		return flag(newAgentModel, "model", cmp.Or(f.model, "default"))
 	}
+	roleRow := text(newAgentRole, "repo-agent", f.role, "none (plain agent)")
+	if len(f.roles) > 0 {
+		roleRow = flag(newAgentRole, "repo-agent", cmp.Or(f.role, "none (plain agent)"))
+	}
 	return strings.Join([]string{
-		text(newAgentRole, "repo-agent", f.role, "none (plain agent)"),
+		roleRow,
 		flag(newAgentHarness, "harness", f.harnessName()),
 		modelRow(),
 		flag(newAgentWorktree, "worktree", map[bool]string{true: "on", false: "off"}[f.worktree]),
@@ -315,4 +331,13 @@ func (m Model) defaultNewAgentHarness() int {
 		}
 	}
 	return 0
+}
+
+// newAgentRoles are the repo agents the form can pick from.
+func (m Model) newAgentRoles() []string {
+	var names []string
+	for _, a := range agents.List(m.newAgentCwd(), m.agentHarness(), nil) {
+		names = append(names, a.Name)
+	}
+	return names
 }
