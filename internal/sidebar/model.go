@@ -1211,6 +1211,16 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.taskNotice = "! " + msg.err.Error()
 		}
 		return m, nil
+	case handoffDoneMsg:
+		// The handoff key's own result: reflect the ownership tmux reports now, so
+		// the row stops rendering "sized by web" immediately instead of waiting for
+		// the periodic readSizeOwners refresh (handoff.go).
+		if m.sizeOwners == nil {
+			m.sizeOwners = map[string]bool{}
+		}
+		m.sizeOwners[msg.pane] = msg.web
+		m.applyRows()
+		return m, nil
 	case workflowsEditedMsg:
 		m.setWorkflows(workflow.List(tasks.MainRoot(m.boardDir)))
 		if msg.err != nil {

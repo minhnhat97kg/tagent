@@ -44,7 +44,24 @@ func HandoffPane(pane string) error {
 	}
 	return nil
 }
-func handoffCmd(pane string) tea.Cmd { return func() tea.Msg { _ = HandoffPane(pane); return nil } }
+
+// handoffDoneMsg reports the ownership state tmux has after a handoff key, so
+// the list can stop drawing the row as "sized by web" right away: reading it
+// again inside Update would block the UI on a subprocess, and readSizeOwners
+// only runs on the periodic refresh tick (refreshInterval), which left the
+// label stale for seconds after the key — the ticket-42 report read that as
+// "no way to hand off".
+type handoffDoneMsg struct {
+	pane string
+	web  bool // still owned by a browser: the release did not take effect
+}
+
+func handoffCmd(pane string) tea.Cmd {
+	return func() tea.Msg {
+		_ = HandoffPane(pane)
+		return handoffDoneMsg{pane: pane, web: strings.HasPrefix(tmux.GetPaneOptionValue(pane, "@agent_size_owner"), "web:")}
+	}
+}
 
 func readSizeOwners(sessions []tmux.SessionInfo) map[string]bool {
 	out := map[string]bool{}

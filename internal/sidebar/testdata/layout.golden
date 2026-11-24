@@ -763,7 +763,7 @@ tagent · tmux-agent                                                            
 │ ~~~~~~~~~~~~~~ call me if you need       ││                                                                                   │
 │ ~~~~~~~~~~~~~~ anything                  ││                                                                                   │
 ╰──────────────────────────────────────────╯╰───────────────────────────────────────────────────────────────────────────────────╯
-Tab/S-Tab panel  ↑↓ select  enter open  N new agent  l log  i prompt  ? help                                                    …
+Tab/S-Tab panel  ↑↓ select  enter open  N new agent  l log  i prompt  f handoff  ? help                                         …
 === dash 130x45 focus 3
 tagent · tmux-agent                                                                                           ? help · , settings
 ╭─ Agents ─────────────────────────────────╮╭─ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1 ──────────────────────────────────╮
