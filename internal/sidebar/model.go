@@ -632,7 +632,8 @@ type Model struct {
 	commentBox     bool // the Activity tab's inline composer is open; its text is taskInput
 	commentPick    int  // highlighted @role suggestion
 	taskStep       int
-	promptPane     string // target of the "send prompt" form (i)
+	newAgent       newAgentForm // the N form's fields (new_agent.go)
+	promptPane     string       // target of the "send prompt" form (i)
 
 	taskNotice string
 
