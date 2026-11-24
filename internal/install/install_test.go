@@ -11,7 +11,45 @@ import (
 )
 
 func testEnv(t *testing.T) env {
-	return env{home: t.TempDir(), bin: "/opt/tagent/bin/tagent", hookScript: "/opt/tagent/assets/hook.sh", out: &bytes.Buffer{}}
+	return env{home: t.TempDir(), bin: "/opt/tagent/bin/tagent", hookScript: "/opt/tagent/assets/hook.sh", out: &bytes.Buffer{},
+		run: func(string, ...string) error { return nil }}
+}
+
+// MCP: CLI harnesses get remove+add, JSON harnesses an entry that keeps
+// other servers and goes away on uninstall.
+func TestMCPRegister(t *testing.T) {
+	e := testEnv(t)
+	var calls []string
+	e.run = func(name string, args ...string) error {
+		calls = append(calls, name+" "+strings.Join(args, " "))
+		return nil
+	}
+	if err := e.setMCP(mcpReg{cli: "claude", add: []string{"-s", "user"}}, true); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"claude mcp remove -s user tagent", "claude mcp add -s user tagent -- /opt/tagent/bin/tagent mcp"}
+	if strings.Join(calls, "|") != strings.Join(want, "|") {
+		t.Fatalf("calls = %q", calls)
+	}
+
+	h, _ := find("opencode")
+	cfg := e.path(h.mcp.file)
+	os.MkdirAll(filepath.Dir(cfg), 0o755)
+	os.WriteFile(cfg, []byte(`{"mcp":{"other":{"type":"local"}}}`), 0o644)
+	if err := e.setMCP(h.mcp, true); err != nil {
+		t.Fatal(err)
+	}
+	m := readJSON(t, cfg)["mcp"].(map[string]any)
+	got := m["tagent"].(map[string]any)["command"].([]any)
+	if m["other"] == nil || got[0] != e.bin || got[1] != "mcp" {
+		t.Fatalf("mcp = %v", m)
+	}
+	if err := e.setMCP(h.mcp, false); err != nil {
+		t.Fatal(err)
+	}
+	if m := readJSON(t, cfg)["mcp"].(map[string]any); m["tagent"] != nil || m["other"] == nil {
+		t.Fatalf("after uninstall mcp = %v", m)
+	}
 }
 
 func readJSON(t *testing.T, path string) map[string]any {

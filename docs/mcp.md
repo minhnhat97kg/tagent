@@ -16,16 +16,18 @@ start it from the repository (or worktree) that holds the board.
 
 ## Register it
 
-```sh
-# Claude Code
-claude mcp add tagent -- /path/to/tagent mcp
+`tagent install` registers the server for every harness it integrates (re-run
+it to update the binary path; `tagent uninstall <harness>` removes the entry):
 
-# Codex CLI
-codex mcp add tagent -- /path/to/tagent mcp
-
-# opencode
-opencode mcp add tagent /path/to/tagent mcp
-```
+| Harness | Where |
+| --- | --- |
+| claude | `claude mcp add -s user tagent -- <bin> mcp` |
+| codex | `codex mcp add tagent -- <bin> mcp` |
+| opencode | `mcp.tagent` in `~/.config/opencode/opencode.json` |
+| pi | `mcpServers.tagent` in `~/.pi/agent/mcp.json` (needs `pi-mcp-adapter`) |
+| gemini | `mcpServers.tagent` in `~/.gemini/settings.json` |
+| copilot | `mcpServers.tagent` in `~/.copilot/mcp-config.json` |
+| amp | `amp.mcpServers.tagent` in `~/.config/amp/settings.json` |
 
 Use the absolute path to the binary. The server inherits the harness environment
 (including `TMUX_PANE`), so comments and new tickets record the same actor as the CLI.

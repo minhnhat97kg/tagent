@@ -42,23 +42,39 @@ type harness struct {
 	skills string   // skills root (<root>/tagent/SKILL.md)
 	instr  string   // global instructions file for a marked block
 	note   string   // shown after install
+	mcp    mcpReg   // how to register the `tagent mcp` server
+}
+
+// mcpReg registers `tagent mcp` with a harness: through its own CLI
+// (cli != "") or by merging one entry into a JSON config.
+type mcpReg struct {
+	cli   string // binary with `mcp add|remove` subcommands
+	add   []string
+	file  string // JSON config (relative to $HOME)
+	key   string // map of servers in that file
+	shape string // entry shape: "" = {command,args}, "opencode", "copilot"
 }
 
 var harnesses = []harness{
-	{name: "claude", detect: []string{".claude", "claude"}, hooks: ".claude/settings.json", skills: ".claude/skills"},
+	{name: "claude", detect: []string{".claude", "claude"}, hooks: ".claude/settings.json", skills: ".claude/skills",
+		mcp: mcpReg{cli: "claude", add: []string{"-s", "user"}}},
 	{name: "codex", detect: []string{".codex", "codex"}, hooks: ".codex/hooks.json", skills: ".codex/skills",
+		mcp:  mcpReg{cli: "codex"},
 		note: "Codex runs hooks only when its hooks feature is enabled in your version — if status stays 'unknown', the screen scraper still covers it."},
-	{name: "pi", detect: []string{".pi", "pi"}, file: ".pi/agent/extensions/tagent.ts", skills: ".pi/agent/skills"},
+	{name: "pi", detect: []string{".pi", "pi"}, file: ".pi/agent/extensions/tagent.ts", skills: ".pi/agent/skills",
+		mcp:  mcpReg{file: ".pi/agent/mcp.json", key: "mcpServers"},
+		note: "MCP needs the pi-mcp-adapter extension (pi install npm:pi-mcp-adapter)"},
 	{name: "opencode", detect: []string{".config/opencode", "opencode"},
 		// OpenCode v2 discovers both directories, but only treats `plugins/`
 		// as V2. Older tagent installs wrote the V1 plugin to `plugin/`;
 		// remove that file so v2 can't load the stale, rejected copy.
 		file:   ".config/opencode/plugins/tagent.js",
 		legacy: []string{".config/opencode/plugin/tagent.js"},
-		instr:  ".config/opencode/AGENTS.md"},
-	{name: "gemini", detect: []string{".gemini", "gemini"}, instr: ".gemini/GEMINI.md", note: "status comes from screen detection"},
-	{name: "copilot", detect: []string{".copilot", "copilot"}, instr: ".copilot/copilot-instructions.md", note: "status comes from screen detection"},
-	{name: "amp", detect: []string{".config/amp", "amp"}, instr: ".config/amp/AGENTS.md", note: "status comes from screen detection"},
+		instr:  ".config/opencode/AGENTS.md",
+		mcp:    mcpReg{file: ".config/opencode/opencode.json", key: "mcp", shape: "opencode"}},
+	{name: "gemini", detect: []string{".gemini", "gemini"}, instr: ".gemini/GEMINI.md", mcp: mcpReg{file: ".gemini/settings.json", key: "mcpServers"}, note: "status comes from screen detection"},
+	{name: "copilot", detect: []string{".copilot", "copilot"}, instr: ".copilot/copilot-instructions.md", mcp: mcpReg{file: ".copilot/mcp-config.json", key: "mcpServers", shape: "copilot"}, note: "status comes from screen detection"},
+	{name: "amp", detect: []string{".config/amp", "amp"}, instr: ".config/amp/AGENTS.md", mcp: mcpReg{file: ".config/amp/settings.json", key: "amp.mcpServers"}, note: "status comes from screen detection"},
 }
 
 // Names lists the supported harnesses.
@@ -97,6 +113,7 @@ type env struct {
 	home, bin, hookScript string
 	dry                   bool
 	out                   io.Writer
+	run                   func(name string, args ...string) error // runs a harness CLI (nil = exec)
 }
 
 // Dispatch implements `tagent install|uninstall [--dry-run] [harness…|all]`.
@@ -232,7 +249,7 @@ func (e env) install(h harness) error {
 		}
 		e.say("docs", "~/"+h.instr+" (tagent block)")
 	}
-	return nil
+	return e.setMCP(h.mcp, true)
 }
 
 func (e env) uninstall(h harness) error {
@@ -262,7 +279,78 @@ func (e env) uninstall(h harness) error {
 			e.say("docs", "block removed from ~/"+h.instr)
 		}
 	}
+	return e.setMCP(h.mcp, false)
+}
+
+// setMCP adds (or removes) the `tagent` MCP server entry for a harness.
+// Re-running install replaces the entry, so the binary path stays current.
+func (e env) setMCP(m mcpReg, add bool) error {
+	switch {
+	case m.cli != "":
+		if _, err := exec.LookPath(m.cli); err != nil && e.run == nil {
+			return nil // config dir without the CLI: nothing to register with
+		}
+		if e.dry {
+			return nil
+		}
+		run := e.run
+		if run == nil {
+			run = func(name string, args ...string) error { return exec.Command(name, args...).Run() }
+		}
+		rm := []string{"mcp", "remove"}
+		if len(m.add) > 0 {
+			rm = append(rm, m.add...)
+		}
+		_ = run(m.cli, append(rm, "tagent")...) // absent is fine
+		if !add {
+			e.say("mcp", "removed from "+m.cli)
+			return nil
+		}
+		args := append(append([]string{"mcp", "add"}, m.add...), "tagent", "--", e.bin, "mcp")
+		if err := run(m.cli, args...); err != nil {
+			return fmt.Errorf("%s mcp add: %w", m.cli, err)
+		}
+		e.say("mcp", m.cli+" mcp add tagent")
+	case m.file != "":
+		path := e.path(m.file)
+		if _, err := os.Stat(path); !add && err != nil {
+			return nil
+		}
+		err := e.editJSON(path, func(cfg map[string]any) {
+			servers, _ := cfg[m.key].(map[string]any)
+			if servers == nil {
+				servers = map[string]any{}
+			}
+			delete(servers, "tagent")
+			if add {
+				servers["tagent"] = mcpEntry(m.shape, e.bin)
+			}
+			if len(servers) == 0 {
+				delete(cfg, m.key)
+			} else {
+				cfg[m.key] = servers
+			}
+		})
+		if err != nil {
+			return err
+		}
+		if add {
+			e.say("mcp", "~/"+m.file)
+		} else {
+			e.say("mcp", "removed from ~/"+m.file)
+		}
+	}
 	return nil
+}
+
+func mcpEntry(shape, bin string) map[string]any {
+	switch shape {
+	case "opencode":
+		return map[string]any{"type": "local", "command": []any{bin, "mcp"}, "enabled": true}
+	case "copilot":
+		return map[string]any{"type": "local", "command": bin, "args": []any{"mcp"}, "tools": []any{"*"}}
+	}
+	return map[string]any{"command": bin, "args": []any{"mcp"}}
 }
 
 // pluginSource is the extension/plugin for a harness, pointing at this
