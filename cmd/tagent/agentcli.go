@@ -119,7 +119,14 @@ func cmdRead(args []string, stdout, stderr io.Writer) int {
 // in the same burst as a literal newline.
 var sendEnterDelay = 300 * time.Millisecond
 
+// cmdSend is `tagent send` run from a shell: the sender is this process's pane.
 func cmdSend(args []string, stdout, stderr io.Writer) int {
+	return sendPrompt(args, os.Getenv("TMUX_PANE"), stdout, stderr)
+}
+
+// sendPrompt delivers args to a pane. from is the sending pane, "" for system
+// sends (the board dispatcher), which are never signed. Only an agent sender is signed.
+func sendPrompt(args []string, from string, stdout, stderr io.Writer) int {
 	const usage = "usage: tagent send <pane> [--now] [--wait] [--until stopped|idle|waiting] [--timeout 30m] [--report <file>] <text...>"
 	if len(args) < 2 {
 		fmt.Fprintln(stderr, usage)
@@ -159,7 +166,7 @@ func cmdSend(args []string, stdout, stderr io.Writer) int {
 	}
 	// An agent sending to another agent signs the message so the receiver knows whom to answer.
 	// Slash commands (/clear, /model ...) stay unsigned: a prefix turns them into plain text.
-	if from := os.Getenv("TMUX_PANE"); from != "" && from != pane && !strings.HasPrefix(text, "/") && tmux.GetPaneOptionValue(from, tmux.PaneStatusOpt) != "" {
+	if from != "" && from != pane && !strings.HasPrefix(text, "/") && tmux.GetPaneOptionValue(from, tmux.PaneStatusOpt) != "" {
 		name := tmux.GetPaneOptionValue(from, tmux.PaneName)
 		if name == "" {
 			name = from

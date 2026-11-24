@@ -259,7 +259,8 @@ func dispatchBoardAction(a board.Action) error {
 		}
 		return err
 	}
-	if code := cmdSend([]string{pane, a.Prompt}, io.Discard, os.Stderr); code != exitOK {
+	// System send: no sender, so the prompt is never signed, even when this process inherited TMUX_PANE.
+	if code := sendPrompt([]string{pane, a.Prompt}, "", io.Discard, os.Stderr); code != exitOK {
 		return fmt.Errorf("send to %s failed", pane)
 	}
 	if a.ResumePrompt != nil {
