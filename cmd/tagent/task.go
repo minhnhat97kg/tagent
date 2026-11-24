@@ -29,7 +29,7 @@ func cmdTask(args []string, stdout, stderr io.Writer) int {
 		return exitOK
 	}
 	usage := func() int {
-		fmt.Fprintln(stderr, "usage: tagent task [ls] | add [--to name[,name]] [--needs id[,id]] [--priority high|normal|low] <text> | done <id> [note] | move <id> <status> [comment] | retry <id> | start <id> <pane> | set <id> <configured-status> [note] | assign <id> <name[,name]|-> | needs <id> <id[,id]|-> | priority <id> <high|normal|low> | show <id> | attachments <id> | comment <id> [--attach path]... [--diff] <text> | due <id> <YYYY-MM-DD|-> | rm <id>")
+		fmt.Fprintln(stderr, "usage: tagent task [ls] | add [--to name[,name]] [--needs id[,id]] [--priority high|normal|low] <text> | done <id> [note] | move <id> <status> [comment] | retry <id> | start <id> [workflow|pane] | set <id> <configured-status> [note] | assign <id> <name[,name]|-> | needs <id> <id[,id]|-> | priority <id> <high|normal|low> | show <id> | attachments <id> | comment <id> [--attach path]... [--diff] <text> | due <id> <YYYY-MM-DD|-> | rm <id>")
 		return exitUsage
 	}
 	var err error
@@ -262,6 +262,10 @@ func cmdTask(args []string, stdout, stderr io.Writer) int {
 			err = nil
 		}
 	case "start":
+		if len(args) == 2 {
+			err = board.Start(wd, args[1], "")
+			break
+		}
 		if len(args) != 3 {
 			return usage()
 		}
