@@ -65,8 +65,11 @@ func configForScope(scope string) (BoardConfig, error) {
 	}
 	return ParseBoardConfig(nil)
 }
-func Columns(scope string) []string {
-	c, err := configForScope(scope)
+// ColumnsOf is the statuses a ticket can be in: the one list every mover (CLI,
+// TUI, web, watch) and Update/Move validate against. A ticket with a workflow
+// gets that workflow's statuses, any other the board's.
+func ColumnsOf(scope string, t Task) []string {
+	c, err := configForTaskScope(scope, t)
 	if err != nil {
 		return DefaultColumns()
 	}

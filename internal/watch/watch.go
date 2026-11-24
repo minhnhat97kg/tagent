@@ -558,7 +558,7 @@ func (m model) updateKeys(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case " ":
 		if m.focus == focusNotes && len(m.tasks) > 0 {
 			t := m.tasks[m.cursor[focusNotes]]
-			columns := tasks.Columns(m.scope)
+			columns := tasks.ColumnsOf(m.scope, t)
 			next := columns[0]
 			for i, column := range columns {
 				if column == t.Status {
