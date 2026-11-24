@@ -75,6 +75,11 @@ func cmdWorkflow(args []string, out, errs io.Writer) int {
 		if e = cmd.Run(); e != nil {
 			return fail(e)
 		}
+		if cfg, e := tasks.LoadBoardConfig(dir); e == nil { // verify what was just written
+			for _, problem := range tasks.CheckBoard(dir, cfg) {
+				fmt.Fprintln(errs, "! "+problem)
+			}
+		}
 		return exitOK
 	}
 	if args[0] != "run" {

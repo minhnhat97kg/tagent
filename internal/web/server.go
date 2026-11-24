@@ -539,7 +539,7 @@ func (s *server) project(w http.ResponseWriter, r *http.Request) {
 		}
 		flows = append(flows, map[string]any{"name": wf.Name, "description": wf.Description, "global": wf.Global, "file": wf.File, "jobs": jobs, "error": e})
 	}
-	writeJSON(w, map[string]any{"dir": dir, "tasks": t, "roles": defs, "statuses": statuses, "workers": workers, "running": running, "blockedReasons": reasons, "workflows": flows, "defaultWorkflow": cfg.DefaultWorkflow})
+	writeJSON(w, map[string]any{"dir": dir, "tasks": t, "roles": defs, "statuses": statuses, "workers": workers, "running": running, "blockedReasons": reasons, "workflows": flows, "defaultWorkflow": cfg.DefaultWorkflow, "problems": tasks.CheckBoard(dir, cfg)})
 }
 
 func (s *server) taskOp(w http.ResponseWriter, r *http.Request) {

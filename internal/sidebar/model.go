@@ -1244,7 +1244,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.boardConfig = msg.config
 			m.setWorkflows(workflow.List(tasks.MainRoot(m.boardDir)))
-			m.taskNotice = "✓ Board config reloaded"
+			m.taskNotice = boardProblemNotice(m.boardDir, msg.config, "✓ Board config reloaded")
 		}
 		return m, nil
 	case agentsEditedMsg:

@@ -62,6 +62,7 @@ export interface Task {
 
 export interface Project {
   defaultWorkflow?: string
+  problems?: string[]
   statuses: { id: string; role: string; run: string }[]
   workers?: Record<string, { role: string; pane: string; live: boolean }>
   // Roles whose pane is working on each ticket right now (ticket id -> roles).

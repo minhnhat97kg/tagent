@@ -76,7 +76,7 @@ export default function App() {
   const overviewPoll = usePoll<Overview | undefined>(() => (dir ? api<Overview>(`/api/overview?days=${usageDays}&dir=${enc(dir)}`) : Promise.resolve(undefined)), 5000, dir + usageDays) // usage changes slowly; 5s keeps the server idle
   const overview = overviewPoll.data?.dir === dir ? overviewPoll.data : undefined
   const notices = notifications(ordered, projPoll.data?.dir === dir ? projPoll.data : undefined, overview)
-  useAlerts(notices, n => 'agent' in n ? `${agentLabel(n.agent)}: ${n.agent.dialog?.question || n.agent.wait || n.agent.prompt}` : n.task.title || n.reason)
+  useAlerts(notices, n => 'agent' in n ? `${agentLabel(n.agent)}: ${n.agent.dialog?.question || n.agent.wait || n.agent.prompt}` : n.kind === 'config' ? n.message : n.task.title || n.reason)
   const [noticeTicket, setNoticeTicket] = useState<{id: string; reply: string; dir: string}>()
   const noticeOrigin = useRef<HTMLElement | null>(null)
   const lastNotice = useRef<string | undefined>(undefined)
@@ -84,6 +84,7 @@ export default function App() {
   const openNotice = (n: Notice, reply = false) => {
     lastNotice.current = n.id
     if ('agent' in n) nav('/agent/' + enc(n.agent.pane))
+    else if (n.kind === 'config') nav('/workflows')
     else {
       noticeOrigin.current = document.activeElement as HTMLElement
       setNoticeTicket({dir, id:n.task.id, reply:reply && n.role ? `@${n.role} ` : ''})

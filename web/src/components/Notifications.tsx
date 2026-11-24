@@ -9,13 +9,14 @@ import { agentLabel } from '@/lib/status'
 import type { Agent } from '@/types'
 import type { Notice } from '@/lib/notifications'
 
-const groupOf = (n: Notice) => 'agent' in n ? n.agent.project || n.agent.path.split('/').pop() || 'agents' : 'Tickets'
+const groupOf = (n: Notice) => 'agent' in n ? n.agent.project || n.agent.path.split('/').pop() || 'agents' : n.kind === 'config' ? 'Board' : 'Tickets'
 const TONE: Record<Notice['kind'], { dot: string; text: string }> = {
  waiting: { dot: 'bg-brand', text: 'text-brand-ink' },
  error: { dot: 'bg-destructive', text: 'text-destructive' },
  blocked: { dot: 'bg-amber-500', text: 'text-amber-700 dark:text-amber-400' },
+ config: { dot: 'bg-destructive', text: 'text-destructive' },
 }
-const KIND: Record<Notice['kind'], string> = { waiting: 'Needs an answer', error: 'Agent error', blocked: 'Blocked ticket' }
+const KIND: Record<Notice['kind'], string> = { waiting: 'Needs an answer', error: 'Agent error', blocked: 'Blocked ticket', config: 'Board problem' }
 
 // Reply sends text to the waiting agent, or comments on the blocked ticket, without opening either.
 function Reply({ n, dir, done }: { n: Notice; dir: string; done: () => void }) {
@@ -26,6 +27,7 @@ function Reply({ n, dir, done }: { n: Notice; dir: string; done: () => void }) {
   if (!body) return
   setBusy(true)
   try {
+   if (n.kind === 'config') return
    await act('agent' in n ? post('/api/pane/send', { pane: n.agent.pane, data: body }) : post('/api/tasks', { Dir: dir, Op: 'comment', ID: n.task.id, Text: n.role ? `@${n.role} ${body}` : body }))
    setText(''); done()
   } finally { setBusy(false) }
@@ -62,12 +64,12 @@ export function Notifications({ items, dir, onOpen }: { items: Notice[]; dir: st
      <ul className="divide-y">{items.filter(n => groupOf(n) === g).map(n => <li key={n.id} className="px-4 py-3">
       <button className="block w-full text-left" onClick={() => go(n)}>
        <span className={`flex items-center gap-1.5 text-[11px] font-medium ${TONE[n.kind].text}`}><span className={`size-1.5 rounded-full ${TONE[n.kind].dot}`} />{KIND[n.kind]}</span>
-       <strong className="mt-0.5 block text-sm font-semibold">{'agent' in n ? agentLabel(n.agent) : n.task.title || n.task.text.split('\n')[0]}</strong>
-       <span className="mt-0.5 line-clamp-3 block whitespace-pre-wrap break-words text-xs leading-relaxed text-muted-foreground">{'agent' in n ? n.agent.dialog?.question || n.agent.wait || n.agent.prompt : n.reason}</span>
+       {n.kind !== 'config' && <strong className="mt-0.5 block text-sm font-semibold">{'agent' in n ? agentLabel(n.agent) : n.task.title || n.task.text.split('\n')[0]}</strong>}
+       <span className="mt-0.5 line-clamp-3 block whitespace-pre-wrap break-words text-xs leading-relaxed text-muted-foreground">{'agent' in n ? n.agent.dialog?.question || n.agent.wait || n.agent.prompt : n.kind === 'config' ? n.message : n.reason}</span>
       </button>
       <div className="mt-2.5 flex flex-wrap gap-1.5">
        {n.kind === 'waiting' && n.agent.dialog?.options?.map(o => <Button key={o.Key} size="xs" variant="outline" disabled={busy === n.id} onClick={() => void answer(n.id, {pane:n.agent.pane,data:o.Key,dialog:n.agent.dialog})}>{o.Label}</Button>)}
-       <Button size="xs" variant="ghost" onClick={() => go(n)}>Open</Button>
+       {n.kind !== 'config' && <Button size="xs" variant="ghost" onClick={() => go(n)}>Open</Button>}
        {n.kind === 'error' && <Button size="xs" variant="ghost" className="text-destructive" onClick={() => { setOpen(false); setKill(n.agent) }}>Kill…</Button>}
       </div>
       {(n.kind === 'blocked' || (n.kind === 'waiting' && !n.agent.dialog?.options?.length)) && <Reply n={n} dir={dir} done={() => setOpen(false)} />}

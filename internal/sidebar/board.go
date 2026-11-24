@@ -54,10 +54,24 @@ func (m Model) boardContext() Model {
 		m.taskNotice = "! Board config: " + err.Error()
 	} else {
 		m.boardConfig = cfg
+		m.taskNotice = boardProblemNotice(m.boardDir, cfg, m.taskNotice)
 	}
 	m.setWorkflows(workflow.List(tasks.MainRoot(m.boardDir)))
 	m.taskCursor = max(0, min(m.taskCursor, len(m.notes)-1))
 	return m
+}
+
+// boardProblemNotice is the first thing wrong with the board or its workflows
+// as a "!" notice (plus how many more), or current when all is well.
+func boardProblemNotice(dir string, cfg tasks.BoardConfig, current string) string {
+	problems := tasks.CheckBoard(dir, cfg)
+	if len(problems) == 0 {
+		return current
+	}
+	if len(problems) > 1 {
+		return fmt.Sprintf("! %s (+%d more)", problems[0], len(problems)-1)
+	}
+	return "! " + problems[0]
 }
 
 func reloadBoardConfig(dir string, editorErr error) boardConfigMsg {
