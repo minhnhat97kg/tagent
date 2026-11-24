@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strconv"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -492,71 +491,9 @@ func cmdCtx(args []string, stdout, stderr io.Writer) int {
 	return exitUsage
 }
 
-// ─── new: spawn an agent into a pool window ─────────────────────────────
-
-// Agents started with `new` live in "agents" windows (window option
-// @agent_pool=1) instead of the caller's window, at most @agent_max_panes
-// agent panes each (the sidebar pane doesn't count); a full pool opens a
-// new window.
-const (
-	poolOption     = "@agent_pool"
-	maxPanesOption = "@agent_max_panes"
-	poolWindowName = "agents"
-	defaultMaxPane = 4
-)
+// ─── new: spawn an agent in its project session ─────────────────────────────
 
 var newReadyTimeout = 30 * time.Second
-
-// placement is where the next agent pane goes: split splitTarget in
-// direction splitDir, or (splitTarget == "") open a new pool window.
-type placement struct {
-	splitTarget string
-	splitDir    string // "-h" side by side, "-v" stacked
-}
-
-// planPlacement picks a pool window with room from list-panes output
-// ("window_id|pool|role|pane_id|width|height" per line) and splits its
-// largest agent pane along its longer side. Fields are "|"-separated: an
-// empty option (most panes have no @pane_role) must not shift the columns — a terminal cell is about twice
-// as tall as wide, so "longer" means width > 2×height. Filling a window this
-// way yields a 2×2 grid at 4 panes without re-laying-out the window.
-func planPlacement(listPanes string, maxPanes int) placement {
-	type win struct {
-		count      int
-		largest    string
-		area, w, h int
-	}
-	var order []string
-	wins := map[string]*win{}
-	for _, line := range strings.Split(strings.TrimSpace(listPanes), "\n") {
-		f := strings.Split(line, "|")
-		if len(f) < 6 || f[1] != "1" || f[2] == "sidebar" {
-			continue
-		}
-		w, _ := strconv.Atoi(f[4])
-		h, _ := strconv.Atoi(f[5])
-		x, ok := wins[f[0]]
-		if !ok {
-			x = &win{}
-			wins[f[0]] = x
-			order = append(order, f[0])
-		}
-		x.count++
-		if w*h > x.area {
-			x.area, x.largest, x.w, x.h = w*h, f[3], w, h
-		}
-	}
-	for _, id := range order {
-		if x := wins[id]; x.count < maxPanes {
-			dir := "-v"
-			if x.w > 2*x.h {
-				dir = "-h"
-			}
-			return placement{splitTarget: x.largest, splitDir: dir}
-		}
-	}
-	return placement{}
-}
 
 func cmdNew(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("new", flag.ContinueOnError)
@@ -589,7 +526,7 @@ func cmdNew(args []string, stdout, stderr io.Writer) int {
 
 // cmdKill closes agent panes by name or pane id. Only panes that report an
 // agent (@pane_agent) are killed — a typo must not close a shell or an
-// editor — and never the caller's own pane. A pool window left with only
+// editor — and never the caller's own pane. A window left with only
 // its sidebar is closed too.
 func cmdKill(args []string, stdout, stderr io.Writer) int {
 	if len(args) == 0 {

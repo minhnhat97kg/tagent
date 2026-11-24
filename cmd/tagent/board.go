@@ -197,6 +197,9 @@ func dispatchBoardAction(a board.Action) error {
 			name += "-" + t[max(0, len(t)-4):]
 		}
 		o := spawnOpts{Name: freeName(name), Cwd: a.Dir, ConfigDir: tasks.MainRoot(a.Dir), Wait: true}
+		if a.Role != "" && a.Event.Task != "" {
+			o.Window = a.Role + "#" + a.Event.Task
+		}
 		if a.ExecDir != "" {
 			o.Cwd = a.ExecDir
 		}

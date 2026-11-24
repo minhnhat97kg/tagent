@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 
+	"tagent/internal/tasks"
 	"tagent/internal/tmux"
 )
 
@@ -20,9 +21,6 @@ import (
 // Any of these returns from the agent to the list (ctrl+] alone did not reach
 // some terminals/keyboards); a click on the list works too.
 func isLeaveKey(s string) bool { return s == "ctrl+]" || s == "ctrl+\\" || s == "ctrl+^" }
-
-// HiddenSession is the detached session standalone agents run in.
-const HiddenSession = "tagent-bg"
 
 type standaloneModel struct {
 	left       Model
@@ -53,23 +51,25 @@ type shotTickMsg struct{}
 
 type shellMsg struct{ id string }
 
-// openShell reuses an empty background pane or starts a plain shell.
+// openShell reuses an empty pane of the cwd's project session or starts a plain shell.
 func openShell(cwd string) tea.Cmd {
 	return func() tea.Msg {
-		target := "=" + HiddenSession + ":"
-		var id string
-		if _, ok := tmux.RunTmux("has-session", "-t", "="+HiddenSession); ok {
-			panes, _ := tmux.RunTmux("list-panes", "-s", "-t", target, "-F", "#{pane_id} #{@pane_agent}")
-			for _, line := range strings.Split(panes, "\n") {
-				if fields := strings.Fields(line); len(fields) == 1 {
-					return shellMsg{id: fields[0]}
-				}
-			}
-			id, _ = tmux.RunTmuxCapture("new-window", "-d", "-t", target, "-c", cwd, "-P", "-F", "#{pane_id}")
-		} else {
-			id, _ = tmux.RunTmuxCapture("new-session", "-d", "-s", HiddenSession, "-c", cwd, "-P", "-F", "#{pane_id}")
-			tmux.RunTmux("set-option", "-t", target, "@agent_hidden", "1")
+		session, spare, err := tmux.ProjectSession(tasks.MainRoot(cwd))
+		if err != nil {
+			return shellMsg{}
 		}
+		target := session + ":"
+		if spare != "" { // fresh session: its first window is the shell
+			id, _ := tmux.RunTmuxCapture("display-message", "-p", "-t", spare, "#{pane_id}")
+			return shellMsg{id: strings.TrimSpace(id)}
+		}
+		panes, _ := tmux.RunTmux("list-panes", "-s", "-t", session, "-F", "#{pane_id} #{@pane_agent}")
+		for _, line := range strings.Split(panes, "\n") {
+			if fields := strings.Fields(line); len(fields) == 1 {
+				return shellMsg{id: fields[0]}
+			}
+		}
+		id, _ := tmux.RunTmuxCapture("new-window", "-d", "-t", target, "-c", cwd, "-P", "-F", "#{pane_id}")
 		return shellMsg{id: strings.TrimSpace(id)}
 	}
 }

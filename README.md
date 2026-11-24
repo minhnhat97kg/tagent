@@ -381,10 +381,11 @@ set -ga status-right '#{E:@agent_session_status_format}'
 set -ga status-right '#{E:@agent_hidden_status_format}'   # standalone agents
 ```
 
-**Standalone:** `tagent new` outside tmux (a plain terminal) starts the agent
-in a detached background session, `tagent-bg`, instead of failing. The
-last status-line format lists those agents (name + status icon); attach with
-`tmux attach -t tagent-bg`.
+**Sessions:** every agent runs in a tmux session of its project, one window
+per agent, named `tagent:<folder>-<4 hex>` (project = main git root; worktrees
+share their repo's session; a folder outside git is its own project). This works
+the same inside or outside tmux: `tmux ls`, then `tmux attach -t 'tagent:<name>-xxxx'`.
+The last status-line format lists agents of sessions without a client.
 
 Plain `tagent` outside tmux opens a split screen: the dashboard on the
 left, the live screen of the selected agent on the right. `Enter` (or a click)
@@ -412,7 +413,6 @@ Set options with `set -g …` before loading the plugin, or use `tagent config`.
 | `@agent_avatar_llm` | `claude -p --model haiku` | command writing the dashboard's task summaries; `off` = none |
 | `@agent_done_prompt` | — | prompt the quick action sends to a finished agent |
 | `@agent_avatar_say_waiting` / `_done` / `_error` | | your own lines; `{name}`, `{action}` (tmux.conf only, not in the settings screen) |
-| `@agent_max_panes` | `4` | max agents per `agents` window |
 | `@agent-sidebar-default-agent` | `claude` | default harness for `new` |
 | `@agent_model` | — | model passed to the harness as `--model` |
 | `@agent_scrape` | `on` | screen detection for agents without hooks |

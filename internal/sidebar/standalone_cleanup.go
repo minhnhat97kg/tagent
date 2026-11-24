@@ -29,12 +29,21 @@ func isShellCommand(cmd string) bool {
 	return slices.Contains([]string{"bash", "zsh", "sh", "fish", "dash", "ksh", "-bash", "-zsh", "-sh", "-fish"}, cmd)
 }
 
-// sweepIdlePanes kills the panes of the hidden session that were idle shells
+// sweepIdlePanes kills the panes of the legacy tagent-bg session that were idle shells
 // in the previous sweep too; it returns the ones idle now.
 func sweepIdlePanes(prev, keep []string) tea.Cmd {
 	return func() tea.Msg {
-		out, ok := tmux.RunTmux("list-panes", "-s", "-t", "="+HiddenSession, "-F", "#{pane_id} #{pane_current_command} #{@pane_keep}")
-		if !ok {
+		// Only the legacy tagent-bg: project sessions are attachable, their shells are the user's.
+		var out string
+		sessions, _ := tmux.RunTmux("list-sessions", "-F", "#{session_id}|#{session_name}")
+		for _, line := range strings.Split(sessions, "\n") {
+			f := strings.Split(strings.TrimSpace(line), "|")
+			if len(f) == 2 && f[1] == "tagent-bg" {
+				l, _ := tmux.RunTmux("list-panes", "-s", "-t", f[0], "-F", "#{pane_id} #{pane_current_command} #{@pane_keep}")
+				out += l + "\n"
+			}
+		}
+		if out == "" {
 			return cleanupMsg{}
 		}
 		self := os.Getenv("TMUX_PANE")

@@ -50,6 +50,7 @@ func TestWorkflowNativeRoleLaunchUsesLiveConfig(t *testing.T) {
 				}
 				fake := tmux.NewFake()
 				fake.Set("$1", "display-message", "-t", "%1", "-p", "#{session_id}")
+				fakeProjectSession(fake, tree)
 				restore := tmux.SetRunner(fake)
 				// Undeclared pane creation fails, but records the exact harness invocation.
 				effort := ""

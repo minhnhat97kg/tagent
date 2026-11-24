@@ -80,7 +80,6 @@ var Advanced = []Setting{
 	{Key: "@agent_avatar_lines", Group: "Avatar", Label: "Speech lines", Kind: Int, Default: "1", Min: 1, Max: 8},
 	{Key: "@agent_done_prompt", Group: "Avatar", Label: "Prompt for a finished agent", Kind: Text,
 		Help: "quick action (space / prefix+a) sends this to an agent that finished; empty = jump to it"},
-	{Key: "@agent_max_panes", Group: "Agents", Label: "Max agents per window", Kind: Int, Default: "4", Min: 1, Max: 12},
 	{Key: "@agent_scrape", Group: "Agents", Label: "Screen detection", Kind: Bool, Default: "on", Help: "status for agents without hooks"},
 	{Key: "@agent_web", Group: "Web", Label: "Web UI", Kind: Bool, Default: "off",
 		Help: "serve the browser UI from the background process; takes effect after `tagent reload`; URL in `tmux show -gv @agent_web_url`"},
