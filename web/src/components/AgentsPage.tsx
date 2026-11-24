@@ -68,7 +68,7 @@ export function AgentsPage({ dir }: { dir: string }) {
           <p className="line-clamp-2 text-[11px] text-muted-foreground">{usedBySummary(r)}</p>
         </button>)}
       </nav>
-      {!draft ? <div className="hidden flex-1 items-center justify-center text-sm text-muted-foreground md:flex">Select an agent to edit its harness, model and instructions.</div> :
+      {!draft ? <div className="hidden flex-1 flex-col items-center justify-center gap-2 text-sm text-muted-foreground md:flex">Select an agent to edit its harness, model and instructions.<Button size="xs" variant="outline" disabled={busy} onClick={create}><Plus />New agent</Button></div> :
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-auto">
           <div className="flex shrink-0 flex-wrap items-center gap-2 border-b px-3 py-1.5">
             <h3 className="mr-auto truncate text-[13px] font-semibold">{draft.name}{dirty && <span className="ml-1 text-amber-600">•</span>}<span className="ml-2 text-[11px] font-normal text-muted-foreground">{draft.source === "global" ? "global" : "local"}{draft.path ? ` · ${draft.path}` : ""}</span></h3>

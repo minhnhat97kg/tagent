@@ -9,6 +9,8 @@ import { Avatar, Md, shortId, statusColor } from "@/components/BoardDrawer"
 import { attachmentURL } from "@/lib/attachments"
 import { entryLabel, findAttachment, formatDuration, resultChip } from "@/lib/run"
 import { Button } from "@/components/ui/button"
+import { Panel } from "@/components/Panel"
+import { baseName } from "@/lib/status"
 import type { RunEntry, RunView as RunData } from "@/types"
 
 // RunView shows one ticket's run: every entry into every step, with what was
@@ -32,7 +34,9 @@ export function RunView({ dir, id, page = false }: { dir: string; id: string; pa
   const clock = (iso?: string) => (iso ? new Date(iso).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "")
   const attachment = (name: string, commentId?: string) => findAttachment(attachments, name, commentId)
 
-  if (poll.error) return <p role="alert" className="p-4 text-sm">Couldn't load the run. {poll.error.message}</p>
+  if (poll.error) return page
+    ? <Panel title="Run" className="m-2 self-start"><div className="space-y-2 p-3 text-sm"><p role="alert">Couldn't load the run in <b>{baseName(dir)}</b>. {poll.error.message}</p><Button variant="outline" size="sm" onClick={() => nav("/board")}>Back to board</Button></div></Panel>
+    : <p role="alert" className="p-4 text-sm">Couldn't load the run. {poll.error.message}</p>
   if (!run) return <p className="p-4 text-sm text-muted-foreground">Loading…</p>
 
   const openButton = (a: Attachment, label: string) => (

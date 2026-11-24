@@ -358,9 +358,9 @@ The web Workflows page edits YAML with line numbers, syntax colours and soft wra
 ### Run view
 
 A ticket's run is the drawer's **Run** tab (web) and the third tab of the TUI
-detail drawer, from the same events: steps ran, loops and history. `#/runs/<ticket>`
-still opens the same run as a full page (old `#/workflows/<wf>/<ticket>` links
-land there too). It shows that ticket's run only:
+detail drawer, from the same events: steps ran, loops and history. `#/runs/<ticket>?dir=<project>`
+still opens the same run as a full page in that project (without `dir` it uses the picked project;
+old `#/workflows/<wf>/<ticket>` links land there too). It shows that ticket's run only:
 
 - header: title, workflow name, inputs used, overall status, total time, and **Edit workflow** to the editor;
 - a compact flow strip of the steps with entry counts and the current one;

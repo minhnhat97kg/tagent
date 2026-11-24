@@ -10,8 +10,8 @@ export const STATUS_GLYPH: Record<string, { glyph: string; cls: string }> = {
 
 export const isActive = (status: string) => status === "running" || status === "background"
 
-// shortPrompt is the first line of a prompt, cut for a one-line row.
-export const shortPrompt = (s: string) => (s.trim().split("\n")[0] ?? "").slice(0, 120)
+// shortPrompt is the first line of a prompt, cut for a one-line row. Pasted-content wrappers and system reminders are not the message.
+export const shortPrompt = (s: string) => (s.replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, "").replace(/<\/?pasted_content[^>]*>/g, "").split("\n").find(l => l.trim()) ?? "").trim().slice(0, 120)
 
 export const baseName = (p: string) => p.split("/").filter(Boolean).pop() ?? p
 

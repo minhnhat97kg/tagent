@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { bindVisualViewport } from '@/lib/touchViewport'
-import { ArrowLeft, Bot, Kanban, Maximize2, Minimize2, Monitor, Moon, PanelLeftClose, PanelLeftOpen, Plus, Settings, SquareTerminal, Sun, Workflow } from "lucide-react"
+import { ArrowLeft, Bot, Kanban, Maximize2, Minimize2, Monitor, Moon, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Plus, Settings, SquareTerminal, Sun, Workflow } from "lucide-react"
 import { nextTheme, useWebTheme } from "@/lib/theme"
 import { SettingsDialog } from "@/components/SettingsDialog"
 import { api } from "@/api"
@@ -20,6 +20,7 @@ import { AgentsPage } from "@/components/AgentsPage"
 import { OverviewPanel } from "@/components/panels/OverviewPanel"
 import { TasksPanel } from "@/components/panels/TasksPanel"
 import { Button } from "@/components/ui/button"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { useKeys } from "@/hooks/useKeys"
@@ -71,6 +72,12 @@ export default function App() {
 
   const agent = sel?.kind === "agent" ? state?.agents.find((a) => a.pane === sel.pane) : undefined
   const [dir, setDir] = useProjectDir(agent?.path)
+  // #/runs/<ticket>?dir=<project> names its project, so a shared link opens that project's run; without it the run uses the ambient dir.
+  const runMatch = /^\/runs\/([^/?]+)(?:\?(.*))?$/.exec(route)
+  // State loads async: a cold link counts its project only once the project list has it.
+  const runParam = runMatch ? new URLSearchParams(runMatch[2] ?? "").get("dir") : null
+  const runDir = runParam && state?.projects?.includes(runParam) ? runParam : undefined
+  useEffect(() => { if (runDir) setDir(runDir) }, [runDir])
   const projPoll = usePoll<Project | undefined>(() => (dir ? api<Project>(`/api/project?dir=${enc(dir)}`) : Promise.resolve(undefined)), 2000, dir)
   const [usageDays, setUsageDays] = useState(7)
   const overviewPoll = usePoll<Overview | undefined>(() => (dir ? api<Overview>(`/api/overview?days=${usageDays}&dir=${enc(dir)}`) : Promise.resolve(undefined)), 5000, dir + usageDays) // usage changes slowly; 5s keeps the server idle
@@ -104,7 +111,7 @@ export default function App() {
   const boardConfigRoute = route === '/board/config'
   const flowRoute = /^\/workflows(?:\/([^/]+))?$/.exec(route)
   // Old ticket links (/workflows/<wf>/<ticket>) open the run page, not the editor.
-  const runRoute = /^\/runs\/([^/]+)$/.exec(route) ?? /^\/workflows\/[^/]+\/([^/]+)$/.exec(route)
+  const runRoute = runMatch ?? /^\/workflows\/[^/]+\/([^/]+)$/.exec(route)
   const agentsRoute = route === "/agents"
   const home = !sel && !boardRoute && !boardConfigRoute && !flowRoute && !runRoute && !agentsRoute
   const board = <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border bg-card"><Board dir={dir} proj={proj} reload={projPoll.reload} /></section>
@@ -114,7 +121,7 @@ export default function App() {
   let main
   if (boardRoute) main = board
   else if (boardConfigRoute) main = <BoardConfigPage key={dir} dir={dir} />
-  else if (runRoute) main = <RunPage key={dir + runRoute[1]} dir={dir} id={decodeURIComponent(runRoute[1]!)} />
+  else if (runRoute) main = <RunPage key={(runDir ?? dir) + runRoute[1]} dir={runDir ?? dir} id={decodeURIComponent(runRoute[1]!)} />
   else if (flowRoute) main = <WorkflowsPage key={dir + route} dir={dir} initial={decodeURIComponent(flowRoute[1] ?? '')} />
   else if (agentsRoute) main = <AgentsPage key={dir} dir={dir} />
   else if (agent) main = <AgentView key={agent.pane} agent={agent} project={proj} />
@@ -135,19 +142,30 @@ export default function App() {
     <TooltipProvider>
       <div className="app-viewport flex flex-col bg-sidebar">
         <header className="flex h-11 shrink-0 items-center gap-1 border-b bg-card px-2 md:gap-2 md:px-3">
-          {!home && <Button variant="ghost" size="icon-xs" className={boardRoute ? "md:hidden" : ""} onClick={() => nav("/")} aria-label="Back to home" title="Back to home"><ArrowLeft /></Button>}
+          {!home && <Button variant="ghost" size="icon-xs" className={`max-sm:size-9 ${boardRoute ? "md:hidden" : ""}`} onClick={() => nav("/")} aria-label="Back to home" title="Back to home"><ArrowLeft /></Button>}
           <Button variant="ghost" size="icon-xs" className="hidden md:inline-flex" onClick={() => setRailCollapsed(!railCollapsed)} aria-label={railCollapsed ? "Show sidebar" : "Hide sidebar"} title={railCollapsed ? "Show sidebar" : "Hide sidebar"}>{railCollapsed ? <PanelLeftOpen /> : <PanelLeftClose />}</Button>
           <a href="#/" className="flex shrink-0 items-center gap-1.5 text-[13px] font-semibold"><span className="flex size-6 items-center justify-center rounded-md bg-primary text-primary-foreground"><SquareTerminal className="size-3.5" /></span><span className="hidden sm:inline">tagent</span><span className="hidden font-normal text-muted-foreground lg:inline"> · {state?.host ?? ""}</span></a>
           <div className="min-w-0 flex-1 overflow-hidden [&_button]:max-w-full"><ProjectSelect value={dir} projects={state?.projects ?? []} onChange={(d) => { setDir(d); nav("/") }} /></div>
           <div className="ml-auto flex items-center gap-1">
-            <Button variant="ghost" size="icon-xs" aria-label="Board" title="Board" onClick={() => nav('/board')}><Kanban /></Button>
-            <Button variant="ghost" size="icon-xs" aria-label="Agents" title="Agents" onClick={() => nav('/agents')}><Bot /></Button>
-            <Button variant="ghost" size="icon-xs" aria-label="Workflows" title="Workflows" onClick={() => nav('/workflows')}><Workflow /></Button>
+            <Button variant="ghost" size="icon-xs" className="max-sm:hidden" aria-label="Board" title="Board" onClick={() => nav('/board')}><Kanban /></Button>
+            <Button variant="ghost" size="icon-xs" className="max-sm:hidden" aria-label="Agents" title="Agents" onClick={() => nav('/agents')}><Bot /></Button>
+            <Button variant="ghost" size="icon-xs" className="max-sm:hidden" aria-label="Workflows" title="Workflows" onClick={() => nav('/workflows')}><Workflow /></Button>
             <Notifications items={notices} dir={dir ?? ''} onOpen={openNotice} />
-            <Button size="sm" onClick={() => setNewOpen(true)}><Plus /> <span className="hidden sm:inline">New agent</span></Button>
+            <Button size="sm" className="max-sm:size-9" onClick={() => setNewOpen(true)}><Plus /> <span className="hidden sm:inline">New agent</span></Button>
             {canFull && <Button className="hidden sm:inline-flex" variant="ghost" size="icon-xs" aria-label={full ? "Exit full screen" : "Full screen"} title={full ? "Exit full screen" : "Full screen"} onClick={() => void toggleFull()}>{full ? <Minimize2 /> : <Maximize2 />}</Button>}
-            <Button variant="ghost" size="icon-xs" aria-label={`Web theme: ${webTheme}`} title={`Web theme: ${webTheme} (this browser only)`} onClick={() => setWebTheme(nextTheme[webTheme])}>{webTheme === "dark" ? <Moon /> : webTheme === "light" ? <Sun /> : <Monitor />}</Button>
-            <Button variant="ghost" size="icon-xs" aria-label="Settings" title="Settings" onClick={() => setSettings(true)}><Settings /></Button>
+            <Button variant="ghost" size="icon-xs" className="max-sm:hidden" aria-label={`Web theme: ${webTheme}`} title={`Web theme: ${webTheme} (this browser only)`} onClick={() => setWebTheme(nextTheme[webTheme])}>{webTheme === "dark" ? <Moon /> : webTheme === "light" ? <Sun /> : <Monitor />}</Button>
+            <Button variant="ghost" size="icon-xs" className="max-sm:hidden" aria-label="Settings" title="Settings" onClick={() => setSettings(true)}><Settings /></Button>
+            {/* Phone: the header keeps back, project, new agent and notifications; the rest lives here. */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild><Button variant="ghost" size="icon-xs" className="max-sm:size-9 sm:hidden" aria-label="More" title="More"><MoreHorizontal /></Button></DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={() => nav('/board')}>Board</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => nav('/agents')}>Agents</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => nav('/workflows')}>Workflows</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setWebTheme(nextTheme[webTheme])}>Theme: {webTheme}</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setSettings(true)}>Settings</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
 

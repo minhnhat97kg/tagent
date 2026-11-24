@@ -102,7 +102,7 @@
   .board-search input { width: 80px; }
   .board-columns { padding: 8px; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; scroll-padding-inline: 8px; overscroll-behavior-x: contain; }
   .board-column { flex: 0 0 85vw; max-width: 85vw; scroll-snap-align: start; }
-  .board-column.is-empty { flex: 0 0 40px; max-width: 40px; }
+  .board-column.is-empty { flex: 0 0 40px; min-width: 0; max-width: 40px; }
   .board-cards { overscroll-behavior-y: contain; }
   .board-drawer[data-slot=dialog-content] { inset: var(--app-top, 0px) 0 auto; width: 100%; max-width: 100%; height: var(--app-height, 100dvh); max-height: var(--app-height, 100dvh); border-left: 0; padding-top: max(20px, env(safe-area-inset-top)); padding-bottom: max(20px, env(safe-area-inset-bottom)); }
 }

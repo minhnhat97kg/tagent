@@ -3,6 +3,7 @@ import { KanbanSquare, MessageSquare, Search, Settings } from "lucide-react"
 import { Avatar, BoardDrawer, needState, priorityMark, priorityRank, shortId, statusColor, title } from "./BoardDrawer"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { act, post } from "@/api"
+import { baseName } from "@/lib/status"
 import type { Project, Task } from "@/types"
 import "./board.css"
 
@@ -49,9 +50,10 @@ export function Board({ dir, proj, reload }: { dir: string; proj?: Project; relo
       <label className="board-search"><Search /><input aria-label="Search tasks" placeholder="Search" value={query} onChange={e => setQuery(e.target.value)} /></label>
       <select aria-label="Filter role" value={role} onChange={e => setRole(e.target.value)}><option value="">All roles</option>{roles.map(r => <option key={r}>{r}</option>)}</select>
       <a href="#/board/config" className="board-settings" aria-label="Board settings" title="Board settings"><Settings /></a>
-      <span className="board-muted ml-auto">{tasks.length === all.length ? `${all.length} tasks` : `${tasks.length} of ${all.length}`}</span>
+      <span className="board-muted ml-auto">{baseName(dir)} · {tasks.length === all.length ? `${all.length} tasks` : `${tasks.length} of ${all.length}`}</span>
     </header>
-    {!statuses.length && <p className="board-empty">{proj ? "No board columns configured." : "Select a project to view tasks."}</p>}
+    {proj && !all.length ? <p className="board-empty p-4 text-center">No tasks in {baseName(dir)}.</p> : <>
+    {!statuses.length && <p className="board-empty">{proj ? `No board columns configured in ${baseName(dir)}.` : "Select a project to view tasks."}</p>}
     <div className="board-columns">{LANES.map(lane => {
       const column = tasks.filter(t => laneOf(t.status) === lane).sort((a, b) => priorityRank(a.priority) - priorityRank(b.priority) || (b.updated || "").localeCompare(a.updated || ""))
       const live = column.some(t => proj?.workers?.[t.id]?.live)
@@ -85,6 +87,7 @@ export function Board({ dir, proj, reload }: { dir: string; proj?: Project; relo
         })}{!column.length && <p className="board-empty">{query || role ? "No match" : "Empty"}</p>}</div>
       </section>
     })}</div>
+    </>}
     <TaskDrawer proj={proj} dir={dir} reload={reload} id={selectedID} onClose={() => setSelectedID(undefined)} onOpen={setSelectedID} origin={origin} />
   </section>
 }
