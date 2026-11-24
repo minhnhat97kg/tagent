@@ -1,6 +1,7 @@
 package sidebar
 
 import (
+	"cmp"
 	"fmt"
 	"slices"
 	"strings"
@@ -38,6 +39,9 @@ func (m Model) detailFooter(w int) string {
 	ladder := []string{"tab/1-4 tabs · j/k scroll · e edit · C comment · a files · s events · esc close", "tab tabs · j/k scroll · e edit · C · a files · s · esc", "tab · j/k · esc"}
 	if m.commentBox {
 		ladder = []string{"enter send · tab @role · esc cancel", "enter · tab · esc"}
+	}
+	if m.detailTab == detailTabActivity && !m.commentBox {
+		ladder = []string{"C comment · s system events · tab/1-4 tabs · j/k scroll · esc close", "C comment · s events · tab · j/k · esc", "C · s · esc"}
 	}
 	if m.detailTab == detailTabChat {
 		ladder = []string{"i message · S save reply · tab/1-4 tabs · j/k scroll · esc close", "i message · S save · tab · j/k · esc", "i · S · esc"}
@@ -110,6 +114,11 @@ func (m Model) taskDetailSummary(t tasks.Task, w int) []string {
 
 	status := statusGlyph(t.Status) + " " + t.Status
 	head := m.boardStyle(m.boardColor(t.Status)).Reverse(true).Bold(true).Render(status) + "  " + dim.Render(m.laneOf(t.Status))
+	if t.Workflow != "" {
+		if step := m.detailStep(t); step != "" {
+			head += dim.Render(" · ") + step
+		}
+	}
 	if t.ID != "" {
 		head = dim.Render("#"+t.ID) + "  " + head
 	}
@@ -179,18 +188,8 @@ func (m Model) taskDetailSummary(t tasks.Task, w int) []string {
 		field("Priority", m.boardStyle(m.theme.TextPrimary).Render(mark+" "+tasks.NormalizePriority(t.Priority)))
 	}
 	if t.Workflow != "" {
-		step := ""
-		cfg, _ := tasks.ConfigForTask(m.boardDir, m.boardConfig, t)
-		for _, s := range cfg.Statuses {
-			if s.ID == t.Status {
-				step = s.Role
-				if step == "" {
-					step = s.Job
-				}
-			}
-		}
 		value := t.Workflow
-		if step != "" {
+		if step := m.detailStep(t); step != "" {
 			value += dim.Render(" · ") + step
 		}
 		field("Workflow", value)
@@ -209,6 +208,17 @@ func (m Model) taskDetailSummary(t tasks.Task, w int) []string {
 	}
 	field("Created", age)
 	return lines
+}
+
+// detailStep is the workflow step the ticket sits in: its role, else its job.
+func (m Model) detailStep(t tasks.Task) string {
+	cfg, _ := tasks.ConfigForTask(m.boardDir, m.boardConfig, t)
+	for _, s := range cfg.Statuses {
+		if s.ID == t.Status {
+			return cmp.Or(s.Role, s.Job)
+		}
+	}
+	return ""
 }
 
 // dependents is the tickets waiting for id, in ticket order.
@@ -534,7 +544,7 @@ func (m Model) detailActivity(t tasks.Task, w int, now time.Time) []string {
 	var lines []string
 	for i := 0; i < len(items); {
 		if c := items[i].comment; c != nil {
-			head := "  ● " + m.boardStyle(m.detailAgentColor(c.Author)).Render(c.Author) + dim.Render(" · "+detailRelativeTime(c.Created, now))
+			head := "  ● " + m.boardStyle(m.detailAgentColor(c.Author)).Bold(true).Render(c.Author) + dim.Render(" · "+detailRelativeTime(c.Created, now))
 			lines = append(lines, ansi.Truncate(head, w, ""))
 			lines = append(lines, m.detailBlock(c.Body, "    ", "", w)...)
 			for _, a := range c.Attachments {

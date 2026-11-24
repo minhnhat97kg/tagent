@@ -807,9 +807,9 @@ func (m Model) boardView() string {
 	if triggers != "" {
 		color := m.theme.Accent
 		if strings.HasPrefix(triggers, "!") {
-			color = "#ef4444"
+			color = m.theme.StatusError
 		} else if strings.HasPrefix(triggers, "✓") {
-			color = "#22c55e"
+			color = m.theme.StatusDone
 		}
 		triggers = m.boardStyle(color).Render(triggers)
 	}
