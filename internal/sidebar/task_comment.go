@@ -115,10 +115,10 @@ func (m Model) commentOptions() []string {
 func (m Model) commentBoxLines(w int) []string {
 	dim := m.boardStyle(m.theme.TextDim)
 	edge := m.boardStyle(m.theme.Accent)
-	inner := max(1, w-6) // " │ " + text + " │"
+	inner := max(1, w-5) // " │ " + text + " │"
 	text := m.boardStyle(m.theme.TextPrimary).Render(m.taskInput) + edge.Render("▏")
 	if m.taskInput == "" {
-		text = edge.Render("▏") + dim.Render("Write a comment · @role hands the ticket over")
+		text = edge.Render("▏") + dim.Render("Write a comment · @role to hand off")
 	}
 	body := strings.Split(ansi.Hardwrap(text, inner, true), "\n")
 	if len(body) > 3 {
