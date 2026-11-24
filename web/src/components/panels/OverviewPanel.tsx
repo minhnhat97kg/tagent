@@ -18,7 +18,7 @@ function Meter({ label, value }: { label: string; value: number | null }) {
 function Bars({ days }: { days: { date: string; tokens: number }[] }) {
   const max = Math.max(1, ...days.map(d => d.tokens))
   return <div className="flex h-8 items-end gap-[2px]" role="img" aria-label={`Tokens per day, last ${days.length} days`}>
-    {days.map((d, i) => <div key={d.date} title={`${d.date}: ${compact(d.tokens)}`} className={`min-w-0 flex-1 rounded-t-[2px] ${i === days.length - 1 ? "bg-foreground/80" : "bg-foreground/20"}`}
+    {days.map((d, i) => <div key={d.date} title={`${d.date}: ${compact(d.tokens)}`} className={`min-w-0 flex-1 rounded-t-[2px] ${i === days.length - 1 ? "bg-brand" : "bg-brand/25"}`}
       style={{ height: `${Math.max(d.tokens ? 8 : 2, (d.tokens / max) * 100)}%` }} />)}
   </div>
 }
@@ -28,7 +28,7 @@ export function OverviewPanel({ overview, className, days = 7, onDays }: { overv
   const total = overview?.tokens.days.reduce((s, d) => s + d.tokens, 0) ?? 0
   return <section className={`rounded-lg border bg-card ${className ?? ""}`} aria-label="Usage">
     <header className="flex h-8 items-center gap-1.5 border-b px-2.5">
-      <span className="flex size-5 items-center justify-center rounded-md bg-muted"><Gauge className="size-3.5 text-teal-600" /></span>
+      <span className="flex size-5 items-center justify-center rounded-md bg-muted"><Gauge className="size-3.5 text-brand" /></span>
       <h2 className="mr-auto text-[12.5px] font-semibold">Usage</h2>
       <div className="flex rounded-md bg-muted p-0.5 text-[10.5px]" role="group" aria-label="Range">
         {[1, 7, 30].map(d => <button key={d} aria-pressed={days === d} onClick={() => onDays?.(d)}

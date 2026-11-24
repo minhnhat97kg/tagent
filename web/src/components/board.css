@@ -2,12 +2,12 @@
 .task-board { display: flex; flex: 1; flex-direction: column; min-height: 0; min-width: 0; color: var(--foreground); font-size: 13px; }
 .board-tools { display: flex; align-items: center; gap: 6px; height: 40px; flex-shrink: 0; padding: 0 10px; border-bottom: 1px solid var(--line); }
 .board-tools h2 { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; margin-right: 6px; }
-.board-icon { display: flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 6px; background: #ccfbf1; }
-.board-icon svg { width: 14px; height: 14px; color: #0f766e; }
+.board-icon { display: flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 6px; background: var(--brand-soft); }
+.board-icon svg { width: 14px; height: 14px; color: var(--brand); }
 .board-tools button { display: inline-flex; align-items: center; gap: 5px; }
-.board-tools button svg { width: 14px; height: 14px; color: #ef4444; }
+.board-tools button svg { width: 14px; height: 14px; color: var(--brand); }
 .board-tools select, .board-tools button, .board-search { height: 28px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); padding: 0 8px; font: inherit; font-size: 12.5px; }
-.board-tools button[aria-pressed=true] { background: #fef2f2; border-color: #ef444466; color: #b91c1c; }
+.board-tools button[aria-pressed=true] { background: var(--brand-soft); border-color: color-mix(in srgb, var(--brand) 40%, transparent); color: var(--brand-ink); }
 .board-search { display: flex; align-items: center; gap: 6px; color: var(--muted-foreground); }
 .board-search svg { width: 14px; height: 14px; }
 .board-search input { width: 140px; border: 0; outline: 0; background: transparent; color: var(--foreground); }

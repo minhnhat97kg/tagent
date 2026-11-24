@@ -19,7 +19,7 @@ export function AgentsPanel({ ordered, selPane, className }: { ordered: Agent[];
   return (
     <Panel
       className={className}
-      icon={<Bot className="text-emerald-600" />}
+      icon={<Bot className="text-brand" />}
       title="Agents"
       bodyClass="py-1"
     >

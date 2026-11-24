@@ -2,27 +2,30 @@
 @import "tw-animate-css";
 
 :root {
+  /* Warm neutral ground, white cards with hairline borders, one orange accent (--brand). */
   color-scheme: light;
-  --radius: 0.5rem;
-  --ink: #0f1f10; --chrome: #f8f8f7; --panel: #fbfbfa; --paper: #fff; --surface: #f1f2f0; --soft: #f0f0f1; --code: #18181b; --code-text: #e4e4e7;
-  --background: #fbfbfa; --foreground: #0f1f10;
-  --card: #fff; --card-foreground: #0f1f10;
-  --popover: #fff; --popover-foreground: #18181b;
-  --primary: #18181b; --primary-foreground: #fafafa;
-  --secondary: #f1f2f0; --secondary-foreground: #18181b;
-  --muted: #f1f2f0; --muted-foreground: #71717a;
-  --accent: #f0f0f1; --accent-foreground: #18181b;
+  --radius: 0.75rem;
+  --brand: #f2541b; --brand-soft: #fdeee7; --brand-ink: #c2410c;
+  --ink: #1c1b1a; --chrome: #f4f3f1; --panel: #f4f3f1; --paper: #fff; --surface: #f1efec; --soft: #efedea; --code: #18181b; --code-text: #e4e4e7;
+  --background: #f4f3f1; --foreground: #1c1b1a;
+  --card: #fff; --card-foreground: #1c1b1a;
+  --popover: #fff; --popover-foreground: #1c1b1a;
+  --primary: #1c1b1a; --primary-foreground: #fafaf9;
+  --secondary: #f1efec; --secondary-foreground: #1c1b1a;
+  --muted: #f6f5f3; --muted-foreground: #8a8681;
+  --accent: #efedea; --accent-foreground: #1c1b1a;
   --destructive: #b91c1c;
-  --border: #e4e4e7; --input: #e4e4e7; --ring: #a1a1aa;
-  --sidebar: #fafafa; --sidebar-foreground: #18181b;
-  --sidebar-border: #e4e4e7; --sidebar-accent: #f4f4f5;
+  --border: #ebe8e4; --input: #e4e1dc; --ring: #f2541b;
+  --sidebar: #f4f3f1; --sidebar-foreground: #1c1b1a;
+  --sidebar-border: #ebe8e4; --sidebar-accent: #ebe9e5;
   --term-bg: #ffffff; --term-fg: #18181b;
-  --line: #18181b1c; --line-strong: #18181b33;
+  --line: #1c1b1a14; --line-strong: #1c1b1a2e;
   --yaml-string: #047857; --yaml-literal: #c2410c; --yaml-expr: #0369a1;
 }
 /* Dark follows the tagent theme setting (@agent_theme), same as the TUI. */
 .dark {
   color-scheme: dark;
+  --brand: #ff6a33; --brand-soft: #3a1f14; --brand-ink: #ff9a70;
   --ink: #e4e4e7; --chrome: #18181b; --panel: #0f0f11; --paper: #18181b; --surface: #27272a; --soft: #27272a;
   --background: #0f0f11; --foreground: #e4e4e7;
   --card: #18181b; --card-foreground: #e4e4e7;
@@ -75,6 +78,8 @@
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent: var(--sidebar-accent);
+  --color-brand: var(--brand);
+  --color-brand-soft: var(--brand-soft);
   --font-serif: "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 
