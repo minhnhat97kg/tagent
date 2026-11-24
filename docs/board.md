@@ -338,8 +338,11 @@ Workflow execution lazily
 creates `.worktrees/workflow-<ticket>` from committed HEAD (a Git repository with
 a commit is required). All agent jobs, mentions, shell jobs and retries for that
 ticket share this directory; relative files survive handoffs and dispatcher
-restarts. Different tickets are isolated. Worktrees are retained on done/blocked;
-no automatic merge, reset or cleanup occurs. Uncommitted files, ignored dependencies,
+restarts. Different tickets are isolated. Moving a ticket to done commits any uncommitted work in its worktree on
+`agent/workflow-<ticket>`, rebases that branch onto the main checkout's HEAD if
+needed, and fast-forwards the main checkout to it (never forced or reset). Then the
+clean worktree and merged branch are removed. If the merge fails, the ticket moves
+to blocked with a `merge failed` comment and the worktree and branch are kept. Uncommitted files, ignored dependencies,
 secrets and local-only scripts are not copied. Ordinary board execution is unchanged.
 Creation failures are reported before launch; retry requires a new status entry. Recipes are resolved
 live: editing affects existing tickets; missing or broken recipes report errors.

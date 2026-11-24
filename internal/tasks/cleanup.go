@@ -9,16 +9,28 @@ import (
 	"tagent/internal/tmux"
 )
 
-// cleanupDone tidies a ticket that just reached done: its panes are killed, and
-// its workflow worktree and branch are removed when that loses nothing. What was
-// kept, and why, goes to the ticket history. Best effort: it never fails Update.
+// cleanupDone tidies a ticket that just reached done: its workflow work is merged
+// into the main checkout, then its panes are killed, and its worktree and branch
+// are removed when that loses nothing. A failed merge moves the ticket to blocked
+// and keeps everything. What was kept, and why, goes to the ticket history. Best
+// effort: it never fails Update.
 func cleanupDone(scope, id string) {
 	root, ok := scopeRoots.Load(scope)
 	if !ok {
 		return
 	}
-	keepOutputs(scope, id, filepath.Join(root.(string), ".worktrees", "workflow-"+id))
-	notes := RemoveWorkflowWorktree(root.(string), "workflow-"+id)
+	r := root.(string)
+	wt := filepath.Join(r, ".worktrees", "workflow-"+id)
+	keepOutputs(scope, id, wt)
+	if _, err := os.Stat(wt); err == nil {
+		if err := mergeWorkflow(scope, id, r, wt); err != nil {
+			msg := "merge failed: " + err.Error() + "; worktree kept at " + wt
+			Comment(scope, id, "tagent", msg, nil)
+			Move(scope, id, "blocked", msg)
+			return
+		}
+	}
+	notes := RemoveWorkflowWorktree(r, "workflow-"+id)
 	for _, n := range notes {
 		DispatchAudit(scope, id, n)
 		if strings.HasPrefix(n, "cleanup: kept worktree") { // its agents may still be working in it
@@ -53,6 +65,54 @@ func keepOutputs(scope, id, wt string) {
 	if len(files) > 0 {
 		Comment(scope, id, "tagent", "cleanup: kept outputs of the removed worktree", files)
 	}
+}
+
+// mergeWorkflow commits the worktree's work on agent/workflow-<id>, rebases it
+// onto the main checkout's HEAD if needed, and fast-forwards the main checkout to
+// it. Nothing is forced or reset; any refusal is returned and leaves both
+// checkouts as they were.
+func mergeWorkflow(scope, id, root, wt string) error {
+	branch := "agent/workflow-" + id
+	dirty, err := gitOut(wt, "status", "--porcelain")
+	if err != nil {
+		return err
+	}
+	if dirty != "" {
+		t, err := Get(scope, id)
+		if err != nil {
+			return err
+		}
+		if _, err := gitOut(wt, "add", "-A"); err != nil {
+			return err
+		}
+		if _, err := gitOut(wt, "commit", "-qm", t.Title+" (#"+id+")"); err != nil {
+			return err
+		}
+	}
+	head, err := gitOut(root, "rev-parse", "HEAD")
+	if err != nil {
+		return err
+	}
+	ahead, err := gitOut(root, "rev-list", "--count", head+".."+branch)
+	if err != nil {
+		return err
+	}
+	if ahead == "0" {
+		return nil
+	}
+	if _, err := gitOut(root, "merge-base", "--is-ancestor", head, branch); err != nil {
+		if _, err := gitOut(wt, "rebase", head); err != nil {
+			gitOut(wt, "rebase", "--abort")
+			return err
+		}
+	}
+	if _, err := gitOut(root, "merge", "--ff-only", branch); err != nil {
+		return err
+	}
+	short, _ := gitOut(root, "rev-parse", "--short", "HEAD")
+	cur, _ := gitOut(root, "rev-parse", "--abbrev-ref", "HEAD")
+	Comment(scope, id, "tagent", "merged "+short+" into "+cur, nil)
+	return nil
 }
 
 func killTicketPanes(ticket string) {
