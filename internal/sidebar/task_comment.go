@@ -10,7 +10,7 @@ import (
 	"tagent/internal/tasks"
 )
 
-// The Activity tab's inline composer: "c" on the Activity tab opens a comment
+// The Activity tab's inline composer: "c" from any drawer tab opens a comment
 // box above the conversation. Typing "@" suggests roles (board.yaml roles and
 // the agents on the board); a comment with @role hands the ticket to that role,
 // and the role shows as replying until its reply comment arrives.

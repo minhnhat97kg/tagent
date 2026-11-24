@@ -62,9 +62,6 @@ func TestTaskDetailSummaryFirst(t *testing.T) {
 			t.Fatalf("summary misses %q:\n%s", want, view)
 		}
 	}
-	if !strings.Contains(ansi.Strip(lines[len(lines)-1]), "j/k scroll") {
-		t.Fatalf("sticky footer missing: %q", ansi.Strip(lines[len(lines)-1]))
-	}
 	// Scrolling only moves the body, never the summary.
 	m.detailScroll = 0
 	if ansi.Strip(m.boardDetail(76, 19)[0]) != head {

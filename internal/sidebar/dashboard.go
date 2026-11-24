@@ -426,6 +426,9 @@ func (m Model) dashGeometry() dashGeom {
 	return g
 }
 
+// quotaGet reads the provider quotas; tests stub it so the golden does not depend on this machine.
+var quotaGet = quota.Get
+
 // usageLines is the Usage card body: what runs now, then provider
 // quotas (when the pane is tall enough) and tokens with the sparkline.
 func (m Model) usageLines(width, bodyHeight int) []string {
@@ -436,7 +439,7 @@ func (m Model) usageLines(width, bodyHeight int) []string {
 		out = append(out, lipgloss.NewStyle().Foreground(m.theme.StatusRunning).Render(fitLine("Now  "+strings.Join(now, " · "), width)))
 	}
 	if bodyHeight >= 22 { // short panes keep the space for agents and tasks
-		q := quota.Get()
+		q := quotaGet()
 		out = append(out, m.quotaGrid(map[string]quota.Provider{"Claude": q.Claude, "Codex": q.Codex})...)
 	}
 	today := metrics.TokenWindow(m.metricState, time.Now(), 7).Today

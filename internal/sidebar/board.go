@@ -940,8 +940,8 @@ func (m Model) boardWorker(t tasks.Task) string {
 	return "○ " + name + " " + string(pick.Status)
 }
 
-// boardDetail is the drawer: a summary that never scrolls, the scrolling body
-// and a sticky footer, exactly rows lines wide-as-w.
+// boardDetail is the drawer: a summary that never scrolls and the scrolling
+// body, exactly rows lines wide-as-w.
 func (m Model) boardDetail(w, rows int) []string {
 	if w <= 0 || rows <= 0 {
 		return nil

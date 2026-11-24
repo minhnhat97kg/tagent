@@ -33,10 +33,11 @@ func (m Model) detailKey(key string) (Model, tea.Cmd, bool) {
 			}
 			return m, nil, true
 		}
-	case "c", "C": // the Activity tab's inline composer
-		if m.detailTab == detailTabActivity {
-			return m.commentBoxOpen(), nil, true
+	case "c", "C": // the Activity tab's inline composer, opened from any tab
+		if m.detailTab != detailTabActivity {
+			m.detailTab, m.detailScroll = detailTabActivity, 0
 		}
+		return m.commentBoxOpen(), nil, true
 	case "S": // save the newest reply to the ticket as a comment
 		if m.detailTab == detailTabChat {
 			return m.saveChatReply(), nil, true

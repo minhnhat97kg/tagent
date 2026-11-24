@@ -137,7 +137,7 @@ Board · kanban
 enter view  a add  e edit  x del
                                 
 === dash 60x40 focus 0
-tagent · tagent                     ? help · , settings
+tagent · tagent                         ? help · , settings
 ┏━ Agents ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃ ▌ claude-main                                 main   ┃
 ┃   codex-fix                                          ▲  ┃
@@ -178,7 +178,7 @@ tagent · tagent                     ? help · , settings
 ╰─────────────────────────────────────────────────────────╯
 Tab/S-Tab panel  ↑↓ select  enter open  N new agent  l log…
 === dash 60x40 focus 3
-tagent · tagent                     ? help · , settings
+tagent · tagent                         ? help · , settings
 ╭─ Agents ────────────────────────────────────────────────╮
 │ ▌ claude-main                                 main   │
 │   codex-fix                                          ▲  │
@@ -219,7 +219,7 @@ tagent · tagent                     ? help · , settings
 ╰─────────────────────────────────────────────────────────╯
 h/l or [ ] range  Tab/S-Tab panel  ? help                 …
 === dash 60x40 focus 2
-tagent · tagent                     ? help · , settings
+tagent · tagent                         ? help · , settings
 ╭─ Agents ────────────────────────────────────────────────╮
 │ claude-main                                 main     │
 │ codex-fix                                          ▲    │
@@ -260,7 +260,7 @@ tagent · tagent                     ? help · , settings
 ╰─────────────────────────────────────────────────────────╯
 h/l lane  j/k card  n new  s start  enter detail  B config…
 === dash 60x40 focus 4
-tagent · tagent                     ? help · , settings
+tagent · tagent                         ? help · , settings
 ╭─ Agents ────────────────────────────────────────────────╮
 │ ▌ claude-main                                 main   │
 │   codex-fix                                          ▲  │
@@ -383,7 +383,7 @@ Board · kanban
 enter view  a add  e edit  x delete  t agents  B config  Tab
                                                             
 === dash 60x55 focus 0
-tagent · tagent                     ? help · , settings
+tagent · tagent                         ? help · , settings
 ┏━ Agents ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃ ▌ claude-main                                 main   ┃
 ┃   codex-fix                                          ▲  ┃
@@ -439,7 +439,7 @@ tagent · tagent                     ? help · , settings
 ╰─────────────────────────────────────────────────────────╯
 Tab/S-Tab panel  ↑↓ select  enter open  N new agent  l log…
 === dash 60x55 focus 3
-tagent · tagent                     ? help · , settings
+tagent · tagent                         ? help · , settings
 ╭─ Agents ────────────────────────────────────────────────╮
 │ ▌ claude-main                                 main   │
 │   codex-fix                                          ▲  │
@@ -495,7 +495,7 @@ tagent · tagent                     ? help · , settings
 ╰─────────────────────────────────────────────────────────╯
 h/l or [ ] range  Tab/S-Tab panel  ? help                 …
 === dash 60x55 focus 2
-tagent · tagent                     ? help · , settings
+tagent · tagent                         ? help · , settings
 ╭─ Agents ────────────────────────────────────────────────╮
 │ claude-main                                 main     │
 │ codex-fix                                          ▲    │
@@ -551,7 +551,7 @@ tagent · tagent                     ? help · , settings
 ╰─────────────────────────────────────────────────────────╯
 h/l lane  j/k card  n new  s start  enter detail  B config…
 === dash 60x55 focus 4
-tagent · tagent                     ? help · , settings
+tagent · tagent                         ? help · , settings
 ╭─ Agents ────────────────────────────────────────────────╮
 │ ▌ claude-main                                 main   │
 │   codex-fix                                          ▲  │
@@ -719,7 +719,7 @@ Board · kanban
 enter view  a add  e edit  x delete  t agents  B config  Tab
                                                             
 === dash 130x45 focus 0
-tagent · tagent                                                                                           ? help · , settings
+tagent · tagent                                                                                               ? help · , settings
 ┏━ Agents ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭─ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1 ──────────────────────────────────╮
 ┃ ▌ claude-main                  main   ┃│ ▌ Ticket number 3 with a longer title                                             │
 ┃   codex-fix                           ▲  ┃│   ● doing #3 builder 1                                                           │
@@ -765,7 +765,7 @@ tagent · tagent                                                                
 ╰──────────────────────────────────────────╯╰───────────────────────────────────────────────────────────────────────────────────╯
 Tab/S-Tab panel  ↑↓ select  enter open  N new agent  l log  i prompt  f handoff  ? help                                         …
 === dash 130x45 focus 3
-tagent · tagent                                                                                           ? help · , settings
+tagent · tagent                                                                                               ? help · , settings
 ╭─ Agents ─────────────────────────────────╮╭─ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1 ──────────────────────────────────╮
 │ ▌ claude-main                  main   ││ ▌ Ticket number 3 with a longer title                                             │
 │   codex-fix                           ▲  ││   ● doing #3 builder 1                                                           │
@@ -811,7 +811,7 @@ tagent · tagent                                                                
 ╰──────────────────────────────────────────╯╰───────────────────────────────────────────────────────────────────────────────────╯
 h/l or [ ] range  Tab/S-Tab panel  ? help                                                                                       …
 === dash 130x45 focus 2
-tagent · tagent                                                                                           ? help · , settings
+tagent · tagent                                                                                               ? help · , settings
 ╭─ Agents ─────────────────────────────────╮┏━ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 │ claude-main                  main     │┃ ▌ Ticket number 3 with a longer title                                             ┃
 │ codex-fix                           ▲    │┃   ● doing #3 builder 1                                                           ┃
@@ -855,9 +855,9 @@ tagent · tagent                                                                
 │ ~~~~~~~~~~~~~~ call me if you need       ││                                                                                   │
 │ ~~~~~~~~~~~~~~ anything                  ││                                                                                   │
 ╰──────────────────────────────────────────╯╰───────────────────────────────────────────────────────────────────────────────────╯
-h/l lane  j/k card  n new  s start  enter detail  B config  p priority  D deps  e edit  C comment  H/L status  a files  x delete…
+h/l lane  j/k card  n new  s start  enter detail  B config  p priority  D deps  e edit  C comment  H/L status  m move  @ assign …
 === dash 130x45 focus 4
-tagent · tagent                                                                                           ? help · , settings
+tagent · tagent                                                                                               ? help · , settings
 ╭─ Agents ─────────────────────────────────╮╭─ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1 ──────────────────────────────────╮
 │ ▌ claude-main                  main   ││ ▌ Ticket number 3 with a longer title                                             │
 │   codex-fix                           ▲  ││   ● doing #3 builder 1                                                           │
@@ -946,7 +946,7 @@ Board · kanban
 ╭─ [Workflows]  Agents ──────────────────────────────────────────────────────────────────────────────────────────────────────────╮
 │ No workflows · tagent workflow new <name>                                                                                      │
 ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-h/l lane  j/k card  n new  s start  enter detail  B config  p priority  D deps  e edit  C comment  H/L status  a files  x delete  
+h/l lane  j/k card  n new  s start  enter detail  B config  p priority  D deps  e edit  C comment  H/L status  m move  @ assign  a
                                                                                                                                   
 === board 130x45 wf true
 Board · kanban                                                                                                                    

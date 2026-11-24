@@ -32,30 +32,6 @@ const (
 
 var detailTabs = []string{"Details", "Chat", "Activity", "Run"}
 
-// detailFooter is the sticky key line inside the drawer, always the last row.
-// Each tab line is shortened rather than cut, so a narrow pane keeps the keys
-// that work where the cursor is.
-func (m Model) detailFooter(w int) string {
-	ladder := []string{"tab/1-4 tabs · j/k scroll · e edit · C comment · a files · s events · esc close", "tab tabs · j/k scroll · e edit · C · a files · s · esc", "tab · j/k · esc"}
-	if m.commentBox {
-		ladder = []string{"enter send · tab @role · esc cancel", "enter · tab · esc"}
-	}
-	if m.detailTab == detailTabActivity && !m.commentBox {
-		ladder = []string{"C comment · s system events · tab/1-4 tabs · j/k scroll · esc close", "C comment · s events · tab · j/k · esc", "C · s · esc"}
-	}
-	if m.detailTab == detailTabChat {
-		ladder = []string{"i message · S save reply · tab/1-4 tabs · j/k scroll · esc close", "i message · S save · tab · j/k · esc", "i · S · esc"}
-	}
-	keys := ladder[len(ladder)-1]
-	for _, line := range ladder {
-		if ansi.StringWidth(line) <= w {
-			keys = line
-			break
-		}
-	}
-	return m.boardStyle(m.theme.TextDim).Render(keys)
-}
-
 // detailTabTitle is the ticket panel's tab row, drawn in the frame's top
 // border (like the Tasks card tabs): the active tab bracketed and bold, the
 // others muted.
@@ -67,11 +43,7 @@ func (m Model) detailTabTitle() string {
 // detailLayout splits the drawer into what never scrolls (the summary), the
 // body lines that do, and how many rows the body window gets.
 func (m Model) detailLayout(t tasks.Task, w, rows int) (summary, body []string, bodyRows int) {
-	footer := 0
-	if rows >= 6 {
-		footer = 1
-	}
-	room := rows - footer
+	room := rows
 	summary = m.taskDetailSummary(t, w)
 	// The summary gives way to the body in a short drawer instead of eating it
 	// whole; the body keeps at least three rows whenever there is room.
@@ -82,7 +54,7 @@ func (m Model) detailLayout(t tasks.Task, w, rows int) (summary, body []string, 
 	if limit := max(0, room-reserve); len(summary) > limit {
 		summary = summary[:limit]
 	}
-	bodyRows = max(0, rows-footer-len(summary))
+	bodyRows = max(0, rows-len(summary))
 	return summary, m.taskDetailBody(t, w), bodyRows
 }
 
