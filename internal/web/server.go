@@ -565,6 +565,8 @@ func (s *server) taskOp(w http.ResponseWriter, r *http.Request) {
 		_, err = tasks.Update(scope, o.ID, o.Status, nil, tasks.MutationOptions{Actor: "user"})
 	case "priority":
 		err = tasks.SetPriority(scope, o.ID, o.Priority)
+	case "workflow": // Workflow "" clears the type
+		err = tasks.SetWorkflow(scope, o.ID, o.Workflow)
 	case "needs":
 		err = tasks.SetNeeds(scope, o.ID, o.Needs)
 	case "comment":

@@ -257,8 +257,8 @@ func Add(scope, text string, assignees []string, opts ...MutationOptions) (Task,
 	return t, err
 }
 
-// SetWorkflow attaches a recipe without changing a ticket that cannot accept it.
-func SetWorkflow(scope, id, name string, given map[string]string) error {
+// SetWorkflow attaches a recipe to a todo ticket; "" clears it.
+func SetWorkflow(scope, id, name string) error {
 	return withLock(scope, func() error {
 		t, err := Get(scope, id)
 		if err != nil {
@@ -266,6 +266,10 @@ func SetWorkflow(scope, id, name string, given map[string]string) error {
 		}
 		if t.Status != "todo" {
 			return fmt.Errorf("workflow can only be set in todo")
+		}
+		if name == "" {
+			t.Workflow, t.Inputs, t.Updated = "", nil, time.Now()
+			return write(scope, t)
 		}
 		root, ok := scopeRoots.Load(scope)
 		if !ok {
@@ -280,12 +284,9 @@ func SetWorkflow(scope, id, name string, given map[string]string) error {
 			return err
 		}
 		values := map[string]string{}
-		for k, v := range given {
-			values[k] = v
-		}
 		var missing []string
 		for k, v := range w.Inputs {
-			if v.Required && v.Default == "" && values[k] == "" {
+			if v.Required && v.Default == "" {
 				missing = append(missing, k)
 			}
 		}

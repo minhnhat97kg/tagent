@@ -88,8 +88,12 @@ func (m Model) taskDetailSummary(t tasks.Task, w int) []string {
 
 	status := statusGlyph(t.Status) + " " + t.Status
 	head := m.boardStyle(m.boardColor(t.Status)).Reverse(true).Bold(true).Render(status)
-	// The lane and the step only show when they say something the status does not.
-	var extra []string
+	// The type always shows; the lane and the step only when they say something the status does not.
+	kind := t.Workflow
+	if kind == "" {
+		kind = "none"
+	}
+	extra := []string{"type " + kind}
 	if lane := m.laneOf(t.Status); lane != t.Status {
 		extra = append(extra, lane)
 	}

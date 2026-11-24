@@ -85,7 +85,7 @@ func writeTestWorkflows(t *testing.T, dir string) {
 	}
 }
 
-func TestStartPickerPreselectsStoredWorkflow(t *testing.T) {
+func TestStartWithStoredTypeSkipsPicker(t *testing.T) {
 	dir := t.TempDir()
 	writeTestWorkflows(t, dir)
 	scope := tasks.Scope(dir)
@@ -96,19 +96,46 @@ func TestStartPickerPreselectsStoredWorkflow(t *testing.T) {
 	m := boardTestModel()
 	m.boardDir, m.notesScope, m.notes = dir, scope, []tasks.Task{ticket}
 	m.boardWorkflows = workflow.List(dir)
-	m, _ = boardPress(m, "s")
-	if m.taskStep != 1 {
-		t.Fatalf("picker opened on row %d, want the stored sample (1)", m.taskStep)
-	}
-	next, cmd := m.handleTaskForm(tea.KeyMsg{Type: tea.KeyEnter})
-	if next.(Model).taskForm != "" || cmd == nil {
-		t.Fatal("picker did not submit")
+	m, cmd := boardPress(m, "s")
+	if m.taskForm != "" || cmd == nil {
+		t.Fatalf("s opened a picker (%q) instead of starting the stored type", m.taskForm)
 	}
 	if msg := cmd().(taskActionMsg); strings.HasPrefix(msg.Text, "!") {
 		t.Fatal(msg.Text)
 	}
 	got, _ := tasks.Get(scope, ticket.ID)
 	if got.Status != "build" || got.Workflow != "sample" || got.Inputs["goal"] != "ticket" {
+		t.Fatal(got)
+	}
+}
+
+func TestTypeKeyPicksAndClearsWorkflow(t *testing.T) {
+	dir := t.TempDir()
+	writeTestWorkflows(t, dir)
+	scope := tasks.Scope(dir)
+	ticket, err := tasks.Add(scope, "ticket", nil, tasks.MutationOptions{Workflow: "sample"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := boardTestModel()
+	m.boardDir, m.notesScope, m.notes = dir, scope, []tasks.Task{ticket}
+	m.boardWorkflows = workflow.List(dir)
+	m, _ = boardPress(m, "T")
+	if m.taskForm != "type" || m.taskStep != 1 {
+		t.Fatalf("T: form %q row %d, want the stored sample (1)", m.taskForm, m.taskStep)
+	}
+	for range m.boardWorkflows {
+		m, _ = boardPress(m, "j")
+	}
+	next, cmd := m.handleTaskForm(tea.KeyMsg{Type: tea.KeyEnter})
+	if next.(Model).taskForm != "" || cmd == nil {
+		t.Fatal("type picker did not submit")
+	}
+	if msg := cmd().(taskActionMsg); strings.HasPrefix(msg.Text, "!") {
+		t.Fatal(msg.Text)
+	}
+	got, _ := tasks.Get(scope, ticket.ID)
+	if got.Status != "todo" || got.Workflow != "" || got.Inputs != nil {
 		t.Fatal(got)
 	}
 }

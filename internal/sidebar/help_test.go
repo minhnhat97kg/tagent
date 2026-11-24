@@ -13,13 +13,13 @@ func TestContextualHelpSections(t *testing.T) {
 		m          Model
 		own, other string
 	}{
-		{"Agents", Model{}, "next agent needing you", "start: workflow picker"},
-		{"Tasks", Model{dashboard: true, focus: cardTasks}, "start: workflow picker", "select workflow"},
+		{"Agents", Model{}, "next agent needing you", "start with its type"},
+		{"Tasks", Model{dashboard: true, focus: cardTasks}, "start with its type", "select workflow"},
 		{"Board · Tickets", Model{boardMode: true}, "previous / next status", "new workflow name"},
 		{"Board · Workflows", Model{boardMode: true, focus: cardWorkflows}, "new workflow name", "previous / next status"},
 		{"Board · Workflow view", Model{boardMode: true, focus: cardWorkflows, boardFlow: true}, "browse workflows", "delete workflow"},
 		{"Board · Task detail", Model{boardMode: true, boardDrawer: true}, "scroll task detail", "browse workflows"},
-		{"Standalone (outside tmux)", Model{standalone: true}, "start a new agent here", "start: workflow picker"},
+		{"Standalone (outside tmux)", Model{standalone: true}, "start a new agent here", "start with its type"},
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {

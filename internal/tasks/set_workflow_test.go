@@ -22,24 +22,40 @@ func TestSetWorkflow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = SetWorkflow(scope, ticket.ID, "multi", nil); err == nil || !strings.Contains(err.Error(), "a, b; use workflow run multi") {
+	if err = SetWorkflow(scope, ticket.ID, "multi"); err == nil || !strings.Contains(err.Error(), "a, b; use workflow run multi") {
 		t.Fatal(err)
 	}
 	got, _ := Get(scope, ticket.ID)
 	if got.Workflow != "" {
 		t.Fatal("error changed ticket")
 	}
-	if err = SetWorkflow(scope, ticket.ID, "single", nil); err != nil {
+	if err = SetWorkflow(scope, ticket.ID, "nope"); err == nil {
+		t.Fatal("accepted unknown workflow")
+	}
+	if err = SetWorkflow(scope, ticket.ID, "single"); err != nil {
 		t.Fatal(err)
 	}
 	got, _ = Get(scope, ticket.ID)
-	if got.Inputs["goal"] != ticket.Text {
+	if got.Workflow != "single" || got.Inputs["goal"] != ticket.Text {
 		t.Fatal(got)
+	}
+	if err = SetWorkflow(scope, ticket.ID, ""); err != nil {
+		t.Fatal(err)
+	}
+	got, _ = Get(scope, ticket.ID)
+	if got.Workflow != "" || got.Inputs != nil {
+		t.Fatal("clear kept workflow or inputs", got.Workflow, got.Inputs)
+	}
+	if err = SetWorkflow(scope, ticket.ID, "single"); err != nil {
+		t.Fatal(err)
 	}
 	if _, err = Update(scope, ticket.ID, "build", nil); err != nil {
 		t.Fatal(err)
 	}
-	if err = SetWorkflow(scope, ticket.ID, "single", nil); err == nil {
+	if err = SetWorkflow(scope, ticket.ID, "single"); err == nil {
 		t.Fatal("accepted non-todo")
+	}
+	if err = SetWorkflow(scope, ticket.ID, ""); err == nil {
+		t.Fatal("cleared non-todo")
 	}
 }

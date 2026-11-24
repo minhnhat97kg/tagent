@@ -155,14 +155,32 @@ test("the header puts Start, Edit and Delete in one row and Start runs the chose
   expect(within(row).queryByRole("button", { name: "Start" })).toBeNull()
 })
 
-test("Start on a todo ticket runs the chosen workflow", async () => {
-  const todo = { ...task, status: "todo", comments: [] }
+test("Start on a todo ticket is one plain button that starts its stored type", async () => {
+  const todo = { ...task, status: "todo", comments: [], workflow: "feature" }
   render(<BoardDrawer task={todo} statuses={["todo", "build", "done"]} roles={["builder"]} role="" dir="/repo" reload={() => {}} workflows={[workflow]} />)
   const row = document.querySelector(".drawer-actions") as HTMLElement
-  await userEvent.click(within(row).getByRole("button", { name: "Choose workflow" }))
-  await userEvent.click(screen.getByRole("menuitemradio", { name: "feature" }))
+  expect(within(row).queryByRole("button", { name: "Choose workflow" })).toBeNull()
   await userEvent.click(within(row).getByRole("button", { name: "Start" }))
-  expect(mocks.post).toHaveBeenCalledWith("/api/tasks", { Dir: "/repo", ID: "30", Op: "start", Status: "feature" })
+  expect(mocks.post).toHaveBeenCalledWith("/api/tasks", { Dir: "/repo", ID: "30", Op: "start" })
+})
+
+test("Type on a todo ticket sets or clears the workflow; invalid ones are disabled", async () => {
+  const todo = { ...task, status: "todo", comments: [], workflow: undefined }
+  const broken = { ...workflow, name: "broken", error: "bad" }
+  render(<BoardDrawer task={todo} statuses={["todo", "build", "done"]} roles={[]} role="" dir="/repo" reload={() => {}} workflows={[workflow, broken]} />)
+  const type = screen.getByRole("combobox", { name: "Task type" }) as HTMLSelectElement
+  expect((screen.getByRole("option", { name: "broken — invalid" }) as HTMLOptionElement).disabled).toBe(true)
+  await userEvent.selectOptions(type, "feature")
+  expect(mocks.post).toHaveBeenLastCalledWith("/api/tasks", { Dir: "/repo", ID: "30", Op: "workflow", Workflow: "feature" })
+  await userEvent.selectOptions(type, "")
+  expect(mocks.post).toHaveBeenLastCalledWith("/api/tasks", { Dir: "/repo", ID: "30", Op: "workflow", Workflow: "" })
+})
+
+test("Type is plain text once the ticket has started", () => {
+  mount()
+  expect(screen.queryByRole("combobox", { name: "Task type" })).toBeNull()
+  const dt = screen.getByText("Type")
+  expect(dt.nextElementSibling?.textContent).toBe("feature")
 })
 
 test("Run reuses the run view inside the panel", async () => {

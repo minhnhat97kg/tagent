@@ -82,9 +82,11 @@ availability or executable/trigger success.
 ## Workflows vs board.yaml
 
 Workflows are the only flow definition. `board.yaml` keeps `roles`, `triggers`,
-`max_fires_per_hour` and `default_workflow`. Start a ticket with `s` (default
-workflow or another from the picker) or `task start ID [WORKFLOW]`; the default
-runs when you pass no name. Editing a workflow changes existing tickets too
+`max_fires_per_hour` and `default_workflow`. Start a ticket with `s`, which runs its
+type; a ticket without one opens the picker. `task start ID [WORKFLOW]` does the
+same, and with no name it falls back to `default_workflow`. A todo ticket's type
+is the Type field in the web Details card, `T` in the TUI, or `task workflow ID
+NAME|-`. Editing a workflow changes existing tickets too
 (recipes resolve live), so there is one place to edit a flow.
 ## Board UI
 

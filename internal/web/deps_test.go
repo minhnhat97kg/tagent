@@ -2,6 +2,8 @@ package web
 
 import (
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -56,4 +58,42 @@ func TestTicketPriorityAndNeedsAPI(t *testing.T) {
 	if got, _ = tasks.Get(scope, waiting.ID); len(got.Needs) != 0 {
 		t.Fatalf("needs not cleared: %+v", got)
 	}
+}
+
+func TestTicketWorkflowAPI(t *testing.T) {
+	defer tmux.SetRunner(tmux.NewFake())()
+	t.Setenv("TMUX_AGENT_CONTEXT_DIR", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, ".tasks", "workflows"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, ".tasks", "workflows", "single.yml"), []byte("name: single\njobs:\n  build: {run: echo ok}\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	scope := tasks.Scope(dir)
+	ticket, err := tasks.Add(scope, "Typed", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := server{dir: dir}
+	call := func(body string, want int) {
+		t.Helper()
+		w := httptest.NewRecorder()
+		s.taskOp(w, httptest.NewRequest("POST", "/api/tasks", strings.NewReader(body)))
+		if w.Code != want {
+			t.Fatalf("%s: %d %s", body, w.Code, w.Body.String())
+		}
+	}
+	call(`{"Op":"workflow","ID":"`+ticket.ID+`","Workflow":"nope"}`, 400)
+	call(`{"Op":"workflow","ID":"`+ticket.ID+`","Workflow":"single"}`, 200)
+	if got, _ := tasks.Get(scope, ticket.ID); got.Workflow != "single" {
+		t.Fatalf("not set: %+v", got)
+	}
+	call(`{"Op":"workflow","ID":"`+ticket.ID+`","Workflow":""}`, 200)
+	if got, _ := tasks.Get(scope, ticket.ID); got.Workflow != "" {
+		t.Fatalf("not cleared: %+v", got)
+	}
+	call(`{"Op":"set","ID":"`+ticket.ID+`","Status":"blocked"}`, 200)
+	call(`{"Op":"workflow","ID":"`+ticket.ID+`","Workflow":"single"}`, 400) // not todo
 }

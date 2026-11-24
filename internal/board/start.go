@@ -34,7 +34,7 @@ func Start(dir, id, name string) error {
 		return fmt.Errorf("workflow has no jobs")
 	}
 	if t.Workflow != name {
-		if err = tasks.SetWorkflow(scope, id, name, nil); err != nil {
+		if err = tasks.SetWorkflow(scope, id, name); err != nil {
 			return err
 		}
 	}

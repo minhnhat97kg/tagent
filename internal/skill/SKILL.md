@@ -65,10 +65,12 @@ omitted next allows any status, empty next allows none. `task set ID STATUS [not
 and `task done ID [note]` bypass next for admin repair. `task start ID PANE` is
 legacy manual dispatch requiring idle pane and configured doing status.
 `task start ID [WORKFLOW]` attaches a workflow to a todo ticket and enters its
-first job; omit the name to use `default_workflow`. On a deprecated board,
+first job; omit the name to use the ticket's type, else `default_workflow`. On a deprecated board,
 `task start ID board` attaches the implicit `board` workflow. In the board, `s`
-opens this picker (j/k select, Enter start, Esc cancel; the last row starts the
-default). Tasks panel uses the same ticket keys as the board.
+starts a ticket with its type; a ticket without one opens this picker (j/k select,
+Enter start, Esc cancel; the last row starts the default). `T` sets or clears the
+type of a todo ticket with the same picker (last row: none). Tasks panel uses the
+same ticket keys as the board.
 
 ## Worker handoffs
 
@@ -87,7 +89,7 @@ Re-entering a limited status beyond its cap blocks with an explanation.
 - `task assign ID role[,role]` (`-` clears): metadata unless triggers configured.
 - Create tickets with plain `task add`.
 - `task add [--to names] [--needs ids] [--priority high|normal|low] [--workflow NAME [--input k=v]] "text"`; `task needs ID ids|-`;
-  `task priority ID high|normal|low`; `task rm ID` for human cleanup. Cycles/unknown ids are rejected.
+  `task priority ID high|normal|low`; `task workflow ID NAME|-` sets or clears a todo ticket's type; `task rm ID` for human cleanup. Cycles/unknown ids are rejected.
 - `board init|run [--dir DIR]`: shared config/dispatcher.
 
 Main-worktree `.tasks/board.yaml` falls back to
@@ -131,6 +133,6 @@ and retain its handle. Detached processes cannot wake a finished turn. If no
 notifications exist, say so and check when asked; do not simulate them with sleeps.
 `events --json` is sampled, silent initially and has no replay; reconcile list/read.
 
-Tasks panel and board share ticket controls: `s` workflow start picker,
-`enter` detail, `e` edit, `C` comment, `H`/`L` status, `x` delete with confirmation,
-`w` workflow, `?` help. Dashboard `Tab` changes focus; `b` opens the board.
+Tasks panel and board share ticket controls: `s` starts with the ticket's type
+(picker if none), `T` type picker (todo), `enter` detail, `e` edit, `C` comment,
+`H`/`L` status, `x` delete with confirmation, `w` workflow, `?` help. Dashboard `Tab` changes focus; `b` opens the board.

@@ -4,7 +4,7 @@ import { AttachmentRows, AttachmentViewer, type Attachment } from "./Attachments
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react"
 import { DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { act, api, post } from "@/api"
-import { ArrowRight, Check, ChevronDown, Paperclip, Pencil, Play, Reply, Trash2, TriangleAlert } from "lucide-react"
+import { ArrowRight, Check, Paperclip, Pencil, Play, Reply, Trash2, TriangleAlert } from "lucide-react"
 import { RunView } from "./RunPage"
 import { TicketChat } from "./TicketChat"
 import { useTicketChat } from "@/hooks/useTicketChat"
@@ -170,10 +170,6 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
   const desc = task.text && task.text.trim() !== title(task) ? task.text : ""
   const [editing, setEditing] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
-  // Start runs the chosen flow: the board's next column, or one of the workflows.
-  const [flow, setFlow] = useState(task.workflow || "board")
-  const [startMenu, setStartMenu] = useState(false)
-  const startLabel = flow === "board" ? "Next board column" : flow
   const [filter, setFilter] = useState<FilterID>("all")
   const [newest, setNewest] = useState(() => { try { return localStorage.getItem(SORT_KEY) !== "oldest" } catch { return true } })
   const toggleSort = () => { setNewest(v => { try { localStorage.setItem(SORT_KEY, v ? "oldest" : "newest") } catch { /* private mode: the choice just is not remembered */ } return !v }) }
@@ -211,7 +207,6 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
   // Replying belongs to the conversation: the composer opens prefilled with the @mention.
   const replyTo = (who: string) => { setTab("activity"); setFilter("all"); setBody(`@${who} `); setComposerOpen(true) }
   const reply = () => replyTo(role || roles[0] || "")
-  const startOptions = [{ value: "board", label: "Next board column", disabled: false }, ...workflows.map(w => ({ value: w.name, label: `${w.name}${w.global ? " (global)" : ""}${w.error ? " — invalid" : ""}`, disabled: !!w.error }))]
   const canSend = !sending && (!!body.trim() || files.length > 0)
   const canStart = (task.status === "todo" || !task.workflow) && task.status !== "done"
   // Roles still working on this ticket after being @mentioned: no reply comment from them since.
@@ -228,13 +223,7 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
   return <>
     <div className="drawer-actions">
       <span className="board-key" title={task.id}>{shortId(task.id)}</span>
-      {canStart && <div className="start-split">
-        <button type="button" className="start-main" title={`Start · ${startLabel}`} onClick={() => op({ Op: "start", Status: flow })}><Play />Start</button>
-        <button type="button" className="start-caret" aria-label="Choose workflow" aria-haspopup="menu" aria-expanded={startMenu} onClick={() => setStartMenu(!startMenu)}><ChevronDown /></button>
-        {startMenu && <ul role="menu" aria-label="Start with" className="start-menu">
-          {startOptions.map(o => <li key={o.value}><button type="button" role="menuitemradio" aria-checked={flow === o.value} disabled={o.disabled} onClick={() => { setFlow(o.value); setStartMenu(false) }}>{o.label}</button></li>)}
-        </ul>}
-      </div>}
+      {canStart && <button type="button" className="start-main" title={task.workflow ? `Start · ${task.workflow}` : "Start · default workflow"} onClick={() => op({ Op: "start" })}><Play />Start</button>}
       {!!priorityMark(task.priority) && <span className="card-prio" title={`${task.priority} priority`} aria-label={`${task.priority} priority`}>{priorityMark(task.priority)} {task.priority}</span>}
       <button type="button" aria-label="Edit" title="Edit" onClick={() => setEditing(editing === null ? task.text : null)}><Pencil /></button>
       {confirmDelete
@@ -261,6 +250,14 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
     {tab === "details" && <div role="tabpanel" id="task-panel-details" aria-labelledby="task-tab-details" className="drawer-panel">
       <dl className="board-fields">
       <dt>Status</dt><dd><i className="status-dot" style={{ background: statusColor(task.status) }} /><select aria-label="Task status" value={task.status} onChange={e => act(post("/api/tasks", { Dir: dir, Op: "set", ID: task.id, Status: e.target.value }).then(reload))}>{statuses.map(s => <option key={s}>{s}</option>)}</select></dd>
+      <dt>Type</dt><dd>{task.status === "todo"
+        ? <select aria-label="Task type" value={task.workflow ?? ""} onChange={e => op({ Op: "workflow", Workflow: e.target.value })}>
+          <option value="">none</option>
+          {/* a stored type the board no longer defines stays visible, so it is not silently cleared */}
+          {!!task.workflow && !workflows.some(w => w.name === task.workflow) && <option value={task.workflow}>{task.workflow}</option>}
+          {workflows.map(w => <option key={w.name} value={w.name} disabled={!!w.error}>{`${w.name}${w.global ? " (global)" : ""}${w.error ? " — invalid" : ""}`}</option>)}
+        </select>
+        : (task.workflow || "none")}</dd>
       <dt>Priority</dt><dd><select aria-label="Task priority" value={task.priority || "normal"} onChange={e => op({ Op: "priority", Priority: e.target.value })}>{["high", "normal", "low"].map(p => <option key={p}>{p}</option>)}</select></dd>
       <dt>Dependencies</dt><dd className="dep-field">
         {needs.map(id => <button type="button" key={id} className="dep-chip" title={`Remove #${id}`} onClick={() => setNeeds(needs.filter(x => x !== id))}>{shortId(id)} ×</button>)}
@@ -270,7 +267,7 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
         <datalist id="dep-options">{candidates.map(t => <option key={t.id} value={t.id}>{shortId(t.id)} {title(t)}</option>)}</datalist>
       </dd>
       {role && <><dt>Role</dt><dd><Avatar role={role} />{role}</dd></>}
-      {task.workflow && <><dt>Workflow</dt><dd className="flex flex-wrap items-center gap-1">{task.workflow}{(() => {
+      {task.workflow && <><dt>Steps</dt><dd className="flex flex-wrap items-center gap-1">{(() => {
         // Steps of the ticket's recipe: finished ones checked, the current one highlighted.
         const jobs = workflows.find(w => w.name === task.workflow || w.file === task.workflow)?.jobs ?? []
         const at = task.status === "done" ? jobs.length : jobs.findIndex(j => j.status === task.status)
