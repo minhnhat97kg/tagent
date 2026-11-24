@@ -10,6 +10,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/charmbracelet/x/ansi"
 	"tagent/internal/agents"
 )
 
@@ -230,6 +231,26 @@ func (m Model) newAgentFormBody(width int) string {
 	if len(f.roles) > 0 {
 		roleRow = flag(newAgentRole, "repo-agent", cmp.Or(f.role, "none (plain agent)"))
 	}
+	rows := m.newAgentRows(width, roleRow, flag, modelRow)
+	if a, ok := agents.Find(m.newAgentCwd(), m.agentHarness(), f.role); ok && f.role != "" {
+		// What the picked agent will be told: its first few lines.
+		dim := m.boardStyle(m.theme.TextMuted)
+		var lines []string
+		for _, l := range strings.Split(a.Instructions, "\n") {
+			if l = strings.TrimSpace(l); l != "" {
+				lines = append(lines, dim.Render(ansi.Truncate("  "+l, width, "…")))
+			}
+			if len(lines) == 4 {
+				break
+			}
+		}
+		rows += "\n\n" + strings.Join(lines, "\n")
+	}
+	return rows
+}
+
+func (m Model) newAgentRows(width int, roleRow string, flag func(int, string, string) string, modelRow func() string) string {
+	f := m.newAgent
 	return strings.Join([]string{
 		roleRow,
 		flag(newAgentHarness, "harness", f.harnessName()),
