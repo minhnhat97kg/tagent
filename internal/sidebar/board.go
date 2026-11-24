@@ -788,6 +788,8 @@ func (m Model) boardView() string {
 		body = lipgloss.JoinHorizontal(lipgloss.Top, left, right)
 	} else if m.boardDrawer {
 		body = m.boardPanel("Task · esc close", "", m.boardDetail(m.width-4, h-2), m.width, h, true)
+	} else if m.agentsOpen && m.agentDetail { // the agent detail takes the whole pane
+		body = m.workflowCard(m.width, h, 0)
 	} else {
 		th, wh := m.boardSplit(h)
 		body = m.tasksCard(m.width, th, 0, m.focus != cardWorkflows) + "\n" + m.workflowCard(m.width, wh, 0)

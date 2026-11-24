@@ -185,3 +185,15 @@ func TestAgentsDetailHintsOfferBack(t *testing.T) {
 		})
 	}
 }
+
+// TestAgentsDetailUsesFullPane covers ticket 52: the agent detail replaces the
+// list, so on a short terminal it must take the whole pane, not stay squeezed
+// into the list-sized Workflows card (which cut it to its title row).
+func TestAgentsDetailUsesFullPane(t *testing.T) {
+	m := Model{boardMode: true, boardDir: agentsTestDir(t), theme: DefaultTheme(), icons: DefaultIcons(), width: 100, height: 12}
+	m, _, _ = m.boardKey("t")
+	m, _, _ = m.boardKey("enter")
+	if view := ansi.Strip(m.boardView()); !strings.Contains(view, "Prompt") {
+		t.Fatalf("detail is cut off on a short pane:\n%s", view)
+	}
+}
