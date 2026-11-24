@@ -221,7 +221,7 @@ func (m Model) taskDetailSummary(t tasks.Task, w int) []string {
 		age += dim.Render(" · done ") + detailRelativeTime(t.CompletedAt, now)
 	}
 	field("Created", age)
-	return m.detailFrame(head+dim.Render("  H/L status"), lines, outer)
+	return m.detailFrame(head+dim.Render("  m move · H/L"), lines, outer)
 }
 
 // detailStep is the workflow step the ticket sits in: its role, else its job.

@@ -95,6 +95,21 @@ func (m Model) handleTaskForm(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	}
+	if m.taskForm == "status" {
+		columns := m.statusColumns()
+		switch key.String() {
+		case "j", "down":
+			m.taskStep = min(max(0, len(columns)-1), m.taskStep+1)
+		case "k", "up":
+			m.taskStep = max(0, m.taskStep-1)
+		case "enter":
+			m.taskForm = ""
+			if m.taskStep < len(columns) {
+				return m, m.moveTask(columns[m.taskStep])
+			}
+		}
+		return m, nil
+	}
 	if m.taskForm == "assign" {
 		names := m.assignNames()
 		switch key.String() {
@@ -266,6 +281,19 @@ func (m Model) taskFormView() string {
 		if m.boardConfig.DefaultWorkflow != "" {
 			body += " (" + m.boardConfig.DefaultWorkflow + ")"
 		}
+	case "status":
+		title, hint = "Move #"+m.notes[m.taskCursor].ID, m.keyHints("j/k select", "enter move", "esc cancel")
+		for i, c := range m.statusColumns() {
+			prefix := "  "
+			if i == m.taskStep {
+				prefix = "› "
+			}
+			here := ""
+			if c == m.notes[m.taskCursor].Status {
+				here = " · now"
+			}
+			body += boardFit(prefix+statusGlyph(c)+" "+c+here, width) + "\n"
+		}
 	case "assign":
 		title, hint = "Assign #"+m.notes[m.taskCursor].ID, m.keyHints("j/k select", "enter save", "esc cancel")
 		for i, name := range append([]string{"unassigned"}, m.assignNames()...) {
@@ -316,7 +344,7 @@ func (m Model) taskFormView() string {
 		title, hint = "✎ Message the chat", "Enter send · ctrl+s save to ticket · Esc cancel"
 
 	}
-	if m.taskForm != "start" && m.taskForm != "default" && m.taskForm != "attachments" && m.taskForm != "needs" && m.taskForm != "assign" && m.taskForm != "new-agent" {
+	if m.taskForm != "start" && m.taskForm != "default" && m.taskForm != "attachments" && m.taskForm != "needs" && m.taskForm != "assign" && m.taskForm != "status" && m.taskForm != "new-agent" {
 		body += "\n" + wrappedInput(m.taskInput, width, m.height)
 	}
 	return lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(m.theme.Accent).Width(width).Render(lipgloss.NewStyle().Bold(true).Foreground(m.theme.Accent).Render(title) + "\n\n" + lipgloss.NewStyle().Width(width).Render(body) + hintTail(hint))

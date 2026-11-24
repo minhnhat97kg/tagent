@@ -99,6 +99,16 @@ func (m Model) ticketsKey(key string) (Model, tea.Cmd, bool) {
 			m.taskForm, m.taskStep, m.taskInput = "needs", 0, strings.Join(m.notes[m.taskCursor].Needs, ",")
 		}
 		return m, nil, true
+	case "m": // move: status picker, enter saves
+		if len(m.notes) > 0 {
+			cfg, e := tasks.ConfigForTask(m.boardDir, m.boardConfig, m.notes[m.taskCursor])
+			if e != nil {
+				m.taskNotice = e.Error()
+				return m, nil, true
+			}
+			m.taskForm, m.taskStep = "status", max(0, slices.Index(cfg.Columns, m.notes[m.taskCursor].Status))
+		}
+		return m, nil, true
 	case "@": // assign: role / agent picker, enter saves
 		if len(m.notes) > 0 {
 			m.taskForm, m.taskStep = "assign", 0
@@ -146,14 +156,7 @@ func (m Model) ticketsKey(key string) (Model, tea.Cmd, bool) {
 		columns := cfg.Columns
 		target := slices.Index(columns, m.notes[m.taskCursor].Status) + step
 		if target >= 0 && target < len(columns) {
-			scope, id, status := m.notesScope, m.notes[m.taskCursor].ID, columns[target]
-			return m, func() tea.Msg {
-				_, err := tasks.Update(scope, id, status, nil, tasks.MutationOptions{Actor: "user"})
-				if err == nil && status != "doing" {
-					err = metrics.End(scope, id)
-				}
-				return actionResult("Task moved to "+status, err)
-			}, true
+			return m, m.moveTask(columns[target]), true
 		}
 		return m, nil, true
 	}
@@ -202,6 +205,7 @@ func ticketHints(nav hint) []hint {
 		{"e", "edit", "e", "edit in $EDITOR"},
 		{"C", "comment", "c C", "comment on ticket (blocked: prefills @role reply)"},
 		{"H/L", "status", "H L", "previous / next status (each card shows its status)"},
+		{"m", "move", "m", "move to a status (picker, enter saves)"},
 		{"@", "assign", "@", "assign to a role or agent (picker, enter saves)"},
 		{"a", "files", "a / A", "attachments: view or open (images, pdf) / attach file"},
 		{"x", "delete", "x", "delete (confirm)"},
@@ -219,4 +223,26 @@ func (m Model) tasksCardHints() []hint {
 
 func (m Model) boardTicketsHints() []hint {
 	return ticketHints(hint{"", "", "Tab / esc", "focus workflows / back"})
+}
+
+// moveTask moves the selected ticket to status and ends its metrics run when it
+// leaves "doing"; H/L and the status picker both use it.
+func (m Model) moveTask(status string) tea.Cmd {
+	scope, id := m.notesScope, m.notes[m.taskCursor].ID
+	return func() tea.Msg {
+		_, err := tasks.Update(scope, id, status, nil, tasks.MutationOptions{Actor: "user"})
+		if err == nil && status != "doing" {
+			err = metrics.End(scope, id)
+		}
+		return actionResult("Task moved to "+status, err)
+	}
+}
+
+// statusColumns is the statuses the selected ticket can be in.
+func (m Model) statusColumns() []string {
+	cfg, err := tasks.ConfigForTask(m.boardDir, m.boardConfig, m.notes[m.taskCursor])
+	if err != nil {
+		return nil
+	}
+	return cfg.Columns
 }

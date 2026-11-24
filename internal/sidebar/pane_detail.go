@@ -57,6 +57,6 @@ func (m Model) detailHints() []hint {
 		{"esc", "close", "esc", "close detail drawer"}, {"tab/1-4", "tabs", "tab h l 1-4", "switch Details / Chat / Activity / Run"}, {"j/k", "scroll", "j k ↑ ↓", "scroll task detail"}, {"e", "edit", "e", "edit task"},
 		{"c", "comment", "c", "Activity: comment box (@ suggests roles, enter posts, esc cancels)"},
 		{"", "", "s", "Activity: show / hide the dispatch messages"}, {"", "", "pgup pgdn", "scroll page"}, {"", "", "g G", "top / bottom"}, {"", "", "enter i", "toggle detail drawer; Chat: start the chat"}, {"", "", "i / S", "Chat: message the agent / save its reply to the ticket"},
-		{"", "", "H / L", "move the ticket to the previous / next status"}, {"", "", "@", "assign the ticket to a role or agent"}, {"", "", "p / D", "cycle priority / edit dependencies"}, {"", "", "c / C", "blocked: @role reply resumes; C: comment"}, {"", "", "a / A", "view attachments / attach file"},
+		{"", "", "H / L", "move the ticket to the previous / next status"}, {"", "", "m", "move the ticket to a status (picker)"}, {"", "", "@", "assign the ticket to a role or agent"}, {"", "", "p / D", "cycle priority / edit dependencies"}, {"", "", "c / C", "blocked: @role reply resumes; C: comment"}, {"", "", "a / A", "view attachments / attach file"},
 	}
 }
