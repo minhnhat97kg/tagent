@@ -394,6 +394,9 @@ func (m Model) dashGeometry() dashGeom {
 	usageC := func(n int) constraint { return last(Fixed(n).AtLeast(minUsageH), 3) }
 	tasksC := last(Fill(1).AtLeast(minTasksH), 2)
 	wfC := last(Fixed(minWfH), 4)
+	if m.agentsOpen && m.agentDetail { // the detail replaces the list: it takes the room Tasks would use
+		wfC = Fill(4).AtLeast(minWfH).Last(true)
+	}
 	set := func(rs []rect, dst ...*rect) {
 		for i, d := range dst {
 			*d = rs[i]
