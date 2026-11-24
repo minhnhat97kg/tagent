@@ -43,7 +43,7 @@ func TestAgentCommandClaudeVariants(t *testing.T) {
 		{"claude", "acceptEdits"}: "claude --permission-mode acceptEdits",
 	}
 	for in, want := range cases {
-		if got := AgentCommand(in[0], in[1]); got != want {
+		if got := AgentCommand(in[0], in[1], ""); got != want {
 			t.Errorf("AgentCommand(%q, %q) = %q, want %q", in[0], in[1], got, want)
 		}
 	}
@@ -57,7 +57,7 @@ func TestAgentCommandCodexVariants(t *testing.T) {
 		{"codex", "bypassPermissions"}: "codex --dangerously-bypass-approvals-and-sandbox",
 	}
 	for in, want := range cases {
-		if got := AgentCommand(in[0], in[1]); got != want {
+		if got := AgentCommand(in[0], in[1], ""); got != want {
 			t.Errorf("AgentCommand(%q, %q) = %q, want %q", in[0], in[1], got, want)
 		}
 	}
@@ -66,14 +66,14 @@ func TestAgentCommandCodexVariants(t *testing.T) {
 func TestAgentCommandOpencodeIgnoresMode(t *testing.T) {
 	// OpenCode currently only has the default mode; every mode falls back to the bare binary.
 	for _, mode := range []string{"default", "plan", ""} {
-		if got := AgentCommand("opencode", mode); got != "opencode" {
+		if got := AgentCommand("opencode", mode, ""); got != "opencode" {
 			t.Errorf("AgentCommand(opencode, %q) = %q, want opencode", mode, got)
 		}
 	}
 }
 
 func TestAgentCommandUnknownAgentPassesThrough(t *testing.T) {
-	if got := AgentCommand("gemini", "default"); got != "gemini" {
+	if got := AgentCommand("gemini", "default", ""); got != "gemini" {
 		t.Errorf("AgentCommand(gemini, default) = %q, want gemini", got)
 	}
 }
@@ -83,17 +83,17 @@ func TestAgentCommandUnknownAgentPassesThrough(t *testing.T) {
 // --permission-mode, causing `claude` to exit with an argument error right
 // on spawn. Contract: fall back to running the bare agent.
 func TestAgentCommandClaudeUnknownModeFallsBackToBareClaude(t *testing.T) {
-	if got := AgentCommand("claude", "unknown"); got != "claude" {
+	if got := AgentCommand("claude", "unknown", ""); got != "claude" {
 		t.Errorf("AgentCommand(claude, unknown) = %q, want claude", got)
 	}
-	if got := AgentCommand("claude", "legacy-mode-from-v0"); got != "claude" {
+	if got := AgentCommand("claude", "legacy-mode-from-v0", ""); got != "claude" {
 		t.Errorf("AgentCommand(claude, legacy-mode-from-v0) = %q, want claude", got)
 	}
 }
 
 func TestAgentCommandClaudeAllWhitelistedModesForwarded(t *testing.T) {
 	for _, mode := range ClaudeModes {
-		got := AgentCommand("claude", mode)
+		got := AgentCommand("claude", mode, "")
 		want := "claude"
 		if mode != "default" {
 			want = "claude --permission-mode " + mode
@@ -110,6 +110,21 @@ func TestAgentsListMatchesModesForDispatch(t *testing.T) {
 	for _, agent := range Agents {
 		if len(ModesFor(agent)) == 0 {
 			t.Errorf("agent %s returned an empty mode list", agent)
+		}
+	}
+}
+
+func TestAgentCommandClaudeFlags(t *testing.T) {
+	f := "--strict-mcp-config"
+	for in, want := range map[[2]string]string{
+		{"claude", "default"}:    "claude " + f,
+		{"claude", "plan"}:       "claude --permission-mode plan " + f,
+		{"claude", "stale-mode"}: "claude " + f,
+		{"codex", "auto"}:        "codex --full-auto",
+		{"opencode", ""}:         "opencode",
+	} {
+		if got := AgentCommand(in[0], in[1], f); got != want {
+			t.Errorf("AgentCommand(%q, %q, flags) = %q, want %q", in[0], in[1], got, want)
 		}
 	}
 }

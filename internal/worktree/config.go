@@ -1,5 +1,7 @@
 package worktree
 
+import "strings"
+
 // Default worktree configuration values — a CONTRACT with users running the
 // upstream (Rust) build. Changing a value here changes observable behavior,
 // which must not happen when porting to Go. See report p5-task1-report.md
@@ -52,17 +54,15 @@ func ModesFor(agent string) []string {
 // the bare agent, no flags — a stale mode left over from a previous build
 // (an un-cleaned tmux option) must never reach the agent and make it exit
 // with an argument error right when it opens.
-func AgentCommand(agent, mode string) string {
+func AgentCommand(agent, mode, claudeFlags string) string {
 	switch agent {
 	case "claude":
+		cmd := "claude"
 		switch mode {
-		case "", "default":
-			return "claude"
 		case "plan", "acceptEdits", "dontAsk", "bypassPermissions":
-			return "claude --permission-mode " + mode
-		default:
-			return "claude"
+			cmd += " --permission-mode " + mode
 		}
+		return strings.TrimSpace(cmd + " " + claudeFlags)
 	case "codex":
 		switch mode {
 		case "auto":

@@ -415,6 +415,7 @@ Set options with `set -g …` before loading the plugin, or use `tagent config`.
 | `@agent_avatar_say_waiting` / `_done` / `_error` | | your own lines; `{name}`, `{action}` (tmux.conf only, not in the settings screen) |
 | `@agent-sidebar-default-agent` | `claude` | default harness for `new` |
 | `@agent_model` | — | model passed to the harness as `--model` |
+| `@agent_claude_flags` | — | extra flags appended to every claude launch, e.g. `--strict-mcp-config` to skip MCP servers (leaner worker context) |
 | `@agent_scrape` | `on` | screen detection for agents without hooks |
 | `@agent_checkpoints` | `on` | snapshot the repo before each agent turn (for `undo`) |
 | `@agent_stuck_minutes` | `10` | warn when a running agent shows no activity this long |

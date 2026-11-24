@@ -127,6 +127,10 @@ func spawnAgent(o spawnOpts) (pane, warn string, err error) {
 	}
 
 	args := append(append([]string(nil), o.Args...), effortArgs...)
+	if isClaude(o.Agent) {
+		flags, _ := tmux.GetOption("@agent_claude_flags")
+		args = append(args, strings.Fields(flags)...)
+	}
 	// Only a legacy file in the running harness's own agents directory is loaded by
 	// that harness natively. App-owned instructions arrive in the dispatch prompt.
 	native := o.Role != "" && role.Native && role.Harness == roles.Harness(o.Agent)

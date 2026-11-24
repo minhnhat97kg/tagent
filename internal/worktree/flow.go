@@ -67,7 +67,7 @@ func spawnWith(env SpawnEnv, req *SpawnRequest) (string, error) {
 		}
 	}
 
-	if err := env.SendCommand(paneID, AgentCommand(req.Agent, req.Mode)); err != nil {
+	if err := env.SendCommand(paneID, AgentCommand(req.Agent, req.Mode, claudeFlags())); err != nil {
 		rb := rollbackSpawn(env, repo, worktreePath, branch, windowID)
 		return "", composeSpawnError(fmt.Errorf("tmux: %w", err), rb)
 	}
@@ -366,4 +366,9 @@ func Mark(window, repo, path, branch string) {
 	for _, m := range [][2]string{{tmux.SpawnedOption, "1"}, {tmux.SpawnedFromOption, repo}, {tmux.SpawnedWorktreeOption, path}, {tmux.SpawnedBranchOption, branch}} {
 		_ = env.SetWindowOption(window, m[0], m[1])
 	}
+}
+
+func claudeFlags() string {
+	v, _ := tmux.GetOption("@agent_claude_flags")
+	return v
 }
