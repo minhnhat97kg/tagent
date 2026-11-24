@@ -1,12 +1,13 @@
 import { useLayoutEffect, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react"
-import { ArrowRight, ArrowUp, Brain, Bot, ListTodo, Paperclip, Save, Workflow, X, Check, ChevronDown, Cpu, ExternalLink, FileText, MessageCircleQuestion, Loader2, Pencil, Search, Terminal, Wrench } from "lucide-react"
+import { ArrowRight, ArrowUp, Brain, Bot, ListTodo, Paperclip, Save, Workflow, X, Check, ChevronDown, Cpu, Gauge, ExternalLink, FileText, MessageCircleQuestion, Loader2, Pencil, Search, Terminal, Wrench } from "lucide-react"
 import { api, post } from "@/api"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Bubble, Composer, Fold, Markup, chatColumn, composerInput, sendButton } from "@/components/ChatParts"
 import { paneInput } from "@/lib/paneInput"
 import { currentModel, runningTool, splitSystem, toRows, type Feed, type Item, type Row } from "@/lib/transcript"
-import { commandMatches, harnessModels } from "@/lib/harnessCommands"
+import { effortLevels } from "@/lib/roles"
+import { commandMatches } from "@/lib/harnessCommands"
 import { useAppState } from "@/state"
 import { applyMention, filterMentions, mentionItems, mentionQuery, type Mention } from "@/lib/mentions"
 import type { Project } from "@/types"
@@ -172,14 +173,25 @@ export function AgentChat({ pane, onOpenTerminal, onUnavailable, project, onSave
   // A question already in the transcript but unanswered shows as a card; the screen copy would duplicate it.
   const pendingRow = last?.kind === "tool" && isQuestion(last) && last.output === undefined
   const waiting = feed?.status === "waiting" && !pendingRow && !feed.ask
-  const model = currentModel(items)
+  const seenModel = currentModel(items)
+  // Show a pick at once; the transcript only reports the model with the next reply, so drop the pick when that changes.
+  const [pickedModel, setPickedModel] = useState<{ pane: string; from?: string; value: string }>()
+  const [effortSet, setEffortSet] = useState<{ pane: string; level: string }>()
+  const model = pickedModel?.pane === pane && pickedModel.from === seenModel ? pickedModel.value : seenModel
   // Switch by the harness's own /model command; the agent's new model shows with its next reply.
   async function chooseModel(alias?: string) {
     setError("")
     try {
       await paneInput(pane, "send", alias ? `/model ${alias}` : "/model")
+      if (alias) setPickedModel({ pane, from: seenModel, value: alias })
       if (!alias) onOpenTerminal()
     } catch (e) { setError((e as Error).message) }
+  }
+  // Only claude is known to take "/effort <level>"; pi and codex have no verified in-chat command.
+  const effort = feed?.harness === "claude" ? effortLevels("claude") : []
+  async function chooseEffort(level: string) {
+    setError("")
+    try { await paneInput(pane, "send", `/effort ${level}`); setEffortSet({ pane, level }) } catch (e) { setError((e as Error).message) }
   }
   const status = statusLabel(feed?.status, tool)
   const renderRow = (r: Row) => r.kind === "msg" ? <Message key={r.item.id} item={r.item} onSave={onSave} /> : (isQuestion(r)
@@ -192,12 +204,20 @@ export function AgentChat({ pane, onOpenTerminal, onUnavailable, project, onSave
         <span className="truncate">{status}</span>
       </p>
       {!!feed?.queued.length && <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground" title={feed.queued.join("\n")}>{feed.queued.length} queued</span>}
-      {model && <DropdownMenu>
+      {effort.length > 0 && <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button size="xs" variant="ghost" aria-label={`Model: ${model}`} className="ml-auto shrink-0 font-mono text-muted-foreground"><Cpu />{model}<ChevronDown /></Button>
+          <Button size="xs" variant="ghost" aria-label="Effort" className="ml-auto shrink-0 text-muted-foreground"><Gauge />{effortSet?.pane === pane ? effortSet.level : "effort"}<ChevronDown /></Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          {(harnessModels[feed?.harness ?? ""] ?? []).map(m => <DropdownMenuItem key={m} onSelect={() => void chooseModel(m)}>{m}</DropdownMenuItem>)}
+          {effort.map(l => <DropdownMenuItem key={l} onSelect={() => void chooseEffort(l)}>{l}</DropdownMenuItem>)}
+        </DropdownMenuContent>
+      </DropdownMenu>}
+      {model && <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button size="xs" variant="ghost" aria-label={`Model: ${model}`} className={`${effort.length ? "" : "ml-auto "}shrink-0 font-mono text-muted-foreground`}><Cpu />{model}<ChevronDown /></Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {(state?.models?.[feed?.harness ?? ""] ?? []).map(m => <DropdownMenuItem key={m} onSelect={() => void chooseModel(m)}>{m}</DropdownMenuItem>)}
           <DropdownMenuItem onSelect={() => void chooseModel()}>Pick in Terminal…</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>}
@@ -305,6 +325,10 @@ function Message({ item, onSave }: { item: Item; onSave?: (text: string) => void
     <Bubble who="assistant"><Markup text={item.text ?? ""} /></Bubble>
     <SaveToTicket text={item.text ?? ""} onSave={onSave} align="start" />
   </div>
+  // The harness's compaction summary arrives as a user message: fold it instead of showing a wall of text.
+  if (/^This session is being continued from a previous conversation/.test((item.text ?? "").trim())) return <Fold icon={<ListTodo className="size-3.5 shrink-0" />} title="Conversation summary">
+    <Markup text={item.text ?? ""} />
+  </Fold>
   // Uploaded files travel as paths; show images as thumbnails and other files as download cards.
   const sys = splitSystem(item.text ?? "")
   const { text, files } = splitAttachments(sys.text)

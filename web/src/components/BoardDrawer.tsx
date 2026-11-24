@@ -270,7 +270,7 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
         const at = task.status === "done" ? jobs.length : jobs.findIndex(j => j.status === task.status)
         return jobs.map((j, i) => <span key={j.id} title={j.agent || j.run || ""} className={`rounded px-1.5 py-px text-[11px] ${i === at ? "bg-foreground text-background" : i < at ? "text-emerald-600" : "text-muted-foreground"}`}>
           {i > 0 && <span className="mr-1 text-muted-foreground">›</span>}{i < at && <Check className="mr-0.5 inline size-3" />}{j.status}</span>)
-      })()}<button type="button" onClick={() => setTab("run")} className="ml-1 inline-flex items-center gap-0.5 text-[11px] text-teal-700 underline-offset-2 hover:underline dark:text-teal-400">View run<ArrowRight className="size-3" /></button></dd></>}
+      })()}<button type="button" onClick={() => setTab("run")} className="ml-1 inline-flex items-center gap-0.5 text-[11px] text-brand-ink underline-offset-2 hover:underline">View run<ArrowRight className="size-3" /></button></dd></>}
       {!!task.assignees?.length && <><dt>Assignees</dt><dd>{task.assignees.join(", ")}</dd></>}
       <dt>Updated</dt><dd title={task.updated}>{rel(task.updated) || "—"}</dd>
       </dl>

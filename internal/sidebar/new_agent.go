@@ -1,9 +1,11 @@
 package sidebar
 
 import (
+	"cmp"
 	"fmt"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -35,6 +37,15 @@ type newAgentForm struct {
 }
 
 // harnessName is the harness the form sends as --agent.
+// models is the harness's pickable models; empty means the model row is free text.
+func (f newAgentForm) models() []string { return agents.Models()[f.harnessName()] }
+
+// typed reports whether the active row takes text: the repo agent, and the
+// model only for a harness with no model list.
+func (f newAgentForm) typed() bool {
+	return f.field == newAgentRole || (f.field == newAgentModel && len(f.models()) == 0)
+}
+
 func (f newAgentForm) harnessName() string {
 	if f.harness < 0 || f.harness >= len(newAgentChoices) {
 		return ""
@@ -48,7 +59,9 @@ func (f *newAgentForm) commit(input string) {
 	case newAgentRole:
 		f.role = strings.TrimSpace(input)
 	case newAgentModel:
-		f.model = strings.TrimSpace(input)
+		if f.typed() {
+			f.model = strings.TrimSpace(input)
+		}
 	}
 }
 
@@ -59,7 +72,9 @@ func (f newAgentForm) buffer() string {
 	case newAgentRole:
 		return f.role
 	case newAgentModel:
-		return f.model
+		if f.typed() {
+			return f.model
+		}
 	}
 	return ""
 }
@@ -73,6 +88,15 @@ func (f *newAgentForm) change(dir int) {
 			dir = 1
 		}
 		f.harness = ((f.harness+dir)%n + n) % n
+		f.model = "" // a model belongs to its harness
+	case newAgentModel:
+		// "" (harness default) then each listed model, cycling.
+		opts := append([]string{""}, f.models()...)
+		i := slices.Index(opts, f.model)
+		if dir == 0 {
+			dir = 1
+		}
+		f.model = opts[((i+dir)%len(opts)+len(opts))%len(opts)]
 	case newAgentWorktree:
 		f.worktree = dir > 0
 	}
@@ -83,7 +107,7 @@ func (f *newAgentForm) change(dir int) {
 // cancels without starting anything.
 func (m Model) handleNewAgentForm(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 	f := m.newAgent
-	text := f.field == newAgentRole || f.field == newAgentModel
+	text := f.typed()
 	if s := key.String(); s != "enter" && s != "ctrl+s" {
 		m.taskNotice = "" // typing or moving clears a validation error
 	}
@@ -184,10 +208,16 @@ func (m Model) newAgentFormBody(width int) string {
 	flag := func(i int, label, value string) string {
 		return boardFit(active(i)+fmt.Sprintf("%-11s", label)+value, width)
 	}
+	modelRow := func() string {
+		if f.typed() || f.field != newAgentModel && len(f.models()) == 0 {
+			return text(newAgentModel, "model", f.model, "—")
+		}
+		return flag(newAgentModel, "model", cmp.Or(f.model, "default"))
+	}
 	return strings.Join([]string{
 		text(newAgentRole, "repo-agent", f.role, "none (plain agent)"),
 		flag(newAgentHarness, "harness", f.harnessName()),
-		text(newAgentModel, "model", f.model, "—"),
+		modelRow(),
 		flag(newAgentWorktree, "worktree", map[bool]string{true: "on", false: "off"}[f.worktree]),
 	}, "\n")
 }

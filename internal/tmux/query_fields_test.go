@@ -55,7 +55,7 @@ func TestPaneFormatFieldsAreQuotedAndOrdered(t *testing.T) {
 		}
 	}
 
-	// All 33 positions, in exact order. Locking down only 6 checkpoints
+	// All 34 positions, in exact order. Locking down only 6 checkpoints
 	// would let two fields swap places outside those checkpoints slip past
 	// the test — exactly the kind of silent breakage the sf*/pf* index
 	// table must catch.
@@ -93,6 +93,7 @@ func TestPaneFormatFieldsAreQuotedAndOrdered(t *testing.T) {
 		"#{q:" + PaneStuck + "}",
 		"#{q:" + PaneConflict + "}",
 		"#{q:" + BoardTarget + "}",
+		"#{q:" + PaneKeep + "}",
 	}
 	if len(fields) != len(want) {
 		t.Fatalf("paneFormat has %d fields, want %d", len(fields), len(want))

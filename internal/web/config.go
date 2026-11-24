@@ -48,6 +48,9 @@ func (s *server) settings(w http.ResponseWriter, r *http.Request) {
 	}
 	out := []map[string]any{}
 	for _, st := range config.Settings {
+		if st.TUIOnly {
+			continue
+		}
 		v := config.Get(st)
 		secret := slices.Contains(webSecret, st.Key)
 		if secret {

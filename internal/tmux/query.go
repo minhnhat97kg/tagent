@@ -34,7 +34,7 @@ const (
 	paneLineOffset = 7
 
 	// minSessionFields is the minimum number of fields a valid line must have.
-	minSessionFields = 33
+	minSessionFields = 34
 )
 
 // Indices within the pane-level tail section. Each value = (absolute index) - paneLineOffset.
@@ -65,9 +65,10 @@ const (
 	pfStuck           = 23 // 29 @pane_stuck
 	pfConflict        = 24 // 30 @pane_conflict
 	pfBoardTarget     = 25 // 31 @board_target
+	pfKeep            = 26 // 32 @pane_keep
 
 	// minPaneFields = minSessionFields - paneLineOffset
-	minPaneFields = 26
+	minPaneFields = 27
 )
 
 // paneFormat builds the format string for `tmux list-panes -F`.
@@ -114,6 +115,7 @@ func paneFormat() string {
 		q(PaneStuck),
 		q(PaneConflict),
 		q(BoardTarget),
+		q(PaneKeep),
 	}
 	return strings.Join(fields, "|")
 }
@@ -222,8 +224,12 @@ func parsePaneFields(parts []string, snap *process.Snapshot) (PaneInfo, bool) {
 	}
 
 	agent, ok := ParseAgentType(parts[pfAgent])
-	if !ok {
+	kept := parts[pfKeep] == "1" // a plain shell from `tagent new --terminal`
+	if !ok && !kept {
 		return PaneInfo{}, false
+	}
+	if !ok {
+		agent = "terminal"
 	}
 
 	currentCommand := parts[pfCurrentCommand]

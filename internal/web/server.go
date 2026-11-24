@@ -240,11 +240,11 @@ func (s *server) agents() []agentJSON {
 
 // projects are the repos with a running agent, plus the server's own dir.
 func (s *server) state(w http.ResponseWriter, r *http.Request) {
-	agents := s.agents()
+	list := s.agents()
 	seen := map[string]bool{}
 	projects := []string{}
 	for _, d := range append([]string{s.dir}, func() (ps []string) {
-		for _, a := range agents {
+		for _, a := range list {
 			ps = append(ps, a.Path)
 		}
 		return
@@ -258,15 +258,17 @@ func (s *server) state(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	host, _ := os.Hostname()
-	writeJSON(w, map[string]any{"agents": agents, "projects": projects, "host": host, "harnesses": []string{"claude", "codex", "opencode", "gemini", "pi", "copilot", "amp"}})
+	writeJSON(w, map[string]any{"agents": list, "projects": projects, "host": host, "harnesses": []string{"claude", "codex", "opencode", "gemini", "pi", "copilot", "amp"}, "models": agents.Models()})
 }
 
 var paneRe = regexp.MustCompile(`^%\d+$`)
 
 // agentPane rejects anything but an agent's pane id: the API must not type
 // into shells or editors.
+// agentPane gates every pane endpoint: only agent panes and the plain terminals opened from the web
+// (@pane_keep) are reachable, never an arbitrary tmux pane.
 func agentPane(id string) error {
-	if !paneRe.MatchString(id) || tmux.GetPaneOptionValue(id, tmux.PaneAgent) == "" {
+	if !paneRe.MatchString(id) || tmux.GetPaneOptionValue(id, tmux.PaneAgent) == "" && tmux.GetPaneOptionValue(id, tmux.PaneKeep) != "1" {
 		return fmt.Errorf("%q is not an agent pane", id)
 	}
 	return nil
@@ -375,7 +377,13 @@ func (s *server) newAgent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	args := []string{"new", "--cwd", o.Cwd}
-	for flag, v := range map[string]string{"--agent": o.Agent, "--model": o.Model, "--repo-agent": o.Role, "--name": o.Name} {
+	flags := map[string]string{"--name": o.Name}
+	if o.Agent == "terminal" { // a plain shell: no harness, model or role
+		args = append(args, "--terminal")
+	} else {
+		flags["--agent"], flags["--model"], flags["--repo-agent"] = o.Agent, o.Model, o.Role
+	}
+	for flag, v := range flags {
 		if v != "" {
 			args = append(args, flag, v)
 		}

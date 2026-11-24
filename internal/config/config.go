@@ -40,18 +40,21 @@ type Setting struct {
 	Min, Max                int
 	// Reload: only takes effect after the plugin reloads (key bindings).
 	Reload bool
+	// TUIOnly: tmux sidebar options (look, avatar, placement) that mean nothing in
+	// the browser; the web settings screen leaves them out.
+	TUIOnly bool
 }
 
 // Settings is what the settings screen shows: the few options worth
 // changing by hand, in display order.
 var Settings = []Setting{
-	{Key: "@agent_theme", Group: "Look", Label: "Theme", Kind: Choice, Default: "light", Choices: []string{"dark", "light"}},
-	{Key: "@agent_avatar", Group: "Look", Label: "Character", Kind: Choice, Default: "off",
+	{Key: "@agent_theme", Group: "Look", Label: "Theme", TUIOnly: true, Kind: Choice, Default: "light", Choices: []string{"dark", "light"}},
+	{Key: "@agent_avatar", Group: "Look", Label: "Character", TUIOnly: true, Kind: Choice, Default: "off",
 		Choices: []string{"slime", "cat", "sprout", "ghost", "robot", "off"}, Help: "the sidebar avatar; off hides it"},
-	{Key: "@agent_avatar_lang", Group: "Look", Label: "Language", Kind: Choice, Default: "en", Choices: []string{"vi", "en"}},
-	{Key: "@sidebar_position", Group: "Sidebar", Label: "Position", Kind: Choice, Default: "left", Choices: []string{"left", "right"}},
-	{Key: "@sidebar_width", Group: "Sidebar", Label: "Initial width", Kind: Text, Default: "15%", Help: "starting size only; resize freely with tmux"},
-	{Key: "@sidebar_auto_create", Group: "Sidebar", Label: "Auto-create in new windows", Kind: Bool, Default: "on"},
+	{Key: "@agent_avatar_lang", Group: "Look", Label: "Language", TUIOnly: true, Kind: Choice, Default: "en", Choices: []string{"vi", "en"}},
+	{Key: "@sidebar_position", Group: "Sidebar", Label: "Position", TUIOnly: true, Kind: Choice, Default: "left", Choices: []string{"left", "right"}},
+	{Key: "@sidebar_width", Group: "Sidebar", Label: "Initial width", TUIOnly: true, Kind: Text, Default: "15%", Help: "starting size only; resize freely with tmux"},
+	{Key: "@sidebar_auto_create", Group: "Sidebar", Label: "Auto-create in new windows", TUIOnly: true, Kind: Bool, Default: "on"},
 	{Key: "@agent-sidebar-default-agent", Group: "Agents", Label: "Default agent for `new`", Kind: Preset, Default: "claude",
 		Choices: []string{"claude", "codex", "pi", "opencode", "gemini", "copilot", "amp"}},
 	{Key: "@agent_model", Group: "Agents", Label: "Model for `new`", Kind: Text, Help: "passed as --model to the selected harness; empty uses harness default"},

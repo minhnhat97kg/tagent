@@ -16,7 +16,7 @@ func TestSettingsHideSecretsAndRefuseReadOnly(t *testing.T) {
 	s := &server{}
 	w := httptest.NewRecorder()
 	s.settings(w, httptest.NewRequest("GET", "/api/config", nil))
-	if b := w.Body.String(); strings.Contains(b, "SECRET") || !strings.Contains(b, `"value":"set"`) || !strings.Contains(b, `"@agent_theme"`) {
+	if b := w.Body.String(); strings.Contains(b, "SECRET") || !strings.Contains(b, `"value":"set"`) || !strings.Contains(b, `"@agent_stuck_minutes"`) || strings.Contains(b, `"@agent_theme"`) {
 		t.Fatalf("settings leaked or incomplete: %s", w.Body.String())
 	}
 	w = httptest.NewRecorder()

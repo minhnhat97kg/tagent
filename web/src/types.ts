@@ -40,6 +40,7 @@ export interface Role {
 export interface State {
   agents: Agent[]
   harnesses: string[] | null
+  models: Record<string, string[]> | null
   host: string
   projects: string[] | null
 }

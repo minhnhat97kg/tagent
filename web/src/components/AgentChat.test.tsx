@@ -7,6 +7,7 @@ import type { Project } from "@/types"
 
 const mocks = vi.hoisted(() => ({ api: vi.fn(), post: vi.fn() }))
 vi.mock("@/api", () => ({ api: mocks.api, post: mocks.post }))
+vi.mock("@/state", () => ({ useAppState: () => ({ state: { models: { claude: ["opus", "sonnet", "haiku"] } } }) }))
 
 function feed(over: Partial<Feed> = {}): Feed {
   return { harness: "claude", status: "idle", items: [], cursor: "", reset: false, more: false, queued: [], ...over }

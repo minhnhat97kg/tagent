@@ -33,6 +33,7 @@ type spawnOpts struct {
 	Worktree                              bool
 	Args                                  []string // extra agent arguments
 	Wait                                  bool     // wait until the agent reports a status
+	Terminal                              bool     // a plain login shell, no harness; kept from the idle sweep
 }
 
 // Pane options recording how an agent was started (restore, merge).
@@ -46,6 +47,10 @@ const (
 func spawnAgent(o spawnOpts) (pane, warn string, err error) {
 	if o.Cwd == "" {
 		o.Cwd, _ = os.Getwd()
+	}
+	if o.Terminal {
+		// A terminal has no harness, role or model, and never reports a status.
+		o.Agent, o.Model, o.Effort, o.Role, o.Args, o.Wait = "", "", "", "", nil, false
 	}
 
 	if o.ConfigDir == "" {
@@ -168,11 +173,17 @@ func spawnAgent(o spawnOpts) (pane, warn string, err error) {
 	for _, a := range args {
 		command += " " + setup.ShellQuote(a)
 	}
+	if o.Terminal {
+		command = setup.ShellQuote(cmp.Or(os.Getenv("SHELL"), "/bin/sh")) + " -l"
+	}
 	if pane, err = placePane(session, o.Cwd, command); err != nil {
 		return "", "", err
 	}
 	if spare != "" { // the new background session's empty first window
 		tmux.RunTmux("kill-window", "-t", spare)
+	}
+	if o.Terminal {
+		tmux.SetPaneOption(pane, tmux.PaneKeep, "1")
 	}
 	if o.Name != "" {
 		tmux.SetPaneOption(pane, tmux.PaneName, o.Name)

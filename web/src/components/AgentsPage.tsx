@@ -6,6 +6,7 @@ import { usePoll } from "@/hooks/usePoll"
 import { enc } from "@/hooks/useRoute"
 import { Button } from "@/components/ui/button"
 import { editableKey, effortLevels, modelsIn, readOnlySource, roleTemplate, usedBySummary } from "@/lib/roles"
+import { useAppState } from "@/state"
 import type { Role } from "@/types"
 
 // AgentsPage edits the agent roles the board and the workflows use: harness, model, effort and instructions.
@@ -13,6 +14,7 @@ import type { Role } from "@/types"
 export function AgentsPage({ dir }: { dir: string }) {
   const path = "/api/roles?dir=" + enc(dir)
   const poll = usePoll(() => api<Role[]>(path), 2000, dir)
+  const { state } = useAppState()
   const roles = poll.data ?? []
   const [draft, setDraft] = useState<Role>()
   const [preview, setPreview] = useState(false)
@@ -45,7 +47,8 @@ export function AgentsPage({ dir }: { dir: string }) {
       if (ok) setDraft({ name, harness: "claude", model: "", effort: "", source: "repo", path: "", instructions: roleTemplate(name), running: 0, panes: [], usedBy: null })
     })
   }
-  const models = modelsIn(roles)
+  const listed = state?.models?.[draft?.harness ?? ""] ?? []
+  const models = listed.length ? [...new Set([...listed, ...(draft?.model ? [draft.model] : [])])] : modelsIn(roles)
   const levels = draft ? effortLevels(draft.harness) : []
   const fieldClass = "w-full rounded border bg-background p-2 text-sm disabled:opacity-60"
 
@@ -80,12 +83,17 @@ export function AgentsPage({ dir }: { dir: string }) {
           {copyable && <p className="border-b px-3 py-1.5 text-xs text-muted-foreground">{draft.source === "legacy" ? `Legacy harness file (${draft.path}): read-only here. Copy it to .tasks/agents to change it.` : "Global agent: read-only here. Copy it to the repo to change it."}</p>}
           <div className="grid gap-3 p-3 sm:grid-cols-3">
             <label className="text-[12px] font-medium">Harness
-              <select aria-label="Harness" className={fieldClass} disabled={readOnly} value={draft.harness} onChange={e => setDraft({ ...draft, harness: e.target.value, effort: effortLevels(e.target.value).includes(draft.effort) ? draft.effort : "" })}>
+              <select aria-label="Harness" className={fieldClass} disabled={readOnly} value={draft.harness} onChange={e => setDraft({ ...draft, harness: e.target.value, model: "", effort: effortLevels(e.target.value).includes(draft.effort) ? draft.effort : "" })}>
                 {["pi", "claude", "codex"].map(h => <option key={h} value={h}>{h}</option>)}
               </select></label>
             <label className="text-[12px] font-medium">Model
-              <input aria-label="Model" list="agent-models" className={fieldClass} disabled={readOnly} value={draft.model} placeholder="default" onChange={e => setDraft({ ...draft, model: e.target.value })} />
-              <datalist id="agent-models">{models.map(m => <option key={m} value={m} />)}</datalist></label>
+              {listed.length
+                ? <select aria-label="Model" className={fieldClass} disabled={readOnly} value={draft.model} onChange={e => setDraft({ ...draft, model: e.target.value })}>
+                    <option value="">default</option>
+                    {models.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                : <><input aria-label="Model" list="agent-models" className={fieldClass} disabled={readOnly} value={draft.model} placeholder="default" onChange={e => setDraft({ ...draft, model: e.target.value })} />
+                  <datalist id="agent-models">{models.map(m => <option key={m} value={m} />)}</datalist></>}</label>
             <label className="text-[12px] font-medium">Effort
               <select aria-label="Effort" className={fieldClass} disabled={readOnly || !levels.length} value={draft.effort} onChange={e => setDraft({ ...draft, effort: e.target.value })}>
                 <option value="">default</option>

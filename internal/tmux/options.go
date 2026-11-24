@@ -88,6 +88,9 @@ const (
 	// PaneConflict — "<file> with <other agent>" when two agents of the same
 	// project edited the same file recently (watchdog).
 	PaneConflict = "@pane_conflict"
+	// PaneKeep — "1" on a plain shell opened from the web/`tagent new --terminal`;
+	// the idle-shell sweep spares it and the state API lists it without an agent.
+	PaneKeep = "@pane_keep"
 )
 
 // BGCmdPlaceholder is the value written to PaneBgCmd when the hook has no real command.

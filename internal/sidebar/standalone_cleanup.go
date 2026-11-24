@@ -33,18 +33,20 @@ func isShellCommand(cmd string) bool {
 // in the previous sweep too; it returns the ones idle now.
 func sweepIdlePanes(prev, keep []string) tea.Cmd {
 	return func() tea.Msg {
-		out, ok := tmux.RunTmux("list-panes", "-s", "-t", "="+HiddenSession, "-F", "#{pane_id} #{pane_current_command}")
+		out, ok := tmux.RunTmux("list-panes", "-s", "-t", "="+HiddenSession, "-F", "#{pane_id} #{pane_current_command} #{@pane_keep}")
 		if !ok {
 			return cleanupMsg{}
 		}
 		self := os.Getenv("TMUX_PANE")
 		var idle []string
 		for _, line := range strings.Split(out, "\n") {
-			id, cmd, _ := strings.Cut(strings.TrimSpace(line), " ")
-			if id == "" || id == self || slices.Contains(keep, id) || !isShellCommand(cmd) {
+			id, rest, _ := strings.Cut(strings.TrimSpace(line), " ")
+			cmd, kept, _ := strings.Cut(rest, " ")
+			candidate, kill := sweepDecision(id, cmd, kept, self, keep, prev)
+			if !candidate {
 				continue
 			}
-			if slices.Contains(prev, id) {
+			if kill {
 				tmux.RunTmux("kill-pane", "-t", id)
 				continue
 			}
@@ -52,4 +54,15 @@ func sweepIdlePanes(prev, keep []string) tea.Cmd {
 		}
 		return cleanupMsg{idle: idle}
 	}
+}
+
+// sweepDecision says whether one pane line of the hidden session is an idle
+// shell to watch (candidate), and whether it was already idle in the previous
+// sweep so it is due to be killed. Kept terminals (@pane_keep=1) are never
+// candidates.
+func sweepDecision(id, cmd, kept, self string, keep, prev []string) (candidate, kill bool) {
+	if id == "" || id == self || slices.Contains(keep, id) || kept == "1" || !isShellCommand(cmd) {
+		return false, false
+	}
+	return true, slices.Contains(prev, id)
 }

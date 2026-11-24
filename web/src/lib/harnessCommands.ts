@@ -34,6 +34,3 @@ export function commandMatches(harness: string | undefined, draft: string): [str
   return (harnessCommands[harness ?? ""] ?? []).filter(([c]) => c.startsWith(draft) && c !== draft)
 }
 
-// Models offered in the Chat model menu; "/model <alias>" switches without a picker.
-// pi has no alias form, so its menu only opens the picker.
-export const harnessModels: Record<string, string[]> = { claude: ["opus", "sonnet", "haiku"] }

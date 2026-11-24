@@ -17,7 +17,7 @@ export function AttachmentRows({ items, open }: { items: Attachment[]; open: (a:
     const Icon = ICONS[type(a)] ?? File
     return <button type="button" key={a.ref} disabled={!!a.error} title={a.error || `Open ${a.name}`} onClick={() => open(a)}
       className="flex min-w-0 items-center gap-2 rounded-lg border bg-background px-2.5 py-2 text-left shadow-xs hover:border-foreground/30 hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50">
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted"><Icon className="size-4 text-teal-600" /></span>
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-soft"><Icon className="size-4 text-brand" /></span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[12.5px] font-medium">{label(a)}</span>
         <span className="block truncate text-[11px] text-muted-foreground">{a.error ? "unavailable" : `${human(a.size)} · ${a.author} · ${new Date(a.time).toLocaleDateString()}`}</span>
