@@ -29,6 +29,7 @@ type Action struct {
 	Event                                             tasks.Event
 	Trigger                                           int
 	Close                                             bool // ticket reached done: close its role panes
+	Skip                                              bool // run job passes without running: a user asked to skip it
 }
 type Fire func(Action) error
 type state struct {
@@ -316,6 +317,14 @@ func Actions(dir string, cfg tasks.BoardConfig, ev tasks.Event, t tasks.Task) ([
 				continue
 			}
 			a := Action{Dir: dir, Event: ev, Trigger: -1, Agent: s.Role, Role: s.Role, Run: s.Run, Pass: s.Pass, Fail: s.Fail}
+			// A run failing with the same output as its last run would only send dev around again.
+			if s.Role != "" && repeatedFailure(t, comment) {
+				a.BlockReason = fmt.Sprintf("Status %s: the same CI failure as the previous run; not sending it back to dev", s.ID)
+				return []Action{a}, nil
+			}
+			if s.Run != "" {
+				a.Skip = userSkip(t)
+			}
 			if s.MaxLoops > 0 {
 				history, err := tasks.ReadEvents(tasks.Scope(dir), 0)
 				if err != nil {

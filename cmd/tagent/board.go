@@ -142,7 +142,11 @@ func dispatchBoardAction(a board.Action) error {
 	if a.Run != "" {
 		// The command is what the user sees for this entry; no pane is involved.
 		if a.Event.Task != "" {
-			_ = tasks.RecordDispatch(scope, a.Event.Task, tasks.Event{To: a.Event.To, Role: "ci", Prompt: tasks.CapText(a.Run, 8000)})
+			prompt := a.Run
+			if a.Skip {
+				prompt = "skipped by user comment: " + a.Run
+			}
+			_ = tasks.RecordDispatch(scope, a.Event.Task, tasks.Event{To: a.Event.To, Role: "ci", Prompt: tasks.CapText(prompt, 8000)})
 		}
 		go func() {
 			if err := runStatus(a); err != nil {

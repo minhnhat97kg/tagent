@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -48,7 +49,35 @@ func ciSummary(r io.Reader) string {
 	}
 	return strings.Join(append(failures, other...), "\n")
 }
+
+// baseFailing reruns the named Go tests at the ticket's base (merge-base with
+// main) and returns the ones that still fail there.
+func baseFailing(dir string, tests []string) []string {
+	base, err := exec.Command("git", "-C", dir, "merge-base", "HEAD", "main").Output()
+	if err != nil {
+		return nil
+	}
+	tmp, err := os.MkdirTemp("", "tagent-base-*")
+	if err != nil {
+		return nil
+	}
+	defer os.RemoveAll(tmp)
+	wt := filepath.Join(tmp, "wt")
+	if err := exec.Command("git", "-C", dir, "worktree", "add", "--detach", wt, strings.TrimSpace(string(base))).Run(); err != nil {
+		return nil
+	}
+	defer exec.Command("git", "-C", dir, "worktree", "remove", "--force", wt).Run()
+	pattern := "^(" + strings.Join(tests, "|") + ")$"
+	test := exec.Command("go", "test", "-run", pattern, "./...")
+	test.Dir = wt
+	out, _ := test.CombinedOutput()
+	return board.FailedTests(string(out))
+}
+
 func runStatus(a board.Action) error {
+	if a.Skip {
+		return tasks.FinishEntry(tasks.Scope(a.Dir), a.Event.Task, a.Pass, "CI skipped: a user comment asked to skip this run", a.Event.Seq, false, tasks.MutationOptions{Actor: "ci"})
+	}
 	cmd := exec.Command("sh", "-c", a.Run)
 	cmd.Dir = a.ExecDir
 	if cmd.Dir == "" {
@@ -89,14 +118,24 @@ func runStatus(a board.Action) error {
 			log.WriteString(err.Error())
 		}
 	}
-	to := a.Pass
-	if code != 0 {
-		to = a.Fail
-	}
 	if _, e = log.Seek(0, 0); e != nil {
 		return e
 	}
-	body := fmt.Sprintf("CI exit code %d\n%s", code, ciSummary(log))
+	raw, e := io.ReadAll(log)
+	if e != nil {
+		return e
+	}
+	to := a.Pass
+	preBody := ""
+	if code != 0 {
+		to = a.Fail
+		// Failures that also happen on the base are not the ticket's: move forward.
+		if failing := board.FailedTests(string(raw)); len(failing) > 0 && board.PreExisting(failing, baseFailing(cmd.Dir, failing)) {
+			to = a.Pass
+			preBody = "pre-existing: " + strings.Join(failing, ", ") + "\n"
+		}
+	}
+	body := fmt.Sprintf("%sCI exit code %d\n%s", preBody, code, ciSummary(bytes.NewReader(raw)))
 	if output != nil {
 		outputs = map[string]string{}
 		data, e := io.ReadAll(io.LimitReader(output, 65536))
