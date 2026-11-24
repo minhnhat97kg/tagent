@@ -25,44 +25,37 @@ const detailDescLines = 8
 // changes with the tab.
 const (
 	detailTabDetails = iota
+	detailTabFiles
+	detailTabNeeds
 	detailTabChat
 	detailTabActivity
 	detailTabRun
 )
 
-var detailTabs = []string{"Details", "Chat", "Activity", "Run"}
+var detailTabs = []string{"Details", "Files", "Needs", "Chat", "Activity", "Run"}
 
-// detailFooter is the sticky key line inside the drawer, always the last row.
-// Each tab line is shortened rather than cut, so a narrow pane keeps the keys
-// that work where the cursor is.
-func (m Model) detailFooter(w int) string {
-	ladder := []string{"tab/1-4 tabs · j/k scroll · e edit · C comment · a files · s events · esc close", "tab tabs · j/k scroll · e edit · C · a files · s · esc", "tab · j/k · esc"}
-	if m.commentBox {
-		ladder = []string{"enter send · tab @role · esc cancel", "enter · tab · esc"}
-	}
-	if m.detailTab == detailTabActivity && !m.commentBox {
-		ladder = []string{"C comment · s system events · tab/1-4 tabs · j/k scroll · esc close", "C comment · s events · tab · j/k · esc", "C · s · esc"}
-	}
-	if m.detailTab == detailTabChat {
-		ladder = []string{"i message · S save reply · tab/1-4 tabs · j/k scroll · esc close", "i message · S save · tab · j/k · esc", "i · S · esc"}
-	}
-	keys := ladder[len(ladder)-1]
-	for _, line := range ladder {
-		if ansi.StringWidth(line) <= w {
-			keys = line
-			break
+// detailTabLabels are the tab names with a count where the tab holds a list
+// (the same "Name N" form as the Tasks lanes), so an empty tab shows as such.
+func (m Model) detailTabLabels(t tasks.Task) []string {
+	labels := slices.Clone(detailTabs)
+	count := func(tab, n int) {
+		if n > 0 {
+			labels[tab] += fmt.Sprintf(" %d", n)
 		}
 	}
-	return m.boardStyle(m.theme.TextDim).Render(keys)
+	count(detailTabFiles, len(m.attachments))
+	count(detailTabNeeds, len(t.Needs)+len(m.dependents(t.ID)))
+	count(detailTabActivity, m.detailCommentCount(t))
+	return labels
 }
 
 // detailTabStrip is the ticket panel's tab row, in the same lazygit style as
 // the card tabs: the active tab bracketed and bold, the others muted.
-func (m Model) detailTabStrip(w int) []string {
+func (m Model) detailTabStrip(t tasks.Task, w int) []string {
 	if w <= 0 {
 		return nil
 	}
-	strip, _ := m.tabStrip(detailTabs, m.detailTab, 2)
+	strip, _ := m.tabStrip(m.detailTabLabels(t), m.detailTab, 2)
 	return []string{ansi.Truncate("  "+strip, w, "")}
 }
 
@@ -112,6 +105,9 @@ func (m Model) taskDetailSummary(t tasks.Task, w int) []string {
 	var lines []string
 	add := func(text string) { lines = append(lines, ansi.Truncate(text, w, "")) }
 
+	if tabs := m.detailTabStrip(t, w); len(tabs) > 0 {
+		lines = append(lines, tabs...)
+	}
 	status := statusGlyph(t.Status) + " " + t.Status
 	head := m.boardStyle(m.boardColor(t.Status)).Reverse(true).Bold(true).Render(status) + "  " + dim.Render(m.laneOf(t.Status))
 	if t.Workflow != "" {
@@ -126,9 +122,6 @@ func (m Model) taskDetailSummary(t tasks.Task, w int) []string {
 	title := m.boardStyle(m.theme.TextPrimary).Bold(true).Render(boardTitle(t))
 	for _, line := range strings.Split(ansi.Wrap(title, max(1, w), ""), "\n") {
 		add(line)
-	}
-	if tabs := m.detailTabStrip(w); len(tabs) > 0 {
-		lines = append(lines, tabs...)
 	}
 	// A Chat tab that cannot be entered says why, right where the tabs are: a
 	// TUI has no tooltips, so the reason has to stay on screen.
@@ -246,6 +239,10 @@ func (m Model) taskDetailBody(t tasks.Task, w int) []string {
 		return nil
 	}
 	switch m.detailTab {
+	case detailTabFiles:
+		return m.taskDetailFiles(t, w)
+	case detailTabNeeds:
+		return m.taskDetailNeeds(t, w)
 	case detailTabChat:
 		return m.taskDetailChat(t, w)
 	case detailTabActivity:
@@ -287,18 +284,61 @@ func (m Model) taskDetailDetails(t tasks.Task, w int) []string {
 	}
 	lines = append(lines, desc...)
 
-	if len(m.attachments) > 0 {
-		section("Attachments · a view · A attach")
-		for _, a := range m.attachments {
-			lines = append(lines, m.detailBlock(m.icons.Attach+" "+a.Name+dim.Render(" · "+detailSize(a.Size)), "  ", "", w)...)
-		}
-	}
 	if t.Note != "" {
 		section("Note")
 		lines = append(lines, m.detailBlock(t.Note, "  ", "", w)...)
 	}
+	cfg := m.boardConfig
+	if c, err := tasks.ConfigForTask(m.boardDir, cfg, t); err == nil {
+		cfg = c
+	}
+	if usage := metrics.TicketUsageOf(m.metricState, t, cfg, m.boardHistory, now).Lines(compactTokens); len(usage) > 0 {
+		section("Usage")
+		for _, l := range usage {
+			lines = append(lines, m.detailBlock(l, "  ", "", w)...)
+		}
+	}
+	if t.Status == "doing" {
+		running := false
+		for _, r := range metrics.RunsOf(m.metricState, t.ID) {
+			running = running || r.Ended.IsZero()
+		}
+		if !running && len(metrics.RunsOf(m.metricState, t.ID)) > 0 {
+			lines = append(lines, m.detailBlock(m.boardStyle(m.theme.StatusError).Render("! no agent is running this task"), "  ", "", w)...)
+		}
+	}
+	return lines
+}
+
+// taskDetailFiles is the Files tab: the ticket's attachments, which a / A act on.
+func (m Model) taskDetailFiles(t tasks.Task, w int) []string {
+	dim := m.boardStyle(m.theme.TextDim)
+	if len(m.attachments) == 0 {
+		return []string{ansi.Truncate("  "+dim.Render("No attachments · A attach"), w, "")}
+	}
+	var lines []string
+	for _, a := range m.attachments {
+		lines = append(lines, m.detailBlock(m.icons.Attach+" "+a.Name+dim.Render(" · "+detailSize(a.Size)), "  ", "", w)...)
+	}
+	return lines
+}
+
+// taskDetailNeeds is the Needs tab: what the ticket waits for (D edits it) and
+// what waits for it.
+func (m Model) taskDetailNeeds(t tasks.Task, w int) []string {
+	dim := m.boardStyle(m.theme.TextDim)
+	var lines []string
+	section := func(label string) {
+		if len(lines) > 0 {
+			lines = append(lines, "")
+		}
+		lines = append(lines, m.detailSection(label, w)...)
+	}
+	if len(t.Needs) == 0 && len(m.dependents(t.ID)) == 0 {
+		return []string{ansi.Truncate("  "+dim.Render("No dependencies · D edit"), w, "")}
+	}
 	if len(t.Needs) > 0 {
-		section("Dependencies · D edits")
+		section("Waits for · D edits")
 		for _, id := range t.Needs {
 			status, name := "missing", ""
 			for _, n := range m.notes {
@@ -318,25 +358,6 @@ func (m Model) taskDetailDetails(t tasks.Task, w int) []string {
 		section("Blocks")
 		for _, d := range dependents {
 			lines = append(lines, m.detailBlock(m.boardStyle(m.boardColor(d.Status)).Render("#"+d.ID+" "+d.Status)+dim.Render(" · ")+boardTitle(d), "  ", "", w)...)
-		}
-	}
-	cfg := m.boardConfig
-	if c, err := tasks.ConfigForTask(m.boardDir, cfg, t); err == nil {
-		cfg = c
-	}
-	if usage := metrics.TicketUsageOf(m.metricState, t, cfg, m.boardHistory, now).Lines(compactTokens); len(usage) > 0 {
-		section("Usage")
-		for _, l := range usage {
-			lines = append(lines, m.detailBlock(l, "  ", "", w)...)
-		}
-	}
-	if t.Status == "doing" {
-		running := false
-		for _, r := range metrics.RunsOf(m.metricState, t.ID) {
-			running = running || r.Ended.IsZero()
-		}
-		if !running && len(metrics.RunsOf(m.metricState, t.ID)) > 0 {
-			lines = append(lines, m.detailBlock(m.boardStyle(m.theme.StatusError).Render("! no agent is running this task"), "  ", "", w)...)
 		}
 	}
 	return lines
@@ -715,7 +736,7 @@ func (m Model) detailViewport(lines []string, w, rows, offset int) []string {
 }
 
 // detailTabKey switches the ticket panel's tab: tab/l and shift+tab/h cycle,
-// 1-4 jump straight to Details, Chat, Activity or Run. Scrolling restarts at the
+// 1-6 jump straight to a tab. Scrolling restarts at the
 // top so a new tab never opens half way down. A Chat tab that cannot be entered
 // (its pane's harness cannot be read) is skipped by cycling and explained when
 // it is asked for by number.
@@ -727,7 +748,7 @@ func (m *Model) detailTabKey(key string) bool {
 		step, cycle = 1, true
 	case "shift+tab", "h":
 		step, cycle = -1, true
-	case "1", "2", "3", "4":
+	case "1", "2", "3", "4", "5", "6":
 		step = int(key[0]-'1') - m.detailTab
 	default:
 		return false

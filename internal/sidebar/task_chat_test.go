@@ -35,12 +35,12 @@ func TestTicketChatUnavailableIsDisabledWithItsReason(t *testing.T) {
 		t.Fatalf("chat body does not explain itself:\n%s", body)
 	}
 	// Cycling skips the disabled tab, and a number key refuses it with a notice.
-	m.detailTab = detailTabDetails
+	m.detailTab = detailTabNeeds
 	next, _ := boardPress(m, "tab")
 	if next.detailTab != detailTabActivity {
 		t.Fatalf("tab landed on the disabled Chat tab (%d)", next.detailTab)
 	}
-	next, _ = boardPress(next, "2")
+	next, _ = boardPress(next, "4")
 	if next.detailTab != detailTabActivity || !strings.Contains(next.taskNotice, "Chat unavailable") {
 		t.Fatalf("number key entered the disabled chat tab: tab %d, notice %q", next.detailTab, next.taskNotice)
 	}

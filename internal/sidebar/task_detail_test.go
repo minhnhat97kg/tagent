@@ -47,14 +47,14 @@ func TestTaskDetailSummaryFirst(t *testing.T) {
 	if len(lines) != 19 {
 		t.Fatalf("drawer height %d", len(lines))
 	}
-	head := ansi.Strip(lines[0])
+	head := ansi.Strip(lines[1]) // lines[0] is the tab strip
 	for _, want := range []string{"#1", "todo", "todo"} {
 		if !strings.Contains(head, want) {
 			t.Fatalf("summary head misses %q: %q", want, head)
 		}
 	}
-	if !strings.Contains(ansi.Strip(lines[1]), "First card") {
-		t.Fatalf("title not right under the head: %q", ansi.Strip(lines[1]))
+	if !strings.Contains(ansi.Strip(lines[2]), "First card") {
+		t.Fatalf("title not right under the head: %q", ansi.Strip(lines[2]))
 	}
 	view := ansi.Strip(strings.Join(lines, "\n"))
 	for _, want := range []string{"Assignee   builder", "Due", "Created", "overdue"} {
@@ -62,12 +62,12 @@ func TestTaskDetailSummaryFirst(t *testing.T) {
 			t.Fatalf("summary misses %q:\n%s", want, view)
 		}
 	}
-	if !strings.Contains(ansi.Strip(lines[len(lines)-1]), "j/k scroll") {
-		t.Fatalf("sticky footer missing: %q", ansi.Strip(lines[len(lines)-1]))
+	if strings.Contains(view, "j/k scroll") {
+		t.Fatalf("drawer repeats the footer hints:\n%s", view)
 	}
 	// Scrolling only moves the body, never the summary.
 	m.detailScroll = 0
-	if ansi.Strip(m.boardDetail(76, 19)[0]) != head {
+	if ansi.Strip(m.boardDetail(76, 19)[1]) != head {
 		t.Fatal("summary scrolled away")
 	}
 }
@@ -306,7 +306,7 @@ func TestTaskDetailTabs(t *testing.T) {
 	for _, c := range []struct {
 		key string
 		tab int
-	}{{"2", detailTabChat}, {"3", detailTabActivity}, {"4", detailTabRun}, {"1", detailTabDetails}} {
+	}{{"2", detailTabFiles}, {"3", detailTabNeeds}, {"4", detailTabChat}, {"5", detailTabActivity}, {"6", detailTabRun}, {"1", detailTabDetails}} {
 		m, _ = boardPress(m, c.key)
 		if m.detailTab != c.tab {
 			t.Fatalf("%s selected tab %d, want %d", c.key, m.detailTab, c.tab)
@@ -314,7 +314,7 @@ func TestTaskDetailTabs(t *testing.T) {
 	}
 	// tab / shift+tab cycle, wrapping at the ends.
 	m, _ = boardPress(m, "tab")
-	if m.detailTab != detailTabChat {
+	if m.detailTab != detailTabFiles {
 		t.Fatal("tab did not cycle forward")
 	}
 	m, _ = boardPress(m, "shift+tab")
