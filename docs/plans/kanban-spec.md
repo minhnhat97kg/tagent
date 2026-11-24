@@ -31,7 +31,7 @@ Every trigger is configurable. A trigger can start an agent or run a workflow.
 
 ## Triggers config
 - Location: `.tasks/board.yaml` at the repo root (same root logic as workflow.LocalDir).
-- Optional global file: `~/.config/tmux-agent/board.yaml`.
+- Optional global file: `~/.config/tagent/board.yaml`.
 - Missing files mean the default columns and no triggers.
 
 ```yaml
@@ -44,7 +44,7 @@ triggers:
     inputs: {task: "{{task.id}}"}
     prompt: |
       You were assigned task {{task.id}}: {{task.title}}.
-      Read it with `tmux-agent task show {{task.id}}`, add a plan as a comment, set a due date, then assign it to implementer.
+      Read it with `tagent task show {{task.id}}`, add a plan as a comment, set a due date, then assign it to implementer.
   - on: mention
     when: {to: "*"}
     agent: "{{event.name}}"   # the mentioned agent
@@ -69,11 +69,11 @@ triggers:
   - Dedupe by seq.
 - Each fire is recorded as a system comment on the task, for example "▶ triggered planner (assign)", so the user can see it on the ticket.
 - Where it runs:
-  - inside `tmux-agent web` (a goroutine per project scope that the server knows about);
-  - as `tmux-agent board run [--dir]` for TUI-only users.
+  - inside `tagent web` (a goroutine per project scope that the server knows about);
+  - as `tagent board run [--dir]` for TUI-only users.
   - A lock file prevents two dispatchers on one scope.
 
-## CLI (cmd/tmux-agent/task.go)
+## CLI (cmd/tagent/task.go)
 - `task show <id>`: title, status, assignees, due, text, comments with attachment paths. This is what agents read.
 - `task comment <id> [--attach path]... [--diff] <text>`
   - `--diff` attaches `git diff HEAD` of the cwd as `diff.patch`.
@@ -82,7 +82,7 @@ triggers:
 - `task set` accepts the configured columns.
 - `board run`
 - `board init` writes an example board.yaml with lead → planner → implementer triggers.
-- Update help text and the tmux-agent skill (assets) so agents know these commands and how @mentions work.
+- Update help text and the tagent skill (assets) so agents know these commands and how @mentions work.
 
 ## Web (web/, internal/web/server.go)
 - Route `#/board`: a kanban view in `<main>`. It has one column per configured status, and task cards show title, assignees, due date and comment count.

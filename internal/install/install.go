@@ -428,13 +428,31 @@ func (e env) editJSON(path string, fn func(map[string]any)) error {
 // ─── text files ────────────────────────────────────────────────────────
 
 const (
-	blockBegin = "<!-- tmux-agent:begin (managed by `tmux-agent install`) -->"
-	blockEnd   = "<!-- tmux-agent:end -->"
+	blockBegin = "<!-- tagent:begin (managed by `tagent install`) -->"
+	blockEnd   = "<!-- tagent:end -->"
 )
+
+// dropBlock cuts the block between begin and end (and its newline) out of s.
+func dropBlock(s, begin, end string) string {
+	i := strings.Index(s, begin)
+	if i < 0 {
+		return s
+	}
+	j := strings.Index(s[i:], end)
+	if j < 0 {
+		return s
+	}
+	cut := i + j + len(end)
+	if cut < len(s) && s[cut] == '\n' {
+		cut++
+	}
+	return s[:i] + s[cut:]
+}
 
 // setBlock replaces the tagent block in s with body (removes it when
 // body is ""), or appends one.
 func setBlock(s, body string) string {
+	s = dropBlock(s, "<!-- tmux-agent:begin (managed by `tmux-agent install`) -->", "<!-- tmux-agent:end -->") // the block under its old name
 	block := ""
 	if body != "" {
 		block = blockBegin + "\n" + strings.TrimSpace(body) + "\n" + blockEnd + "\n"

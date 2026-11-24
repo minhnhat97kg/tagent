@@ -218,3 +218,11 @@ func TestDryRunWritesNothing(t *testing.T) {
 		t.Errorf("dry run wrote %v", entries)
 	}
 }
+
+func TestSetBlockReplacesOldNamedBlock(t *testing.T) {
+	old := "keep\n<!-- tmux-agent:begin (managed by `tmux-agent install`) -->\nold\n<!-- tmux-agent:end -->\n"
+	got := setBlock(old, "new")
+	if strings.Contains(got, "tmux-agent") || !strings.Contains(got, "new") || !strings.HasPrefix(got, "keep") || strings.Count(got, blockBegin) != 1 {
+		t.Fatalf("%q", got)
+	}
+}

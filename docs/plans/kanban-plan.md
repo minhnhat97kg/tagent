@@ -8,7 +8,7 @@ Planning only; based on `kanban-spec.md` and the current checkout. No new Go or 
 - All task writes already use `tasks.withLock`; `write` atomically replaces a task. Existing mutations are `Add`, `Update`, `Edit`, `SetNote`, `Remove`.
 - `startWorkflowAgent` calls `spawnAgent(spawnOpts{... Wait:true})`, selecting `Agent` for `harnesses` and `Role` for definitions. `spawnAgent` already resolves profiles/models/instructions, sets pane names, places panes and creates `hiddenSession` outside tmux.
 - `runWorkflow` deliberately creates and closes a fresh agent per job; leave that lifecycle intact. Board agents should persist.
-- `cmdSend` in `cmd/tmux-agent/agentcli.go` queues running/background/waiting panes via `queue.Push`, otherwise uses `tmux.TypeLine`. `internal/scrape/scrape.go` drains the queue when idle. Web `send` currently types directly, so it is not the dispatcher delivery path.
+- `cmdSend` in `cmd/tagent/agentcli.go` queues running/background/waiting panes via `queue.Push`, otherwise uses `tmux.TypeLine`. `internal/scrape/scrape.go` drains the queue when idle. Web `send` currently types directly, so it is not the dispatcher delivery path.
 - Actual API is `POST /api/tasks` (plural). Route parsing is `web/src/hooks/useRoute.ts`; there is no `internal/hooks/route`. The installed agent skill source is `internal/skill/SKILL.md` (embedded by `skill.go`), not an assets skill file.
 
 ## 1. Define config and mutation contracts
@@ -34,7 +34,7 @@ Acceptance: old files unchanged on read; custom status validation; done timestam
 
 ## 2. Add CLI commands and cover every writer
 
-Files: change `cmd/tmux-agent/task.go` (`cmdTask`), `dispatch.go`, `help.go`, `internal/skill/SKILL.md`; add `cmd/tmux-agent/board.go`, `task_test.go`, `board_test.go`.
+Files: change `cmd/tagent/task.go` (`cmdTask`), `dispatch.go`, `help.go`, `internal/skill/SKILL.md`; add `cmd/tagent/board.go`, `task_test.go`, `board_test.go`.
 
 - Add show/comment/due; parse repeatable `--attach` and `--diff` without losing comment text. Run `exec.Command("git","diff","HEAD")` with cmd.Dir=cwd, check errors, stage output as diff.patch, clean temp files. Show full ticket and resolved attachment paths. Due `-` clears. Set help refers to configured columns.
 - `cmdBoard`: `run [--dir DIR]` and `init [--dir DIR]`. Init exclusively creates `.tasks/board.yaml`, never overwrites; example lead → planner → implementer rules plus mention rule, using roles users can define. Register in command dispatch/help and document show/comment/due/mentions/attachments.
@@ -44,7 +44,7 @@ Acceptance: CLI show includes comments/due/title; diff attachment matches git di
 
 ## 3. Implement dispatcher and bridge existing execution helpers
 
-Files: add `internal/board/board.go`, `board_test.go`; extend `cmd/tmux-agent/board.go`; change `cmd/tmux-agent/web.go:cmdWeb`, `internal/web/server.go:Serve/server/state/project`, and `internal/workflow/workflow.go` for `StartDetached`.
+Files: add `internal/board/board.go`, `board_test.go`; extend `cmd/tagent/board.go`; change `cmd/tagent/web.go:cmdWeb`, `internal/web/server.go:Serve/server/state/project`, and `internal/workflow/workflow.go` for `StartDetached`.
 
 `board.Run(ctx,dir,fire)` owns a nonblocking flock on `<boardDir>/dispatch.lock`, polls complete JSONL records, reloads valid config on changes, and persists `<boardDir>/dispatch.state` using temp+rename. Lock is separate from tasks .lock; never hold the task lock while launching agents. A single callback `fire(Action) error` bridges package board to main's unexported CLI helpers without moving spawn machinery or adding a service framework. `cmdWeb` passes this callback into web.Serve; `cmdBoard run` uses it directly.
 

@@ -39,7 +39,7 @@ Update the footer and help hints for the new keys.
 - Run `go build ./... && TMPDIR=/tmp go test ./internal/watch ./internal/tasks` and report real results. Do not commit.
 
 ## CORRECTION (wrong target)
-`tmux-agent watch` runs `sidebar.Run()` (internal/sidebar dashboard: Overview / Running agents / Tasks / Git panels, `dashboardView` in internal/sidebar/dashboard.go). The internal/watch model is NOT used by any command (only watch.Stream). So the kanban must live in internal/sidebar:
+`tagent watch` runs `sidebar.Run()` (internal/sidebar dashboard: Overview / Running agents / Tasks / Git panels, `dashboardView` in internal/sidebar/dashboard.go). The internal/watch model is NOT used by any command (only watch.Stream). So the kanban must live in internal/sidebar:
 - From the dashboard, with the Tasks panel focused, key `b` (and also Enter on the Tasks panel title / when no tasks) opens a full-screen **Board mode** that replaces the dashboard body (like `taskForm` takes over `dashboardView`). `esc`/`q`/`b` returns to the dashboard.
 - Board mode = the kanban + detail layout from this spec (columns from config, cards, detail with comments, h/l j/k, H/L move, `c` edit config + trigger summary line, narrow fallback = single column list grouped by status). The existing task actions (a add, e edit, g assign, s start, u status, x delete, with the existing forms in task_actions.go) must work on the selected card; map selection back to m.taskCursor / m.notes.
 - Make Board mode the obvious place: add `b board` to the Tasks-focus footer help and the help overlay (help.go).
