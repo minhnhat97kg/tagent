@@ -58,6 +58,7 @@ func ConfigForTask(dir string, base BoardConfig, t Task) (BoardConfig, error) {
 	}
 	base.Statuses = append(base.Statuses, Status{ID: "blocked"}, Status{ID: "done", Next: []string{}})
 	base.Columns = append(base.Columns, "blocked", "done")
+	base.addDeclared()
 	for i := range base.Statuses {
 		for _, s := range overrides {
 			if s.ID == base.Statuses[i].ID {

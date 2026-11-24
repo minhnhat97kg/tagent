@@ -72,8 +72,11 @@ type BoardConfig struct {
 	Statuses        []Status        `yaml:"statuses,omitempty"` // deprecated input: converted to the implicit "board" workflow
 	Columns         []string        `yaml:"columns,omitempty"`  // deprecated input
 	DefaultWorkflow string          `yaml:"default_workflow,omitempty"`
-	Triggers        []Trigger       `yaml:"triggers"`
-	MaxFiresPerHour int             `yaml:"max_fires_per_hour"`
+	// LaneStatuses declares which statuses sit in which board lane (todo,
+	// in progress, blocked, done); every ticket may be moved to them.
+	LaneStatuses    map[string][]string `yaml:"lanes,omitempty"`
+	Triggers        []Trigger           `yaml:"triggers"`
+	MaxFiresPerHour int                 `yaml:"max_fires_per_hour"`
 
 	Legacy              bool     `yaml:"-"` // statuses were converted to the implicit workflow "board"
 	Warnings            []string `yaml:"-"`
@@ -298,6 +301,10 @@ func ParseBoardConfigFor(dir string, b []byte) (BoardConfig, error) {
 	} else {
 		c.Columns = DefaultColumns()
 	}
+	if err := c.validateLanes(); err != nil {
+		return c, configErr(lines.top["lanes"], "%w", err)
+	}
+	c.addDeclared()
 	for name, r := range c.Roles {
 		if err := ValidateEffort(r.Agent, r.Effort); err != nil {
 			return c, configErr(lines.roles[name], "role %s: %w", name, err)
@@ -606,6 +613,11 @@ func AtomicWrite(path string, b []byte) error {
 // Lane is the board column a status is shown in. Lanes are fixed; every
 // workflow job status lands in "in progress" and the card shows the real status.
 func (c BoardConfig) Lane(status string) string {
+	for lane, ids := range c.LaneStatuses {
+		if slices.Contains(ids, status) {
+			return lane
+		}
+	}
 	switch status {
 	case "todo", "blocked", "done":
 		return status
@@ -615,3 +627,47 @@ func (c BoardConfig) Lane(status string) string {
 
 // Lanes lists the board columns in display order.
 func (c BoardConfig) Lanes() []string { return []string{"todo", "in progress", "blocked", "done"} }
+
+// validateLanes checks the declared lanes: known lane names, plain status ids,
+// each status in one lane only.
+func (c BoardConfig) validateLanes() error {
+	seen := map[string]string{}
+	for lane, ids := range c.LaneStatuses {
+		if !slices.Contains(c.Lanes(), lane) {
+			return fmt.Errorf("lanes: unknown lane %q (use %s)", lane, strings.Join(c.Lanes(), ", "))
+		}
+		for _, id := range ids {
+			if id == "" || strings.ContainsAny(id, " \t\n,/\\") {
+				return fmt.Errorf("lanes: invalid status %q", id)
+			}
+			if other, dup := seen[id]; dup {
+				return fmt.Errorf("lanes: status %q is in both %q and %q", id, other, lane)
+			}
+			seen[id] = lane
+		}
+	}
+	return nil
+}
+
+// addDeclared makes the declared statuses valid for the ticket and orders the
+// columns by lane (stable inside a lane), so H/L and the picker follow the board.
+func (c *BoardConfig) addDeclared() {
+	for _, lane := range c.Lanes() {
+		for _, id := range c.LaneStatuses[lane] {
+			if !slices.Contains(c.Columns, id) {
+				c.Columns = append(c.Columns, id)
+				if len(c.Statuses) > 0 {
+					c.Statuses = append(c.Statuses, Status{ID: id})
+				}
+			}
+		}
+	}
+	rank := func(id string) int { // lane first, then the order the lane declares
+		at := slices.Index(c.LaneStatuses[c.Lane(id)], id)
+		if at < 0 {
+			at = 999
+		}
+		return slices.Index(c.Lanes(), c.Lane(id))*1000 + at
+	}
+	slices.SortStableFunc(c.Columns, func(a, b string) int { return rank(a) - rank(b) })
+}
