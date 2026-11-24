@@ -277,6 +277,7 @@ completed; an uncertain reservation may already have sent work, so retry can
 duplicate side effects. Retry preserves hourly limits and workflow loop caps.
 See the
 [Workflows guide](docs/board.md#workflows) for trusted inputs, outputs and live resolution.
+Agents that work better with typed tools can use `tagent mcp`, a stdio MCP server with `task_show`, `task_move`, `task_comment` and `task_add`; see [docs/mcp.md](docs/mcp.md).
 
 See [docs/board.md](docs/board.md) for schema, migration and delivery guarantees.
 

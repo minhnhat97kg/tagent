@@ -100,32 +100,7 @@ func cmdTask(args []string, stdout, stderr io.Writer) int {
 			err = tasks.Move(scope, args[1], args[2], body, opt)
 		}
 		if err == nil {
-			cfg, e := tasks.LoadBoardConfig(wd)
-			if e != nil {
-				err = e
-				break
-			}
-			ticket, e := tasks.Get(scope, args[1])
-			if e != nil {
-				err = e
-				break
-			}
-			cfg, e = tasks.ConfigForTask(wd, cfg, ticket)
-			if e != nil {
-				err = e
-				break
-			}
-			for _, s := range cfg.Statuses {
-				if s.ID == args[2] && (s.Role != "" || s.Run != "") {
-					if err = board.Register(wd); err == nil {
-						err = ensureBoardScraper()
-					}
-					if err != nil {
-						err = fmt.Errorf("entry persisted, dispatcher startup failed (not confirmed dispatched): %w", err)
-					}
-					break
-				}
-			}
+			err = dispatchEntry(wd, scope, args[1], args[2])
 		}
 	case "show":
 		brief := len(args) == 3 && args[2] == "--brief"
@@ -135,6 +110,12 @@ func cmdTask(args []string, stdout, stderr io.Writer) int {
 		var t tasks.Task
 		t, err = tasks.Get(scope, args[1])
 		if err != nil {
+			break
+		}
+		if brief {
+			var text string
+			text, err = briefView(scope, t)
+			fmt.Fprint(stdout, text)
 			break
 		}
 		events, e := tasks.ReadEvents(scope, 0)
@@ -147,17 +128,6 @@ func cmdTask(args []string, stdout, stderr io.Writer) int {
 			if ev.Task == t.ID && ev.Kind == "dispatch" {
 				activity = append(activity, ev)
 			}
-		}
-		if brief {
-			fmt.Fprint(stdout, tasks.Brief(t))
-			if len(activity) > 0 {
-				msg := []rune(activity[len(activity)-1].Message)
-				if len(msg) > 400 {
-					msg = append(msg[:400], '…')
-				}
-				fmt.Fprintf(stdout, "Dispatch: %s\n", string(msg))
-			}
-			break
 		}
 		fmt.Fprintf(stdout, "%s: %s\nStatus: %s\nAssignees: %s\nDue: %s\n\n%s\n", t.ID, t.Title, t.Status, strings.Join(t.Assignees, ","), t.Due, t.Text)
 		if t.Workflow != "" {
@@ -445,6 +415,58 @@ func cmdTask(args []string, stdout, stderr io.Writer) int {
 // must name that same ticket. Listing is read-only and stays allowed; adding a
 // ticket is not — the chat changes its own ticket, not the board. This guards
 // the CLI only: a shell can still unset TMUX_PANE or change directory.
+// briefView is the compact agent context (`task show --brief`) and the MCP task_show result.
+func briefView(scope string, t tasks.Task) (string, error) {
+	events, err := tasks.ReadEvents(scope, 0)
+	if err != nil {
+		return "", err
+	}
+	out := tasks.Brief(t)
+	var last *tasks.Event
+	for i := range events {
+		if events[i].Task == t.ID && events[i].Kind == "dispatch" {
+			last = &events[i]
+		}
+	}
+	if last != nil {
+		msg := []rune(last.Message)
+		if len(msg) > 400 {
+			msg = append(msg[:400], '…')
+		}
+		out += fmt.Sprintf("Dispatch: %s\n", string(msg))
+	}
+	return out, nil
+}
+
+// dispatchEntry starts the board dispatcher when a ticket enters a status that
+// has a role or run. Shared by `task move` and the MCP task_move tool.
+func dispatchEntry(wd, scope, id, to string) error {
+	cfg, err := tasks.LoadBoardConfig(wd)
+	if err != nil {
+		return err
+	}
+	ticket, err := tasks.Get(scope, id)
+	if err != nil {
+		return err
+	}
+	cfg, err = tasks.ConfigForTask(wd, cfg, ticket)
+	if err != nil {
+		return err
+	}
+	for _, s := range cfg.Statuses {
+		if s.ID == to && (s.Role != "" || s.Run != "") {
+			if err := board.Register(wd); err != nil {
+				return fmt.Errorf("entry persisted, dispatcher startup failed (not confirmed dispatched): %w", err)
+			}
+			if err := ensureBoardScraper(); err != nil {
+				return fmt.Errorf("entry persisted, dispatcher startup failed (not confirmed dispatched): %w", err)
+			}
+			return nil
+		}
+	}
+	return nil
+}
+
 func taskBinding(scope string, args []string) error {
 	boundScope, bound, ok := tasks.CallerTicket()
 	if !ok {
