@@ -155,14 +155,15 @@ test("the header puts Start, Edit and Delete in one row and Start runs the chose
   expect(within(row).queryByRole("button", { name: "Start" })).toBeNull()
 })
 
-test("Start on a todo ticket runs the chosen workflow", async () => {
-  const todo = { ...task, status: "todo", comments: [] }
+test("the workflow is picked in Details and Start only starts", async () => {
+  const todo = { ...task, status: "todo", workflow: undefined, comments: [] }
   render(<BoardDrawer task={todo} statuses={["todo", "build", "done"]} roles={["builder"]} role="" dir="/repo" reload={() => {}} workflows={[workflow]} />)
+  await userEvent.selectOptions(screen.getByRole("combobox", { name: "Task workflow" }), "feature")
+  expect(mocks.post).toHaveBeenCalledWith("/api/tasks", { Dir: "/repo", ID: "30", Op: "workflow", Workflow: "feature" })
   const row = document.querySelector(".drawer-actions") as HTMLElement
-  await userEvent.click(within(row).getByRole("button", { name: "Choose workflow" }))
-  await userEvent.click(screen.getByRole("menuitemradio", { name: "feature" }))
+  expect(within(row).queryByRole("button", { name: "Choose workflow" })).toBeNull()
   await userEvent.click(within(row).getByRole("button", { name: "Start" }))
-  expect(mocks.post).toHaveBeenCalledWith("/api/tasks", { Dir: "/repo", ID: "30", Op: "start", Status: "feature" })
+  expect(mocks.post).toHaveBeenCalledWith("/api/tasks", { Dir: "/repo", ID: "30", Op: "start", Status: "" })
 })
 
 test("Run reuses the run view inside the panel", async () => {

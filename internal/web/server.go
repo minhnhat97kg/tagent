@@ -581,6 +581,8 @@ func (s *server) taskOp(w http.ResponseWriter, r *http.Request) {
 		err = tasks.Edit(scope, o.ID, o.Text)
 	case "rm":
 		err = tasks.Remove(scope, o.ID)
+	case "workflow": // the ticket's type, picked in todo; start runs it
+		err = tasks.SetWorkflow(scope, o.ID, o.Workflow, nil)
 	case "start": // Status names a workflow, or "board" for the next column (same as the TUI's s picker)
 		err = board.Start(o.Dir, o.ID, o.Status)
 	default:

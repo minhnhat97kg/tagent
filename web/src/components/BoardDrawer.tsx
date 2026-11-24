@@ -4,7 +4,7 @@ import { AttachmentRows, AttachmentViewer, type Attachment } from "./Attachments
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react"
 import { DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { act, api, post } from "@/api"
-import { ArrowRight, Check, ChevronDown, Paperclip, Pencil, Play, Reply, Trash2, TriangleAlert } from "lucide-react"
+import { ArrowRight, Check, Paperclip, Pencil, Play, Reply, Trash2, TriangleAlert } from "lucide-react"
 import { RunView } from "./RunPage"
 import { TicketChat } from "./TicketChat"
 import { useTicketChat } from "@/hooks/useTicketChat"
@@ -170,10 +170,6 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
   const desc = task.text && task.text.trim() !== title(task) ? task.text : ""
   const [editing, setEditing] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
-  // Start runs the chosen flow: the board's next column, or one of the workflows.
-  const [flow, setFlow] = useState(task.workflow || "board")
-  const [startMenu, setStartMenu] = useState(false)
-  const startLabel = flow === "board" ? "Next board column" : flow
   const [filter, setFilter] = useState<FilterID>("all")
   const [newest, setNewest] = useState(() => { try { return localStorage.getItem(SORT_KEY) !== "oldest" } catch { return true } })
   const toggleSort = () => { setNewest(v => { try { localStorage.setItem(SORT_KEY, v ? "oldest" : "newest") } catch { /* private mode: the choice just is not remembered */ } return !v }) }
@@ -211,7 +207,8 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
   // Replying belongs to the conversation: the composer opens prefilled with the @mention.
   const replyTo = (who: string) => { setTab("activity"); setFilter("all"); setBody(`@${who} `); setComposerOpen(true) }
   const reply = () => replyTo(role || roles[0] || "")
-  const startOptions = [{ value: "board", label: "Next board column", disabled: false }, ...workflows.map(w => ({ value: w.name, label: `${w.name}${w.global ? " (global)" : ""}${w.error ? " — invalid" : ""}`, disabled: !!w.error }))]
+  // Start runs the ticket's type (Details > Workflow), or the board's default workflow.
+  const startLabel = task.workflow || project?.defaultWorkflow || "default workflow"
   const canSend = !sending && (!!body.trim() || files.length > 0)
   const canStart = (task.status === "todo" || !task.workflow) && task.status !== "done"
   // Roles still working on this ticket after being @mentioned: no reply comment from them since.
@@ -228,13 +225,7 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
   return <>
     <div className="drawer-actions">
       <span className="board-key" title={task.id}>{shortId(task.id)}</span>
-      {canStart && <div className="start-split">
-        <button type="button" className="start-main" title={`Start · ${startLabel}`} onClick={() => op({ Op: "start", Status: flow })}><Play />Start</button>
-        <button type="button" className="start-caret" aria-label="Choose workflow" aria-haspopup="menu" aria-expanded={startMenu} onClick={() => setStartMenu(!startMenu)}><ChevronDown /></button>
-        {startMenu && <ul role="menu" aria-label="Start with" className="start-menu">
-          {startOptions.map(o => <li key={o.value}><button type="button" role="menuitemradio" aria-checked={flow === o.value} disabled={o.disabled} onClick={() => { setFlow(o.value); setStartMenu(false) }}>{o.label}</button></li>)}
-        </ul>}
-      </div>}
+      {canStart && <button type="button" className="start-main" title={`Start · ${startLabel}`} onClick={() => op({ Op: "start", Status: "" })}><Play />Start</button>}
       {!!priorityMark(task.priority) && <span className="card-prio" title={`${task.priority} priority`} aria-label={`${task.priority} priority`}>{priorityMark(task.priority)} {task.priority}</span>}
       <button type="button" aria-label="Edit" title="Edit" onClick={() => setEditing(editing === null ? task.text : null)}><Pencil /></button>
       {confirmDelete
@@ -260,7 +251,7 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
     {chatOff && <p role="status" className="-mt-3 flex items-start gap-1.5 rounded-md border border-amber-500/40 bg-amber-500/5 px-2 py-1.5 text-[11.5px] text-amber-700 dark:text-amber-400"><TriangleAlert className="mt-px size-3.5 shrink-0" /><span>Chat unavailable · {chat.info?.reason || "this ticket's chat cannot be read"}</span></p>}
     {tab === "details" && <div role="tabpanel" id="task-panel-details" aria-labelledby="task-tab-details" className="drawer-panel">
       <dl className="board-fields">
-      <dt>Status</dt><dd><i className="status-dot" style={{ background: statusColor(task.status) }} /><select aria-label="Task status" value={task.status} onChange={e => act(post("/api/tasks", { Dir: dir, Op: "set", ID: task.id, Status: e.target.value }).then(reload))}>{statuses.map(s => <option key={s}>{s}</option>)}</select></dd>
+      <dt>Status</dt><dd><select aria-label="Task status" value={task.status} onChange={e => act(post("/api/tasks", { Dir: dir, Op: "set", ID: task.id, Status: e.target.value }).then(reload))}>{statuses.map(s => <option key={s}>{s}</option>)}</select><i className="status-dot" style={{ background: statusColor(task.status) }} /></dd>
       <dt>Priority</dt><dd><select aria-label="Task priority" value={task.priority || "normal"} onChange={e => op({ Op: "priority", Priority: e.target.value })}>{["high", "normal", "low"].map(p => <option key={p}>{p}</option>)}</select></dd>
       <dt>Dependencies</dt><dd className="dep-field">
         {needs.map(id => <button type="button" key={id} className="dep-chip" title={`Remove #${id}`} onClick={() => setNeeds(needs.filter(x => x !== id))}>{shortId(id)} ×</button>)}
@@ -270,13 +261,20 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
         <datalist id="dep-options">{candidates.map(t => <option key={t.id} value={t.id}>{shortId(t.id)} {title(t)}</option>)}</datalist>
       </dd>
       {role && <><dt>Role</dt><dd><Avatar role={role} />{role}</dd></>}
-      {task.workflow && <><dt>Workflow</dt><dd className="flex flex-wrap items-center gap-1">{task.workflow}{(() => {
+      <dt>Workflow</dt><dd className="flex-wrap">{task.status === "todo"
+        // The type is picked here while the ticket is in todo; Start then runs it.
+        ? <select aria-label="Task workflow" className="!normal-case" value={task.workflow || ""} onChange={e => op({ Op: "workflow", Workflow: e.target.value })}>
+            {!task.workflow && <option value="">Default ({project?.defaultWorkflow || "none"})</option>}
+            {workflows.map(w => <option key={w.name} value={w.name} disabled={!!w.error}>{w.name}{w.global ? " (global)" : ""}{w.error ? " — invalid" : ""}</option>)}
+          </select>
+        : <span>{task.workflow || "—"}</span>}
+      {task.workflow && <div className="flex w-full flex-wrap items-center gap-1">{(() => {
         // Steps of the ticket's recipe: finished ones checked, the current one highlighted.
         const jobs = workflows.find(w => w.name === task.workflow || w.file === task.workflow)?.jobs ?? []
         const at = task.status === "done" ? jobs.length : jobs.findIndex(j => j.status === task.status)
         return jobs.map((j, i) => <span key={j.id} title={j.agent || j.run || ""} className={`rounded px-1.5 py-px text-[11px] ${i === at ? "bg-foreground text-background" : i < at ? "text-emerald-600" : "text-muted-foreground"}`}>
           {i > 0 && <span className="mr-1 text-muted-foreground">›</span>}{i < at && <Check className="mr-0.5 inline size-3" />}{j.status}</span>)
-      })()}<button type="button" onClick={() => setTab("run")} className="ml-1 inline-flex items-center gap-0.5 text-[11px] text-brand-ink underline-offset-2 hover:underline">View run<ArrowRight className="size-3" /></button></dd></>}
+      })()}<button type="button" onClick={() => setTab("run")} className="ml-1 inline-flex items-center gap-0.5 text-[11px] text-brand-ink underline-offset-2 hover:underline">View run<ArrowRight className="size-3" /></button></div>}</dd>
       {!!task.assignees?.length && <><dt>Assignees</dt><dd>{task.assignees.join(", ")}</dd></>}
       <dt>Updated</dt><dd title={task.updated}>{rel(task.updated) || "—"}</dd>
       </dl>
