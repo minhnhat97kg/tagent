@@ -5,8 +5,6 @@ PLUGIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 if [[ -x "$PLUGIN_DIR/bin/tagent" ]]; then
     SIDEBAR_BINARY="$PLUGIN_DIR/bin/tagent"
-elif [[ -x "$PLUGIN_DIR/bin/tmux-agent" ]]; then
-    SIDEBAR_BINARY="$PLUGIN_DIR/bin/tmux-agent"
 elif command -v tagent &>/dev/null; then
     SIDEBAR_BINARY="$(command -v tagent)"
 else
@@ -18,6 +16,5 @@ tmux set -g @agent_sidebar_bin "$SIDEBAR_BINARY"
 # Settings saved by `tagent config` — before the defaults below, which
 # only fill options still unset.
 CONFIG_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/tagent/config.conf"
-[ -d "${XDG_CONFIG_HOME:-$HOME/.config}/tagent" ] || CONFIG_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/tmux-agent/config.conf"
 [ -f "$CONFIG_FILE" ] && tmux source-file "$CONFIG_FILE"
 tmux source-file "$PLUGIN_DIR/assets/agent-sidebar.conf"

@@ -61,7 +61,7 @@ func TestClaudeHooksMergeAndUninstall(t *testing.T) {
 	if strings.Contains(string(b), "/old/place") || !strings.Contains(string(b), "/opt/tagent/assets/hook.sh") || !strings.Contains(string(b), "notify-send") {
 		t.Errorf("Stop hooks = %s", b)
 	}
-	if _, err := os.Stat(cfg + ".tmux-agent.bak"); err != nil {
+	if _, err := os.Stat(cfg + ".tagent.bak"); err != nil {
 		t.Error("original must be backed up")
 	}
 	if _, err := os.Stat(e.path(".claude/skills/tagent/SKILL.md")); err != nil {
@@ -216,45 +216,5 @@ func TestDryRunWritesNothing(t *testing.T) {
 	entries, _ := os.ReadDir(e.home)
 	if len(entries) != 0 {
 		t.Errorf("dry run wrote %v", entries)
-	}
-}
-
-func TestLegacySkillPreserved(t *testing.T) {
-	e := testEnv(t)
-	h, _ := find("claude")
-	old := e.path(".claude/skills/tmux-agent")
-	if err := os.MkdirAll(old, 0755); err != nil {
-		t.Fatal(err)
-	}
-	user := filepath.Join(old, "notes.txt")
-	if err := os.WriteFile(user, []byte("mine"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	if err := e.install(h); err != nil {
-		t.Fatal(err)
-	}
-	if b, err := os.ReadFile(user); err != nil || string(b) != "mine" {
-		t.Fatal("user skill content changed")
-	}
-}
-
-func TestLegacySkillDropped(t *testing.T) {
-	e := testEnv(t)
-	h, _ := find("claude")
-	old := e.path(".claude/skills/tmux-agent")
-	if err := os.MkdirAll(old, 0755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(old, "SKILL.md"), []byte("old"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	if err := e.install(h); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := os.Lstat(old); !os.IsNotExist(err) {
-		t.Fatalf("legacy skill still present: %v", err)
-	}
-	if _, err := os.Stat(e.path(".claude/skills/tagent/SKILL.md")); err != nil {
-		t.Fatal(err)
 	}
 }

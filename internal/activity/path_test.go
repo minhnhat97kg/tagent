@@ -3,14 +3,14 @@ package activity
 import "testing"
 
 // The log path is a contract with the hook. pane "%3" must produce
-// /tmp/tmux-agent-activity_3.log — "%" becomes "_", with NO extra "_".
+// /tmp/tagent-activity_3.log — "%" becomes "_", with NO extra "_".
 // TMUX_AGENT_LOG_DIR is not set here: this is precisely the default
 // behavior of the real product, and it must resolve to /tmp.
 func TestLogFilePath(t *testing.T) {
 	cases := map[string]string{
-		"%3":  "/tmp/tmux-agent-activity_3.log",
-		"%12": "/tmp/tmux-agent-activity_12.log",
-		"":    "/tmp/tmux-agent-activity.log",
+		"%3":  "/tmp/tagent-activity_3.log",
+		"%12": "/tmp/tagent-activity_12.log",
+		"":    "/tmp/tagent-activity.log",
 	}
 	for paneID, want := range cases {
 		if got := LogFilePath(paneID); got != want {
@@ -28,7 +28,7 @@ func TestLogFilePathRespectsTMUXAgentLogDir(t *testing.T) {
 	t.Setenv("TMUX_AGENT_LOG_DIR", "/tmp/fixture-xyz")
 
 	got := LogFilePath("%3")
-	want := "/tmp/fixture-xyz/tmux-agent-activity_3.log"
+	want := "/tmp/fixture-xyz/tagent-activity_3.log"
 	if got != want {
 		t.Errorf("LogFilePath(%q) with TMUX_AGENT_LOG_DIR set = %q, want %q", "%3", got, want)
 	}
@@ -42,7 +42,7 @@ func TestLogFilePathEmptyEnvTreatedAsUnset(t *testing.T) {
 	t.Setenv("TMUX_AGENT_LOG_DIR", "")
 
 	got := LogFilePath("%3")
-	want := "/tmp/tmux-agent-activity_3.log"
+	want := "/tmp/tagent-activity_3.log"
 	if got != want {
 		t.Errorf("LogFilePath(%q) with TMUX_AGENT_LOG_DIR empty = %q, want %q", "%3", got, want)
 	}

@@ -8,7 +8,7 @@ import (
 )
 
 // TicketScope is the chat scope of one ticket: the project scope and the
-// ticket id joined with '#', for example "tmux-agent-1a2b3c4d#12". Ticket ids
+// ticket id joined with '#', for example "tagent-1a2b3c4d#12". Ticket ids
 // are numbered per repository, so the key is unique and stable. It is stored
 // in the pane option @pane_ticket and returned by the web chat API.
 func TicketScope(dir, id string) string { return Scope(dir) + "#" + id }

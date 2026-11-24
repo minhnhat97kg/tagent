@@ -1,19 +1,7 @@
-// Package apppath selects the canonical application directory without moving user data.
+// Package apppath selects the application directory under a config or data base.
 package apppath
 
-import (
-	"os"
-	"path/filepath"
-)
+import "path/filepath"
 
-// Dir prefers tagent, falling back only when it is absent and the legacy root exists.
-func Dir(base string) string {
-	current := filepath.Join(base, "tagent")
-	if _, err := os.Stat(current); os.IsNotExist(err) {
-		legacy := filepath.Join(base, "tmux-agent")
-		if _, err := os.Stat(legacy); err == nil {
-			return legacy
-		}
-	}
-	return current
-}
+// Dir is the tagent directory under base.
+func Dir(base string) string { return filepath.Join(base, "tagent") }

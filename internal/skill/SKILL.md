@@ -41,7 +41,7 @@ a reused pane gets only the comments since its cursor. Busy/approval/unknown pan
 A role's harness, model and effort come from its `board.yaml` entry (never from a
 harness directory); a model or effort change applies to panes started afterwards,
 not to running ones. Instructions are plain markdown in `.tasks/agents/<role>.md`
-(or `~/.config/tmux-agent/agents/<role>.md`) and are included in the dispatch prompt
+(or `~/.config/tagent/agents/<role>.md`) and are included in the dispatch prompt
 on every harness.
 The scraper dispatches (`@agent_scrape` on); `board run` runs in the foreground.
 Edit the board from the web Board header (Settings, `#/board/config`) or the TUI

@@ -218,3 +218,23 @@ func persist(key string, value *string) error {
 
 // quote makes value one tmux word.
 func quote(v string) string { return settings.Quote(v) }
+
+// Seed writes the config file with every setting's default when there is no
+// file yet (a first install); an existing file is never touched. It reports
+// whether it wrote one.
+func Seed() (bool, error) {
+	path := ConfigFile()
+	if _, err := os.Stat(path); err == nil {
+		return false, nil
+	}
+	lines := strings.Split(strings.TrimRight(fileHeader, "\n"), "\n")
+	for _, s := range all() {
+		if s.Default != "" {
+			lines = append(lines, fmt.Sprintf("set -g %s %s", s.Key, quote(s.Default)))
+		}
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return false, err
+	}
+	return true, os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0o644)
+}

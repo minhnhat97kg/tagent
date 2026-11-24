@@ -4,7 +4,7 @@
 // A checkpoint is a commit of every non-ignored file in the working tree —
 // tracked or not — built through a throwaway index, so the user's index,
 // branch and files are never touched. It's kept under
-// refs/tmux-agent/checkpoints/<agent>/<time> (the newest Keep per agent);
+// refs/tagent/checkpoints/<agent>/<time> (the newest Keep per agent);
 // its parent is HEAD at the time.
 package checkpoint
 
@@ -22,7 +22,7 @@ import (
 // Keep is how many checkpoints each agent keeps.
 const Keep = 20
 
-const refRoot = "refs/tmux-agent/checkpoints/"
+const refRoot = "refs/tagent/checkpoints/"
 
 // Checkpoint is one snapshot.
 type Checkpoint struct {
@@ -163,7 +163,7 @@ func Restore(dir, ref string) (backup string, err error) {
 	if err != nil {
 		return "", err
 	}
-	backup = fmt.Sprintf("refs/tmux-agent/backup/%d", time.Now().UnixNano())
+	backup = fmt.Sprintf("refs/tagent/backup/%d", time.Now().UnixNano())
 	if _, err := r.git(nil, "update-ref", backup, commit); err != nil {
 		return "", err
 	}

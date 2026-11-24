@@ -13,7 +13,7 @@ import (
 // share; call the returned func to release it. If the lock can't be taken
 // it returns at once and the caller proceeds unlocked (as before).
 func lockPane(pane string) (unlock func()) {
-	name := fmt.Sprintf("tmux-agent-%d-pane-%s.lock", os.Getuid(), strings.TrimPrefix(pane, "%"))
+	name := fmt.Sprintf("tagent-%d-pane-%s.lock", os.Getuid(), strings.TrimPrefix(pane, "%"))
 	f, err := os.OpenFile(filepath.Join(os.TempDir(), name), os.O_CREATE|os.O_RDWR, 0o600)
 	if err != nil {
 		return func() {}

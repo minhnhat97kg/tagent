@@ -30,12 +30,6 @@ elif [ -x "$TPM_DIR/bin/tagent" ]; then
   BIN="$TPM_DIR/bin/tagent"
 elif command -v tagent &>/dev/null; then
   BIN="tagent"
-elif [ -x "$PLUGIN_DIR/bin/tmux-agent" ]; then
-  BIN="$PLUGIN_DIR/bin/tmux-agent"
-elif [ -x "$HOME/.tmux/plugins/tmux-agent/bin/tmux-agent" ]; then
-  BIN="$HOME/.tmux/plugins/tmux-agent/bin/tmux-agent"
-elif command -v tmux-agent &>/dev/null; then
-  BIN="tmux-agent"
 else
   exit 0
 fi

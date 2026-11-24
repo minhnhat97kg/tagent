@@ -1,4 +1,4 @@
-// Package agents is the one read/write model for agent roles. tmux-agent owns
+// Package agents is the one read/write model for agent roles. tagent owns
 // the metadata (harness/model/effort in .tasks/board.yaml) and the instructions
 // (.tasks/agents/<name>.md); instruction files are never filtered by harness.
 package agents

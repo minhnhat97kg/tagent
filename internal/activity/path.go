@@ -19,7 +19,7 @@ import (
 // same pane id (%1, %7, …) as a pane running a real agent on the user's
 // default server — producing the SAME log path.
 // In the real product nobody sets this variable, so the default behavior
-// (/tmp/tmux-agent-activity<pane id>.log) doesn't change one bit.
+// (/tmp/tagent-activity<pane id>.log) doesn't change one bit.
 //
 // The hook (writer side) and the sidebar (reader side) are both this same
 // binary and both call LogFilePath, so as long as both read this variable
@@ -38,10 +38,10 @@ func logDir() string {
 
 // LogFilePath returns the log file path for a pane.
 //
-// Contract with the hook: pane id "%3" → "<logDir>/tmux-agent-activity_3.log".
+// Contract with the hook: pane id "%3" → "<logDir>/tagent-activity_3.log".
 // The "%" character isn't safely usable in filenames, so it's replaced with
 // "_". The filename stays the same no matter what logDir is — only the root
 // directory changes.
 func LogFilePath(paneID string) string {
-	return logDir() + "/tmux-agent-activity" + strings.ReplaceAll(paneID, "%", "_") + ".log"
+	return logDir() + "/tagent-activity" + strings.ReplaceAll(paneID, "%", "_") + ".log"
 }

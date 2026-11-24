@@ -1,5 +1,5 @@
-// Package roles discovers agent instructions. tmux-agent owns the files: plain
-// markdown in .tasks/agents (repo) and ~/.config/tmux-agent/agents (global).
+// Package roles discovers agent instructions. tagent owns the files: plain
+// markdown in .tasks/agents (repo) and ~/.config/tagent/agents (global).
 // Legacy harness directories (.claude/.codex/.opencode) are still read, but the
 // app never writes there, and their harness is no longer implied by the process.
 package roles
@@ -86,7 +86,7 @@ func GlobalDir() string {
 	return filepath.Join(apppath.Dir(base), "agents")
 }
 
-// ListGlobal is every global instruction file: ~/.config/tmux-agent/agents/*.md
+// ListGlobal is every global instruction file: ~/.config/tagent/agents/*.md
 // first, then the legacy per-harness subdirectories.
 func ListGlobal() []Definition {
 	defs := listDir(GlobalDir(), "", false)

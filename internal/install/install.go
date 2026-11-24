@@ -48,13 +48,13 @@ var harnesses = []harness{
 	{name: "claude", detect: []string{".claude", "claude"}, hooks: ".claude/settings.json", skills: ".claude/skills"},
 	{name: "codex", detect: []string{".codex", "codex"}, hooks: ".codex/hooks.json", skills: ".codex/skills",
 		note: "Codex runs hooks only when its hooks feature is enabled in your version — if status stays 'unknown', the screen scraper still covers it."},
-	{name: "pi", detect: []string{".pi", "pi"}, file: ".pi/agent/extensions/tagent.ts", legacy: []string{".pi/agent/extensions/tmux-agent.ts"}, skills: ".pi/agent/skills"},
+	{name: "pi", detect: []string{".pi", "pi"}, file: ".pi/agent/extensions/tagent.ts", skills: ".pi/agent/skills"},
 	{name: "opencode", detect: []string{".config/opencode", "opencode"},
 		// OpenCode v2 discovers both directories, but only treats `plugins/`
 		// as V2. Older tagent installs wrote the V1 plugin to `plugin/`;
 		// remove that file so v2 can't load the stale, rejected copy.
 		file:   ".config/opencode/plugins/tagent.js",
-		legacy: []string{".config/opencode/plugin/tagent.js", ".config/opencode/plugin/tmux-agent.js", ".config/opencode/plugins/tmux-agent.js"},
+		legacy: []string{".config/opencode/plugin/tagent.js"},
 		instr:  ".config/opencode/AGENTS.md"},
 	{name: "gemini", detect: []string{".gemini", "gemini"}, instr: ".gemini/GEMINI.md", note: "status comes from screen detection"},
 	{name: "copilot", detect: []string{".copilot", "copilot"}, instr: ".copilot/copilot-instructions.md", note: "status comes from screen detection"},
@@ -225,9 +225,6 @@ func (e env) install(h harness) error {
 			return err
 		}
 		e.say("skill", "~/"+h.skills+"/tagent/SKILL.md")
-		if err := e.dropLegacySkill(h.skills); err != nil {
-			return err
-		}
 	}
 	if h.instr != "" {
 		if err := e.editText(e.path(h.instr), func(s string) string { return setBlock(s, skillBody(skill.Render(e.bin))) }); err != nil {
@@ -394,7 +391,7 @@ func isOurs(entry any, re *regexp.Regexp) bool {
 }
 
 // editJSON loads a JSON object (missing file = {}), applies fn, and writes
-// it back if it changed — backing the original up once as <file>.tmux-agent.bak.
+// it back if it changed — backing the original up once as <file>.tagent.bak.
 func (e env) editJSON(path string, fn func(map[string]any)) error {
 	cfg := map[string]any{}
 	orig, err := os.ReadFile(path)
@@ -418,7 +415,7 @@ func (e env) editJSON(path string, fn func(map[string]any)) error {
 		return nil
 	}
 	if orig != nil {
-		bak := path + ".tmux-agent.bak"
+		bak := path + ".tagent.bak"
 		if _, err := os.Stat(bak); errors.Is(err, os.ErrNotExist) {
 			if err := os.WriteFile(bak, orig, 0o600); err != nil {
 				return err
@@ -516,28 +513,4 @@ func (e env) write(path, content string) error {
 		mode = st.Mode().Perm()
 	}
 	return os.WriteFile(path, []byte(content), mode)
-}
-
-// dropLegacySkill removes the pre-rename skill dir so harnesses don't load the
-// skill twice, but only when it holds nothing except our SKILL.md (or is a link);
-// anything else may be the user's and is left alone.
-func (e env) dropLegacySkill(root string) error {
-	if e.dry {
-		return nil
-	}
-	old := e.path(filepath.Join(root, "tmux-agent"))
-	fi, err := os.Lstat(old)
-	if os.IsNotExist(err) {
-		return nil
-	} else if err != nil {
-		return err
-	}
-	if fi.Mode()&os.ModeSymlink != 0 {
-		return os.Remove(old)
-	}
-	entries, err := os.ReadDir(old)
-	if err != nil || len(entries) != 1 || entries[0].Name() != "SKILL.md" {
-		return err
-	}
-	return os.RemoveAll(old)
 }

@@ -43,7 +43,7 @@ messages go to `POST /api/pane/send`, the feed comes from the transcript
 endpoint, and the pane keeps running in tmux.
 
 - **Scope key**: `tasks.TicketScope(dir, id)` = `<project scope>#<ticket id>`,
-  e.g. `tmux-agent-1a2b3c4d#12`. The project scope is shared by all worktrees.
+  e.g. `tagent-1a2b3c4d#12`. The project scope is shared by all worktrees.
   It is stored in the pane option `@pane_ticket`.
 - **Spawn and reuse**: `tagent chat [--dir DIR] [--agent claude|pi] [--model M] [--clear] <id>`
   reuses the pane bound to the key, or starts one with the normal spawn path. The

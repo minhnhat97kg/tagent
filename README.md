@@ -97,7 +97,7 @@ tagent uninstall <harness>     # remove exactly what install wrote
 | gemini · copilot · amp | screen detection (scraper) | block in its instructions file |
 
 Hooks are **merged** into the config (nothing else is overwritten; the
-original is kept as `*.tmux-agent.bak`); re-running doesn't duplicate them.
+original is kept as `*.tagent.bak`); re-running doesn't duplicate them.
 Agents without hooks (Cursor, Aider…) are still detected from the screen.
 
 To let agents use the CLI (post to the board, start helpers) without asking
@@ -199,7 +199,7 @@ harness notifications, check status when the user asks.
   `@agent_stuck_minutes` minutes (default 10) → a warning.
 - **Undo a turn:** before each agent turn the repo's files are snapshotted
   (`@agent_checkpoints`, on by default; a throwaway index and refs under
-  `refs/tmux-agent/` — your index, branch and files aren't touched).
+  `refs/tagent/` — your index, branch and files aren't touched).
   `tagent undo <agent>` puts things back as they were before its last turn.
 - **Phone:** `tagent config set notify_url https://ntfy.sh/<topic>` (or another
   plain-text POST webhook) to get a phone message when an agent needs
@@ -293,7 +293,7 @@ not in the screen: `tagent config list` shows all of them, and
 
 ### Repo agents and task board
 
-Agent metadata is owned by tmux-agent: `roles:` in `.tasks/board.yaml` names the harness, model and effort (optionally defaulted by `~/.config/tmux-agent/agents/profiles.toml`). Instructions are plain markdown in `.tasks/agents/<name>.md`, or `~/.config/tmux-agent/agents/<name>.md` for global agents; a harness directory implies neither. `tagent agents`, the sidebar below running panes, and the dashboard read every agent regardless of the process harness. To edit them in one place (repo, global and board.yaml roles), use the Agents page on the web (`#/agents`) or the board's Agents panel (`t`); see `docs/board.md`. When a role starts a pane its instructions ride in the dispatch prompt on every harness, so pi gets them too. Legacy `.claude/agents`, `.codex/agents` and `.opencode/agents` files are still read but never written; only those native files are loaded by their harness itself (Claude/OpenCode `--agent`, Codex `developer_instructions`) and are not repeated in the prompt.
+Agent metadata is owned by tagent: `roles:` in `.tasks/board.yaml` names the harness, model and effort (optionally defaulted by `~/.config/tagent/agents/profiles.toml`). Instructions are plain markdown in `.tasks/agents/<name>.md`, or `~/.config/tagent/agents/<name>.md` for global agents; a harness directory implies neither. `tagent agents`, the sidebar below running panes, and the dashboard read every agent regardless of the process harness. To edit them in one place (repo, global and board.yaml roles), use the Agents page on the web (`#/agents`) or the board's Agents panel (`t`); see `docs/board.md`. When a role starts a pane its instructions ride in the dispatch prompt on every harness, so pi gets them too. Legacy `.claude/agents`, `.codex/agents` and `.opencode/agents` files are still read but never written; only those native files are loaded by their harness itself (Claude/OpenCode `--agent`, Codex `developer_instructions`) and are not repeated in the prompt.
 
 Choose how they run in tagent configuration:
 

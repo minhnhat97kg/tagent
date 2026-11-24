@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 
 	"tagent/internal/config"
 	"tagent/internal/hook"
@@ -174,6 +175,13 @@ func run(args []string, stdout, stderr io.Writer) int {
 	case "wait":
 		return cmdWait(rest, stdout, stderr)
 	case "install":
+		if !slices.Contains(rest, "--list") && !slices.Contains(rest, "--dry-run") {
+			if seeded, err := config.Seed(); err != nil {
+				fmt.Fprintln(stderr, "tagent: could not write", config.ConfigFile()+":", err)
+			} else if seeded {
+				fmt.Fprintln(stdout, "config  "+config.ConfigFile()+" (defaults)")
+			}
+		}
 		return install.Dispatch(false, rest, stdout, stderr)
 	case "uninstall":
 		return install.Dispatch(true, rest, stdout, stderr)

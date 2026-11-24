@@ -16,12 +16,9 @@ install: build
 	@test "$$(git rev-parse --git-dir)" = "$$(git rev-parse --git-common-dir)" || { echo "make install: run it from the main checkout, not a worktree"; exit 1; }
 	mkdir -p $(BIN_DIR)
 	ln -sf $(CURDIR)/$(BIN) $(BIN_DIR)/tagent
-	ln -sf tagent $(BIN_DIR)/tmux-agent
-	ln -sf tagent bin/tmux-agent
 	mkdir -p $(SHARE_DIR)/bin
 	ln -sf $(CURDIR)/$(BIN) $(SHARE_DIR)/bin/tagent
 	rsync -a --delete assets/ $(SHARE_DIR)/assets/
-	bash assets/install-compat.sh "$(SHARE_DIR)"
 	$(BIN) install
 	-$(BIN) reload
 

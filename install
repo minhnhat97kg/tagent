@@ -9,7 +9,7 @@
 # install`). Safe to re-run: that is also how you upgrade.
 #
 # Environment:
-#   TMUX_AGENT_REPO     git URL to install from
+#   TAGENT_REPO     git URL to install from
 #   TMUX_AGENT_REF      branch/tag (default: main)
 #   TMUX_AGENT_DIR      checkout location (default: ~/.local/share/tagent)
 #   TMUX_AGENT_BIN_DIR  where the `tagent` link goes (default: ~/.local/bin)
@@ -17,7 +17,7 @@
 #   TMUX_AGENT_NO_HARNESS=1  don't run `tagent install` (hooks/skills)
 set -euo pipefail
 
-REPO="${TMUX_AGENT_REPO:-https://github.com/minhnhat97kg/tmux-agent.git}"
+REPO="${TAGENT_REPO:-https://github.com/minhnhat97kg/tmux-agent.git}"
 REF="${TMUX_AGENT_REF:-main}"
 DIR="${TMUX_AGENT_DIR:-$HOME/.local/share/tagent}"
 BIN_DIR="${TMUX_AGENT_BIN_DIR:-$HOME/.local/bin}"
@@ -53,9 +53,6 @@ say "Building"
 (cd "$DIR" && go build -o bin/tagent ./cmd/tagent)
 mkdir -p "$BIN_DIR"
 ln -sfn "$DIR/bin/tagent" "$BIN_DIR/tagent"
-ln -sfn tagent "$BIN_DIR/tmux-agent"
-ln -sfn tagent "$DIR/bin/tmux-agent"
-bash "$DIR/assets/install-compat.sh" "$DIR"
 say "Linked $BIN_DIR/tagent"
 case ":$PATH:" in
   *":$BIN_DIR:"*) ;;
@@ -69,7 +66,7 @@ if [ "${TMUX_AGENT_NO_TMUX:-}" != 1 ]; then
     conf="${XDG_CONFIG_HOME:-$HOME/.config}/tmux/tmux.conf"
   fi
   line="run-shell '$DIR/assets/tagent.tmux'"
-  if [ -f "$conf" ] && { grep -qF "$DIR/assets/tagent.tmux" "$conf" || grep -qE "^[[:space:]]*run(-shell)? .*tmux-agent[^[:space:]]*\.tmux" "$conf"; }; then
+  if [ -f "$conf" ] && { grep -qF "$DIR/assets/tagent.tmux" "$conf"; }; then
     say "tmux.conf already loads tagent ($conf)"
   else
     printf '\n# tagent\n%s\n' "$line" >>"$conf"

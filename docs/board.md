@@ -296,12 +296,12 @@ transaction or WAL. One-lock batches prevent interleaving concurrent mutations.
 
 ### Agents
 
-tmux-agent owns agent metadata. A role's harness, model and effort live only in
+tagent owns agent metadata. A role's harness, model and effort live only in
 `.tasks/board.yaml` (`roles:`); the global default is
-`~/.config/tmux-agent/agents/profiles.toml`, and the board entry wins. A harness
+`~/.config/tagent/agents/profiles.toml`, and the board entry wins. A harness
 directory never implies any of it. Instructions are separate: plain markdown
 without frontmatter, in `.tasks/agents/<name>.md` (repo) or
-`~/.config/tmux-agent/agents/<name>.md` (global). Repo files shadow global ones.
+`~/.config/tagent/agents/<name>.md` (global). Repo files shadow global ones.
 
 One list of agent roles, in the TUI board and on the web (`#/agents`), merges
 `roles:` entries and instruction files. It is never filtered by the process
