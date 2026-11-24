@@ -57,6 +57,13 @@ func (m Model) boardWorkflowsHints() []hint {
 }
 
 func (m Model) boardAgentsHints() []hint {
+	if m.agentDetail { // the detail replaces the list: the way back is the first hint
+		return []hint{
+			{"esc", "back", "esc q b", "back to the agent list"}, {"m", "model", "m", "model (new panes only)"}, {"e", "edit", "e", "edit instructions in $EDITOR"},
+			{"Tab", "tickets", "Tab", "focus tickets"},
+			{"", "", "enter", "back to the agent list"}, {"", "", "j k ↑ ↓", "select agent"}, {"", "", "t", "close the agents panel (back to the board)"},
+		}
+	}
 	return []hint{
 		{"enter", "detail", "enter", "show detail"}, {"m", "model", "m", "model (new panes only)"}, {"e", "edit", "e", "edit instructions in $EDITOR"}, {"a", "add", "a", "new agent"}, {"x", "delete", "x", "delete agent (y/n confirm)"},
 		{"t", "close", "t", "swap Workflows / Agents tab (and back)"}, {"Tab", "tickets", "Tab", "focus tickets"},

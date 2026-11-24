@@ -3,6 +3,7 @@ package sidebar
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -121,5 +122,66 @@ func TestAgentStripRowsAreSimple(t *testing.T) {
 	dt := ansi.Strip(strings.Join(m.agentStripLines(80), "\n"))
 	if strings.Contains(dt, "path") || strings.Contains(dt, "new panes") || !strings.Contains(dt, "Harness") || !strings.Contains(dt, "Used by") {
 		t.Fatalf("detail:\n%s", dt)
+	}
+}
+
+// TestAgentsDetailHintsOfferBack covers ticket 44: the basic-info view opened
+// with Enter must advertise the key that closes it, in the footer hint line and
+// in the ? help section of the pane that owns it, and that key must restore the
+// list with the same row selected.
+func TestAgentsDetailHintsOfferBack(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		open func(m Model) Model // the panel or tab, list on screen
+	}{
+		{"board agents", func(m Model) Model {
+			m.boardMode = true
+			m, _, _ = m.boardKey("t")
+			return m
+		}},
+		{"dashboard agents tab", func(m Model) Model {
+			m.dashboard, m.focus, m.agentsOpen = true, cardWorkflows, true
+			return m.loadAgents()
+		}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			m := Model{boardDir: agentsTestDir(t), theme: DefaultTheme(), icons: DefaultIcons(), width: 140, height: 40}
+			m = c.open(m)
+			m, _, _ = m.boardKey("j") // second agent, so "same row selected" means something
+			selected := m.agentCursor
+			m, _, _ = m.boardKey("enter")
+			if !m.agentDetail {
+				t.Fatal("enter did not open the detail")
+			}
+
+			foot := ansi.Strip(m.footerHints())
+			if !strings.Contains(foot, "esc") {
+				t.Errorf("footer while detail is open has no back key: %q", foot)
+			}
+			var help []string
+			for _, kv := range m.paneSection(m.focused()).keys {
+				help = append(help, kv[0]+" "+kv[1])
+			}
+			if !slices.ContainsFunc(help, func(row string) bool {
+				return strings.HasPrefix(row, "esc") && strings.Contains(row, "back") && strings.Contains(row, "list")
+			}) {
+				t.Errorf("? help while detail is open has no esc back-to-list row: %q", help)
+			}
+
+			m, _, _ = m.boardKey("esc")
+			if m.agentDetail {
+				t.Fatal("esc did not close the detail")
+			}
+			if m.agentCursor != selected {
+				t.Fatalf("esc changed the selection: %d, want %d", m.agentCursor, selected)
+			}
+			lines := m.agentStripLines(100)
+			if strings.Contains(ansi.Strip(strings.Join(lines, "\n")), "Harness") {
+				t.Fatal("esc did not restore the list")
+			}
+			if selected >= len(lines) || !strings.Contains(ansi.Strip(lines[selected]), "❯") {
+				t.Errorf("row %d is not the marked one: %q", selected, lines)
+			}
+		})
 	}
 }

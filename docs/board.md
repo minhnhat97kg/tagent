@@ -308,7 +308,8 @@ One list of agent roles, in the TUI board and on the web (`#/agents`), merges
 harness: every agent shows under claude, pi, codex and opencode. An agent with no
 `roles:` entry shows the process harness as its current harness.
 
-- TUI: `t` in the board opens the Agents panel. `enter` shows detail, `e` edits the
+- TUI: `t` in the board opens the Agents panel. `enter` shows detail, `esc` (or `enter`
+  again) closes the detail and returns to the list, `e` edits the
   instructions in `$EDITOR`, `m` changes the model, `a` adds an agent, `x` deletes one (`y` confirms), `t` closes the panel.
 - Web: harness, model, effort and instructions (with preview) save together. Global
   and legacy agents are read-only; **Copy to repo** makes an editable `.tasks/agents` copy.
