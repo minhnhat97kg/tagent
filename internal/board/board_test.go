@@ -222,3 +222,27 @@ func TestMentionIgnoresNonAgents(t *testing.T) {
 		t.Fatal(a, err)
 	}
 }
+
+func TestFreshBoardSkipsHistory(t *testing.T) {
+	dir, scope := setup(t, `triggers:
+  - on: create
+    agent: planner
+`)
+	_, err := tasks.Add(scope, "old", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Backdate the event: it was copied in from another scope.
+	path := filepath.Join(tasks.BoardDir(scope), "events.jsonl")
+	b, _ := os.ReadFile(path)
+	var ev tasks.Event
+	json.Unmarshal(b, &ev)
+	ev.Time = time.Now().Add(-time.Hour)
+	nb, _ := json.Marshal(ev)
+	os.WriteFile(path, append(nb, '\n'), 0600)
+	ctx, stop := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer stop()
+	if err = Run(ctx, dir, func(Action) error { t.Fatal("fired history"); return nil }); err != nil {
+		t.Fatal(err)
+	}
+}

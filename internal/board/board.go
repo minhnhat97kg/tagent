@@ -35,6 +35,9 @@ type state struct {
 	LastSeq   int64                  `json:"last_seq"`
 	Fires     map[string][]time.Time `json:"fires"`
 	LastError string                 `json:"last_error,omitempty"`
+	// Since is set when a board starts without a state file: events older than
+	// it are history (e.g. tickets copied in from another scope), never fired.
+	Since time.Time `json:"since,omitempty"`
 }
 
 var ErrLocked = errors.New("board dispatcher already running")
@@ -64,7 +67,9 @@ func Run(ctx context.Context, dir string, fire Fire) error {
 		if err = json.Unmarshal(b, &s); err != nil {
 			return err
 		}
-	} else if !os.IsNotExist(e) {
+	} else if os.IsNotExist(e) {
+		s.Since = time.Now().UTC().Add(-time.Minute)
+	} else {
 		return e
 	}
 	if s.Fires == nil {
@@ -126,6 +131,9 @@ func Run(ctx context.Context, dir string, fire Fire) error {
 				s.LastSeq = ev.Seq
 				if err = save(); err != nil {
 					return err
+				}
+				if ev.Time.Before(s.Since) {
+					continue
 				}
 				task, e := tasks.Get(scope, ev.Task)
 				if e != nil {
