@@ -66,11 +66,16 @@ func TestDashboardRenders(t *testing.T) {
 	}
 }
 
-func TestNewTicketKeyOpensEditor(t *testing.T) {
+func TestNewTicketKeyOpensTypePicker(t *testing.T) {
 	m := dashSample()
 	m.focus = cardTasks
-	if _, cmd := boardPress(m, "n"); cmd == nil {
-		t.Fatal("n did not start the add flow")
+	m, cmd := boardPress(m, "n")
+	if m.taskForm != "new-task" || cmd != nil {
+		t.Fatalf("n did not open the type picker: %q", m.taskForm)
+	}
+	next, cmd := m.handleTaskForm(tea.KeyMsg{Type: tea.KeyEnter})
+	if next.(Model).taskForm != "" || cmd == nil {
+		t.Fatal("enter did not open the editor")
 	}
 }
 

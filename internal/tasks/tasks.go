@@ -226,7 +226,22 @@ func Add(scope, text string, assignees []string, opts ...MutationOptions) (Task,
 				if e != nil {
 					return e
 				}
-				t.Inputs, e = w.Values(opts[0].Inputs)
+				// Like start, the first required input nobody gave takes the task text.
+				inputs := map[string]string{}
+				for k, v := range opts[0].Inputs {
+					inputs[k] = v
+				}
+				var missing []string
+				for k, i := range w.Inputs {
+					if i.Required && i.Default == "" && inputs[k] == "" {
+						missing = append(missing, k)
+					}
+				}
+				sort.Strings(missing)
+				if len(missing) > 0 {
+					inputs[missing[0]] = text
+				}
+				t.Inputs, e = w.Values(inputs)
 				if e != nil {
 					return e
 				}

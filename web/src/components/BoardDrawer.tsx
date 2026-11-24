@@ -171,7 +171,7 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
   const [editing, setEditing] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   // Start runs the chosen flow: the board's next column, or one of the workflows.
-  const [flow, setFlow] = useState("board")
+  const [flow, setFlow] = useState(task.workflow || "board")
   const [startMenu, setStartMenu] = useState(false)
   const startLabel = flow === "board" ? "Next board column" : flow
   const [filter, setFilter] = useState<FilterID>("all")

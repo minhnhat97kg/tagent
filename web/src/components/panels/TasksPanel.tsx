@@ -15,6 +15,7 @@ export function TasksPanel({ proj, dir, reload, className }: { proj?: Project; d
   const role = (t: Task) => proj?.workers?.[t.id]?.role || statuses.find(s => s.id === t.status)?.role || t.assignees?.[0] || ""
   const [adding, setAdding] = useState(false)
   const [draft, setDraft] = useState("")
+  const [kind, setKind] = useState("") // the new ticket's type: a workflow name, or none
   const [openId, setOpenId] = useState<string>()
   const [showDone, setShowDone] = useState(false)
   const origin = useRef<HTMLElement | null>(null)
@@ -22,8 +23,14 @@ export function TasksPanel({ proj, dir, reload, className }: { proj?: Project; d
   const sorted = [...tasks].sort((a, b) => order(a) - order(b) || (b.updated || "").localeCompare(a.updated || ""))
   const done = sorted.filter(t => t.status === "done")
   const shown = showDone ? sorted : sorted.filter(t => t.status !== "done")
-  return <Panel className={className} icon={<ListTodo className="text-amber-600" />} title={<a href="#/" className="hover:underline">Tasks</a>} right={<><span>{tasks.length}</span><button aria-label="Add task" className="flex size-6 items-center justify-center rounded-md hover:bg-accent" onClick={() => setAdding(!adding)}><Plus className="size-3.5" /></button></>} bodyClass="py-1">
-    {adding && <form className="px-2 pb-1" onSubmit={e => { e.preventDefault(); if (draft.trim()) act(post("/api/tasks", { Dir: dir, Op: "add", Text: draft.trim() }).then(() => { setDraft(""); setAdding(false); reload() })) }}><Input autoFocus value={draft} onChange={e => setDraft(e.target.value)} placeholder="New task…" className="h-8 text-[12.5px]" /></form>}
+  return <Panel className={className} icon={<ListTodo className="text-amber-600" />} title={<a href="#/" className="hover:underline">Tasks</a>} right={<><span>{tasks.length}</span><button aria-label="Add task" className="flex size-6 items-center justify-center rounded-md hover:bg-accent" onClick={() => { setKind(proj?.defaultWorkflow ?? ""); setAdding(!adding) }}><Plus className="size-3.5" /></button></>} bodyClass="py-1">
+    {adding && <form className="flex gap-1.5 px-2 pb-1" onSubmit={e => { e.preventDefault(); if (draft.trim()) act(post("/api/tasks", { Dir: dir, Op: "add", Text: draft.trim(), Workflow: kind }).then(() => { setDraft(""); setAdding(false); reload() })) }}>
+      <Input autoFocus value={draft} onChange={e => setDraft(e.target.value)} placeholder="New task…" className="h-8 min-w-0 flex-1 text-[12.5px]" />
+      <select aria-label="Task type" value={kind} onChange={e => setKind(e.target.value)} className="h-8 max-w-[40%] rounded-md border border-input bg-transparent px-1 text-[12.5px]">
+        <option value="">no workflow</option>
+        {(proj?.workflows ?? []).map(w => <option key={w.name} value={w.name} disabled={!!w.error}>{w.name}{w.global ? " (global)" : ""}</option>)}
+      </select>
+    </form>}
     {!tasks.length && <p className="px-2.5 py-2 text-xs text-muted-foreground">No tasks yet.</p>}
     {shown.map(t => <button key={t.id} onClick={e => { origin.current = e.currentTarget; setOpenId(t.id) }} title={`${t.id} · ${t.status}`}
       className={`flex h-8 w-full items-center gap-2 px-2.5 text-left text-[12.5px] hover:bg-accent ${t.status === "done" ? "text-muted-foreground" : ""}`} aria-label={`${shortId(t.id)} ${t.status}: ${title(t)}`}>

@@ -15,8 +15,9 @@ func TestWorkflowTicket(t *testing.T) {
 	if e := os.WriteFile(filepath.Join(path, "sample.yml"), []byte("name: sample\ninputs:\n  goal: {required: true}\njobs:\n  collect: {run: echo ok}\n  review: {needs: collect, agent: reviewer, max-loops: 1, on-failure: collect}\n"), 0600); e != nil {
 		t.Fatal(e)
 	}
-	if _, e := Add(scope, "missing", nil, MutationOptions{Workflow: "sample"}); e == nil {
-		t.Fatal("required input accepted")
+	// No --input: the first required input takes the text.
+	if got, e := Add(scope, "missing", nil, MutationOptions{Workflow: "sample"}); e != nil || got.Inputs["goal"] != "missing" {
+		t.Fatal(got.Inputs, e)
 	}
 	ticket, e := Add(scope, "ticket", nil, MutationOptions{Workflow: "sample", Inputs: map[string]string{"goal": "test"}})
 	if e != nil {

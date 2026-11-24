@@ -78,16 +78,20 @@ func (m Model) handleTaskForm(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	}
-	if m.taskForm == "start" {
+	if m.taskForm == "start" || m.taskForm == "new-task" {
 		switch key.String() {
-		case "j", "down":
+		case "j", "down", "tab":
 			m.taskStep = min(len(m.boardWorkflows), m.taskStep+1)
-		case "k", "up":
+		case "k", "up", "shift+tab":
 			m.taskStep = max(0, m.taskStep-1)
 		case "enter":
-			name := "" // the board's default_workflow
+			name := "" // start: the board's default_workflow; new: no workflow
 			if m.taskStep < len(m.boardWorkflows) {
 				name = m.boardWorkflows[m.taskStep].Name
+			}
+			if m.taskForm == "new-task" {
+				m.taskForm = ""
+				return m, editTaskText(m.notesScope, tasks.Task{}, m.tmuxPane, false, name)
 			}
 			dir, id := m.boardDir, m.notes[m.taskCursor].ID
 			m.taskForm = ""
@@ -264,8 +268,18 @@ func (m Model) taskFormView() string {
 			prefix = "› "
 		}
 		body += prefix + "none (no default)"
-	case "start":
-		title, hint = "Start "+m.notes[m.taskCursor].Title, m.keyHints("j/k select", "enter start", "esc cancel")
+	case "start", "new-task":
+		// The last row is the default (start) or no workflow (new ticket).
+		last := "default workflow"
+		if m.taskForm == "start" {
+			title, hint = "Start "+m.notes[m.taskCursor].Title, m.keyHints("j/k select", "enter start", "esc cancel")
+			if m.boardConfig.DefaultWorkflow != "" {
+				last += " (" + m.boardConfig.DefaultWorkflow + ")"
+			}
+		} else {
+			title, hint = "New ticket", m.keyHints("j/k type", "enter write", "esc cancel")
+			last = "none (no workflow)"
+		}
 		for i, w := range m.boardWorkflows {
 			prefix := "  "
 			if i == m.taskStep {
@@ -277,10 +291,7 @@ func (m Model) taskFormView() string {
 		if m.taskStep == len(m.boardWorkflows) {
 			prefix = "› "
 		}
-		body += prefix + "default workflow"
-		if m.boardConfig.DefaultWorkflow != "" {
-			body += " (" + m.boardConfig.DefaultWorkflow + ")"
-		}
+		body += prefix + last
 	case "status":
 		title, hint = "Move #"+m.notes[m.taskCursor].ID, m.keyHints("j/k select", "enter move", "esc cancel")
 		for i, c := range m.statusColumns() {
@@ -344,7 +355,7 @@ func (m Model) taskFormView() string {
 		title, hint = "✎ Message the chat", "Enter send · ctrl+s save to ticket · Esc cancel"
 
 	}
-	if m.taskForm != "start" && m.taskForm != "default" && m.taskForm != "attachments" && m.taskForm != "needs" && m.taskForm != "assign" && m.taskForm != "status" && m.taskForm != "new-agent" {
+	if m.taskForm != "start" && m.taskForm != "new-task" && m.taskForm != "default" && m.taskForm != "attachments" && m.taskForm != "needs" && m.taskForm != "assign" && m.taskForm != "status" && m.taskForm != "new-agent" {
 		body += "\n" + wrappedInput(m.taskInput, width, m.height)
 	}
 	return lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(m.theme.Accent).Width(width).Render(lipgloss.NewStyle().Bold(true).Foreground(m.theme.Accent).Render(title) + "\n\n" + lipgloss.NewStyle().Width(width).Render(body) + hintTail(hint))
@@ -385,7 +396,8 @@ func shortDuration(d time.Duration) string {
 }
 
 // Long text is edited outside the inline short-field form.
-func editTaskText(scope string, task tasks.Task, pane string, comment bool) tea.Cmd {
+// workflow is the type a new ticket starts with (ignored for edits and comments).
+func editTaskText(scope string, task tasks.Task, pane string, comment bool, workflow string) tea.Cmd {
 	f, err := os.CreateTemp("", "tagent-task-*.md")
 	if err != nil {
 		return func() tea.Msg { return actionResult("", err) }
@@ -416,18 +428,7 @@ func editTaskText(scope string, task tasks.Task, pane string, comment bool) tea.
 			var data []byte
 			data, err = os.ReadFile(path)
 			if err == nil {
-				text := strings.TrimSpace(string(data))
-				if comment {
-					if text != "" && text != strings.TrimSpace(prefill) {
-						err = tasks.Comment(scope, task.ID, "user", text, nil)
-					}
-				} else if task.ID == "" {
-					if text != "" {
-						_, err = tasks.Add(scope, text, nil)
-					}
-				} else {
-					err = tasks.Edit(scope, task.ID, text)
-				}
+				err = saveTaskText(scope, task, prefill, comment, workflow, strings.TrimSpace(string(data)))
 			}
 		}
 		return actionResult("Task updated", err)
@@ -442,6 +443,24 @@ func editTaskText(scope string, task tasks.Task, pane string, comment bool) tea.
 		}
 		return finish(nil)
 	}
+}
+
+// saveTaskText stores what the editor left: a comment, an edit, or a new ticket of the given type. Empty text saves nothing.
+func saveTaskText(scope string, task tasks.Task, prefill string, comment bool, workflow, text string) error {
+	switch {
+	case comment:
+		if text != "" && text != strings.TrimSpace(prefill) {
+			return tasks.Comment(scope, task.ID, "user", text, nil)
+		}
+	case task.ID == "":
+		if text != "" {
+			_, err := tasks.Add(scope, text, nil, tasks.MutationOptions{Workflow: workflow})
+			return err
+		}
+	default:
+		return tasks.Edit(scope, task.ID, text)
+	}
+	return nil
 }
 
 // blockedReplyPrefill is "@role " for a blocked ticket (the role whose step was interrupted), else "".

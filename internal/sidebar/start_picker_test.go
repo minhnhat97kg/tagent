@@ -65,3 +65,78 @@ func TestWrappedPopupInput(t *testing.T) {
 		t.Fatal(hints)
 	}
 }
+
+// writeTestWorkflows writes two recipes; a-first sorts before sample.
+func writeTestWorkflows(t *testing.T, dir string) {
+	t.Helper()
+	t.Setenv("HOME", t.TempDir())
+	path := filepath.Join(dir, ".tasks", "workflows")
+	if err := os.MkdirAll(path, 0700); err != nil {
+		t.Fatal(err)
+	}
+	files := map[string]string{
+		"a-first.yml": "name: a-first\njobs:\n  build: {run: echo ok}\n",
+		"sample.yml":  "name: sample\ninputs:\n  goal: {required: true}\njobs:\n  build: {run: echo ok}\n",
+	}
+	for name, body := range files {
+		if err := os.WriteFile(filepath.Join(path, name), []byte(body), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestStartPickerPreselectsStoredWorkflow(t *testing.T) {
+	dir := t.TempDir()
+	writeTestWorkflows(t, dir)
+	scope := tasks.Scope(dir)
+	ticket, err := tasks.Add(scope, "ticket", nil, tasks.MutationOptions{Workflow: "sample"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := boardTestModel()
+	m.boardDir, m.notesScope, m.notes = dir, scope, []tasks.Task{ticket}
+	m.boardWorkflows = workflow.List(dir)
+	m, _ = boardPress(m, "s")
+	if m.taskStep != 1 {
+		t.Fatalf("picker opened on row %d, want the stored sample (1)", m.taskStep)
+	}
+	next, cmd := m.handleTaskForm(tea.KeyMsg{Type: tea.KeyEnter})
+	if next.(Model).taskForm != "" || cmd == nil {
+		t.Fatal("picker did not submit")
+	}
+	if msg := cmd().(taskActionMsg); strings.HasPrefix(msg.Text, "!") {
+		t.Fatal(msg.Text)
+	}
+	got, _ := tasks.Get(scope, ticket.ID)
+	if got.Status != "build" || got.Workflow != "sample" || got.Inputs["goal"] != "ticket" {
+		t.Fatal(got)
+	}
+}
+
+func TestNewTicketFormAddsWithWorkflow(t *testing.T) {
+	dir := t.TempDir()
+	writeTestWorkflows(t, dir)
+	scope := tasks.Scope(dir)
+	m := boardTestModel()
+	m.boardDir, m.notesScope, m.boardWorkflows = dir, scope, workflow.List(dir)
+	m, _ = boardPress(m, "n")
+	if m.taskForm != "new-task" || m.taskStep != len(m.boardWorkflows) {
+		t.Fatalf("form %q opened on row %d, want none", m.taskForm, m.taskStep)
+	}
+	next, _ := m.handleTaskForm(tea.KeyMsg{Type: tea.KeyUp}) // up to sample
+	m = next.(Model)
+	if m.taskStep != 1 {
+		t.Fatalf("up moved to row %d, want sample (1)", m.taskStep)
+	}
+	// Enter hands the picked type to the editor; saving the text is what makes the ticket.
+	if next, cmd := m.handleTaskForm(tea.KeyMsg{Type: tea.KeyEnter}); next.(Model).taskForm != "" || cmd == nil {
+		t.Fatal("type picker did not open the editor")
+	}
+	if err := saveTaskText(scope, tasks.Task{}, "", false, "sample", "write the docs"); err != nil {
+		t.Fatal(err)
+	}
+	all := tasks.List(scope)
+	if len(all) != 1 || all[0].Workflow != "sample" || all[0].Inputs["goal"] != "write the docs" || all[0].Status != "todo" {
+		t.Fatalf("added: %+v", all)
+	}
+}

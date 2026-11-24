@@ -8,6 +8,7 @@ import (
 
 	"tagent/internal/metrics"
 	"tagent/internal/tasks"
+	"tagent/internal/workflow"
 )
 
 // ticketsKey is the ticket lanes, on the board screen and (through
@@ -76,16 +77,20 @@ func (m Model) ticketsKey(key string) (Model, tea.Cmd, bool) {
 		return m, nil, true
 	case "c", "C": // comment on the selected ticket (a blocked one prefills the @role)
 		if len(m.notes) > 0 {
-			return m, editTaskText(m.notesScope, m.notes[m.taskCursor], m.tmuxPane, true), true
+			return m, editTaskText(m.notesScope, m.notes[m.taskCursor], m.tmuxPane, true, ""), true
 		}
 		return m, nil, true
 	case "E": // edit .tasks/board.yaml
 		return m, editBoardConfig(m.boardDir, m.tmuxPane), true
-	case "n":
-		return m, editTaskText(m.notesScope, tasks.Task{}, m.tmuxPane, false), true
+	case "n": // new ticket: pick its type (default: the board's), then write it in $EDITOR
+		m.taskForm, m.taskStep = "new-task", m.workflowRow(m.boardConfig.DefaultWorkflow)
+		return m, nil, true
 	case "s":
 		if len(m.notes) > 0 {
 			m.taskForm, m.taskStep = "start", 0
+			if w := m.notes[m.taskCursor].Workflow; w != "" {
+				m.taskStep = m.workflowRow(w) // a stored type is what enter starts
+			}
 		}
 		return m, nil, true
 	case "p": // priority cycle: normal -> high -> low -> normal
@@ -119,7 +124,7 @@ func (m Model) ticketsKey(key string) (Model, tea.Cmd, bool) {
 		return m, nil, true
 	case "e":
 		if len(m.notes) > 0 {
-			return m, editTaskText(m.notesScope, m.notes[m.taskCursor], m.tmuxPane, false), true
+			return m, editTaskText(m.notesScope, m.notes[m.taskCursor], m.tmuxPane, false, ""), true
 		}
 		return m, nil, true
 	case "x":
@@ -191,12 +196,21 @@ func (m Model) tasksCardKey(key string) (Model, tea.Cmd, bool) {
 	return m, cmd, true
 }
 
+// workflowRow is the picker row for a workflow name: its index in boardWorkflows,
+// else the row after them (the default or none row).
+func (m Model) workflowRow(name string) int {
+	if i := slices.IndexFunc(m.boardWorkflows, func(w workflow.Workflow) bool { return w.Name == name }); i >= 0 && name != "" {
+		return i
+	}
+	return len(m.boardWorkflows)
+}
+
 // ticketHints is the ticket keys; nav says where Tab and esc go.
 func ticketHints(nav hint) []hint {
 	return []hint{
 		{"h/l", "lane", "h l", "select lane: todo / in progress / blocked / done (or click its tab)"},
 		{"j/k", "card", "j k ↑ ↓", "select ticket"},
-		{"n", "new", "n", "new ticket ($EDITOR)"},
+		{"n", "new", "n", "new ticket: pick its type, then write it in $EDITOR"},
 		{"s", "start", "s", "start: workflow picker"},
 		{"enter", "detail", "enter i", "ticket detail"},
 		{"B", "config", "B", "board config summary (default workflow, roles, triggers; E edits)"},

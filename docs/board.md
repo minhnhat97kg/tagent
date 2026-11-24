@@ -231,6 +231,8 @@ bypass used by TUI; `task done ID [note]` is admin shorthand for set done.
 `task start ID [WORKFLOW]` attaches a workflow to a todo ticket and enters its
 first job; no name uses `default_workflow`. Board `s` opens a workflow picker
 (j/k select, Enter start, Esc cancel); its last row starts the default workflow.
+A ticket that already has a workflow opens with it preselected. Board `n` picks the
+new ticket's type first (default: `default_workflow`; last row: none), then opens `$EDITOR`.
 For a deprecated board, `task start ID board` attaches the implicit `board`
 workflow. Existing pane names/IDs still select
 legacy manual dispatch, which requires a doing status; Tasks panel shares the board ticket actions.
@@ -346,7 +348,7 @@ live: editing affects existing tickets; missing or broken recipes report errors.
 `workflow list` shows scope, jobs and in-progress tickets.
 `workflow run NAME --input goal=value --wait "Title"` starts a ticket, prints its
 ID and optionally waits (done exits 0, blocked exits 1).
-`task add --workflow NAME --input goal=value "Title"` leaves the ticket in todo.
+`task add --workflow NAME [--input goal=value] "Title"` sets the ticket's type and leaves it in todo. Without `--input`, the first required input takes the title text. The web Tasks add form has the same Type select.
 
 The web Workflows page edits YAML with line numbers, syntax colours and soft wrap. A validation error is marked on its line; click the error bar to jump there. Clicking a flow card jumps to that job in the YAML, and moving the cursor into a job highlights its card. Global workflows are read-only there. The page edits recipes only; it does not show a ticket's run.
 

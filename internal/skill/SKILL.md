@@ -86,7 +86,7 @@ Re-entering a limited status beyond its cap blocks with an explanation.
 - `task due ID YYYY-MM-DD` (`-` clears): edits trigger, not passage of time.
 - `task assign ID role[,role]` (`-` clears): metadata unless triggers configured.
 - Create tickets with plain `task add`.
-- `task add [--to names] [--needs ids] [--priority high|normal|low] "text"`; `task needs ID ids|-`;
+- `task add [--to names] [--needs ids] [--priority high|normal|low] [--workflow NAME [--input k=v]] "text"`; `task needs ID ids|-`;
   `task priority ID high|normal|low`; `task rm ID` for human cleanup. Cycles/unknown ids are rejected.
 - `board init|run [--dir DIR]`: shared config/dispatcher.
 
