@@ -108,8 +108,9 @@ func hintCases(t *testing.T) []hintCase {
 	dashHint := func(m Model) string { return lastLines(m.dashboardView(), 1) }
 	boardHint := func(m Model) string { return lastLines(m.boardView(), 2) }
 	// Documented no-ops: keys that need a live pane row, or content to scroll or browse
-	// (the fixture has no workflow files and a one-screen ticket).
-	needsPane := []string{"enter", "i", "l", "up", "down"}
+	// (the fixture has no workflow files and a one-screen ticket). f also needs a row the
+	// web sizes, and the fixture has no web-owned pane.
+	needsPane := []string{"enter", "i", "l", "up", "down", "f"}
 	return []hintCase{
 		{"dashboard agents", dash(0, nil), dashHint, needsPane},
 		{"dashboard usage", dash(3, nil), dashHint, nil},

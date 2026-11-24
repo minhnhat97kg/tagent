@@ -181,8 +181,11 @@ func (m Model) agentsKey(key string) (Model, tea.Cmd, bool) {
 		}
 		return m, nil, true
 
-	case "f": // free in the Agents keymap: reclaim sizing from a browser
-		if row, ok := paneRowAt(m.rows, m.cursor); ok {
+	case "f": // free in the Agents keymap: hand browser-owned sizing back to tmux
+		// Only a row the web currently sizes has anything to hand back; on a
+		// tmux-owned row the key must do nothing (it would otherwise clear the
+		// saved policy and resize a window nobody borrowed).
+		if row, ok := paneRowAt(m.rows, m.cursor); ok && m.sizeOwners[row.PaneID] {
 			return m, handoffCmd(row.PaneID), true
 		}
 		return m, nil, true
@@ -242,6 +245,6 @@ func (m Model) agentsHints() []hint {
 		{"i", "prompt", "i", "send prompt"},
 		{"", "", "n", "next agent needing you"}, {"", "", "1-4", "answer open approval"}, {"", "", "space", "quick action on first alert"},
 		{"", "", "1-9", "jump to window"}, {"", "", "/", "filter"}, {"", "", "r", "switch repo"}, {"", "", "p", "pin"},
-		{"", "", "f", "handoff sizing to this terminal"}, {"", "", "v x", "select / delete worktrees"}, {"", "", "S", "clear subagents"}, {"", "", "u", "undo"},
+		{"f", "handoff", "f", "handoff sizing to this terminal (web-owned rows only)"}, {"", "", "v x", "select / delete worktrees"}, {"", "", "S", "clear subagents"}, {"", "", "u", "undo"},
 	}
 }
