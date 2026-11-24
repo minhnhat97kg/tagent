@@ -14,7 +14,9 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-var newAgentChoices = []string{"claude", "codex", "opencode"}
+// newAgentChoices mirrors the harness list the web serves in /api/state, in
+// the same order (the form's harness row cycles through it).
+var newAgentChoices = []string{"claude", "codex", "opencode", "gemini", "pi", "copilot", "amp"}
 
 type taskActionMsg struct{ Text string }
 
@@ -49,19 +51,7 @@ func (m Model) handleTaskForm(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleAgentForm(key)
 	}
 	if m.taskForm == "new-agent" {
-		switch key.String() {
-		case "esc":
-			m.taskForm = ""
-		case "j", "down":
-			m.taskStep = min(len(newAgentChoices)-1, m.taskStep+1)
-		case "k", "up":
-			m.taskStep = max(0, m.taskStep-1)
-		case "enter":
-			choice := newAgentChoices[m.taskStep]
-			m.taskForm = ""
-			return m, func() tea.Msg { return spawnChosenAgent(choice) }
-		}
-		return m, nil
+		return m.handleNewAgentForm(key)
 	}
 	if key.String() == "esc" {
 		m.taskForm = ""
@@ -211,13 +201,11 @@ func (m Model) taskFormView() string {
 			body += fmt.Sprintf("%s%s · %d bytes · %s · %s %s\n", prefix, a.Name, a.Size, a.Author, a.Time.Format("2006-01-02 15:04"), a.Error)
 		}
 	case "new-agent":
-		title, hint = "New agent", "j/k select · Enter open · Esc cancel"
-		for i, choice := range newAgentChoices {
-			prefix := "  "
-			if i == m.taskStep {
-				prefix = "› "
-			}
-			body += prefix + choice + "\n"
+		title = "New agent"
+		hint = m.keyHints("↑↓ field", "enter next", "space change", "ctrl+s start", "esc cancel")
+		body = m.newAgentFormBody(width)
+		if m.taskNotice != "" {
+			body += "\n\n" + m.taskNotice
 		}
 	case "default":
 		title, hint = "Default workflow", m.keyHints("j/k select", "enter save", "esc cancel")
@@ -291,7 +279,7 @@ func (m Model) taskFormView() string {
 		title, hint = "✎ Message the chat", "Enter send · ctrl+s save to ticket · Esc cancel"
 
 	}
-	if m.taskForm != "start" && m.taskForm != "default" && m.taskForm != "attachments" && m.taskForm != "needs" {
+	if m.taskForm != "start" && m.taskForm != "default" && m.taskForm != "attachments" && m.taskForm != "needs" && m.taskForm != "new-agent" {
 		body += "\n" + wrappedInput(m.taskInput, width, m.height)
 	}
 	return lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(m.theme.Accent).Width(width).Render(lipgloss.NewStyle().Bold(true).Foreground(m.theme.Accent).Render(title) + "\n\n" + lipgloss.NewStyle().Width(width).Render(body) + "\n\n" + hint)

@@ -2,7 +2,6 @@ package sidebar
 
 import (
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -267,7 +266,8 @@ func (m standaloneModel) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		case "N":
-			m.left.taskForm, m.left.taskStep = "new-agent", 0
+			m.left.taskForm, m.left.taskInput, m.left.taskNotice = "new-agent", "", ""
+			m.left.newAgent = newAgentForm{harness: m.left.defaultNewAgentHarness()}
 			return m, nil
 		case "z":
 			m.layout = (m.layout + 1) % layoutCount
@@ -380,24 +380,6 @@ func restoreWindow(borrowed string) {
 		tmux.RunTmux("select-pane", "-t", active)
 	}
 	tmux.RunTmux("set-option", "-wu", "-t", win, "window-size")
-}
-
-// spawnStandaloneAgent starts a new agent (it lands in the background
-// session, since there is no $TMUX).
-func spawnStandaloneAgent() tea.Msg { return spawnChosenAgent("") }
-
-func spawnChosenAgent(agent string) tea.Msg {
-	bin, err := os.Executable()
-	if err != nil {
-		return nil
-	}
-	cwd, _ := os.Getwd()
-	args := []string{"new", "--no-wait", "--cwd", cwd}
-	if agent != "" {
-		args = append(args, "--agent", agent)
-	}
-	_ = exec.Command(bin, args...).Run()
-	return refreshRequestMsg{}
 }
 
 // keyQueue serializes keys typed into the agent: one goroutine runs the
