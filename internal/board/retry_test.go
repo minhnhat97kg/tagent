@@ -72,3 +72,16 @@ func TestAsyncFailureKeepsOriginalIdentity(t *testing.T) {
 		t.Fatal("missing async audit")
 	}
 }
+
+func TestTriggerMovesTodoToDoing(t *testing.T) {
+	dir, scope := setup(t, "statuses:\n  - {id: todo}\n  - {id: doing}\n  - {id: done}\ntriggers: [{on: create, agent: builder}]\n")
+	ticket, _ := tasks.Add(scope, "work", nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 1200*time.Millisecond)
+	defer cancel()
+	if err := Run(ctx, dir, func(Action) error { return nil }); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := tasks.Get(scope, ticket.ID); got.Status != "doing" {
+		t.Fatalf("status %q, want doing", got.Status)
+	}
+}

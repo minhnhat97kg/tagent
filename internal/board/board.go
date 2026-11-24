@@ -218,6 +218,12 @@ func Run(ctx context.Context, dir string, fire Fire) error {
 						if e != nil {
 							return e
 						}
+						// An agent working a ticket that still sits in todo moves it to doing here,
+						// in code, so it never depends on the agent doing it. Status-driven
+						// dispatch (Trigger -1) already arrives in the step's own status.
+						if a.Trigger >= 0 && a.Run == "" {
+							moveToDoing(scope, cfg, task.ID)
+						}
 					}
 					if err = save(); err != nil {
 						return err
@@ -236,6 +242,22 @@ func Run(ctx context.Context, dir string, fire Fire) error {
 		}
 	}
 }
+
+// moveToDoing moves a todo ticket to the board's first in-progress column; any other
+// status is left alone. The "system" actor keeps the move from dispatching again.
+func moveToDoing(scope string, cfg tasks.BoardConfig, id string) {
+	t, err := tasks.Get(scope, id)
+	if err != nil || cfg.Lane(t.Status) != "todo" {
+		return
+	}
+	for _, c := range cfg.Columns {
+		if cfg.Lane(c) == "in progress" {
+			tasks.Update(scope, id, c, nil, tasks.MutationOptions{Actor: "system"})
+			return
+		}
+	}
+}
+
 func match(filter, value string) bool { return filter == "" || filter == "*" || filter == value }
 func Actions(dir string, cfg tasks.BoardConfig, ev tasks.Event, t tasks.Task) ([]Action, error) {
 	var err error
