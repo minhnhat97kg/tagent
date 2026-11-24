@@ -229,6 +229,7 @@ func dispatchBoardAction(a board.Action) error {
 		// (--agent, developer_instructions); a board entry starts o.Agent directly.
 		if text := roleInstructions(mainRoot, a.Agent, harness, !harnesses[target]); text != "" {
 			a.Prompt = withRoleInstructions(a.Agent, text, a.Prompt)
+			o.PromptHasRole = true
 		}
 		var warn string
 		var err error

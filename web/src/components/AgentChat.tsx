@@ -1,5 +1,5 @@
 import { useLayoutEffect, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react"
-import { ArrowRight, ArrowUp, Brain, Bot, ListTodo, Paperclip, Save, Workflow, X, Check, ChevronDown, Cpu, Gauge, ExternalLink, FileText, MessageCircleQuestion, Loader2, Pencil, Search, Terminal, Wrench } from "lucide-react"
+import { ArrowRight, ArrowUp, Brain, Bot, ImageIcon, ListTodo, Paperclip, Save, Workflow, X, Check, ChevronDown, Cpu, Gauge, ExternalLink, FileText, MessageCircleQuestion, Loader2, Pencil, Search, Terminal, Wrench } from "lucide-react"
 import { api, post } from "@/api"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -29,6 +29,7 @@ export function AgentChat({ pane, onOpenTerminal, onUnavailable, project, onSave
   const [files, setFiles] = useState<Upload[]>([])
   const [uploading, setUploading] = useState(0)
   const fileInput = useRef<HTMLInputElement>(null)
+  const photoInput = useRef<HTMLInputElement>(null)
   const box = useRef<HTMLTextAreaElement>(null)
   const [caret, setCaret] = useState(0)
   const [mentionPick, setMentionPick] = useState(0)
@@ -269,7 +270,17 @@ export function AgentChat({ pane, onOpenTerminal, onUnavailable, project, onSave
         <ul className="mt-0.5 space-y-0.5 text-foreground">{feed.queued.map((q, i) => <li key={i} className="truncate">{q}</li>)}</ul>
       </div>}</>}>
       <input ref={fileInput} type="file" multiple hidden aria-label="Attach files" onChange={e => { void attach(Array.from(e.target.files ?? [])); e.target.value = "" }} />
-      <Button type="button" variant="ghost" size="icon" aria-label="Attach file" title="Attach a file or image" className="size-7 shrink-0 self-end rounded-full text-muted-foreground max-md:size-9" onClick={() => fileInput.current?.click()}><Paperclip /></Button>
+      {/* accept="image/*" makes phones offer the photo gallery and camera, which a plain file picker hides on Android. */}
+      <input ref={photoInput} type="file" accept="image/*" multiple hidden aria-label="Attach photos" onChange={e => { void attach(Array.from(e.target.files ?? [])); e.target.value = "" }} />
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button type="button" variant="ghost" size="icon" aria-label="Attach" title="Attach a file or photo" className="size-7 shrink-0 self-end rounded-full text-muted-foreground max-md:size-9"><Paperclip /></Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start">
+          <DropdownMenuItem onSelect={() => photoInput.current?.click()}><ImageIcon />Photo</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => fileInput.current?.click()}><FileText />File</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
       <textarea ref={box} aria-label="Message agent" rows={1} value={draft} placeholder="Message this agent"
         onSelect={e => setCaret(e.currentTarget.selectionStart)}
         onPaste={e => { const picked = Array.from(e.clipboardData.files); if (picked.length) { e.preventDefault(); void attach(picked) } }}

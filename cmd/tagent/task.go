@@ -25,7 +25,7 @@ func cmdTask(args []string, stdout, stderr io.Writer) int {
 	}
 	if withUsage := len(args) == 2 && args[0] == "ls" && args[1] == "--usage"; len(args) == 0 || (len(args) == 1 && args[0] == "ls") || withUsage {
 		for _, t := range tasks.List(scope) {
-			fmt.Fprintf(stdout, "%s\t%s\t%s\t%s", t.ID, t.Status, strings.Join(t.Assignees, ","), t.Text)
+			fmt.Fprintf(stdout, "%s\t%s\t%s\t%s", t.ID, t.Status, strings.Join(t.Assignees, ","), lsTitle(t.Text))
 			if withUsage {
 				u := ticketUsage(wd, scope, t)
 				col := "—"
@@ -502,4 +502,15 @@ func ticketUsage(wd, scope string, t tasks.Task) metrics.TicketUsage {
 	}
 	events, _ := tasks.ReadEvents(scope, 0)
 	return metrics.TicketUsageOf(metrics.Read(scope), t, cfg, events, time.Now().UTC())
+}
+
+// lsTitle keeps `task ls` one line per ticket: the first line of the text,
+// capped, so a listing stays small enough for an agent to read whole.
+// `task show` has the full text.
+func lsTitle(text string) string {
+	title, _, _ := strings.Cut(strings.TrimSpace(text), "\n")
+	if r := []rune(title); len(r) > 120 {
+		title = string(r[:119]) + "…"
+	}
+	return title
 }

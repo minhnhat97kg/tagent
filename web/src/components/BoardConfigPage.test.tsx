@@ -42,7 +42,6 @@ test("shows the same summary as the TUI and previews the draft", async () => {
   expect(screen.getAllByText("feature").length).toBeGreaterThan(0)
   expect(screen.getByText(/flows live in \.tasks\/workflows/i)).toBeTruthy()
   expect(screen.getByText("planner")).toBeTruthy()
-  expect(screen.getByText(/gpt · effort high/)).toBeTruthy()
   expect(screen.getByText("@mention")).toBeTruthy()
   expect(screen.getByText(/the mentioned agent/)).toBeTruthy()
   expect(saveButton().disabled).toBe(true)

@@ -1,5 +1,6 @@
 import { Suspense, lazy, useEffect, useRef, useState } from 'react'
-import { MoreHorizontal, RotateCcw, Save, Undo2 } from 'lucide-react'
+import { FileCode2, MoreHorizontal, RotateCcw, Save, Undo2 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { api, send } from '@/api'
 import { Button } from '@/components/ui/button'
@@ -24,57 +25,50 @@ function parseError(text: string): { error: string; line: number } {
   return { error: text, line: 0 }
 }
 
-// One settings row: label and a short hint on the left, the value or control on the right.
-function Row({ label, hint, children, id }: { label: string; hint?: string; children?: React.ReactNode; id?: string }) {
-  return <div className="flex items-start gap-4 border-b px-4 py-3 last:border-b-0">
-    <div className="min-w-0 flex-1">
-      <h3 id={id} className="text-[13px] font-medium">{label}</h3>
-      {hint && <p className="mt-0.5 text-[11.5px] text-muted-foreground">{hint}</p>}
+// Section is one titled block of the overview: a small caps heading, an optional action, then its body.
+function Section({ id, title, action, children }: { id: string; title: string; action?: React.ReactNode; children: React.ReactNode }) {
+  return <section aria-labelledby={id} className="space-y-2">
+    <div className="flex items-baseline gap-2">
+      <h3 id={id} className="flex-1 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">{title}</h3>
+      {action}
     </div>
-    {children && <div className="shrink-0">{children}</div>}
-  </div>
+    {children}
+  </section>
 }
 
-const shortModel = (m?: string) => (m ? m.slice(m.lastIndexOf('/') + 1) : 'default')
+const empty = (text: string) => <p className="rounded-lg border border-dashed px-3 py-4 text-center text-[12px] text-muted-foreground">{text}</p>
 
-// BoardSummaryView is the readable side of the page: agents and triggers, as
-// one list of settings rows. It follows the draft live.
+// BoardSummaryView is the readable side of the page: agents, triggers and the
+// dispatch limit. It follows the draft live.
 export function BoardSummaryView({ summary }: { summary?: BoardSummary }) {
-  if (!summary) return <p className="px-4 py-3 text-sm text-muted-foreground">No valid configuration to preview.</p>
+  if (!summary) return empty('No valid configuration to preview.')
   return <>
-    <section aria-labelledby="board-config-roles" className="border-b">
-      <div className="flex items-baseline gap-2 px-4 pt-3">
-        <h3 id="board-config-roles" className="flex-1 text-[13px] font-medium">Agents</h3>
-        <a href="#/agents" className="text-[11.5px] text-muted-foreground hover:text-foreground hover:underline">Manage agents →</a>
-      </div>
-      {summary.roles.length ? <table className="mx-4 mb-3 mt-1.5 w-[calc(100%-2rem)] text-[12px]">
-        <tbody>{summary.roles.map(r => <tr key={r.name} className="border-t first:border-t-0">
-          <td className="py-1.5 pr-3 font-medium">{r.name}</td>
-          <td className="py-1.5 pr-3 text-muted-foreground">{r.agent}</td>
-          <td className="w-full truncate py-1.5 font-mono text-[11.5px] text-muted-foreground" title={[r.agent, r.model].filter(Boolean).join(' ')}>
-            {shortModel(r.model)}{r.effort ? ` · effort ${r.effort}` : ''}{r.freshAfter != null ? ` · fresh after ${r.freshAfter}` : ''}
-          </td>
-        </tr>)}</tbody>
-      </table> : <p className="px-4 pb-3 pt-1 text-[11.5px] text-muted-foreground">No agents yet.</p>}
-    </section>
-    <section aria-labelledby="board-config-triggers" className="border-b">
-      <h3 id="board-config-triggers" className="px-4 pt-3 text-[13px] font-medium">Triggers</h3>
-      {summary.triggers.length ? <ul className="px-4 pb-2 pt-1">
+    {/* Harness and model per agent are edited on the Agents page; here only a link, not a second copy. */}
+    <a href="#/agents" className="flex items-center gap-2 rounded-lg border bg-background px-3 py-2.5 text-[12px] hover:bg-accent">
+      <span className="font-medium">Agents</span>
+      <span className="truncate text-muted-foreground">{summary.roles.map(r => r.name).join(', ') || 'none yet'}</span>
+      <span className="ml-auto shrink-0 text-muted-foreground">Manage →</span>
+    </a>
+    <Section id="board-config-triggers" title="Triggers">
+      {summary.triggers.length ? <ul className="divide-y rounded-lg border bg-background">
         {summary.triggers.map((t, i) => <li key={i}>
-          <details className="group border-t py-1.5 text-[12px] first:border-t-0">
+          <details className="group px-3 py-2 text-[12px]">
             <summary className="flex cursor-pointer list-none items-center gap-2">
-              <span className="font-medium">{t.on === 'mention' ? '@mention' : t.on}</span>
+              <span className="rounded bg-brand/10 px-1.5 py-px font-mono text-[11px] font-medium text-brand">{t.on === 'mention' ? '@mention' : t.on}</span>
               <span className="truncate text-muted-foreground">→ {t.agent === '{{event.name}}' ? 'the mentioned agent' : t.agent}{t.when && t.when !== 'to=*' ? ` · ${t.when}` : ''}</span>
-              <span className="ml-auto text-muted-foreground transition-transform group-open:rotate-90" aria-hidden>▸</span>
+              {t.prompt && <span className="ml-auto text-muted-foreground transition-transform group-open:rotate-90" aria-hidden>▸</span>}
             </summary>
-            {t.prompt && <p className="mt-1 whitespace-pre-wrap font-mono text-[11px] text-muted-foreground">{t.prompt}</p>}
+            {t.prompt && <pre className="mt-2 overflow-x-auto rounded-md bg-muted/60 p-2 font-mono text-[11px] whitespace-pre-wrap text-muted-foreground">{t.prompt}</pre>}
           </details>
         </li>)}
-      </ul> : <p className="px-4 pb-3 pt-1 text-[11.5px] text-muted-foreground">No triggers.</p>}
-    </section>
-    <Row label="Dispatch limit" hint="Most agent runs one ticket may start in an hour.">
-      <span className="text-[12px] tabular-nums">{summary.maxFiresPerHour} / hour</span>
-    </Row>
+      </ul> : empty('No triggers.')}
+    </Section>
+    <Section id="board-config-limit" title="Dispatch limit">
+      <div className="flex items-center gap-3 rounded-lg border bg-background px-3 py-2.5">
+        <p className="flex-1 text-[12px] text-muted-foreground">Most agent runs one ticket may start in an hour.</p>
+        <span className="text-[13px] font-semibold tabular-nums">{summary.maxFiresPerHour}<span className="font-normal text-muted-foreground"> / hour</span></span>
+      </div>
+    </Section>
   </>
 }
 
@@ -93,6 +87,7 @@ export function BoardConfigPage({ dir }: { dir: string }) {
   const [busy, setBusy] = useState(false)
   const [goto, setGoto] = useState<{ line: number; to?: number }>()
   const revision = useRef(0)
+  const [view, setView] = useState<'overview' | 'yaml'>('overview')
 
   useEffect(() => {
     let active = true
@@ -154,10 +149,14 @@ export function BoardConfigPage({ dir }: { dir: string }) {
   }
 
   return <section aria-label="Board config" className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg border bg-card">
-    <header className="flex h-10 shrink-0 items-center gap-2 border-b px-3">
-      <h2 className="text-[13px] font-semibold">Board</h2>
-      <span className="truncate font-mono text-[11px] text-muted-foreground" title={`${dir}/.tasks/board.yaml`}>.tasks/board.yaml{!exists && ' · not created yet'}</span>
-      {dirty && <span className="text-[11px] text-amber-600">● Unsaved</span>}
+    <header className="flex h-11 shrink-0 items-center gap-2 border-b px-3">
+      <h2 className="text-[13px] font-semibold">Board settings</h2>
+      {dirty && <span className="rounded-full bg-amber-500/15 px-2 py-px text-[11px] text-amber-600 dark:text-amber-400">Unsaved</span>}
+      {/* Narrow screens show one side at a time; wide ones show both. */}
+      <div role="tablist" aria-label="View" className="ml-2 flex rounded-md bg-muted p-0.5 text-[12px] lg:hidden">
+        {(['overview', 'yaml'] as const).map(v => <button key={v} role="tab" aria-selected={view === v} type="button" onClick={() => setView(v)}
+          className={cn('rounded px-2.5 py-0.5', view === v ? 'bg-background font-medium shadow-sm' : 'text-muted-foreground')}>{v === 'yaml' ? 'YAML' : 'Overview'}</button>)}
+      </div>
       <div className="ml-auto flex items-center gap-1">
         <Button size="xs" variant="ghost" disabled={busy || !dirty} onClick={() => setDraft(saved)}><Undo2 />Revert</Button>
         <Button size="xs" disabled={busy || !dirty || invalid} onClick={() => void save()}><Save />Save</Button>
@@ -169,26 +168,36 @@ export function BoardConfigPage({ dir }: { dir: string }) {
         </DropdownMenu>
       </div>
     </header>
-    {(validation || error) && <p role="alert" className="shrink-0 whitespace-pre-wrap border-b bg-destructive/5 px-3 py-1.5 text-xs text-destructive">
+    {(validation || error) && <p role="alert" className="shrink-0 border-b bg-destructive/5 px-3 py-1.5 text-xs whitespace-pre-wrap text-destructive">
       {validation && validationLine > 0
-        ? <button type="button" className="text-left underline decoration-dotted underline-offset-2" onClick={() => setGoto({ line: validationLine })}>Line {validationLine}: {validationMessage}</button>
+        ? <button type="button" className="text-left underline decoration-dotted underline-offset-2" onClick={() => { setView('yaml'); setGoto({ line: validationLine }) }}>Line {validationLine}: {validationMessage}</button>
         : validation || error}
     </p>}
-    <div className="grid min-h-0 flex-1 grid-rows-2 md:grid-cols-2 md:grid-rows-1">
-      <div className="min-h-0 overflow-auto border-b md:border-b-0 md:border-r">
-        <Row id="board-config-workflow" label="Default workflow" hint="New tickets run this flow. Flows live in .tasks/workflows/*.yml.">
-          <select aria-label="Default workflow" disabled={busy || !ready} value={summary?.defaultWorkflow ?? ''} onChange={e => void chooseDefault(e.target.value)} className="h-7 rounded-md border bg-background px-2 text-[12px]">
-            <option value="">None</option>
-            {workflows.map(w => <option key={w.name} value={w.name}>{w.name}{w.global ? ' (global)' : ''}</option>)}
-          </select>
-        </Row>
+    <div className="flex min-h-0 flex-1">
+      <div className={cn('min-h-0 flex-1 space-y-5 overflow-auto p-4 lg:max-w-[420px] lg:flex-none lg:basis-[42%] lg:border-r', view !== 'overview' && 'max-lg:hidden')}>
+        {/* Not a Section: the select itself carries the "Default workflow" label. */}
+        <div className="space-y-2">
+          <h3 id="board-config-workflow" className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">Default workflow</h3>
+          <div className="rounded-lg border bg-background px-3 py-2.5">
+            <select aria-label="Default workflow" disabled={busy || !ready} value={summary?.defaultWorkflow ?? ''} onChange={e => void chooseDefault(e.target.value)} className="h-8 w-full rounded-md border bg-card px-2 text-[13px] font-medium">
+              <option value="">None</option>
+              {workflows.map(w => <option key={w.name} value={w.name}>{w.name}{w.global ? ' (global)' : ''}</option>)}
+            </select>
+            <p className="mt-1.5 text-[11.5px] text-muted-foreground">New tickets run this flow. Flows live in .tasks/workflows/*.yml.</p>
+          </div>
+        </div>
         <BoardSummaryView summary={summary} />
       </div>
-      <div className="flex min-h-0 flex-col">
-        <div className="shrink-0 border-b px-3 py-1.5 text-[11px] text-muted-foreground">YAML · comments and order are kept</div>
-        <div className="min-h-0 flex-1">
+      <div className={cn('flex min-h-0 min-w-0 flex-1 flex-col', view !== 'yaml' && 'max-lg:hidden')}>
+        <div className="flex h-9 shrink-0 items-center gap-2 border-b bg-muted/40 px-3">
+          <FileCode2 className="size-3.5 text-muted-foreground" />
+          <span className="truncate font-mono text-[12px]" title={`${dir}/.tasks/board.yaml`}>.tasks/board.yaml</span>
+          {!exists && <span className="text-[11px] text-muted-foreground">not created yet</span>}
+          <span className="ml-auto hidden text-[11px] text-muted-foreground sm:inline">Comments and key order are kept</span>
+        </div>
+        <div className="min-h-0 flex-1 bg-muted/20">
           <Suspense fallback={<pre className="h-full overflow-auto p-3 font-mono text-[12px] leading-5">{draft}</pre>}>
-            <WorkflowYamlEditor key={dir} value={draft} onChange={setDraft} readOnly={false} errorLine={validationLine} errorMessage={validation} goto={goto} label="Board config YAML" />
+            <WorkflowYamlEditor key={dir} value={draft} onChange={setDraft} readOnly={false} errorLine={validationLine} errorMessage={validation} goto={goto} label="Board config YAML" wrap={false} />
           </Suspense>
         </div>
       </div>

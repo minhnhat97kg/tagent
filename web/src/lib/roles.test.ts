@@ -25,8 +25,8 @@ describe("roles helpers", () => {
     expect(roleTemplate("writer")).toBe("# writer\n\nDescribe how this agent works.\n")
     expect(roleTemplate("writer").startsWith("---")).toBe(false)
   })
-  it("marks global and legacy agents read-only", () => {
-    expect(readOnlySource("global")).toBe(true)
+  it("marks only legacy agents read-only", () => {
+    expect(readOnlySource("global")).toBe(false)
     expect(readOnlySource("legacy")).toBe(true)
     expect(readOnlySource("repo")).toBe(false)
     expect(readOnlySource("board")).toBe(false)

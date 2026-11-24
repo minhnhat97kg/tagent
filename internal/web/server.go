@@ -429,9 +429,7 @@ func (s *server) project(w http.ResponseWriter, r *http.Request) {
 	harness, _ := tmux.GetOption(tmux.AgentOption)
 	defs := []string{}
 	for _, a := range agents.List(dir, harness, nil) {
-		if a.Source != "global" {
-			defs = append(defs, a.Name)
-		}
+		defs = append(defs, a.Name) // global agents too: spawn resolves them like repo ones
 	}
 	sort.Strings(defs)
 	cfg, err := tasks.LoadBoardConfig(dir)

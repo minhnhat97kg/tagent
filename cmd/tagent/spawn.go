@@ -34,6 +34,7 @@ type spawnOpts struct {
 	Wait                                  bool     // wait until the agent reports a status
 	Terminal                              bool     // a plain login shell, no harness; kept from the idle sweep
 	Window                                string   // tmux window name (default: Name)
+	PromptHasRole                         bool     // the caller puts the role's instructions in its prompt (dispatch)
 }
 
 // Pane options recording how an agent was started (restore, merge).
@@ -159,6 +160,16 @@ func spawnAgent(o spawnOpts) (pane, warn string, err error) {
 		case "codex":
 			// Codex has no standalone --agent flag; pass the repo agent's developer instructions.
 			args = append(args, "-c", "developer_instructions="+strconv.Quote(role.Instructions))
+		}
+	} else if text := strings.TrimSpace(role.Instructions); o.Role != "" && text != "" && !o.PromptHasRole {
+		// App-owned instructions (.tasks/agents/<role>.md): no dispatch prompt
+		// carries them here (`new`, ask, fanout, chat), so hand them to the harness.
+		// ponytail: opencode/gemini/copilot/amp have no such flag; they still get them only via dispatch.
+		switch roles.Harness(o.Agent) {
+		case "claude", "pi":
+			args = append(args, "--append-system-prompt", "Your role is "+o.Role+". Follow these instructions:\n\n"+text)
+		case "codex":
+			args = append(args, "-c", "developer_instructions="+strconv.Quote(text))
 		}
 	}
 	command := roleEnv + setup.ShellQuote(o.Agent)

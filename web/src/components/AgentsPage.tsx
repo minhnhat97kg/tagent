@@ -24,7 +24,7 @@ export function AgentsPage({ dir }: { dir: string }) {
   const panes = saved?.panes ?? []
   const dirty = !!draft && !!saved && editableKey(draft) !== editableKey(saved)
   const readOnly = !draft || readOnlySource(draft.source)
-  const copyable = !!draft && readOnlySource(draft.source)
+  const copyable = !!draft && (readOnlySource(draft.source) || draft.source === "global")
 
   function open(r?: Role) {
     if (dirty && !confirm("Discard unsaved agent changes?")) return
@@ -72,15 +72,14 @@ export function AgentsPage({ dir }: { dir: string }) {
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-auto">
           <div className="flex shrink-0 flex-wrap items-center gap-2 border-b px-3 py-1.5">
             <h3 className="mr-auto truncate text-[13px] font-semibold">{draft.name}{dirty && <span className="ml-1 text-amber-600">•</span>}<span className="ml-2 text-[11px] font-normal text-muted-foreground">{draft.source === "global" ? "global" : "local"}{draft.path ? ` · ${draft.path}` : ""}</span></h3>
-            {copyable
-              ? <Button size="xs" variant="outline" disabled={busy} onClick={() => void save({ ...draft, source: "repo", path: "" })}><Copy />Copy to repo</Button>
-              : <>
+            {copyable && <Button size="xs" variant="outline" disabled={busy} onClick={() => void save({ ...draft, source: "repo", path: "" })}><Copy />Copy to repo</Button>}
+            {!readOnly && <>
                 <Button size="xs" variant="outline" disabled={busy || !dirty} onClick={() => void save(draft)}><Save />Save</Button>
-                <Button size="xs" variant="ghost" aria-label="Delete agent" disabled={busy} onClick={() => { if (confirm(draft.path ? `Delete ${draft.name}? Its instruction file ${draft.path} is removed too.` : `Delete ${draft.name} from board.yaml?`)) void mutate("DELETE", { name: draft.name }).then(ok => { if (ok) setDraft(undefined) }) }}><Trash2 /></Button>
+                {draft.source !== "global" && <Button size="xs" variant="ghost" aria-label="Delete agent" disabled={busy} onClick={() => { if (confirm(draft.path ? `Delete ${draft.name}? Its instruction file ${draft.path} is removed too.` : `Delete ${draft.name} from board.yaml?`)) void mutate("DELETE", { name: draft.name }).then(ok => { if (ok) setDraft(undefined) }) }}><Trash2 /></Button>}
               </>}
           </div>
           {error && <p role="alert" className="shrink-0 whitespace-pre-wrap border-b bg-destructive/5 px-3 py-1.5 text-xs text-destructive">{error}</p>}
-          {copyable && <p className="border-b px-3 py-1.5 text-xs text-muted-foreground">{draft.source === "legacy" ? `Legacy harness file (${draft.path}): read-only here. Copy it to .tasks/agents to change it.` : "Global agent: read-only here. Copy it to the repo to change it."}</p>}
+          {copyable && <p className="border-b px-3 py-1.5 text-xs text-muted-foreground">{draft.source === "legacy" ? `Legacy harness file (${draft.path}): read-only here. Copy it to .tasks/agents to change it.` : `Global agent (${draft.path}): instruction edits apply in every repo. Harness, model and effort are saved to this repo's board.yaml. Copy it to the repo to change it here only.`}</p>}
           <div className="grid gap-3 p-3 sm:grid-cols-3">
             <label className="text-[12px] font-medium">Harness
               <select aria-label="Harness" className={fieldClass} disabled={readOnly} value={draft.harness} onChange={e => setDraft({ ...draft, harness: e.target.value, model: "", effort: effortLevels(e.target.value).includes(draft.effort) ? draft.effort : "" })}>

@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { bindVisualViewport } from '@/lib/touchViewport'
-import { ArrowLeft, Bot, Kanban, Maximize2, Minimize2, Monitor, Moon, PanelLeftClose, PanelLeftOpen, Plus, Settings, SquareTerminal, Sun, Workflow } from "lucide-react"
+import { ArrowLeft, Bot, ChevronDown, ChevronUp, Kanban, Maximize2, Minimize2, Monitor, Moon, PanelLeftClose, PanelLeftOpen, Plus, Settings, SquareTerminal, Sun, Workflow } from "lucide-react"
 import { nextTheme, useWebTheme } from "@/lib/theme"
 import { SettingsDialog } from "@/components/SettingsDialog"
 import { api } from "@/api"
@@ -22,10 +22,12 @@ import { TasksPanel } from "@/components/panels/TasksPanel"
 import { Button } from "@/components/ui/button"
 import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { cn } from "@/lib/utils"
 import { useKeys } from "@/hooks/useKeys"
 import { usePoll } from "@/hooks/usePoll"
 import { useProjectDir } from "@/hooks/useProjectDir"
 import { useRailCollapsed } from "@/hooks/useRail"
+import { useRailLayout, type RailId } from "@/hooks/useRailLayout"
 import { enc, nav, parseSel, useRoute } from "@/hooks/useRoute"
 import { baseName, byTaskOrder } from "@/lib/status"
 import { useAppState } from "@/state"
@@ -43,6 +45,8 @@ export default function App() {
   const [settings, setSettings] = useState(false)
   // Rail collapsed state: an icon strip keeps the board room to itself.
   const [railCollapsed, setRailCollapsed] = useRailCollapsed()
+  const layout = useRailLayout()
+  const [editing, setEditing] = useState(false)
   // Whole app full screen (browser chrome hidden). iPhone Safari has no Fullscreen API, so the button hides there.
   const [full, setFull] = useState(false)
   useEffect(() => {
@@ -71,6 +75,14 @@ export default function App() {
 
   const agent = sel?.kind === "agent" ? state?.agents.find((a) => a.pane === sel.pane) : undefined
   const [dir, setDir] = useProjectDir(agent?.path)
+  // The rail lists only this workspace's agents; project is the main repo's name, so worktree agents count too.
+  // An agent belongs to the deepest workspace holding its path, so a home-folder workspace doesn't swallow every project.
+  const dirAgents = useMemo(() => {
+    if (!dir) return ordered
+    const projects = state?.projects ?? []
+    const owner = (p: string) => projects.filter(d => p === d || p.startsWith(d + "/")).sort((a, b) => b.length - a.length)[0]
+    return ordered.filter(a => { const o = owner(a.path); return o ? o === dir : a.project === baseName(dir) })
+  }, [ordered, dir, state?.projects])
   const projPoll = usePoll<Project | undefined>(() => (dir ? api<Project>(`/api/project?dir=${enc(dir)}`) : Promise.resolve(undefined)), 2000, dir)
   const [usageDays, setUsageDays] = useState(7)
   const overviewPoll = usePoll<Overview | undefined>(() => (dir ? api<Overview>(`/api/overview?days=${usageDays}&dir=${enc(dir)}`) : Promise.resolve(undefined)), 5000, dir + usageDays) // usage changes slowly; 5s keeps the server idle
@@ -111,6 +123,34 @@ export default function App() {
   const tasks = <TasksPanel proj={proj} dir={dir} reload={projPoll.reload} className="min-h-40 flex-1" />
 
 
+  const railIds = layout.order
+  const railCls: Record<RailId, string> = { overview: "shrink-0", agents: "max-h-[35%] shrink-0", tasks: "min-h-40 flex-1" }
+
+  const railPanel = (id: RailId, i: number, ids: RailId[], cls: Record<RailId, string>) => <div key={id} className={cn("group/rail relative flex min-h-0 flex-col", id === "overview" && "overflow-y-auto", cls[id])} style={layout.heights[id] ? { flex: `0 1 ${layout.heights[id]}%`, minHeight: 64, maxHeight: "none" } : undefined}>
+              {editing && <div className="absolute top-1 left-1/2 z-10 flex -translate-x-1/2 rounded-md bg-card/90 shadow-sm ring-1 ring-border">
+                <button aria-label="Move panel up" disabled={i === 0} className="rounded hover:bg-accent disabled:invisible" onClick={() => layout.move(id, -1, ids)}><ChevronUp className="size-4" /></button>
+                <button aria-label="Move panel down" disabled={i === ids.length - 1} className="rounded hover:bg-accent disabled:invisible" onClick={() => layout.move(id, 1, ids)}><ChevronDown className="size-4" /></button>
+              </div>}
+              {id === "overview" && <OverviewPanel days={usageDays} onDays={setUsageDays} overview={overview} className="shrink-0" />}
+              {id === "agents" && <AgentsPanel ordered={dirAgents} byTask={byTask} onToggleTask={toggleByTask} selPane={agent?.pane} className="min-h-0 flex-1" />}
+              {id === "tasks" && tasks}
+              {editing && <div role="separator" aria-orientation="horizontal" title="Drag to resize (double-click to reset)" className="group/grip absolute inset-x-0 bottom-0 z-10 flex h-3 cursor-row-resize touch-none items-end justify-center"
+                onDoubleClick={() => layout.setHeight(id, null)}
+                onPointerDown={(e) => {
+                  const box = e.currentTarget.parentElement!
+                  e.currentTarget.setPointerCapture(e.pointerId)
+                  // Heights are a percentage of the rail, so they scale with the window.
+                  const total = box.parentElement!.clientHeight || 1
+                  const y0 = e.clientY, h0 = box.offsetHeight
+                  let pct = (h0 / total) * 100
+                  const h = (ev: PointerEvent) => { pct = Math.max(10, Math.min(80, ((h0 + ev.clientY - y0) / total) * 100)); box.style.flex = `0 1 ${pct}%`; box.style.maxHeight = "none" }
+                  const up = () => { window.removeEventListener("pointermove", h); window.removeEventListener("pointerup", up); layout.setHeight(id, Math.round(pct * 10) / 10) }
+                  window.addEventListener("pointermove", h); window.addEventListener("pointerup", up)
+                }}><span className="mb-0.5 h-1 w-10 rounded-full bg-muted-foreground/30 group-hover/grip:bg-brand" /></div>}
+  </div>
+  const phoneIds: RailId[] = layout.order
+  const phoneCls: Record<RailId, string> = { overview: "shrink-0", agents: "max-h-[40vh] shrink-0", tasks: "min-h-40 flex-1" }
+
   let main
   if (boardRoute) main = board
   else if (boardConfigRoute) main = <BoardConfigPage key={dir} dir={dir} />
@@ -122,9 +162,7 @@ export default function App() {
   else main = <>
     {/* Phone home: the rail's lists stacked; the board is in the header. */}
     <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto md:hidden">
-      <OverviewPanel days={usageDays} onDays={setUsageDays} overview={overview} className="shrink-0" />
-      <AgentsPanel ordered={ordered} byTask={byTask} onToggleTask={toggleByTask} className="shrink-0" />
-      {tasks}
+      {phoneIds.map((id, i) => railPanel(id, i, phoneIds, phoneCls))}
     </div>
     <div className="hidden min-h-0 min-w-0 flex-1 md:flex">
       {board}
@@ -151,18 +189,17 @@ export default function App() {
           </div>
         </header>
 
+        {editing && <div className="flex shrink-0 items-center gap-2 border-b bg-card px-3 py-1.5 text-xs text-muted-foreground"><span className="min-w-0 flex-1">Editing layout: use ▲▼ to move, drag the bar under a panel to resize.</span><Button size="xs" onClick={() => setEditing(false)}>Done</Button></div>}
         <div className="flex min-h-0 flex-1 gap-2 p-2">
-          {railCollapsed ? <RailStrip tasks={!home} onExpand={() => setRailCollapsed(false)} /> : <aside className="hidden w-72 shrink-0 flex-col gap-2 md:flex">
-            <OverviewPanel days={usageDays} onDays={setUsageDays} overview={overview} className="shrink-0" />
-            <AgentsPanel ordered={ordered} byTask={byTask} onToggleTask={toggleByTask} selPane={agent?.pane} className={home ? "min-h-24 flex-1" : "max-h-[35%] shrink-0"} />
-            {!home && tasks}
+          {railCollapsed ? <RailStrip tasks onExpand={() => setRailCollapsed(false)} /> : <aside className="hidden w-72 shrink-0 flex-col gap-2 md:flex">
+            {railIds.map((id, i) => railPanel(id, i, railIds, railCls))}
           </aside>}
           <main className="flex min-h-0 min-w-0 flex-1 flex-col">{main}</main>
         </div>
       </div>
       <TaskDrawer proj={proj} dir={dir} reload={projPoll.reload} id={noticeTicket?.dir === dir ? noticeTicket.id : undefined} initialReply={noticeTicket?.reply} origin={noticeOrigin} onClose={() => setNoticeTicket(undefined)} />
       {newOpen && <NewAgentDialog dir={dir} onOpenChange={setNewOpen} />}
-      <SettingsDialog open={settings} onOpenChange={setSettings} />
+      <SettingsDialog open={settings} onOpenChange={setSettings} onEditLayout={() => { setSettings(false); setEditing(true) }} />
       <Toaster richColors position="top-right" />
     </TooltipProvider>
   )

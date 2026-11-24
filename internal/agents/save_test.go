@@ -281,16 +281,23 @@ func TestSaveIgnoresRequestPath(t *testing.T) {
 	}
 }
 
-func TestSaveRefusesGlobalWrite(t *testing.T) {
+func TestSaveGlobalInPlaceAndCopy(t *testing.T) {
 	dir := setup(t)
+	before := board(t, dir)
 	writeFile(t, filepath.Join(roles.GlobalDir(), "gl.md"), "global\n")
-	if err := Save(dir, "claude", Agent{Name: "gl", Harness: "claude", Instructions: "x", Source: "global"}); err == nil {
-		t.Fatal("global agent written in place")
+	if err := Save(dir, "claude", Agent{Name: "gl", Harness: "claude", Instructions: "global edited", Source: "global"}); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(filepath.Join(roles.GlobalDir(), "gl.md")); string(b) != "global edited\n" {
+		t.Fatalf("global edit: %q", b)
+	}
+	if exists(roles.LocalPath(dir, "gl")) || board(t, dir) != before {
+		t.Fatal("global edit leaked into the repo")
 	}
 	if err := Save(dir, "claude", Agent{Name: "gl", Harness: "claude", Instructions: "copy", Source: "repo"}); err != nil {
 		t.Fatal(err)
 	}
-	if b, _ := os.ReadFile(filepath.Join(roles.GlobalDir(), "gl.md")); !strings.Contains(string(b), "global") {
+	if b, _ := os.ReadFile(filepath.Join(roles.GlobalDir(), "gl.md")); string(b) != "global edited\n" {
 		t.Fatal("copy to repo changed the global file")
 	}
 	if b, _ := os.ReadFile(roles.LocalPath(dir, "gl")); string(b) != "copy\n" {

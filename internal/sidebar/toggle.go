@@ -91,7 +91,9 @@ func Toggle(args []string) int {
 	}
 
 	if activePane != "" {
-		tmux.SelectPane(activePane, windowID)
+		// Window-local only: tmux.SelectPane would also switch-client/select-window and
+		// pull the user into a window created in the background (new-window -d).
+		tmux.RunTmux("select-pane", "-t", activePane)
 	} else {
 		tmux.RunTmux("select-pane", "-t", windowID, "-l")
 	}

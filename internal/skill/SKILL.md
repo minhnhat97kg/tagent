@@ -1,6 +1,6 @@
 ---
 name: tagent
-description: Work tagent tickets: show, move with handoff, comment, add. Prefer the tagent MCP tools when listed.
+description: Read this first for any question or action on tickets, tasks or the board (how many are open, list, show, move, comment, add). Uses the tagent CLI or its MCP tools.
 ---
 
 # tagent tickets
@@ -29,6 +29,10 @@ MCP equivalent:
 - `task_move {"id": "12", "to": "review", "outputs": {"summary": "fixed login redirect"}, "comment": "Tests: go test ./internal/auth passes. Changed: internal/auth/redirect.go. Next: review the diff."}`
 
 Need a human decision? `{{BIN}} task move 12 blocked "Should the redirect keep the old path?"`
+
+## Other questions
+- Open (not done) tickets, one per line `id<TAB>status<TAB>assignees<TAB>title`: `{{BIN}} task ls | awk -F'\t' '$2!="done"'`
+- One ticket: `{{BIN}} task show ID`. Comment: `{{BIN}} task comment ID "text"`. New ticket: `{{BIN}} task add "text"`.
 
 ## Rules of thumb
 - Handoffs are short: checks run, changed paths, next step. Put data in outputs or files, not long comments.

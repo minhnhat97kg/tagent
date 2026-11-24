@@ -20,6 +20,7 @@ type Props = {
   insert?: { text: string; n: number } // text to put at the cursor; n makes repeats distinct
   onCursor?: (line: number) => void
   label?: string
+  wrap?: boolean // false scrolls long lines sideways, like a code view
 }
 
 const highlight = HighlightStyle.define([
@@ -63,11 +64,11 @@ function build(view: EditorView): DecorationSet {
   return Decoration.set(ranges, true)
 }
 
-export default function WorkflowYamlEditor({ value, onChange, readOnly, errorLine, errorMessage, goto, insert, onCursor, label = 'Workflow YAML' }: Props) {
+export default function WorkflowYamlEditor({ value, onChange, readOnly, errorLine, errorMessage, goto, insert, onCursor, label = 'Workflow YAML', wrap = true }: Props) {
   const host = useRef<HTMLDivElement>(null)
   const view = useRef<EditorView>(undefined)
   const callbacks = useRef({ onChange, onCursor })
-  const start = useRef({ value, readOnly, label })
+  const start = useRef({ value, readOnly, label, wrap })
   useEffect(() => { callbacks.current = { onChange, onCursor } })
 
   // Mounted once per workflow: the parent remounts it with a key when another workflow is opened.
@@ -78,7 +79,7 @@ export default function WorkflowYamlEditor({ value, onChange, readOnly, errorLin
         doc: start.current.value,
         extensions: [
           lineNumbers(), highlightActiveLine(), highlightActiveLineGutter(), history(), lintGutter(),
-          EditorView.lineWrapping, EditorState.tabSize.of(2), indentUnit.of('  '),
+          ...(start.current.wrap ? [EditorView.lineWrapping] : []), EditorState.tabSize.of(2), indentUnit.of('  '),
           keymap.of([indentWithTab, { key: 'Escape', run: x => { x.contentDOM.blur(); return true } }, ...defaultKeymap, ...historyKeymap]),
           yaml(), syntaxHighlighting(highlight), shapes, theme,
           EditorState.readOnly.of(start.current.readOnly), EditorView.editable.of(!start.current.readOnly),

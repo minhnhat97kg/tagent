@@ -38,11 +38,17 @@ func Save(dir, harness string, a Agent) error {
 	if strings.ContainsAny(a.Model, "\r\n") {
 		return fmt.Errorf("model must be one line")
 	}
-	if readOnly(a.Source) {
-		return fmt.Errorf("%s agents are read-only; copy to the repo first", a.Source)
+	if a.Source == "legacy" {
+		return fmt.Errorf("legacy agents are read-only; copy to the repo first")
 	}
 	cur, found := Find(dir, harness, a.Name)
-	if found && readOnly(cur.Source) {
+	// A global agent saved as global edits its file in place (every repo sees it);
+	// the path still comes from Find, never the request.
+	global := found && cur.Source == "global" && a.Source == "global"
+	if a.Source == "global" && !global {
+		return fmt.Errorf("no global agent %q", a.Name)
+	}
+	if found && readOnly(cur.Source) && !global {
 		// "Copy to repo" asks for an app-owned file of the same name, which then
 		// shadows the read-only one. Anything else would write into it.
 		if a.Source != "repo" {
@@ -54,10 +60,10 @@ func Save(dir, harness string, a Agent) error {
 	if found {
 		path = cur.Path
 	}
-	if a.Instructions != "" {
+	if a.Instructions != "" && !global {
 		path = roles.LocalPath(dir, a.Name)
 	}
-	if slices.Contains(boardNames(dir), a.Name) || a.Source == "board" || a.Model != "" || a.Effort != "" || a.Harness == "pi" || a.Instructions != "" {
+	if slices.Contains(boardNames(dir), a.Name) || a.Source == "board" || a.Model != "" || a.Effort != "" || a.Harness == "pi" || (a.Instructions != "" && !global) {
 		if err := editBoard(dir, func(rs *yaml.Node) error { return setRole(rs, a) }); err != nil {
 			return err
 		}

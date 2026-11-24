@@ -48,7 +48,7 @@ func TestRolesAPI(t *testing.T) {
 	os.MkdirAll(roles.GlobalDir(), 0755)
 	os.WriteFile(filepath.Join(roles.GlobalDir(), "gl.md"), []byte("global\n"), 0644)
 	call("DELETE", `{"name":"gl"}`, 400)
-	call("POST", `{"name":"gl","harness":"claude","instructions":"x","source":"global"}`, 400)
+	call("POST", `{"name":"gl","harness":"claude","instructions":"x","source":"global"}`, 200) // global agents are edited in place
 	if _, err := os.Stat(filepath.Join(roles.GlobalDir(), "gl.md")); err != nil {
 		t.Fatal("global file removed")
 	}

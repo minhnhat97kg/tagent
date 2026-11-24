@@ -18,7 +18,7 @@ var (
 )
 
 func sweepOrphanWindows() {
-	if time.Since(lastOrphans) < 10*time.Second {
+	if time.Since(lastOrphans) < 2*time.Second {
 		return
 	}
 	lastOrphans = time.Now()

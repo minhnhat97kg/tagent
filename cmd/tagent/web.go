@@ -28,7 +28,7 @@ func cmdWeb(args []string, stdout, stderr io.Writer) int {
 		return exitUsage
 	}
 	if *token == "" {
-		*token = web.NewToken()
+		*token = savedWebToken()
 	}
 	dir, _ := os.Getwd()
 	fmt.Fprintln(stdout, "tagent web — open:")
@@ -47,13 +47,7 @@ func cmdWeb(args []string, stdout, stderr io.Writer) int {
 func runBackground() {
 	tmux.SetOption("@agent_web_status", "⊕ off") // replaced below when on
 	if setting("@agent_web") == "on" {
-		addr, token := setting("@agent_web_addr"), setting("@agent_web_token")
-		if token == "" {
-			token = web.NewToken()
-			if s, ok := config.Find("@agent_web_token"); ok {
-				config.Set(s, token)
-			}
-		}
+		addr, token := setting("@agent_web_addr"), savedWebToken()
 		tmux.SetOption("@agent_web_url", web.URLs(addr, token)[0])
 		_, port, _ := net.SplitHostPort(addr)
 		tmux.SetOption("@agent_web_status", "⊕ :"+port)
@@ -70,6 +64,19 @@ func runBackground() {
 		}
 	}
 	board.Discover(context.Background(), board.Registered, dispatchBoardAction)
+}
+
+// savedWebToken is the access token kept in @agent_web_token, created on first
+// use, so restarting or reloading the server never changes the link.
+func savedWebToken() string {
+	if t := setting("@agent_web_token"); t != "" {
+		return t
+	}
+	t := web.NewToken()
+	if s, ok := config.Find("@agent_web_token"); ok {
+		config.Set(s, t)
+	}
+	return t
 }
 
 func setting(key string) string {

@@ -198,6 +198,8 @@ func TestToggleNoSidebarCreatesPaneAndRestoresFocus(t *testing.T) {
 	fake.Set("", "list-panes", "-t", "%50", "-F", "#{pane_id}|#{@pane_role}")
 	fake.Set("0 20 %1\n20 20 %2\n", "list-panes", "-t", "%50", "-F", "#{pane_left} #{pane_width} #{pane_id}")
 	fake.Set("%2\n", "display-message", "-t", "%50", "-p", "#{pane_id}")
+	fake.Set("$1\n", "display-message", "-t", "%2", "-p", "#{session_id}")
+	fake.Set("@50\n", "display-message", "-t", "%2", "-p", "#{window_id}")
 	fake.Set("%9\n", "split-window", "-hf", "-l", "30", "-t", "%2", "-c", "~", "-P", "-F", "#{pane_id}", bin)
 	defer tmux.SetRunner(fake)()
 
@@ -212,6 +214,11 @@ func TestToggleNoSidebarCreatesPaneAndRestoresFocus(t *testing.T) {
 	}
 	if !hasCall(fake, "select-pane", "-t", "%2") {
 		t.Fatalf("missing command to return focus to the previously active pane in %v", fake.Calls())
+	}
+	for _, c := range fake.Calls() {
+		if len(c) > 0 && (c[0] == "switch-client" || c[0] == "select-window") {
+			t.Fatalf("sidebar creation must not move the client: %v", c)
+		}
 	}
 }
 
