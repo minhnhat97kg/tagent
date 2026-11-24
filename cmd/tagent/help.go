@@ -24,7 +24,7 @@ Agents
   kill pane...                 Close agent panes
 
 Board and coordination
-  task [ls]                    List tasks: id, status, assignees, text
+  task [ls [--usage]]          List tasks: id, status, assignees, text (--usage adds total tokens, ≥ when partial)
   task add [--to names] [--needs ids] [--priority high|normal|low] text  Create a ticket (open dependencies gate the start)
   task needs id id[,id]|-      Set or clear the tickets this one waits for
   task priority id high|normal|low  Set ordering; normal is the default
@@ -36,7 +36,7 @@ task move id status [--output k=v]... [comment]  Handoff along configured transi
   task set id status           Admin status change (bypasses next)
   task start id [workflow]      Start a ticket (default_workflow when omitted; or pass an idle pane to link it)
   task assign id names         Assign comma-separated agent names (- clears)
-  task show id [--brief|--all]  Compact agent context / full human history, including dispatch activity
+  task show id [--brief|--all]  Compact agent context / full human history, dispatch activity and per-job token usage
   task comment id [--attach path]... [--diff] text  Comment / @mention an agent
   task attachments id         List comment and job-output attachments, sizes and availability
   task due id YYYY-MM-DD|-      Set or clear a due date

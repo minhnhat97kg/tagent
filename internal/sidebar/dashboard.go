@@ -239,19 +239,16 @@ func statusGlyph(s string) string {
 	return "○"
 }
 
-// taskUsage is "tokens 12.3k" (≥ when some runs lack usage, — when none).
-func (m Model) taskUsage(id string) string {
-	n, missing := metrics.TaskTokens(m.metricState, id)
-	if missing == 0 {
-		for _, r := range m.metricState.Runs {
-			if r.TaskID == id {
-				return "tokens " + compactTokens(n)
-			}
-		}
-	} else if n > 0 {
-		return "tokens ≥" + compactTokens(n)
+// taskUsage is "tokens 12.3k" (≥ when some jobs lack usage, — when none).
+func (m Model) taskUsage(t tasks.Task) string {
+	u := metrics.TicketUsageOf(m.metricState, t, m.boardConfig, m.boardHistory, time.Now())
+	switch {
+	case len(u.Jobs) == 0 || u.Total.Total == 0 && u.Partial:
+		return "tokens —"
+	case u.Partial:
+		return "tokens ≥" + compactTokens(u.Total.Total)
 	}
-	return "tokens —"
+	return "tokens " + compactTokens(u.Total.Total)
 }
 
 func (m Model) taskDetail(width int) []string {
@@ -263,7 +260,7 @@ func (m Model) taskDetail(width int) []string {
 	if len(t.Assignees) > 0 {
 		assignee = strings.Join(t.Assignees, ", ")
 	}
-	return []string{m.sectionTitle("≡ Detail", width, false), fitLine(" "+t.Text, width), fitLine(" "+t.Status+" · "+assignee+" · "+m.taskUsage(t.ID), width), fitLine(" "+t.ID, width)}
+	return []string{m.sectionTitle("≡ Detail", width, false), fitLine(" "+t.Text, width), fitLine(" "+t.Status+" · "+assignee+" · "+m.taskUsage(t), width), fitLine(" "+t.ID, width)}
 }
 
 func (m Model) sectionTitle(label string, width int, focused bool) string {

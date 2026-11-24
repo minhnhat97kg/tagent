@@ -16,6 +16,7 @@ type RunEntry struct {
 	Role        string            `json:"role,omitempty"`
 	Harness     string            `json:"harness,omitempty"`
 	Model       string            `json:"model,omitempty"`
+	Effort      string            `json:"effort,omitempty"`
 	Pane        string            `json:"pane,omitempty"`
 	PaneName    string            `json:"pane_name,omitempty"`
 	Prompt      string            `json:"prompt,omitempty"`
@@ -113,7 +114,7 @@ func BuildRuns(t Task, cfg BoardConfig, events []Event, now time.Time) []RunEntr
 			// Exactly one detail event per fire. The audit lines around it have no details.
 			filled = cur
 			e := &out[cur]
-			e.Role, e.Harness, e.Model = ev.Role, ev.Harness, ev.Model
+			e.Role, e.Harness, e.Model, e.Effort = ev.Role, ev.Harness, ev.Model, ev.Effort
 			e.Pane, e.PaneName, e.Prompt = ev.Pane, ev.PaneName, ev.Prompt
 		case ev.Kind == "comment" && cur >= 0 && ev.Outputs != nil:
 			// A comment-only move publishes outputs without ending the entry.

@@ -201,12 +201,7 @@ func (m Model) taskDetailSummary(t tasks.Task, w int) []string {
 		for _, r := range runs {
 			total += r.Elapsed(now)
 		}
-		n, missing := metrics.TaskTokens(m.metricState, t.ID)
-		tokens := compactTokens(n)
-		if missing > 0 {
-			tokens = "≥" + tokens
-		}
-		field("Time", shortDuration(total)+dim.Render(" · ")+tokens+" tokens")
+		field("Time", shortDuration(total))
 	}
 	age := detailRelativeTime(t.Created, now) + dim.Render(" · updated ") + detailRelativeTime(t.Updated, now)
 	if !t.CompletedAt.IsZero() {
@@ -315,22 +310,22 @@ func (m Model) taskDetailDetails(t tasks.Task, w int) []string {
 			lines = append(lines, m.detailBlock(m.boardStyle(m.boardColor(d.Status)).Render("#"+d.ID+" "+d.Status)+dim.Render(" · ")+boardTitle(d), "  ", "", w)...)
 		}
 	}
-	runs := metrics.RunsOf(m.metricState, t.ID)
-	if len(runs) > 0 {
-		section("Runs")
-		running := false
-		for _, r := range runs {
-			parts := []string{r.Agent, shortDuration(r.Elapsed(now))}
-			if n, ok := r.Tokens(); ok {
-				parts = append(parts, compactTokens(n)+" tokens")
-			}
-			if r.Ended.IsZero() {
-				parts = append(parts, "(running)")
-				running = true
-			}
-			lines = append(lines, m.detailBlock(strings.Join(parts, "  "), "  ", "", w)...)
+	cfg := m.boardConfig
+	if c, err := tasks.ConfigForTask(m.boardDir, cfg, t); err == nil {
+		cfg = c
+	}
+	if usage := metrics.TicketUsageOf(m.metricState, t, cfg, m.boardHistory, now).Lines(compactTokens); len(usage) > 0 {
+		section("Usage")
+		for _, l := range usage {
+			lines = append(lines, m.detailBlock(l, "  ", "", w)...)
 		}
-		if t.Status == "doing" && !running {
+	}
+	if t.Status == "doing" {
+		running := false
+		for _, r := range metrics.RunsOf(m.metricState, t.ID) {
+			running = running || r.Ended.IsZero()
+		}
+		if !running && len(metrics.RunsOf(m.metricState, t.ID)) > 0 {
 			lines = append(lines, m.detailBlock(m.boardStyle(m.theme.StatusError).Render("! no agent is running this task"), "  ", "", w)...)
 		}
 	}

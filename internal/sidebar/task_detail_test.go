@@ -10,6 +10,7 @@ import (
 
 	"tagent/internal/metrics"
 	"tagent/internal/tasks"
+	"tagent/internal/usage"
 
 	"github.com/charmbracelet/x/ansi"
 )
@@ -18,12 +19,12 @@ func TestTaskDetailShowsTimeTokensAndNote(t *testing.T) {
 	m := NewModel("%9")
 	now := time.Now()
 	m.metricState = metrics.State{Runs: []metrics.Run{
-		{TaskID: "t1", Agent: "claude", Started: now.Add(-12 * time.Minute), Ended: now.Add(-2 * time.Minute), StartTotal: 100, EndTotal: 45100, HasStart: true, HasEnd: true},
-		{TaskID: "t1", Agent: "codex", Started: now.Add(-30 * time.Second), HasStart: true},
+		{TaskID: "t1", SessionKey: "k1", Agent: "claude", Started: now.Add(-12 * time.Minute), Ended: now.Add(-2 * time.Minute), StartTotal: 100, EndTotal: 45100, HasStart: true, HasEnd: true},
+		{TaskID: "t1", SessionKey: "k2", Agent: "codex", Started: now.Add(-30 * time.Second), HasStart: true},
 		{TaskID: "other", Agent: "x", Started: now},
 	}}
 	body := ansi.Strip(strings.Join(m.taskDetailLines(tasks.Task{ID: "t1", Text: "fix it", Status: "done", Note: "added retry"}, 80), "\n"))
-	for _, want := range []string{"claude  10m  45.0k tokens", "codex", "(running)", "Time       10m", "45.0k", "Note", "added retry"} {
+	for _, want := range []string{"Usage: 45.0k tokens", "claude  45.0k", "codex", "Time       10m", "45.0k", "Note", "added retry"} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("detail misses %q:\n%s", want, body)
 		}
@@ -479,4 +480,14 @@ func dashCardModel(t *testing.T) Model {
 	m.boardDir, m.repoDir = m.notesScope, m.notesScope
 	m.focus, m.taskCursor = cardTasks, 1
 	return m
+}
+
+func TestTaskDetailShowsUsage(t *testing.T) {
+	m := boardTestModel()
+	m.metricState = metrics.State{Sessions: map[string]metrics.Session{"pi:a": {Key: "pi:a", Harness: "pi", Agent: "dev-1", HasUsage: true, Usage: usage.Count{Total: 2500}}}}
+	m.boardHistory = []tasks.Event{{Task: "u1", Kind: "dispatch", Role: "dev", Harness: "pi", Model: "gpt", PaneName: "dev-1"}}
+	out := ansi.Strip(strings.Join(m.taskDetailLines(tasks.Task{ID: "u1", Title: "T", Status: "doing"}, 80), "\n"))
+	if !strings.Contains(out, "Usage: 2.5k tokens") || !strings.Contains(out, "dev  pi/gpt  2.5k") {
+		t.Fatal(out)
+	}
 }

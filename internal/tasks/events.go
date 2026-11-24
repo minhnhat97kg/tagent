@@ -43,6 +43,7 @@ type Event struct {
 	Role     string            `json:"role,omitempty"`
 	Harness  string            `json:"harness,omitempty"`
 	Model    string            `json:"model,omitempty"`
+	Effort   string            `json:"effort,omitempty"`
 	Pane     string            `json:"pane,omitempty"`
 	PaneName string            `json:"pane_name,omitempty"`
 	Prompt   string            `json:"prompt,omitempty"` // CapText'd

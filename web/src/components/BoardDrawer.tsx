@@ -9,13 +9,16 @@ import { RunView } from "./RunPage"
 import { TicketChat } from "./TicketChat"
 import { useTicketChat } from "@/hooks/useTicketChat"
 import { enc } from "@/hooks/useRoute"
-import type { Project, RunEntry, RunView as RunData, Task, Workflow } from "@/types"
+import { usePoll } from "@/hooks/usePoll"
+import type { Project, RunEntry, RunView as RunData, Task, TicketUsage, Workflow } from "@/types"
 
 // TABS splits the ticket panel: the facts, the ticket's chat, the conversation
 // on the ticket, and what actually ran. Chat is disabled with a reason when the
 // ticket's pane cannot be read (see useTicketChat).
 const TABS = [{ id: "details", label: "Details" }, { id: "chat", label: "Chat" }, { id: "activity", label: "Activity" }, { id: "run", label: "Run" }] as const
 type TabID = (typeof TABS)[number]["id"]
+
+const tok = (n: number) => n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : String(n)
 
 // Status colours are reserved and always sit next to a text label.
 const COLORS: Record<string, string> = { todo: "#a1a1aa", plan: "#3b82f6", planning: "#3b82f6", researching: "#3b82f6", reproducing: "#3b82f6", build: "#6366f1", building: "#6366f1", refactoring: "#6366f1", fixing: "#6366f1", writing: "#6366f1", test: "#0ea5e9", testing: "#0ea5e9", review: "#f59e0b", reviewing: "#f59e0b", blocked: "#ef4444", done: "#10b981" }
@@ -128,6 +131,7 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
     if (!task.workflow) return
     api<RunData>(`/api/tasks/${enc(task.id)}/run?dir=${enc(dir)}`).then(r => setHistory(r.entries ?? [])).catch(() => setHistory([]))
   }, [dir, task.id, task.workflow, task.updated])
+  const usage = usePoll(() => api<TicketUsage>(`/api/tasks/${enc(task.id)}/usage?dir=${enc(dir)}`), task.status === "done" ? 3_600_000 : 3000, dir + task.id).data
   const enqueue = (incoming: File[]) => {
     const error = validateUpload([...files, ...incoming]); if (error) { setUploadError(error); return }
     setFiles([...files, ...incoming]); setUploadError("")
@@ -274,6 +278,10 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
       {!!task.assignees?.length && <><dt>Assignees</dt><dd>{task.assignees.join(", ")}</dd></>}
       <dt>Updated</dt><dd title={task.updated}>{rel(task.updated) || "—"}</dd>
       </dl>
+      {!!usage?.jobs?.length && <section><h3>Usage <span className="board-muted">{tok(usage.total.Total)} tokens{usage.partial ? " (partial)" : ""} · {usage.loops} loops</span></h3>
+        <table className="w-full text-[11px]"><tbody>{usage.jobs.map((j, i) => <tr key={i}><td>{j.role}</td><td className="board-muted">{[j.harness, j.model, j.effort].filter(Boolean).join(" / ")}</td><td>{j.has ? tok(j.count.Total) + (j.count.CacheRead + j.count.CacheWrite > 0 ? ` (cache ${tok(j.count.CacheRead)}/${tok(j.count.CacheWrite)})` : "") : "n/a"}</td><td className="board-muted">{j.loops > 1 ? `×${j.loops}` : ""}</td><td className="board-muted">{Math.round(j.elapsed / 1e9)}s</td></tr>)}</tbody></table>
+        {usage.models.length > 1 && <p className="board-muted">{usage.models.map(m => `${m.model || m.harness}: ${m.has ? tok(m.count.Total) : "n/a"}`).join(" · ")}</p>}
+      </section>}
       {!!needs.length && <section><h3>Waits for <span className="board-muted">{needs.length}</span></h3><ul className="dep-list">{needs.map(id => {
         const dep = all.find(t => t.id === id)
         return <li key={id}><button type="button" onClick={() => onOpen?.(id)}><span className="board-key">{shortId(id)}</span> {dep ? title(dep) : "missing"}{dep && <StatusBadge status={dep.status} />}</button></li>
