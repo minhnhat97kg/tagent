@@ -169,18 +169,22 @@ func (m Model) taskDetailSummary(t tasks.Task, w int) []string {
 		}
 	}
 
-	if worker := m.boardWorker(t); worker != "" {
-		field("Worker", worker)
-	}
 	names := make([]string, len(t.Assignees))
 	for i, name := range t.Assignees {
 		names[i] = m.boardStyle(m.detailAgentColor(name)).Render(name)
 	}
 	assignee := strings.Join(names, ", ")
+	// One row: who the ticket is assigned to, and the agent running it now.
+	if worker := m.boardWorker(t); worker != "" {
+		if assignee != "" {
+			assignee += dim.Render(" · ")
+		}
+		assignee += worker
+	}
 	if assignee == "" {
 		assignee = dim.Render("unassigned")
 	}
-	field("Assignee", assignee)
+	field("Assignee", assignee+dim.Render(" · @ assign"))
 	if t.Due != "" {
 		due := t.Due
 		if date, err := time.ParseInLocation("2006-01-02", t.Due, now.Location()); err == nil {
@@ -217,7 +221,7 @@ func (m Model) taskDetailSummary(t tasks.Task, w int) []string {
 		age += dim.Render(" · done ") + detailRelativeTime(t.CompletedAt, now)
 	}
 	field("Created", age)
-	return m.detailFrame(head, lines, outer)
+	return m.detailFrame(head+dim.Render("  H/L status"), lines, outer)
 }
 
 // detailStep is the workflow step the ticket sits in: its role, else its job.

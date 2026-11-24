@@ -99,6 +99,14 @@ func (m Model) ticketsKey(key string) (Model, tea.Cmd, bool) {
 			m.taskForm, m.taskStep, m.taskInput = "needs", 0, strings.Join(m.notes[m.taskCursor].Needs, ",")
 		}
 		return m, nil, true
+	case "@": // assign: role / agent picker, enter saves
+		if len(m.notes) > 0 {
+			m.taskForm, m.taskStep = "assign", 0
+			if names := m.notes[m.taskCursor].Assignees; len(names) > 0 {
+				m.taskStep = slices.Index(m.assignNames(), names[0]) + 1 // 0 is "unassigned"
+			}
+		}
+		return m, nil, true
 	case "e":
 		if len(m.notes) > 0 {
 			return m, editTaskText(m.notesScope, m.notes[m.taskCursor], m.tmuxPane, false), true
@@ -194,6 +202,7 @@ func ticketHints(nav hint) []hint {
 		{"e", "edit", "e", "edit in $EDITOR"},
 		{"C", "comment", "c C", "comment on ticket (blocked: prefills @role reply)"},
 		{"H/L", "status", "H L", "previous / next status (each card shows its status)"},
+		{"@", "assign", "@", "assign to a role or agent (picker, enter saves)"},
 		{"a", "files", "a / A", "attachments: view or open (images, pdf) / attach file"},
 		{"x", "delete", "x", "delete (confirm)"},
 		{"w", "workflow", "w", "workflow view"},

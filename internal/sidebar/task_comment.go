@@ -20,7 +20,8 @@ func (m Model) commentBoxOpen() Model {
 	if len(m.notes) == 0 {
 		return m
 	}
-	m.commentBox, m.taskInput, m.commentPick = true, "", 0
+	m.commentBox, m.commentPick = true, 0
+	m.taskInput = blockedReplyPrefill(m.notesScope, m.notes[m.taskCursor])
 	return m
 }
 
@@ -90,6 +91,18 @@ func (m Model) commentOptions() []string {
 	if !ok {
 		return nil
 	}
+	names := m.assignNames()
+	var out []string
+	for i, n := range names {
+		if strings.HasPrefix(strings.ToLower(n), query) && (i == 0 || names[i-1] != n) {
+			out = append(out, n)
+		}
+	}
+	return out
+}
+
+// assignNames are the board's roles and the agents on it, sorted, once each.
+func (m Model) assignNames() []string {
 	var names []string
 	for role := range m.boardConfig.Roles {
 		names = append(names, role)
@@ -100,25 +113,19 @@ func (m Model) commentOptions() []string {
 		}
 	}
 	slices.Sort(names)
-	var out []string
-	for i, n := range names {
-		if strings.HasPrefix(strings.ToLower(n), query) && (i == 0 || names[i-1] != n) {
-			out = append(out, n)
-		}
-	}
-	return out
+	return slices.Compact(names)
 }
 
 // commentBoxLines is the composer pinned above the footer: a bordered box in
 // the accent colour, so the field is easy to spot, with the last lines of the
-// text (the cursor line always shows), the @role chips and a key hint.
+// text (the cursor line always shows) and the @role chips. Keys show in the footer only.
 func (m Model) commentBoxLines(w int) []string {
 	dim := m.boardStyle(m.theme.TextDim)
 	edge := m.boardStyle(m.theme.Accent)
 	inner := max(1, w-5) // " │ " + text + " │"
 	text := m.boardStyle(m.theme.TextPrimary).Render(m.taskInput) + edge.Render("▏")
 	if m.taskInput == "" {
-		text = edge.Render("▏") + dim.Render("Write a comment · @role to hand off")
+		text = edge.Render("▏") + dim.Render(ansi.Truncate("Write a comment · @role to hand off", max(1, inner-1), "…"))
 	}
 	body := strings.Split(ansi.Hardwrap(text, inner, true), "\n")
 	if len(body) > 3 {
@@ -130,7 +137,7 @@ func (m Model) commentBoxLines(w int) []string {
 		pad := strings.Repeat(" ", max(0, inner-ansi.StringWidth(l)))
 		lines = append(lines, ansi.Truncate(" "+edge.Render("│")+" "+l+pad+" "+edge.Render("│"), w, ""))
 	}
-	lines = append(lines, ansi.Truncate(" "+edge.Render("╰"+strings.Repeat("─", max(0, w-4))+"╯"), w, ""))
+	lines = append(lines, ansi.Truncate(" "+edge.Render("╰"+strings.Repeat("─", max(0, w-3))+"╯"), w, ""))
 	if options := m.commentOptions(); len(options) > 0 {
 		var chips []string
 		for i, o := range options {
@@ -142,7 +149,7 @@ func (m Model) commentBoxLines(w int) []string {
 		}
 		lines = append(lines, ansi.Truncate("   "+strings.Join(chips, "  "), w, ""))
 	}
-	return append(lines, ansi.Truncate("  "+dim.Render("enter send · tab complete @role · esc cancel"), w, ""))
+	return lines
 }
 
 // replyingRoles lists the roles that were @mentioned on the ticket, have a

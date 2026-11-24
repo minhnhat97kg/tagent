@@ -12,6 +12,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // newAgentChoices mirrors the harness list the web serves in /api/state, in
@@ -91,6 +92,27 @@ func (m Model) handleTaskForm(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 			dir, id := m.boardDir, m.notes[m.taskCursor].ID
 			m.taskForm = ""
 			return m, func() tea.Msg { return actionResult("Task started", board.Start(dir, id, name)) }
+		}
+		return m, nil
+	}
+	if m.taskForm == "assign" {
+		names := m.assignNames()
+		switch key.String() {
+		case "j", "down":
+			m.taskStep = min(len(names), m.taskStep+1)
+		case "k", "up":
+			m.taskStep = max(0, m.taskStep-1)
+		case "enter":
+			who := []string{} // 0 is "unassigned"
+			if m.taskStep > 0 && m.taskStep <= len(names) {
+				who = append(who, names[m.taskStep-1])
+			}
+			scope, id := m.notesScope, m.notes[m.taskCursor].ID
+			m.taskForm = ""
+			return m, func() tea.Msg {
+				_, err := tasks.Update(scope, id, "", who, tasks.MutationOptions{Actor: "user"})
+				return actionResult("Assignee saved", err)
+			}
 		}
 		return m, nil
 	}
@@ -185,14 +207,27 @@ func (m Model) taskFormView() string {
 	case "attach":
 		title, hint = "Attach file", "Local file path · Enter attach · Esc cancel"
 	case "attachments":
-		title, hint = "Attachments", "j/k select · Enter view · Esc cancel"
-		for i, a := range m.attachments {
-			prefix := "  "
-			if i == m.taskStep {
-				prefix = "› "
-			}
-			body += fmt.Sprintf("%s%s · %d bytes · %s · %s %s\n", prefix, a.Name, a.Size, a.Author, a.Time.Format("2006-01-02 15:04"), a.Error)
+		// One row per file: name, then size · author · time muted; keys are in the footer.
+		title, hint = "Attachments", ""
+		dim := m.boardStyle(m.theme.TextDim)
+		nameW := 0
+		for _, a := range m.attachments {
+			nameW = max(nameW, ansi.StringWidth(a.Name))
 		}
+		nameW = min(nameW, max(8, width/2))
+		if len(m.attachments) == 0 {
+			body = dim.Render("  no attachments")
+		}
+		for i, a := range m.attachments {
+			prefix, name := "  ", ansi.Truncate(a.Name, nameW, "…")
+			if i == m.taskStep {
+				prefix, name = m.boardStyle(m.theme.Accent).Render("› "), m.boardStyle(m.theme.Accent).Bold(true).Render(name)
+			}
+			name += strings.Repeat(" ", max(0, nameW-ansi.StringWidth(a.Name)))
+			meta := detailSize(a.Size) + " · " + a.Author + " · " + a.Time.Format("01-02 15:04") + " " + a.Error
+			body += ansi.Truncate(prefix+name+"  "+dim.Render(strings.TrimSpace(meta)), width, "…") + "\n"
+		}
+		body = strings.TrimRight(body, "\n")
 	case "new-agent":
 		title = "New agent"
 		hint = m.keyHints("↑↓ field", "enter next", "space change", "ctrl+s start", "esc cancel")
@@ -230,6 +265,15 @@ func (m Model) taskFormView() string {
 		body += prefix + "default workflow"
 		if m.boardConfig.DefaultWorkflow != "" {
 			body += " (" + m.boardConfig.DefaultWorkflow + ")"
+		}
+	case "assign":
+		title, hint = "Assign #"+m.notes[m.taskCursor].ID, m.keyHints("j/k select", "enter save", "esc cancel")
+		for i, name := range append([]string{"unassigned"}, m.assignNames()...) {
+			prefix := "  "
+			if i == m.taskStep {
+				prefix = "› "
+			}
+			body += boardFit(prefix+name, width) + "\n"
 		}
 	case "needs":
 		title, hint = "Dependencies", m.keyHints("j/k select", "space toggle", "enter save", "esc cancel")
@@ -272,10 +316,10 @@ func (m Model) taskFormView() string {
 		title, hint = "✎ Message the chat", "Enter send · ctrl+s save to ticket · Esc cancel"
 
 	}
-	if m.taskForm != "start" && m.taskForm != "default" && m.taskForm != "attachments" && m.taskForm != "needs" && m.taskForm != "new-agent" {
+	if m.taskForm != "start" && m.taskForm != "default" && m.taskForm != "attachments" && m.taskForm != "needs" && m.taskForm != "assign" && m.taskForm != "new-agent" {
 		body += "\n" + wrappedInput(m.taskInput, width, m.height)
 	}
-	return lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(m.theme.Accent).Width(width).Render(lipgloss.NewStyle().Bold(true).Foreground(m.theme.Accent).Render(title) + "\n\n" + lipgloss.NewStyle().Width(width).Render(body) + "\n\n" + hint)
+	return lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(m.theme.Accent).Width(width).Render(lipgloss.NewStyle().Bold(true).Foreground(m.theme.Accent).Render(title) + "\n\n" + lipgloss.NewStyle().Width(width).Render(body) + hintTail(hint))
 }
 
 // scopePanes lists agent panes of this repo scope (each pane once), optionally of one harness.
@@ -320,15 +364,8 @@ func editTaskText(scope string, task tasks.Task, pane string, comment bool) tea.
 	}
 	path := f.Name()
 	prefill := ""
-	if comment && task.Status == "blocked" {
-		cfg, e := tasks.ConfigForScopeTask(scope, task)
-		history, _ := tasks.ReadEvents(scope, 0)
-		if e == nil {
-			_, role, _ := tasks.BlockContext(task, cfg, history)
-			if role != "" {
-				prefill = "@" + role + " "
-			}
-		}
+	if comment {
+		prefill = blockedReplyPrefill(scope, task)
 	}
 	if !comment {
 		_, err = f.WriteString(task.Text)
@@ -377,4 +414,28 @@ func editTaskText(scope string, task tasks.Task, pane string, comment bool) tea.
 		}
 		return finish(nil)
 	}
+}
+
+// blockedReplyPrefill is "@role " for a blocked ticket (the role whose step was interrupted), else "".
+func blockedReplyPrefill(scope string, task tasks.Task) string {
+	if task.Status != "blocked" {
+		return ""
+	}
+	cfg, err := tasks.ConfigForScopeTask(scope, task)
+	if err != nil {
+		return ""
+	}
+	history, _ := tasks.ReadEvents(scope, 0)
+	if _, role, _ := tasks.BlockContext(task, cfg, history); role != "" {
+		return "@" + role + " "
+	}
+	return ""
+}
+
+// hintTail is the form's own key line; empty when the footer carries the keys.
+func hintTail(hint string) string {
+	if hint == "" {
+		return ""
+	}
+	return "\n\n" + hint
 }
