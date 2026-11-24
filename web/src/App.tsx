@@ -55,7 +55,7 @@ export default function App() {
   const canFull = typeof document.documentElement.requestFullscreen === "function"
   const toggleFull = () => (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()).catch(() => {})
 
-  // Background agents (tagent-bg session) are listed too, after the visible ones, like the TUI.
+  // Agents in the old tagent-bg session are listed too, after the visible ones, like the TUI.
   const agents = useMemo(() => [...(state?.agents ?? [])].sort((a, b) => Number(!!a.hidden) - Number(!!b.hidden)), [state])
   // Agents grouped by project, in the order the list shows them and j/k walk them.
   const ordered = useMemo(() => {

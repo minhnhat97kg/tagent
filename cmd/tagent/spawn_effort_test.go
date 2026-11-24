@@ -3,6 +3,7 @@ package main
 import (
 	"strings"
 	"tagent/internal/setup"
+	"tagent/internal/tasks"
 	"tagent/internal/tmux"
 	"testing"
 )
@@ -16,7 +17,9 @@ func TestEffortLaunch(t *testing.T) {
 				fake.Set("$1", "display-message", "-t", "%1", "-p", "#{session_id}")
 				restore := tmux.SetRunner(fake)
 				defer restore()
-				_, _, err := spawnAgent(spawnOpts{Agent: harness, Model: "model:high", Effort: effort, Cwd: t.TempDir(), Worktree: false})
+				cwd := t.TempDir()
+				fakeProjectSession(fake, cwd)
+				_, _, err := spawnAgent(spawnOpts{Agent: harness, Model: "model:high", Effort: effort, Cwd: cwd, Worktree: false})
 				valid := effort == "" || (effort == "high" && harness != "opencode" && harness != "unknown")
 				found := false
 				for _, call := range fake.Calls() {
@@ -56,4 +59,9 @@ func TestEffortLaunch(t *testing.T) {
 			})
 		}
 	}
+}
+
+// fakeProjectSession declares the session creation spawnAgent does for cwd.
+func fakeProjectSession(f *tmux.Fake, cwd string) {
+	f.Set("$1 @1", "new-session", "-d", "-s", tmux.SessionName(tasks.MainRoot(cwd)), "-c", tasks.MainRoot(cwd), "-P", "-F", "#{session_id} #{window_id}")
 }

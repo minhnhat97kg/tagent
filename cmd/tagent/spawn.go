@@ -19,7 +19,6 @@ import (
 	"tagent/internal/roles"
 	"tagent/internal/roster"
 	"tagent/internal/setup"
-	"tagent/internal/sidebar"
 	"tagent/internal/tasks"
 	"tagent/internal/tmux"
 )
@@ -33,6 +32,7 @@ type spawnOpts struct {
 	Worktree                              bool
 	Args                                  []string // extra agent arguments
 	Wait                                  bool     // wait until the agent reports a status
+	Window                                string   // tmux window name (default: Name)
 }
 
 // Pane options recording how an agent was started (restore, merge).
@@ -41,8 +41,8 @@ const (
 	wtRepoOption = "@agent_wt_repo"
 )
 
-// spawnAgent starts an agent in a pool window and returns its pane id, plus
-// a warning worth showing (startup prompt, no status yet).
+// spawnAgent starts an agent in a new window of its project session and
+// returns its pane id, plus a warning worth showing (no status yet).
 func spawnAgent(o spawnOpts) (pane, warn string, err error) {
 	if o.Cwd == "" {
 		o.Cwd, _ = os.Getwd()
@@ -106,22 +106,10 @@ func spawnAgent(o spawnOpts) (pane, warn string, err error) {
 	if o.Model == "" {
 		o.Model, _ = tmux.GetOption("@agent_model")
 	}
-	// Outside a pane (a script, a key binding), fall back to the window the
-	// current client is looking at.
-	target := selfPane()
-	if target == "" && os.Getenv("TMUX") != "" {
-		out, _ := tmux.RunTmux("display-message", "-p", "#{pane_id}")
-		target = strings.TrimSpace(out)
-	}
-	session, spare := "", ""
-	if target != "" {
-		session = tmux.DisplayMessage(target, "#{session_id}")
-	}
-	if session == "" {
-		// Standalone: outside tmux, agents live in a detached background session.
-		if session, spare, err = hiddenSession(o.Cwd); err != nil {
-			return "", "", err
-		}
+	// One session per project, chosen from the cwd before any worktree switch.
+	session, spare, err := tmux.ProjectSession(tasks.MainRoot(o.Cwd))
+	if err != nil {
+		return "", "", err
 	}
 	var repo, branch string
 	if o.Worktree {
@@ -168,7 +156,14 @@ func spawnAgent(o spawnOpts) (pane, warn string, err error) {
 	for _, a := range args {
 		command += " " + setup.ShellQuote(a)
 	}
-	if pane, err = placePane(session, o.Cwd, command); err != nil {
+	win := o.Window
+	if win == "" {
+		win = o.Name
+	}
+	if win == "" {
+		win = filepath.Base(o.Agent)
+	}
+	if pane, err = tmux.RunTmuxCapture("new-window", "-d", "-t", session+":", "-n", win, "-c", o.Cwd, "-P", "-F", "#{pane_id}", command); err != nil {
 		return "", "", err
 	}
 	if spare != "" { // the new background session's empty first window
@@ -286,32 +281,6 @@ func freeName(base string) string {
 		name = base + "-" + strconv.Itoa(i)
 	}
 	return name
-}
-
-// placePane splits a pool window with room or opens a new one (planPlacement).
-func placePane(session, cwd, command string) (string, error) {
-	maxPanes := defaultMaxPane
-	if v, ok := tmux.GetOption(maxPanesOption); ok {
-		if n, err := strconv.Atoi(v); err == nil && n > 0 {
-			maxPanes = n
-		}
-	}
-	list, _ := tmux.RunTmux("list-panes", "-s", "-t", session, "-F",
-		"#{window_id}|#{"+poolOption+"}|#{"+tmux.PaneRole+"}|#{pane_id}|#{pane_width}|#{pane_height}")
-	// The background session is only seen through a viewer (standalone, web),
-	// which shows one pane at full size: give each agent its own window so a
-	// new agent never splits, and shrinks, the pane someone is watching.
-	hidden := tmux.DisplayMessage(session+":", "#{session_name}") == sidebar.HiddenSession
-	if p := planPlacement(list, maxPanes); p.splitTarget != "" && !hidden {
-		return tmux.RunTmuxCapture("split-window", "-d", p.splitDir, "-t", p.splitTarget, "-c", cwd, "-P", "-F", "#{pane_id}", command)
-	}
-	out, err := tmux.RunTmuxCapture("new-window", "-d", "-t", session+":", "-n", poolWindowName, "-c", cwd, "-P", "-F", "#{pane_id} #{window_id}", command)
-	if err != nil {
-		return "", err
-	}
-	pane, win, _ := strings.Cut(out, " ")
-	tmux.SetWindowOption(win, poolOption, "1")
-	return pane, nil
 }
 
 // waitReady waits until a hook or the scraper reports a status; returns a
@@ -656,20 +625,4 @@ func cmdUndo(args []string, stdout, stderr io.Writer) int {
 	fmt.Fprintf(stdout, "rolled %s back to %s (before turn #%d)\nchanged your mind? tagent undo %s --redo %s\n",
 		dir, list[n].Time.Format("15:04:05"), n, args[0], backup)
 	return exitOK
-}
-
-// hiddenSession returns the id of the background session, creating it (and
-// the tmux server, if none runs) on first use. @agent_hidden marks it for
-// the status-line format (@agent_hidden_status_format).
-func hiddenSession(cwd string) (id, spare string, err error) {
-	if id := tmux.DisplayMessage("="+sidebar.HiddenSession+":", "#{session_id}"); id != "" {
-		return id, "", nil
-	}
-	out, err := tmux.RunTmuxCapture("new-session", "-d", "-s", sidebar.HiddenSession, "-c", cwd, "-P", "-F", "#{session_id} #{window_id}")
-	id, spare, _ = strings.Cut(strings.TrimSpace(out), " ")
-	if err != nil || id == "" {
-		return "", "", fmt.Errorf("not inside tmux and could not start a background session: %v", err)
-	}
-	tmux.RunTmux("set-option", "-t", id, "@agent_hidden", "1")
-	return id, spare, nil
 }
