@@ -674,6 +674,9 @@ type Model struct {
 	promptPane     string       // target of the "send prompt" form (i)
 
 	taskNotice string
+	noticeSeen string        // the notice the timer below belongs to
+	noticeAt   time.Time     // when it first showed
+	noticeFor  time.Duration // how long it stays (@agent_notice_seconds)
 
 	output io.Writer
 	// dialogs: prompts of waiting agents by pane id (approval inbox).
@@ -1202,7 +1205,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	next, cmd := m.update(msg)
 	if nm, ok := next.(Model); ok {
-		nm = nm.syncAttachments()
+		nm = nm.syncAttachments().expireNotice()
 		// The Chat tab follows the ticket under the cursor and the pane transcript
 		// without the keys having to ask for it.
 		var chatCmd tea.Cmd
@@ -1212,6 +1215,28 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return nm, cmd
 	}
 	return next, cmd
+}
+
+// expireNotice clears taskNotice once it has been up for @agent_notice_seconds
+// (default 10). A new notice starts its own clock; the option is read then, not
+// on every update.
+func (m Model) expireNotice() Model {
+	if m.taskNotice != m.noticeSeen {
+		m.noticeSeen, m.noticeAt, m.noticeFor = m.taskNotice, time.Now(), noticeSeconds()
+	}
+	if m.taskNotice != "" && time.Since(m.noticeAt) >= m.noticeFor {
+		m.taskNotice, m.noticeSeen = "", ""
+	}
+	return m
+}
+
+func noticeSeconds() time.Duration {
+	if v, ok := tmux.GetOption("@agent_notice_seconds"); ok {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			return time.Duration(n) * time.Second
+		}
+	}
+	return 10 * time.Second
 }
 
 // syncAttachments caches the selected ticket's attachment list so renders and
@@ -1710,7 +1735,6 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 // reference implementation (app/input.rs: the is_repo_popup_open() branch
 // fully blocks the regular key branch below it).
 func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	m.taskNotice = "" // a task action's result shows until the next key
 	if m.helpOpen {
 		switch msg.String() {
 		case "a":

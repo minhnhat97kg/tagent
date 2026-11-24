@@ -54,6 +54,7 @@ var Settings = []Setting{
 	{Key: "@agent_avatar_lang", Group: "Look", Label: "Language", TUIOnly: true, Kind: Choice, Default: "en", Choices: []string{"vi", "en"}},
 	{Key: "@sidebar_position", Group: "Sidebar", Label: "Position", TUIOnly: true, Kind: Choice, Default: "left", Choices: []string{"left", "right"}},
 	{Key: "@sidebar_width", Group: "Sidebar", Label: "Initial width", TUIOnly: true, Kind: Text, Default: "15%", Help: "starting size only; resize freely with tmux"},
+	{Key: "@agent_notice_seconds", Group: "Sidebar", Label: "Notice shown for (seconds)", TUIOnly: true, Kind: Int, Default: "10", Min: 1, Max: 600, Help: "how long a result or error line stays at the bottom of the board"},
 	{Key: "@sidebar_auto_create", Group: "Sidebar", Label: "Auto-create in new windows", TUIOnly: true, Kind: Bool, Default: "on"},
 	{Key: "@agent-sidebar-default-agent", Group: "Agents", Label: "Default agent for `new`", Kind: Preset, Default: "claude",
 		Choices: []string{"claude", "codex", "pi", "opencode", "gemini", "copilot", "amp"}},
@@ -62,6 +63,12 @@ var Settings = []Setting{
 	{Key: "@sidebar_notifications", Group: "Notifications", Label: "Desktop notifications", Kind: Bool, Default: "on"},
 	{Key: "@agent_notify_url", Group: "Notifications", Label: "Phone push URL", Kind: Text,
 		Help: "Phone alerts and task-status updates: ntfy or plain-text POST webhook URL; empty = off"},
+	{Key: "@agent_web", Group: "Web", Label: "Web UI", Kind: Bool, Default: "off",
+		Help: "serve the browser UI from the background process; takes effect after `tagent reload`; URL in `tmux show -gv @agent_web_url`"},
+	{Key: "@agent_web_addr", Group: "Web", Label: "Web address", Kind: Text, Default: "127.0.0.1:7777",
+		Help: "0.0.0.0:7777 opens it to the network (plain HTTP: use a tunnel or VPN)"},
+	{Key: "@agent_web_token", Group: "Web", Label: "Web token", Kind: Text,
+		Help: "access token; empty = random, saved on first start"},
 }
 
 // Advanced options are not in the screen; `tagent config set|get|list`
@@ -81,12 +88,6 @@ var Advanced = []Setting{
 	{Key: "@agent_done_prompt", Group: "Avatar", Label: "Prompt for a finished agent", Kind: Text,
 		Help: "quick action (space / prefix+a) sends this to an agent that finished; empty = jump to it"},
 	{Key: "@agent_scrape", Group: "Agents", Label: "Screen detection", Kind: Bool, Default: "on", Help: "status for agents without hooks"},
-	{Key: "@agent_web", Group: "Web", Label: "Web UI", Kind: Bool, Default: "off",
-		Help: "serve the browser UI from the background process; takes effect after `tagent reload`; URL in `tmux show -gv @agent_web_url`"},
-	{Key: "@agent_web_addr", Group: "Web", Label: "Web address", Kind: Text, Default: "127.0.0.1:7777",
-		Help: "0.0.0.0:7777 opens it to the network (plain HTTP: use a tunnel or VPN)"},
-	{Key: "@agent_web_token", Group: "Web", Label: "Web token", Kind: Text,
-		Help: "access token; empty = random, saved on first start"},
 	{Key: "@agent_checkpoints", Group: "Agents", Label: "Checkpoint before each turn", Kind: Bool, Default: "on",
 		Help: "snapshot the repo before every agent turn so `tagent undo <agent>` can roll it back"},
 	{Key: "@sidebar_key", Group: "Keys", Label: "Toggle sidebar (prefix +)", Kind: Text, Default: "e", Reload: true},
