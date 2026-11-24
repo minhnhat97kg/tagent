@@ -95,6 +95,12 @@ type hint struct{ Keys, Foot, HelpKeys, Help string }
 
 // footerHints is the key-hint line of the focused pane, generated from its Hints.
 func (m Model) footerHints() string {
+	if m.boardDrawer && m.commentBox { // the open composer owns the keys
+		return m.keyHints("enter send", "tab @role", "esc cancel")
+	}
+	if m.taskForm == "attachments" {
+		return m.keyHints("j/k select", "enter view", "esc cancel")
+	}
 	var pairs []string
 	for _, h := range panes[m.focused()].Hints(m) {
 		if h.Keys != "" && h.Foot != "" {

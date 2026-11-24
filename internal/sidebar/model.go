@@ -836,7 +836,7 @@ type Model struct {
 	// its stale id staying in this set is harmless (never looked up again).
 	pinnedPanes map[string]bool
 	sizeOwners  map[string]bool
-	webStatus   string // @agent_web_status: "🌐 :7777", empty when the web UI is off
+	webStatus   string // @agent_web_status: "⊕ :7777", empty when the web UI is off
 
 	// filterQuery/filterEditing: the "/" text filter (name/agent/status
 	// substring, case-insensitive). filterEditing is true while the user is

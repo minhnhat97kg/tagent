@@ -25,5 +25,11 @@ func (m Model) keyHints(pairs ...string) string {
 		key, label, _ := strings.Cut(pair, " ")
 		out = append(out, m.boardStyle(m.theme.Accent).Bold(true).Render(key)+" "+m.boardStyle(m.theme.TextMuted).Render(label))
 	}
-	return boardFit(strings.Join(out, "  "), m.width)
+	line := strings.Join(out, "  ")
+	if w := ansi.StringWidth(line); w > m.width && m.width > 4 {
+		// Too long for one row: run the text, one column every other tick.
+		loop := line + "   " + line
+		return ansi.Cut(loop, (m.animFrame/2)%(w+3), (m.animFrame/2)%(w+3)+m.width)
+	}
+	return boardFit(line, m.width)
 }

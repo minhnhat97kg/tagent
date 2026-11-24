@@ -193,7 +193,7 @@ func TestAgentsDetailUsesFullPane(t *testing.T) {
 	m := Model{boardMode: true, boardDir: agentsTestDir(t), theme: DefaultTheme(), icons: DefaultIcons(), width: 100, height: 12}
 	m, _, _ = m.boardKey("t")
 	m, _, _ = m.boardKey("enter")
-	if view := ansi.Strip(m.boardView()); !strings.Contains(view, "Prompt") {
+	if view := ansi.Strip(m.boardView()); !strings.Contains(view, "Live") {
 		t.Fatalf("detail is cut off on a short pane:\n%s", view)
 	}
 }

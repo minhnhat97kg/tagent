@@ -98,7 +98,9 @@ func (m Model) dashboardView() string {
 		return strings.Join(parts, "\n")
 	}
 	var body string
-	if g.wide {
+	if m.agentsOpen && m.agentDetail { // like the task detail: the whole pane
+		body = m.workflowCard(w, max(3, h-2), 0)
+	} else if g.wide {
 		body = lipgloss.JoinHorizontal(lipgloss.Top, stack("agents", "usage", "comp"), stack("tasks", "wf"))
 	} else {
 		body = stack("agents", "usage", "tasks", "wf", "comp")
@@ -125,10 +127,12 @@ func (m Model) topBar(repo string, width int) string {
 	left := lipgloss.NewStyle().Foreground(m.theme.TextPrimary).Bold(true).Render("tagent") +
 		lipgloss.NewStyle().Foreground(m.theme.TextMuted).Render(" · "+repo)
 	right := "? help · , settings"
-	if m.webStatus != "" {
+	if width < 40+lipgloss.Width(right) { // narrow: the web status outranks the key hints
+		right = m.webStatus
+	} else if m.webStatus != "" {
 		right = m.webStatus + " · " + right
 	}
-	if width < 40+lipgloss.Width(right) {
+	if right == "" || width < lipgloss.Width(left)+1+lipgloss.Width(right) {
 		return fitLine(left, width)
 	}
 	pad := max(1, width-lipgloss.Width(left)-lipgloss.Width(right))

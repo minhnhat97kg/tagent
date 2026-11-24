@@ -20,7 +20,7 @@ import (
 func dashSample() Model {
 	m := boardTestModel()
 	m.boardMode, m.focus, m.taskCursor = false, cardAgents, 2
-	m.notesScope = "tmux-agent-12345678"
+	m.notesScope = "tagent-12345678"
 	m.notes = nil
 	for i, st := range []string{"todo", "todo", "doing", "review", "blocked", "done"} {
 		m.notes = append(m.notes, tasks.Task{ID: fmt.Sprint(i + 1), Title: fmt.Sprintf("Ticket number %d with a longer title", i+1), Status: st, Assignees: []string{"builder"}})
@@ -97,7 +97,7 @@ func TestDashboardShowsLanesAtEveryWidth(t *testing.T) {
 		if !card || next.taskCursor != 2 {
 			t.Fatalf("%v: ticket hit-test got %d %v", size, next.taskCursor, card)
 		}
-		_, spans := m.tasksTitle(4)
+		_, spans := m.tasksTitle(4, g.tasks.w)
 		next, _ = m.tasksCardClick(spans[0].x0, 0, g.tasks.w, g.tasks.h, 4)
 		if next.taskCursor != 0 {
 			t.Fatalf("%v: clicking the todo tab selected %d", size, next.taskCursor)
@@ -115,7 +115,7 @@ func TestLanesHeaderText(t *testing.T) {
 	for _, w := range []int{60, 100, 140} {
 		m := dashSample()
 		m.width, m.height = w, 40
-		title, _ := m.tasksTitle(4)
+		title, _ := m.tasksTitle(4, w)
 		if got := ansi.Strip(title); got != "☷ Tasks  todo 2  [doing 2]  blocked 1  done 1" {
 			t.Fatalf("width %d: %q", w, got)
 		}
@@ -377,5 +377,14 @@ func TestPositionIndicators(t *testing.T) {
 		if !strings.Contains(plain, want) {
 			t.Fatalf("no %q:\n%s", want, plain)
 		}
+	}
+}
+
+// A narrow card keeps every lane's count: inactive tabs shrink to glyph + count.
+func TestLanesHeaderNarrow(t *testing.T) {
+	m := dashSample()
+	title, _ := m.tasksTitle(4, 34)
+	if got := ansi.Strip(title); got != "☷ Tasks  ○2  [doing 2]  !1  ✓1" {
+		t.Fatalf("%q", got)
 	}
 }

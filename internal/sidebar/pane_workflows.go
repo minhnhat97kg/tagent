@@ -35,7 +35,7 @@ func (m Model) dashWorkflowsKey(key string) (Model, tea.Cmd, bool) {
 func (m Model) dashWorkflowsHints() []hint {
 	switch {
 	case m.agentsOpen && m.agentDetail:
-		return []hint{{"esc", "back", "esc", "back to the agent list"}, {"m", "model", "m", "model (new panes only)"}, {"e", "edit", "e", "edit instructions in $EDITOR"}, {"j/k", "agent", "j k ↑ ↓", "select agent"}}
+		return []hint{{"esc", "back", "esc", "back to the agent list"}, {"m", "model", "m", "model (new panes only)"}, {"e", "edit", "e", "edit instructions in $EDITOR"}, {"j/k", "scroll", "j k ↑ ↓", "scroll the instructions"}}
 	case m.agentsOpen:
 		return []hint{
 			{"h/l", "workflows", "t h l [ ]", "swap Workflows / Agents"}, {"enter", "detail", "enter", "show detail"}, {"m", "model", "m", "model (new panes only)"}, {"a", "add", "a", "new agent"},
@@ -61,7 +61,7 @@ func (m Model) boardAgentsHints() []hint {
 		return []hint{
 			{"esc", "back", "esc q b", "back to the agent list"}, {"m", "model", "m", "model (new panes only)"}, {"e", "edit", "e", "edit instructions in $EDITOR"},
 			{"Tab", "tickets", "Tab", "focus tickets"},
-			{"", "", "enter", "back to the agent list"}, {"", "", "j k ↑ ↓", "select agent"}, {"", "", "t", "close the agents panel (back to the board)"},
+			{"", "", "enter", "back to the agent list"}, {"", "", "j k ↑ ↓", "scroll the instructions"}, {"", "", "t", "close the agents panel (back to the board)"},
 		}
 	}
 	return []hint{

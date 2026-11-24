@@ -1,5 +1,5 @@
 === dash 32x22 focus 0
-tagent · tmux-agent
+tagent · tagent
 ┏━ Agents ━━━━━━━━━━━━━━━━━━━━┓
 ┃ ▌ claude-main     main   ┃
 ┃   codex-fix              ▲  ┃
@@ -12,7 +12,7 @@ tagent · tmux-agent
 │ Now                         │
 │ Tokens today 0              │
 ╰─────────────────────────────╯
-╭─ ☷ Tasks  todo 2  [doing 2…╮
+╭─ ☷ Tasks  ○2  [doing 2]  !…╮
 │ ▌ Ticket number 3 with a l… │
 │   ● doing #3 builder 1     │
 ╰──────────────────── 1 of 2 ─╯
@@ -22,7 +22,7 @@ tagent · tmux-agent
 ╰─────────────────────────────╯
 Tab/S-Tab panel  ↑↓ select  en…
 === dash 32x22 focus 3
-tagent · tmux-agent
+tagent · tagent
 ╭─ Agents ────────────────────╮
 │ ▌ claude-main     main   │
 │   codex-fix              ▲  │
@@ -35,7 +35,7 @@ tagent · tmux-agent
 ┃                             ┃
 ┃                             ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-╭─ ☷ Tasks  todo 2  [doing 2…╮
+╭─ ☷ Tasks  ○2  [doing 2]  !…╮
 │ ▌ Ticket number 3 with a l… │
 │   ● doing #3 builder 1     │
 ╰──────────────────── 1 of 2 ─╯
@@ -45,17 +45,17 @@ tagent · tmux-agent
 ╰─────────────────────────────╯
 h/l or [ ] range  Tab/S-Tab pa…
 === dash 32x22 focus 2
-tagent · tmux-agent
+tagent · tagent
 ╭─ Agents ────────────────────╮
-│   claude-main     main   │
-│   codex-fix              ▲  │
+│ claude-main     main     │
+│ codex-fix              ▲    │
 ╰──────────────────── 1 of 3 ─╯
 ╭─ ▥ Usage  1d  [7d]  30d ────╮
 │ Now                         │
 │ Tokens today 0              │
 │  ·······                    │
 ╰─────────────────────────────╯
-┏━ ☷ Tasks  todo 2  [doing 2…┓
+┏━ ☷ Tasks  ○2  [doing 2]  !…┓
 ┃ ▌ Ticket number 3 with a l… ┃
 ┃   ● doing #3 builder 1     ┃
 ┃   Ticket number 4 with a l… ┃
@@ -68,7 +68,7 @@ tagent · tmux-agent
 ╰─────────────────────────────╯
 h/l lane  j/k card  n new  s s…
 === dash 32x22 focus 4
-tagent · tmux-agent
+tagent · tagent
 ╭─ Agents ────────────────────╮
 │ ▌ claude-main     main   │
 │   codex-fix              ▲  │
@@ -77,7 +77,7 @@ tagent · tmux-agent
 │ Now                         │
 │ Tokens today 0              │
 ╰─────────────────────────────╯
-╭─ ☷ Tasks  todo 2  [doing 2…╮
+╭─ ☷ Tasks  ○2  [doing 2]  !…╮
 │ ▌ Ticket number 3 with a l… │
 │   ● doing #3 builder 1     │
 ╰──────────────────── 1 of 2 ─╯
@@ -92,7 +92,7 @@ tagent · tmux-agent
 h/l agents  enter view  a add …
 === board 32x22 wf false
 Board · kanban                  
-┏━ ☷ Tasks  [todo 2]  doing 0…┓
+┏━ ☷ Tasks  [todo 2]  ▶0  !0 …┓
 ┃ ▌ ● #1 First card            ┃
 ┃   ● #2 Second card           ┃
 ┃                              ┃
@@ -111,11 +111,11 @@ Board · kanban
 ╭─ [Workflows]  Agents ────────╮
 │ No workflows · tagent workf… │
 ╰──────────────────────────────╯
-h/l lane  j/k card  n new  s st…
+h/l lane  j/k card  n new  s sta
                                 
 === board 32x22 wf true
 Board · kanban                  
-╭─ ☷ Tasks  [todo 2]  doing 0…╮
+╭─ ☷ Tasks  [todo 2]  ▶0  !0 …╮
 │ ▌ ● #1 First card            │
 │   ● #2 Second card           │
 │                              │
@@ -134,10 +134,10 @@ Board · kanban
 ┃                              ┃
 ┃                              ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-enter view  a add  e edit  x de…
+enter view  a add  e edit  x del
                                 
 === dash 60x40 focus 0
-tagent · tmux-agent                     ? help · , settings
+tagent · tagent                     ? help · , settings
 ┏━ Agents ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃ ▌ claude-main                                 main   ┃
 ┃   codex-fix                                          ▲  ┃
@@ -178,7 +178,7 @@ tagent · tmux-agent                     ? help · , settings
 ╰─────────────────────────────────────────────────────────╯
 Tab/S-Tab panel  ↑↓ select  enter open  N new agent  l log…
 === dash 60x40 focus 3
-tagent · tmux-agent                     ? help · , settings
+tagent · tagent                     ? help · , settings
 ╭─ Agents ────────────────────────────────────────────────╮
 │ ▌ claude-main                                 main   │
 │   codex-fix                                          ▲  │
@@ -219,11 +219,11 @@ tagent · tmux-agent                     ? help · , settings
 ╰─────────────────────────────────────────────────────────╯
 h/l or [ ] range  Tab/S-Tab panel  ? help                 …
 === dash 60x40 focus 2
-tagent · tmux-agent                     ? help · , settings
+tagent · tagent                     ? help · , settings
 ╭─ Agents ────────────────────────────────────────────────╮
-│   claude-main                                 main   │
-│   codex-fix                                          ▲  │
-│   plain                                                 │
+│ claude-main                                 main     │
+│ codex-fix                                          ▲    │
+│ plain                                                   │
 │                                                         │
 │                                                         │
 │                                                         │
@@ -260,7 +260,7 @@ tagent · tmux-agent                     ? help · , settings
 ╰─────────────────────────────────────────────────────────╯
 h/l lane  j/k card  n new  s start  enter detail  B config…
 === dash 60x40 focus 4
-tagent · tmux-agent                     ? help · , settings
+tagent · tagent                     ? help · , settings
 ╭─ Agents ────────────────────────────────────────────────╮
 │ ▌ claude-main                                 main   │
 │   codex-fix                                          ▲  │
@@ -339,7 +339,7 @@ Board · kanban
 ╭─ [Workflows]  Agents ────────────────────────────────────╮
 │ No workflows · tagent workflow new <name>                │
 ╰──────────────────────────────────────────────────────────╯
-h/l lane  j/k card  n new  s start  enter detail  B config …
+h/l lane  j/k card  n new  s start  enter detail  B config  
                                                             
 === board 60x40 wf true
 Board · kanban                                              
@@ -380,10 +380,10 @@ Board · kanban
 ┃                                                          ┃
 ┃                                                          ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-enter view  a add  e edit  x delete  t agents  B config  Ta…
+enter view  a add  e edit  x delete  t agents  B config  Tab
                                                             
 === dash 60x55 focus 0
-tagent · tmux-agent                     ? help · , settings
+tagent · tagent                     ? help · , settings
 ┏━ Agents ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃ ▌ claude-main                                 main   ┃
 ┃   codex-fix                                          ▲  ┃
@@ -439,7 +439,7 @@ tagent · tmux-agent                     ? help · , settings
 ╰─────────────────────────────────────────────────────────╯
 Tab/S-Tab panel  ↑↓ select  enter open  N new agent  l log…
 === dash 60x55 focus 3
-tagent · tmux-agent                     ? help · , settings
+tagent · tagent                     ? help · , settings
 ╭─ Agents ────────────────────────────────────────────────╮
 │ ▌ claude-main                                 main   │
 │   codex-fix                                          ▲  │
@@ -495,11 +495,11 @@ tagent · tmux-agent                     ? help · , settings
 ╰─────────────────────────────────────────────────────────╯
 h/l or [ ] range  Tab/S-Tab panel  ? help                 …
 === dash 60x55 focus 2
-tagent · tmux-agent                     ? help · , settings
+tagent · tagent                     ? help · , settings
 ╭─ Agents ────────────────────────────────────────────────╮
-│   claude-main                                 main   │
-│   codex-fix                                          ▲  │
-│   plain                                                 │
+│ claude-main                                 main     │
+│ codex-fix                                          ▲    │
+│ plain                                                   │
 │                                                         │
 │                                                         │
 │                                                         │
@@ -551,7 +551,7 @@ tagent · tmux-agent                     ? help · , settings
 ╰─────────────────────────────────────────────────────────╯
 h/l lane  j/k card  n new  s start  enter detail  B config…
 === dash 60x55 focus 4
-tagent · tmux-agent                     ? help · , settings
+tagent · tagent                     ? help · , settings
 ╭─ Agents ────────────────────────────────────────────────╮
 │ ▌ claude-main                                 main   │
 │   codex-fix                                          ▲  │
@@ -660,7 +660,7 @@ Board · kanban
 ╭─ [Workflows]  Agents ────────────────────────────────────╮
 │ No workflows · tagent workflow new <name>                │
 ╰──────────────────────────────────────────────────────────╯
-h/l lane  j/k card  n new  s start  enter detail  B config …
+h/l lane  j/k card  n new  s start  enter detail  B config  
                                                             
 === board 60x55 wf true
 Board · kanban                                              
@@ -716,10 +716,10 @@ Board · kanban
 ┃                                                          ┃
 ┃                                                          ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-enter view  a add  e edit  x delete  t agents  B config  Ta…
+enter view  a add  e edit  x delete  t agents  B config  Tab
                                                             
 === dash 130x45 focus 0
-tagent · tmux-agent                                                                                           ? help · , settings
+tagent · tagent                                                                                           ? help · , settings
 ┏━ Agents ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭─ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1 ──────────────────────────────────╮
 ┃ ▌ claude-main                  main   ┃│ ▌ Ticket number 3 with a longer title                                             │
 ┃   codex-fix                           ▲  ┃│   ● doing #3 builder 1                                                           │
@@ -765,7 +765,7 @@ tagent · tmux-agent                                                            
 ╰──────────────────────────────────────────╯╰───────────────────────────────────────────────────────────────────────────────────╯
 Tab/S-Tab panel  ↑↓ select  enter open  N new agent  l log  i prompt  f handoff  ? help                                         …
 === dash 130x45 focus 3
-tagent · tmux-agent                                                                                           ? help · , settings
+tagent · tagent                                                                                           ? help · , settings
 ╭─ Agents ─────────────────────────────────╮╭─ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1 ──────────────────────────────────╮
 │ ▌ claude-main                  main   ││ ▌ Ticket number 3 with a longer title                                             │
 │   codex-fix                           ▲  ││   ● doing #3 builder 1                                                           │
@@ -811,11 +811,11 @@ tagent · tmux-agent                                                            
 ╰──────────────────────────────────────────╯╰───────────────────────────────────────────────────────────────────────────────────╯
 h/l or [ ] range  Tab/S-Tab panel  ? help                                                                                       …
 === dash 130x45 focus 2
-tagent · tmux-agent                                                                                           ? help · , settings
+tagent · tagent                                                                                           ? help · , settings
 ╭─ Agents ─────────────────────────────────╮┏━ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-│   claude-main                  main   │┃ ▌ Ticket number 3 with a longer title                                             ┃
-│   codex-fix                           ▲  │┃   ● doing #3 builder 1                                                           ┃
-│   plain                                  │┃   Ticket number 4 with a longer title                                             ┃
+│ claude-main                  main     │┃ ▌ Ticket number 3 with a longer title                                             ┃
+│ codex-fix                           ▲    │┃   ● doing #3 builder 1                                                           ┃
+│ plain                                    │┃   Ticket number 4 with a longer title                                             ┃
 │                                          │┃   ● review #4 builder                                                             ┃
 │                                          │┃                                                                                   ┃
 │                                          │┃                                                                                   ┃
@@ -857,7 +857,7 @@ tagent · tmux-agent                                                            
 ╰──────────────────────────────────────────╯╰───────────────────────────────────────────────────────────────────────────────────╯
 h/l lane  j/k card  n new  s start  enter detail  B config  p priority  D deps  e edit  C comment  H/L status  a files  x delete…
 === dash 130x45 focus 4
-tagent · tmux-agent                                                                                           ? help · , settings
+tagent · tagent                                                                                           ? help · , settings
 ╭─ Agents ─────────────────────────────────╮╭─ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1 ──────────────────────────────────╮
 │ ▌ claude-main                  main   ││ ▌ Ticket number 3 with a longer title                                             │
 │   codex-fix                           ▲  ││   ● doing #3 builder 1                                                           │
@@ -946,7 +946,7 @@ Board · kanban
 ╭─ [Workflows]  Agents ──────────────────────────────────────────────────────────────────────────────────────────────────────────╮
 │ No workflows · tagent workflow new <name>                                                                                      │
 ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-h/l lane  j/k card  n new  s start  enter detail  B config  p priority  D deps  e edit  C comment  H/L status  a files  x delete …
+h/l lane  j/k card  n new  s start  enter detail  B config  p priority  D deps  e edit  C comment  H/L status  a files  x delete  
                                                                                                                                   
 === board 130x45 wf true
 Board · kanban                                                                                                                    

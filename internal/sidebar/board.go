@@ -312,15 +312,38 @@ func (m Model) cardName(num int, name string) (string, int) {
 	return s, ansi.StringWidth(s) // num is unused: cards are not numbered
 }
 
-// tasksTitle is "☷ Tasks  [todo 1]  doing 2  done 32" (short lane names so it fits narrow cards).
-func (m Model) tasksTitle(num int) (string, []tabSpan) {
+// tasksTitle is "☷ Tasks  [todo 1]  doing 2  done 32". When that does not fit
+// width (a narrow sidebar), the inactive tabs shrink to a glyph and a count.
+func (m Model) tasksTitle(num, width int) (string, []tabSpan) {
 	name, w := m.cardName(num, "☷ Tasks")
+	active := slices.Index(boardLanes, m.activeLane())
 	labels := make([]string, len(boardLanes))
+	total := w + 2 - 2 // name, gap, then labels with 2-cell separators
 	for i, l := range boardLanes {
 		labels[i] = fmt.Sprintf("%s %d", laneShort(l), len(m.laneCards(l)))
+		total += ansi.StringWidth(labels[i]) + 2
 	}
-	tabs, spans := m.tabStrip(labels, slices.Index(boardLanes, m.activeLane()), 3+w+2)
+	if total > width-4-8 { // border plus the "3 of 12" counter
+		for i, l := range boardLanes {
+			if i != active {
+				labels[i] = fmt.Sprintf("%s%d", laneGlyph(l), len(m.laneCards(l)))
+			}
+		}
+	}
+	tabs, spans := m.tabStrip(labels, active, 3+w+2)
 	return name + "  " + tabs, spans
+}
+
+func laneGlyph(lane string) string {
+	switch lane {
+	case "todo":
+		return "○"
+	case "in progress":
+		return "▶"
+	case "blocked":
+		return "!"
+	}
+	return "✓"
 }
 
 // laneShort is the lane's name on its tab.
@@ -447,7 +470,7 @@ func (m Model) laneLines(width, rows int) []string {
 
 // tasksCard is the lane card: tabs in the title, "3 of 32" on the bottom border.
 func (m Model) tasksCard(width, height, num int, focused bool) string {
-	title, _ := m.tasksTitle(num)
+	title, _ := m.tasksTitle(num, width)
 	cards := m.laneCards(m.activeLane())
 	return m.boardPanel(title, position(slices.Index(cards, m.taskCursor), len(cards)), m.laneLines(width-4, height-2), width, height, focused)
 }
@@ -456,7 +479,7 @@ func (m Model) tasksCard(width, height, num int, focused bool) string {
 // (y 0: the title row, whose tabs pick a lane). card reports a click on a ticket.
 func (m Model) tasksCardClick(x, y, width, height, num int) (next Model, card bool) {
 	if y == 0 {
-		_, spans := m.tasksTitle(num)
+		_, spans := m.tasksTitle(num, width)
 		for i, s := range spans {
 			if x >= s.x0 && x < s.x1 {
 				return m.selectLane(boardLanes[i]), false
@@ -738,10 +761,16 @@ func (m Model) workflowCard(width, height, num int) string {
 	lines, cursor, n := m.stripPanel(width - 4)
 	name, w := m.cardName(num, "")
 	tabs, _ := m.tabStrip([]string{"Workflows", "Agents"}, b2i(m.agentsOpen), 3+w)
-	start := 0
-	if !(m.agentsOpen && m.agentDetail) {
-		start = max(0, cursor-max(1, height-2)+1)
+	if m.agentsOpen && m.agentDetail { // the detail fills the card and scrolls
+		rows := max(1, height-2)
+		off := min(max(0, m.detailScroll), max(0, len(lines)-rows))
+		view := slices.Clone(lines[off:min(len(lines), off+rows)])
+		if below := len(lines) - off - rows; below > 0 { // the last row says how much is hidden
+			view[len(view)-1] = m.boardStyle(m.theme.TextDim).Render(fmt.Sprintf("↓ %d more · j/k scroll", below+1))
+		}
+		return m.boardPanel(name+tabs, "", view, width, height, m.focus == cardWorkflows)
 	}
+	start := max(0, cursor-max(1, height-2)+1)
 	return m.boardPanel(name+tabs, position(cursor, n), lines[min(start, len(lines)):], width, height, m.focus == cardWorkflows)
 }
 
@@ -929,9 +958,6 @@ func (m Model) boardDetail(w, rows int) []string {
 	out := append([]string{}, summary...)
 	out = append(out, m.detailViewport(body, w, bodyRows, m.detailScroll)...)
 	out = append(out, composer...)
-	if rows >= 6 {
-		out = append(out, m.detailFooter(w))
-	}
 	if len(out) > rows {
 		out = out[:rows]
 	}

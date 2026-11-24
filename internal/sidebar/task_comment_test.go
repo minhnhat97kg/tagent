@@ -3,6 +3,7 @@ package sidebar
 import (
 	"strings"
 	"testing"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
@@ -72,11 +73,11 @@ func TestCommentBoxSendsOnEnter(t *testing.T) {
 	}
 }
 
-func TestCommentBoxIsOnlyOpenOnActivity(t *testing.T) {
+func TestCommentBoxOpensOnActivityFromAnyTab(t *testing.T) {
 	m := commentModel()
 	m.detailTab = detailTabDetails
-	if next, _ := boardPress(m, "c"); next.commentBox {
-		t.Fatal("c opened the composer outside Activity")
+	if next, _ := boardPress(m, "c"); !next.commentBox || next.detailTab != detailTabActivity {
+		t.Fatal("c did not switch to Activity and open the composer")
 	}
 }
 
@@ -107,7 +108,34 @@ func TestCommentBoxStaysVisibleWhenScrolled(t *testing.T) {
 	m = typeText(m, "hello")
 	m.detailScroll = 1 << 20 // far past the end
 	view := ansi.Strip(strings.Join(m.boardDetail(100, 20), "\n"))
-	if !strings.Contains(view, "hello") || !strings.Contains(view, "enter send") {
+	if !strings.Contains(view, "hello") {
 		t.Fatalf("composer scrolled out of the drawer:\n%s", view)
+	}
+}
+
+func TestHintsLiveInTheFooterOnly(t *testing.T) {
+	m := commentModel()
+	m.animFrame = 4
+	m, _ = boardPress(m, "c")
+	if view := ansi.Strip(strings.Join(m.boardDetail(100, 30), "\n")); strings.Contains(view, "enter send") {
+		t.Fatalf("drawer shows hints:\n%s", view)
+	}
+	if h := ansi.Strip(m.footerHints()); !strings.Contains(h, "enter send") {
+		t.Fatalf("footer misses the composer keys: %q", h)
+	}
+	// A long hint line runs instead of being cut, and always fills the row.
+	m.commentBox, m.width = false, 30
+	if a, b := ansi.Strip(m.footerHints()), ansi.Strip(func() string { m.animFrame += 6; return m.footerHints() }()); a == b || ansi.StringWidth(a) > 30 {
+		t.Fatalf("hint line does not run: %q vs %q", a, b)
+	}
+}
+
+func TestAttachmentsListIsOneRowPerFile(t *testing.T) {
+	m := commentModel()
+	m.taskForm = "attachments"
+	m.attachments = []tasks.TicketAttachment{{Name: "ci.log", Size: 45, Author: "ci", Time: time.Now()}, {Name: "comment.md", Size: 955, Author: "reviewer", Time: time.Now()}}
+	view := ansi.Strip(m.taskFormView())
+	if strings.Contains(view, "Enter view") || strings.Count(view, "\n") > 8 {
+		t.Fatalf("attachments form repeats hints or wraps:\n%s", view)
 	}
 }

@@ -11,6 +11,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // The agents panel shares the board's bottom strip with workflows (t toggles it).
@@ -48,7 +49,7 @@ func (m Model) agentStripLines(width int) []string {
 		if len(a.UsedBy) == 0 {
 			used = "not used"
 		}
-		first, _, _ := strings.Cut(strings.TrimSpace(a.Instructions), "\n")
+		instructions := strings.TrimSpace(a.Instructions)
 		row := func(label, value string) string {
 			return boardFit(dim.Render(fmt.Sprintf("%-9s", label))+value, width)
 		}
@@ -60,21 +61,27 @@ func (m Model) agentStripLines(width int) []string {
 		if a.Running > 0 {
 			running = m.boardStyle(m.theme.StatusRunning).Render(fmt.Sprintf("● %d running", a.Running))
 		}
-		if first == "" {
-			first = "no instructions"
+		if instructions == "" {
+			instructions = "no instructions"
 		}
 		title := m.boardStyle(m.theme.TextPrimary).Bold(true).Render(a.Name) + "  " + dim.Render(agentScope(a))
 		if agentReadOnly(a) {
 			title += dim.Render(" · read-only")
 		}
-		return []string{
+		lines := []string{
 			boardFit(title, width),
 			row("Harness", a.Harness),
 			row("Model", model),
 			row("Used by", used),
 			row("Live", running),
-			row("Prompt", dim.Render(first)),
+			"",
+			dim.Render("Instructions"),
 		}
+		// The whole prompt, wrapped; the card scrolls it (j/k).
+		for _, l := range strings.Split(ansi.Wrap(instructions, max(1, width), ""), "\n") {
+			lines = append(lines, boardFit(l, width))
+		}
+		return lines
 	}
 	// One aligned row per agent: name, harness, model, then the live count.
 	short := func(a agents.Agent) string {
@@ -112,7 +119,7 @@ func (m Model) agentStripLines(width int) []string {
 	return lines
 }
 
-// agentScope is "global" (~/.config/tmux-agent) or "local" (.tasks/agents, a
+// agentScope is "global" (~/.config/tagent) or "local" (.tasks/agents, a
 // legacy harness directory, or board.yaml).
 func agentScope(a agents.Agent) string {
 	if a.Source == "global" {
@@ -149,12 +156,17 @@ func (m Model) agentPanelKey(key string) (Model, tea.Cmd, bool) {
 	switch key {
 	case "tab", "shift+tab":
 		m.focus, m.agentsOpen, m.agentDetail = cardTasks, false, false
-	case "j", "down":
-		m.agentCursor = min(max(0, len(m.agents)-1), m.agentCursor+1)
-	case "k", "up":
-		m.agentCursor = max(0, m.agentCursor-1)
+	case "j", "down", "k", "up", "pgdown", "ctrl+d", "pgup", "ctrl+u", "g", "G":
+		if m.agentDetail { // the open detail scrolls its instructions
+			total := len(m.agentStripLines(max(1, m.width-4)))
+			m.detailScroll = min(max(0, total-max(1, m.height-4)), max(0, m.detailScroll+map[string]int{"j": 1, "down": 1, "k": -1, "up": -1, "pgdown": m.height / 2, "ctrl+d": m.height / 2, "pgup": -m.height / 2, "ctrl+u": -m.height / 2, "g": -1 << 20, "G": 1 << 20}[key]))
+		} else if key == "j" || key == "down" {
+			m.agentCursor = min(max(0, len(m.agents)-1), m.agentCursor+1)
+		} else if key == "k" || key == "up" {
+			m.agentCursor = max(0, m.agentCursor-1)
+		}
 	case "enter":
-		m.agentDetail = !m.agentDetail
+		m.agentDetail, m.detailScroll = !m.agentDetail, 0
 	case "a":
 		m.taskForm, m.taskInput = "agent-new", ""
 	case "t":
