@@ -784,10 +784,10 @@ func (m Model) boardView() string {
 		// Wide panes: the ticket panel is a right pane beside the tickets.
 		dw := m.width * 2 / 5
 		left := m.tasksCard(m.width-dw, h, 0, false)
-		right := m.boardPanel("Task · esc close", "", m.boardDetail(dw-4, h-2), dw, h, true)
+		right := m.boardPanel(m.detailTabTitle(), "", m.boardDetail(dw-4, h-2), dw, h, true)
 		body = lipgloss.JoinHorizontal(lipgloss.Top, left, right)
 	} else if m.boardDrawer {
-		body = m.boardPanel("Task · esc close", "", m.boardDetail(m.width-4, h-2), m.width, h, true)
+		body = m.boardPanel(m.detailTabTitle(), "", m.boardDetail(m.width-4, h-2), m.width, h, true)
 	} else if m.agentsOpen && m.agentDetail { // the agent detail takes the whole pane
 		body = m.workflowCard(m.width, h, 0)
 	} else {

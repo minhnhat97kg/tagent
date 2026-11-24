@@ -56,14 +56,12 @@ func (m Model) detailFooter(w int) string {
 	return m.boardStyle(m.theme.TextDim).Render(keys)
 }
 
-// detailTabStrip is the ticket panel's tab row, in the same lazygit style as
-// the card tabs: the active tab bracketed and bold, the others muted.
-func (m Model) detailTabStrip(w int) []string {
-	if w <= 0 {
-		return nil
-	}
-	strip, _ := m.tabStrip(detailTabs, m.detailTab, 2)
-	return []string{ansi.Truncate("  "+strip, w, "")}
+// detailTabTitle is the ticket panel's tab row, drawn in the frame's top
+// border (like the Tasks card tabs): the active tab bracketed and bold, the
+// others muted.
+func (m Model) detailTabTitle() string {
+	strip, _ := m.tabStrip(detailTabs, m.detailTab, 0)
+	return strip
 }
 
 // detailLayout splits the drawer into what never scrolls (the summary), the
@@ -126,9 +124,6 @@ func (m Model) taskDetailSummary(t tasks.Task, w int) []string {
 	title := m.boardStyle(m.theme.TextPrimary).Bold(true).Render(boardTitle(t))
 	for _, line := range strings.Split(ansi.Wrap(title, max(1, w), ""), "\n") {
 		add(line)
-	}
-	if tabs := m.detailTabStrip(w); len(tabs) > 0 {
-		lines = append(lines, tabs...)
 	}
 	// A Chat tab that cannot be entered says why, right where the tabs are: a
 	// TUI has no tooltips, so the reason has to stay on screen.

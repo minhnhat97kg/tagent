@@ -194,7 +194,7 @@ func TestSharedTaskDetailAndScroll(t *testing.T) {
 		m.notes[0].Comments = append(m.notes[0].Comments, tasks.TaskComment{Author: "builder", Body: "comment body", Created: time.Now().Add(time.Duration(i) * time.Minute)})
 	}
 	m.boardDrawer = true
-	board := ansi.Strip(strings.Join(m.boardDetail(80, 194), "\n"))
+	board := ansi.Strip(m.detailTabTitle() + strings.Join(m.boardDetail(80, 194), "\n"))
 	for _, section := range []string{"Assignee", "Description", "[Details]", "Activity", "Run"} {
 		if !strings.Contains(board, section) {
 			t.Fatalf("missing %s:\n%s", section, board)
@@ -296,7 +296,7 @@ func TestTaskDetailTabs(t *testing.T) {
 	m := boardTestModel()
 	m.width, m.height = 80, 24
 	m.boardDrawer = true
-	view := ansi.Strip(strings.Join(m.boardDetail(76, 19), "\n"))
+	view := ansi.Strip(m.detailTabTitle() + strings.Join(m.boardDetail(76, 19), "\n"))
 	for _, want := range []string{"[Details]", "Chat", "Activity", "Run", "Description"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("default tab misses %q:\n%s", want, view)
@@ -341,7 +341,7 @@ func TestTaskDetailTabs(t *testing.T) {
 	if !m.boardDrawer || m.detailTab != detailTabDetails {
 		t.Fatal("opening the drawer did not reset the tab")
 	}
-	if view := ansi.Strip(strings.Join(m.boardDetail(76, 19), "\n")); !strings.Contains(view, "[Details]") {
+	if view := ansi.Strip(m.detailTabTitle()); !strings.Contains(view, "[Details]") {
 		t.Fatalf("re-opened drawer does not mark Details:\n%s", view)
 	}
 }
@@ -414,7 +414,7 @@ func TestTaskDetailRightPane(t *testing.T) {
 	m.width, m.height = 120, 24
 	m.boardDrawer = true
 	lines := strings.Split(ansi.Strip(m.View()), "\n")
-	if !strings.Contains(strings.Join(lines, "\n"), "Task · esc close") {
+	if !strings.Contains(strings.Join(lines, "\n"), "[Details]") {
 		t.Fatalf("drawer is not beside the tickets:\n%s", strings.Join(lines, "\n"))
 	}
 	for i, line := range lines {
