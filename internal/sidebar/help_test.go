@@ -30,10 +30,10 @@ func TestContextualHelpSections(t *testing.T) {
 			model, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("?")})
 			hm := model.(Model)
 			view := hm.helpView()
-			if !hm.helpOpen || hm.helpSection().title != tt.name || !strings.Contains(view, "? "+tt.name) || !strings.Contains(view, tt.own) || strings.Contains(view, tt.other) {
+			if !hm.helpOpen || hm.helpSection().title != tt.name || !strings.Contains(view, tt.name) || !strings.Contains(view, tt.own) || strings.Contains(view, tt.other) {
 				t.Fatalf("wrong help: %s", view)
 			}
-			if !strings.Contains(view, "a: all shortcuts") {
+			if !strings.Contains(view, "all shortcuts") {
 				t.Fatal("no full-help footer")
 			}
 			model, _ = hm.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")})

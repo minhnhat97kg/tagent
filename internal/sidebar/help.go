@@ -71,10 +71,10 @@ func (m Model) helpView() string {
 	dim := lipgloss.NewStyle().Foreground(m.theme.TextDim)
 	section := m.helpSection()
 	sections := []shortcutSection{section}
-	title := "? " + section.title
+	title := section.title
 	if m.helpAll {
 		sections = m.helpSections()
-		title = "? All shortcuts"
+		title = "All shortcuts"
 	}
 	var lines []string
 	for _, sec := range sections {
@@ -95,10 +95,10 @@ func (m Model) helpView() string {
 	room := max(3, height-4)
 	start := min(max(0, m.helpScroll), max(0, len(lines)-room))
 	end := min(len(lines), start+room)
-	foot := "j/k scroll · any other key closes"
+	foot := m.keyHints("j/k scroll", "any other key closes")
 	if !m.helpAll {
-		foot = "a: all shortcuts · j/k scroll · Esc close"
+		foot = m.keyHints("a all shortcuts", "j/k scroll", "esc close")
 	}
-	heading := lipgloss.NewStyle().Bold(true).Foreground(m.theme.Accent).Render(title)
-	return lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(m.theme.Accent).Width(width).Render(heading + "\n" + strings.Join(lines[start:end], "\n") + "\n" + dim.Render(foot))
+	heading := m.boardStyle(m.theme.TextPrimary).Bold(true).Render(title)
+	return strings.Join(m.detailFrame(heading, lines[start:end], width), "\n") + "\n" + foot
 }

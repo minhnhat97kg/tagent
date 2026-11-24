@@ -54,7 +54,7 @@ func TestHelpToggle(t *testing.T) {
 	m.width, m.height = 44, 30
 	opened, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("?")})
 	hm := opened.(Model)
-	if !hm.helpOpen || !strings.Contains(hm.View(), "? Agents") {
+	if !hm.helpOpen || !strings.Contains(hm.View(), "Agents") {
 		t.Fatal("? must open the shortcut list")
 	}
 	closed, _ := hm.handleKey(tea.KeyMsg{Type: tea.KeyEsc})

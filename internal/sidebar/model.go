@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -1487,11 +1488,14 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // it runs as a command; the sidebar picks changed options up on its next
 // refresh.
 func OpenSettings(pane string) tea.Cmd {
+	bin, err := os.Executable()
+	if err != nil {
+		bin = "tagent"
+	}
+	if pane == "" { // standalone, outside tmux: no popup, take the terminal
+		return tea.ExecProcess(exec.Command(bin, "config"), func(error) tea.Msg { return refreshRequestMsg{} })
+	}
 	return func() tea.Msg {
-		bin, err := os.Executable()
-		if err != nil {
-			bin = "tagent"
-		}
 		args := []string{"display-popup", "-E", "-w", "76", "-h", "32"}
 		// The popup inherits the terminal background, so a dark theme's light
 		// text vanished on a light terminal (and vice versa): paint it.

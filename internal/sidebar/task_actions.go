@@ -219,12 +219,12 @@ func (m Model) handleTaskForm(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 func (m Model) taskFormView() string {
-	width := max(10, m.width-4)
-	title, hint := "Task detail", "Esc close"
+	width := max(10, m.width-6) // content width inside the frame (frame is width+4)
+	title, sub, hint := "Task detail", "", m.keyHints("esc close")
 	body := ""
 	switch m.taskForm {
 	case "attach":
-		title, hint = "Attach file", "Local file path · Enter attach · Esc cancel"
+		title, sub, hint = "Attach file", "local file path", m.keyHints("enter attach", "esc cancel")
 	case "attachments":
 		// One row per file: name, then size · author · time muted; keys are in the footer.
 		title, hint = "Attachments", ""
@@ -250,6 +250,7 @@ func (m Model) taskFormView() string {
 	case "new-agent":
 		title = "New agent"
 		hint = m.keyHints("tab field", "←→ pick", "ctrl+s start", "esc cancel")
+		// tui-style.md: a light rounded frame with the title in its top border; keys go in the footer.
 		body = m.newAgentFormBody(width)
 		if m.taskNotice != "" {
 			body += "\n\n" + m.taskNotice
@@ -340,25 +341,30 @@ func (m Model) taskFormView() string {
 			body += boardFit(fmt.Sprintf("%s%s #%s %s · %s", prefix, box, t.ID, boardTitle(t), t.Status), width) + "\n"
 		}
 	case "agent-model":
-		title, hint = "Model for "+m.selectedAgentName(), "Enter save · Esc cancel · applies to new panes"
+		title, sub, hint = "Model for "+m.selectedAgentName(), "applies to new panes", m.keyHints("enter save", "esc cancel")
 	case "agent-new":
-		title, hint = "New agent", "Name · Enter create & edit · Esc cancel"
+		title, sub, hint = "New agent", "name", m.keyHints("enter create", "esc cancel")
 	case "workflow-new":
-		title = "New workflow"
-		hint = "Name · Enter create & edit · Esc cancel"
+		title, sub = "New workflow", "name"
+		hint = m.keyHints("enter create", "esc cancel")
 		body = m.taskNotice
 	case "c":
-		title, hint = "● Commit staged changes", "Message · Enter commit · Esc cancel"
+		title, sub, hint = "Commit staged changes", "message", m.keyHints("enter commit", "esc cancel")
 	case "i":
-		title, hint = "✎ Send prompt to "+m.promptPane, "Enter send · Esc cancel"
+		title, hint = "Send prompt to "+m.promptPane, m.keyHints("enter send", "esc cancel")
 	case "chat":
-		title, hint = "✎ Message the chat", "Enter send · ctrl+s save to ticket · Esc cancel"
+		title, hint = "Message the chat", m.keyHints("enter send", "ctrl+s save to ticket", "esc cancel")
 
 	}
 	if m.taskForm != "start" && m.taskForm != "new-task" && m.taskForm != "default" && m.taskForm != "attachments" && m.taskForm != "needs" && m.taskForm != "assign" && m.taskForm != "status" && m.taskForm != "new-agent" {
 		body += "\n" + wrappedInput(m.taskInput, width, m.height)
 	}
-	return lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(m.theme.Accent).Width(width).Render(lipgloss.NewStyle().Bold(true).Foreground(m.theme.Accent).Render(title) + "\n\n" + lipgloss.NewStyle().Width(width).Render(body) + hintTail(hint))
+	head := m.boardStyle(m.theme.TextPrimary).Bold(true).Render(title)
+	if sub != "" {
+		head += m.boardStyle(m.theme.TextDim).Render(" · " + sub)
+	}
+	lines := strings.Split(lipgloss.NewStyle().Width(width).Render(body), "\n")
+	return strings.Join(m.detailFrame(head, lines, width+4), "\n") + hintTail(hint)
 }
 
 // scopePanes lists agent panes of this repo scope (each pane once), optionally of one harness.

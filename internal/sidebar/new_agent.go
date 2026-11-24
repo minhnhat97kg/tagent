@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
-
 	"github.com/charmbracelet/x/ansi"
+
 	"tagent/internal/agents"
 )
 
@@ -215,6 +215,9 @@ func (m Model) newAgentFormBody(width int) string {
 		}
 		if f.field == i {
 			value = tailFit(m.taskInput+"▏", width-13)
+			if m.taskInput == "" { // placeholder, as in the other text inputs
+				value = m.boardStyle(m.theme.Accent).Render("▏") + m.boardStyle(m.theme.TextDim).Render(ansi.Truncate(empty, max(1, width-14), "…"))
+			}
 		}
 		return boardFit(active(i)+fmt.Sprintf("%-11s", label)+value, width)
 	}
