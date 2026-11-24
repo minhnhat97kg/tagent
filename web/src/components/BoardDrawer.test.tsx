@@ -237,3 +237,15 @@ test("a reply notification opens on Activity with the draft ready", () => {
   expect(screen.getByRole("tab", { name: "Activity" }).getAttribute("aria-selected")).toBe("true")
   expect((screen.getByRole("textbox", { name: "Comment" }) as HTMLTextAreaElement).value).toBe("@builder ")
 })
+
+test("Details shows per-job usage with n/a and partial", async () => {
+  const c = (n: number) => ({ Input: n, Output: 0, CacheRead: 0, CacheWrite: 0, Total: n })
+  mocks.api.mockImplementation(async (path: string) => path.includes("/usage") ? { jobs: [
+    { role: "dev", harness: "pi", model: "gpt", effort: "high", loops: 2, elapsed: 5e9, count: c(1500), has: true, live: false },
+    { role: "doc", harness: "antigravity", model: "", effort: "", loops: 1, elapsed: 1e9, count: c(0), has: false, live: false },
+  ], models: [], total: c(1500), partial: true, elapsed: 6e9, loops: 3 } : run)
+  mount()
+  expect(await screen.findByText(/1\.5k tokens \(partial\)/)).toBeTruthy()
+  expect(screen.getByText("n/a")).toBeTruthy()
+  expect(screen.getByText("×2")).toBeTruthy()
+})

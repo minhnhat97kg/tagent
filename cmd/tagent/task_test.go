@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"tagent/internal/sharedctx"
 	"tagent/internal/tasks"
 )
 
@@ -81,5 +82,32 @@ func TestTaskCommentDiffShowAndBoardInit(t *testing.T) {
 	}
 	if _, err = tasks.Update(tasks.Scope(dir), id, "build", nil); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestTaskLsUsage(t *testing.T) {
+	t.Setenv("TMUX_AGENT_CONTEXT_DIR", t.TempDir())
+	t.Setenv("TMUX_PANE", "")
+	dir := t.TempDir()
+	t.Chdir(dir)
+	scope := tasks.Scope(dir)
+	tk, err := tasks.Add(scope, "usage ticket", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = tasks.RecordDispatch(scope, tk.ID, tasks.Event{Role: "dev", Harness: "pi", PaneName: "dev-1", Pane: "%1"}); err != nil {
+		t.Fatal(err)
+	}
+	state := filepath.Join(sharedctx.Dir(scope), "metrics", "state.json")
+	os.MkdirAll(filepath.Dir(state), 0700)
+	os.WriteFile(state, []byte(`{"sessions":{"pi:a":{"key":"pi:a","harness":"pi","agent":"dev-1","pane":"%1","status":"closed","has_usage":true,"usage":{"Total":1234}}}}`), 0600)
+	var out bytes.Buffer
+	if code := cmdTask([]string{"ls", "--usage"}, &out, &bytes.Buffer{}); code != exitOK || !strings.HasSuffix(strings.TrimSpace(out.String()), "\t1234") {
+		t.Fatalf("ls --usage: %q", out.String())
+	}
+	out.Reset()
+	cmdTask([]string{"show", tk.ID}, &out, &bytes.Buffer{})
+	if !strings.Contains(out.String(), "Usage: 1234 tokens") {
+		t.Fatalf("show: %q", out.String())
 	}
 }

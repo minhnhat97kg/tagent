@@ -241,7 +241,7 @@ func dispatchBoardAction(a board.Action) error {
 		if harness == "" && harnesses[a.Role] {
 			harness = a.Role
 		}
-		_ = tasks.RecordDispatch(scope, a.Event.Task, tasks.Event{To: a.Event.To, Role: a.Agent, Harness: harness, Model: a.Model, Pane: pane, PaneName: tmux.GetPaneOptionValue(pane, tmux.PaneName), Prompt: tasks.CapText(a.Prompt, 8000)})
+		_ = tasks.RecordDispatch(scope, a.Event.Task, tasks.Event{To: a.Event.To, Role: a.Agent, Harness: harness, Model: a.Model, Effort: a.Effort, Pane: pane, PaneName: tmux.GetPaneOptionValue(pane, tmux.PaneName), Prompt: tasks.CapText(a.Prompt, 8000)})
 	}
 	// cmdSend handles active/approval states. Unknown startup states must queue too.
 	status := tmux.GetPaneOptionValue(pane, tmux.PaneStatusOpt)

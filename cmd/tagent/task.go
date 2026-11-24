@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"tagent/internal/board"
 	"tagent/internal/hook"
@@ -22,14 +23,26 @@ func cmdTask(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "task:", err)
 		return exitFailure
 	}
-	if len(args) == 0 || (len(args) == 1 && args[0] == "ls") {
+	if withUsage := len(args) == 2 && args[0] == "ls" && args[1] == "--usage"; len(args) == 0 || (len(args) == 1 && args[0] == "ls") || withUsage {
 		for _, t := range tasks.List(scope) {
-			fmt.Fprintf(stdout, "%s\t%s\t%s\t%s\n", t.ID, t.Status, strings.Join(t.Assignees, ","), t.Text)
+			fmt.Fprintf(stdout, "%s\t%s\t%s\t%s", t.ID, t.Status, strings.Join(t.Assignees, ","), t.Text)
+			if withUsage {
+				u := ticketUsage(wd, scope, t)
+				col := "—"
+				if len(u.Jobs) > 0 {
+					col = fmt.Sprint(u.Total.Total)
+					if u.Partial {
+						col = "≥" + col
+					}
+				}
+				fmt.Fprint(stdout, "\t", col)
+			}
+			fmt.Fprintln(stdout)
 		}
 		return exitOK
 	}
 	usage := func() int {
-		fmt.Fprintln(stderr, "usage: tagent task [ls] | add [--to name[,name]] [--needs id[,id]] [--priority high|normal|low] <text> | done <id> [note] | move <id> <status> [comment] | retry <id> | start <id> [workflow|pane] | set <id> <configured-status> [note] | assign <id> <name[,name]|-> | needs <id> <id[,id]|-> | priority <id> <high|normal|low> | show <id> | attachments <id> | comment <id> [--attach path]... [--diff] <text> | due <id> <YYYY-MM-DD|-> | rm <id>")
+		fmt.Fprintln(stderr, "usage: tagent task [ls [--usage]] | add [--to name[,name]] [--needs id[,id]] [--priority high|normal|low] <text> | done <id> [note] | move <id> <status> [comment] | retry <id> | start <id> [workflow|pane] | set <id> <configured-status> [note] | assign <id> <name[,name]|-> | needs <id> <id[,id]|-> | priority <id> <high|normal|low> | show <id> | attachments <id> | comment <id> [--attach path]... [--diff] <text> | due <id> <YYYY-MM-DD|-> | rm <id>")
 		return exitUsage
 	}
 	var err error
@@ -186,6 +199,9 @@ func cmdTask(args []string, stdout, stderr io.Writer) int {
 		}
 		for _, ev := range activity {
 			fmt.Fprintf(stdout, "\nDispatch [%d]: %s\n", ev.Seq, ev.Message)
+		}
+		if lines := ticketUsage(wd, scope, t).Lines(func(n int64) string { return fmt.Sprint(n) }); len(lines) > 0 {
+			fmt.Fprintln(stdout, "\n"+strings.Join(lines, "\n"))
 		}
 	case "done":
 		if len(args) < 2 {
@@ -454,4 +470,14 @@ func taskBinding(scope string, args []string) error {
 		return fmt.Errorf("this pane is bound to ticket %s; it may not run %q", bound, args[0])
 	}
 	return fmt.Errorf("this pane is bound to ticket %s; refusing ticket %s", bound, target)
+}
+
+// ticketUsage reads stored session usage and attributes it to one ticket.
+func ticketUsage(wd, scope string, t tasks.Task) metrics.TicketUsage {
+	cfg, _ := tasks.LoadBoardConfig(wd)
+	if c, err := tasks.ConfigForTask(wd, cfg, t); err == nil {
+		cfg = c
+	}
+	events, _ := tasks.ReadEvents(scope, 0)
+	return metrics.TicketUsageOf(metrics.Read(scope), t, cfg, events, time.Now().UTC())
 }

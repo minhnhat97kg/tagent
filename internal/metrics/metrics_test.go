@@ -51,9 +51,6 @@ func TestTaskUsageIntervalAndExclusiveSession(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if n, missing := TaskTokens(state, one.ID); n != 10 || missing != 0 {
-		t.Fatalf("task tokens=%d missing=%d, want 10/0", n, missing)
-	}
 	if err := End(scope, one.ID); err != nil {
 		t.Fatal(err)
 	}

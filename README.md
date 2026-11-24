@@ -270,6 +270,8 @@ shows `waits #12` until the last one is done, then `ready` (a human still starts
 and the dispatcher's busy/approval queue order by it. Mention triggers still notify.
 Recipes support `workflow new|list|run`, `workflow run NAME --input key=value --wait`,
 and `task move ID NEXT --output key=value "Handoff"`.
+`task show ID` ends with a usage block (tokens per job, harness/model/effort, loops, elapsed; `n/a` when a harness reports nothing, total marked partial) and `task ls --usage` adds total tokens per ticket. The web drawer and TUI detail show the same block.
+
 `task show ID --brief` includes the latest dispatch outcome. Accepted is not
 completed; an uncertain reservation may already have sent work, so retry can
 duplicate side effects. Retry preserves hourly limits and workflow loop caps.

@@ -79,6 +79,10 @@ export interface Workflow { name: string; description: string; global: boolean; 
 
 // RunEntry is one entry into a step of a ticket's workflow run. The dispatch
 // details and end are absent on old entries and on the current one.
+export interface UsageCount { Input: number; Output: number; CacheRead: number; CacheWrite: number; Total: number }
+export interface JobUsage { role: string; harness: string; model: string; effort: string; loops: number; elapsed: number; count: UsageCount; has: boolean; live: boolean }
+export interface TicketUsage { jobs: JobUsage[]; models: { harness: string; model: string; count: UsageCount; has: boolean }[]; total: UsageCount; partial: boolean; elapsed: number; loops: number }
+
 export interface RunEntry {
   seq: number
   step: string
@@ -86,6 +90,7 @@ export interface RunEntry {
   role?: string
   harness?: string
   model?: string
+  effort?: string
   pane?: string
   pane_name?: string
   prompt?: string

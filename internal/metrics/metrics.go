@@ -267,20 +267,6 @@ func End(scope, taskID string) error {
 		return nil
 	})
 }
-func TaskTokens(s State, id string) (int64, int) {
-	var total int64
-	missing := 0
-	for _, r := range s.Runs {
-		if r.TaskID == id {
-			if n, ok := r.Tokens(); ok {
-				total += n
-			} else {
-				missing++
-			}
-		}
-	}
-	return total, missing
-}
 func ActiveTask(s State, key string) string {
 	for _, r := range s.Runs {
 		if r.SessionKey == key && r.Ended.IsZero() {
