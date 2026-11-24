@@ -158,7 +158,8 @@ func cmdSend(args []string, stdout, stderr io.Writer) int {
 		return exitUsage
 	}
 	// An agent sending to another agent signs the message so the receiver knows whom to answer.
-	if from := os.Getenv("TMUX_PANE"); from != "" && from != pane && tmux.GetPaneOptionValue(from, tmux.PaneStatusOpt) != "" {
+	// Slash commands (/clear, /model ...) stay unsigned: a prefix turns them into plain text.
+	if from := os.Getenv("TMUX_PANE"); from != "" && from != pane && !strings.HasPrefix(text, "/") && tmux.GetPaneOptionValue(from, tmux.PaneStatusOpt) != "" {
 		name := tmux.GetPaneOptionValue(from, tmux.PaneName)
 		if name == "" {
 			name = from
@@ -507,6 +508,7 @@ func cmdNew(args []string, stdout, stderr io.Writer) int {
 	fs.StringVar(&o.Role, "repo-agent", "", "repo agent defined by the selected harness")
 	fs.StringVar(&o.Ticket, "ticket", "", "bind the pane to a ticket (per-ticket chat)")
 	fs.BoolVar(&o.Worktree, "worktree", false, "run in its own git worktree on branch agent/<name>")
+	fs.BoolVar(&o.Terminal, "terminal", false, "open a plain shell (no agent), kept from idle cleanup")
 	noWait := fs.Bool("no-wait", false, "don't wait for the agent to come up")
 	if err := fs.Parse(args); err != nil {
 		return exitUsage
@@ -544,7 +546,7 @@ func cmdKill(args []string, stdout, stderr io.Writer) int {
 		case id == selfPane():
 			fmt.Fprintf(stderr, "kill: %s is this pane — refusing\n", target)
 			code = exitFailure
-		case tmux.GetPaneOptionValue(id, tmux.PaneAgent) == "":
+		case tmux.GetPaneOptionValue(id, tmux.PaneAgent) == "" && tmux.GetPaneOptionValue(id, tmux.PaneKeep) != "1":
 			fmt.Fprintf(stderr, "kill: %s (%s) is not an agent pane — refusing\n", target, id)
 			code = exitFailure
 		default:

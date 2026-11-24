@@ -357,7 +357,7 @@ func deliverQueued(listPanes string) {
 			if _, ok := tmux.PaneSessionName(p); !ok {
 				queue.Clear(p) // the pane is gone
 			}
-		case st == string(tmux.StatusIdle) && time.Since(deliveredAt[p]) > 3*time.Second:
+		case (st == string(tmux.StatusIdle) || st == string(tmux.StatusBackground)) && time.Since(deliveredAt[p]) > 3*time.Second:
 			screen, captured := tmux.RunTmux("capture-pane", "-p", "-t", p)
 			_, dialog := ParseDialog(screen)
 			if !captured || dialog || Classify(screen) == tmux.StatusWaiting {

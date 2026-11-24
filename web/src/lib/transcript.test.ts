@@ -41,3 +41,9 @@ test("a task notification becomes one note and reminders are dropped", () => {
 test("splitSystem keeps the person's own words", () => {
   expect(splitSystem("hello <system-reminder>x</system-reminder>")).toEqual({ text: "hello", notes: [] })
 })
+
+test("slash command echoes become notes", () => {
+  const t = "<command-name>/compact</command-name>\n<command-message>compact</command-message>\n<command-args></command-args>"
+  expect(splitSystem(t)).toEqual({ text: "", notes: ["/compact"] })
+  expect(splitSystem("<local-command-stdout>\x1b[2mCompacted\x1b[22m</local-command-stdout>").notes).toEqual(["Compacted"])
+})

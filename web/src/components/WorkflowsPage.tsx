@@ -165,7 +165,7 @@ function WorkflowEditor({ dir, initial }: { dir: string; initial: string }) {
             </>}
           </div>
           {(validation || error) && <p role="alert" className="shrink-0 whitespace-pre-wrap border-b bg-destructive/5 px-3 py-1.5 text-xs text-destructive">{validation && validationLine > 0 ? <button type="button" className="text-left underline decoration-dotted underline-offset-2" onClick={() => setGoto({ line: validationLine })}>Line {validationLine}: {validation}</button> : validation || error}</p>}
-          <div className="grid min-h-0 flex-1 grid-rows-2 md:grid-cols-2 md:grid-rows-1">
+          <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-2 md:grid-cols-2 md:grid-rows-1">
             <div className="flex min-h-0 flex-col border-b md:border-b-0 md:border-r">
               <div className="shrink-0 px-3 pt-2 text-[11px] font-medium text-muted-foreground">YAML{selected.global && ' · global, read-only'}</div>
               <div className={`min-h-0 flex-1 ${selected.global ? 'bg-muted/40' : ''}`}>

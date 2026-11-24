@@ -93,6 +93,13 @@ export function splitSystem(text: string): { text: string; notes: string[] } {
       notes.push(unescape(summary ?? "Background task finished").replace(/\s+/g, " "))
       return ""
     })
+    .replace(/<command-name>([\s\S]*?)<\/command-name>/g, (_, n: string) => { notes.push(n.trim()); return "" })
+    .replace(/<command-(?:message|args)>[\s\S]*?<\/command-(?:message|args)>/g, "")
+    .replace(/<local-command-(?:stdout|stderr)>([\s\S]*?)<\/local-command-(?:stdout|stderr)>/g, (_, o: string) => {
+      const t = o.replace(/\x1b?\[\d+(?:;\d+)*m/g, "").trim() // ANSI colour codes, with or without the ESC byte
+      if (t) notes.push(t)
+      return ""
+    })
     .replace(/<system-reminder[^>]*>[\s\S]*?<\/system-reminder[^>]*>/g, "")
     .trim()
   return { text: rest, notes }

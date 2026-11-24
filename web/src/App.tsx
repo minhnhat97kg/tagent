@@ -6,7 +6,8 @@ import { SettingsDialog } from "@/components/SettingsDialog"
 import { api } from "@/api"
 import { AgentView } from "@/components/AgentView"
 import { Notifications } from '@/components/Notifications'
-import { notifications, nextNotice, type Notice } from '@/lib/notifications'
+import { agentLabel } from '@/lib/status'
+import { notifications, nextNotice, useAlerts, type Notice } from '@/lib/notifications'
 import { Board, TaskDrawer } from "@/components/Board"
 import { BoardConfigPage } from "@/components/BoardConfigPage"
 import { HelpDialog } from "@/components/HelpDialog"
@@ -74,6 +75,7 @@ export default function App() {
   const overviewPoll = usePoll<Overview | undefined>(() => (dir ? api<Overview>(`/api/overview?days=${usageDays}&dir=${enc(dir)}`) : Promise.resolve(undefined)), 5000, dir + usageDays) // usage changes slowly; 5s keeps the server idle
   const overview = overviewPoll.data?.dir === dir ? overviewPoll.data : undefined
   const notices = notifications(ordered, projPoll.data?.dir === dir ? projPoll.data : undefined, overview)
+  useAlerts(notices, n => 'agent' in n ? `${agentLabel(n.agent)}: ${n.agent.dialog?.question || n.agent.wait || n.agent.prompt}` : n.task.title || n.reason)
   const [noticeTicket, setNoticeTicket] = useState<{id: string; reply: string; dir: string}>()
   const noticeOrigin = useRef<HTMLElement | null>(null)
   const lastNotice = useRef<string | undefined>(undefined)
@@ -139,7 +141,7 @@ export default function App() {
             <Button variant="ghost" size="icon-xs" aria-label="Board" title="Board" onClick={() => nav('/board')}><Kanban /></Button>
             <Button variant="ghost" size="icon-xs" aria-label="Agents" title="Agents" onClick={() => nav('/agents')}><Bot /></Button>
             <Button variant="ghost" size="icon-xs" aria-label="Workflows" title="Workflows" onClick={() => nav('/workflows')}><Workflow /></Button>
-            <Notifications items={notices} onOpen={openNotice} onReply={n => openNotice(n, true)} />
+            <Notifications items={notices} dir={dir ?? ''} onOpen={openNotice} />
             <Button size="sm" onClick={() => setNewOpen(true)}><Plus /> <span className="hidden sm:inline">New agent</span></Button>
             {canFull && <Button className="hidden sm:inline-flex" variant="ghost" size="icon-xs" aria-label={full ? "Exit full screen" : "Full screen"} title={full ? "Exit full screen" : "Full screen"} onClick={() => void toggleFull()}>{full ? <Minimize2 /> : <Maximize2 />}</Button>}
             <Button variant="ghost" size="icon-xs" aria-label={`Web theme: ${webTheme}`} title={`Web theme: ${webTheme} (this browser only)`} onClick={() => setWebTheme(nextTheme[webTheme])}>{webTheme === "dark" ? <Moon /> : webTheme === "light" ? <Sun /> : <Monitor />}</Button>
