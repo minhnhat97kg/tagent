@@ -105,6 +105,10 @@ func (m Model) taskDetailSummary(t tasks.Task, w int) []string {
 	if w <= 0 {
 		return nil
 	}
+	outer := w
+	if w >= 8 {
+		w -= 4 // the summary is a pane too: border and a space on each side
+	}
 	now := time.Now()
 	dim := m.boardStyle(m.theme.TextDim)
 	var lines []string
@@ -120,15 +124,18 @@ func (m Model) taskDetailSummary(t tasks.Task, w int) []string {
 	if t.ID != "" {
 		head = dim.Render("#"+t.ID) + "  " + head
 	}
-	add(head)
 	title := m.boardStyle(m.theme.TextPrimary).Bold(true).Render(boardTitle(t))
-	for _, line := range strings.Split(ansi.Wrap(title, max(1, w), ""), "\n") {
+	titleLines := strings.Split(ansi.Wrap(title, max(1, w), ""), "\n")
+	if len(titleLines) > 2 { // a long title never eats the drawer
+		titleLines = append(titleLines[:1], ansi.Truncate(titleLines[1], max(1, w-1), "")+"…")
+	}
+	for _, line := range titleLines {
 		add(line)
 	}
 	// A Chat tab that cannot be entered says why, right where the tabs are: a
 	// TUI has no tooltips, so the reason has to stay on screen.
 	if m.chat.Loaded && m.chat.ID == t.ID && !m.chat.available() {
-		lines = append(lines, ansi.Truncate("  "+m.boardStyle(m.theme.StatusError).Render("Chat unavailable")+dim.Render(" · "+m.chat.Reason), w, ""))
+		lines = append(lines, ansi.Truncate(m.boardStyle(m.theme.StatusError).Render("Chat unavailable")+dim.Render(" · "+m.chat.Reason), w, ""))
 	}
 	if t.Status == "blocked" {
 		question := m.detailQuestion(t)
@@ -136,19 +143,19 @@ func (m Model) taskDetailSummary(t tasks.Task, w int) []string {
 			question = "reply with @role"
 		}
 		blocked := m.boardStyle(m.theme.StatusError).Bold(true).Render("Blocked: " + question)
-		lines = append(lines, m.detailBlock(blocked, "  ", "", w)...)
+		lines = append(lines, m.detailBlock(blocked, "", "", w)...)
 	}
 
 	field := func(label, value string) {
 		if w < 20 {
-			lines = append(lines, m.detailBlock(value, "  ", "", w)...)
+			lines = append(lines, m.detailBlock(value, "", "", w)...)
 			return
 		}
-		prefix := "  " + dim.Render(fmt.Sprintf("%-*s", detailLabelWidth, label))
-		width := max(1, w-detailLabelWidth-2)
+		prefix := dim.Render(fmt.Sprintf("%-*s", detailLabelWidth, label))
+		width := max(1, w-detailLabelWidth)
 		for i, line := range strings.Split(ansi.Wrap(value, width, ""), "\n") {
 			if i > 0 {
-				prefix = strings.Repeat(" ", detailLabelWidth+2)
+				prefix = strings.Repeat(" ", detailLabelWidth)
 			}
 			add(prefix + line)
 		}
@@ -202,7 +209,7 @@ func (m Model) taskDetailSummary(t tasks.Task, w int) []string {
 		age += dim.Render(" · done ") + detailRelativeTime(t.CompletedAt, now)
 	}
 	field("Created", age)
-	return lines
+	return m.detailFrame(head, lines, outer)
 }
 
 // detailStep is the workflow step the ticket sits in: its role, else its job.
@@ -352,11 +359,21 @@ func (m Model) detailPane(name, hint string, content []string, w int) []string {
 		return content
 	}
 	edge := m.boardStyle(m.theme.TextDim)
-	title := " " + m.boardStyle(m.theme.TextPrimary).Bold(true).Render(name)
+	title := m.boardStyle(m.theme.TextPrimary).Bold(true).Render(name)
 	if hint != "" {
 		title += edge.Render(" · " + hint)
 	}
-	title = ansi.Truncate(title+" ", w-4, "…")
+	return m.detailFrame(title, content, w)
+}
+
+// detailFrame draws content inside a light rounded frame; title is already
+// styled and sits in the top border.
+func (m Model) detailFrame(title string, content []string, w int) []string {
+	if w < 8 {
+		return content
+	}
+	edge := m.boardStyle(m.theme.TextDim)
+	title = ansi.Truncate(" "+title+" ", w-4, "…")
 	out := []string{edge.Render("╭─") + title + edge.Render(strings.Repeat("─", max(0, w-3-ansi.StringWidth(title)))+"╮")}
 	for _, l := range content {
 		l = ansi.Truncate(l, w-4, "")
