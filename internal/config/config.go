@@ -15,7 +15,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"tagent/internal/apppath"
+	"tagent/internal/settings"
 
 	"tagent/internal/tmux"
 )
@@ -152,39 +152,39 @@ func Validate(s Setting, value string) (string, error) {
 	return value, nil
 }
 
-// Set validates, applies to the running tmux, and persists.
+// Set validates, saves to the config file (the source of truth) and mirrors
+// the value into a running tmux, which may be absent.
 func Set(s Setting, value string) (string, error) {
 	v, err := Validate(s, value)
 	if err != nil {
 		return "", err
 	}
-	if v == "" && s.Kind == Text {
-		tmux.RunTmux("set", "-gu", s.Key)
-	} else if _, err := tmux.RunTmuxCapture("set", "-g", s.Key, v); err != nil {
+	if err := persist(s.Key, &v); err != nil {
 		return "", err
 	}
-	return v, persist(s.Key, &v)
+	if v == "" && s.Kind == Text {
+		tmux.RunTmux("set", "-gu", s.Key)
+	} else {
+		tmux.RunTmux("set", "-g", s.Key, v)
+	}
+	return v, nil
 }
 
 // Reset drops the setting back to its default, everywhere.
 func Reset(s Setting) error {
+	if err := persist(s.Key, nil); err != nil {
+		return err
+	}
 	if s.Default != "" {
 		tmux.RunTmux("set", "-g", s.Key, s.Default)
 	} else {
 		tmux.RunTmux("set", "-gu", s.Key)
 	}
-	return persist(s.Key, nil)
+	return nil
 }
 
 // ConfigFile is where settings persist.
-func ConfigFile() string {
-	dir := os.Getenv("XDG_CONFIG_HOME")
-	if dir == "" {
-		home, _ := os.UserHomeDir()
-		dir = filepath.Join(home, ".config")
-	}
-	return filepath.Join(apppath.Dir(dir), "config.conf")
-}
+func ConfigFile() string { return settings.Path() }
 
 const fileHeader = "# tagent settings — written by `tagent config` (tmux syntax).\n# Loaded by the plugin before its defaults; edit freely.\n"
 
@@ -217,6 +217,4 @@ func persist(key string, value *string) error {
 }
 
 // quote makes value one tmux word.
-func quote(v string) string {
-	return "'" + strings.ReplaceAll(v, "'", `'\''`) + "'"
-}
+func quote(v string) string { return settings.Quote(v) }

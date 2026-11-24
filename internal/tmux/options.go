@@ -3,6 +3,7 @@ package tmux
 import (
 	"strings"
 	"sync"
+	"tagent/internal/settings"
 )
 
 // ─── Pane-level options ───────────────────────────────────────────────
@@ -169,6 +170,9 @@ func rawGlobalOption(name string) (string, bool) {
 // GetOption reads a global option. ok = false on error or an empty value —
 // the caller falls back to its own default.
 func GetOption(name string) (string, bool) {
+	if v, ok := settings.Get(name); ok { // tagent's own config file wins over the tmux mirror
+		return v, v != ""
+	}
 	value, ok := rawGlobalOption(name)
 	if !ok {
 		return "", false
@@ -211,6 +215,11 @@ func resetRawCache() {
 
 func GetAllGlobalOptions() map[string]string {
 	opts := map[string]string{}
+	defer func() {
+		for k, v := range settings.All() {
+			opts[k] = v
+		}
+	}()
 	out, ok := RunTmux("show", "-g")
 	if !ok {
 		return opts
