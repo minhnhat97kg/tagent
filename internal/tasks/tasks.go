@@ -405,6 +405,9 @@ func Update(scope, id, status string, assignees []string, opts ...MutationOption
 	})
 	if err == nil {
 		notice.send()
+		if t.Status == "done" && notice != nil {
+			cleanupDone(scope, id)
+		}
 	}
 	return t, err
 }

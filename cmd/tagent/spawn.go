@@ -174,6 +174,7 @@ func spawnAgent(o spawnOpts) (pane, warn string, err error) {
 	if spare != "" { // the new background session's empty first window
 		tmux.RunTmux("kill-window", "-t", spare)
 	}
+	tagSession(pane, tasks.MainRoot(o.ConfigDir))
 	if o.Name != "" {
 		tmux.SetPaneOption(pane, tmux.PaneName, o.Name)
 	}
