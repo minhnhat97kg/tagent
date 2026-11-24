@@ -109,11 +109,28 @@ func (m Model) commentOptions() []string {
 	return out
 }
 
-// commentBoxLines is the composer shown at the top of the Activity tab.
+// commentBoxLines is the composer pinned above the footer: a bordered box in
+// the accent colour, so the field is easy to spot, with the last lines of the
+// text (the cursor line always shows), the @role chips and a key hint.
 func (m Model) commentBoxLines(w int) []string {
 	dim := m.boardStyle(m.theme.TextDim)
-	var lines []string
-	lines = append(lines, m.detailBlock(m.boardStyle(m.theme.TextPrimary).Render(m.taskInput)+"▏", "  ", "✎ ", w)...)
+	edge := m.boardStyle(m.theme.Accent)
+	inner := max(1, w-6) // " │ " + text + " │"
+	text := m.boardStyle(m.theme.TextPrimary).Render(m.taskInput) + edge.Render("▏")
+	if m.taskInput == "" {
+		text = edge.Render("▏") + dim.Render("Write a comment · @role hands the ticket over")
+	}
+	body := strings.Split(ansi.Hardwrap(text, inner, true), "\n")
+	if len(body) > 3 {
+		body = body[len(body)-3:]
+	}
+	title := " Comment "
+	lines := []string{ansi.Truncate(" "+edge.Render("╭─"+title+strings.Repeat("─", max(0, w-4-len(title)))+"╮"), w, "")}
+	for _, l := range body {
+		pad := strings.Repeat(" ", max(0, inner-ansi.StringWidth(l)))
+		lines = append(lines, ansi.Truncate(" "+edge.Render("│")+" "+l+pad+" "+edge.Render("│"), w, ""))
+	}
+	lines = append(lines, ansi.Truncate(" "+edge.Render("╰"+strings.Repeat("─", max(0, w-4))+"╯"), w, ""))
 	if options := m.commentOptions(); len(options) > 0 {
 		var chips []string
 		for i, o := range options {
@@ -123,7 +140,7 @@ func (m Model) commentBoxLines(w int) []string {
 			}
 			chips = append(chips, chip)
 		}
-		lines = append(lines, ansi.Truncate("    "+strings.Join(chips, "  "), w, ""))
+		lines = append(lines, ansi.Truncate("   "+strings.Join(chips, "  "), w, ""))
 	}
 	return append(lines, ansi.Truncate("  "+dim.Render("enter send · tab complete @role · esc cancel"), w, ""))
 }
