@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -284,12 +285,19 @@ func blocks(raw json.RawMessage) []block {
 	return nil
 }
 
+// pastedTag matches the open/close wrapper Claude Code puts around long pasted input (the close tag repeats the id).
+var pastedTag = regexp.MustCompile(`<\\?/?\\?pasted_content[^>]*>`)
+
 func toItems(role string, bs []block) []Item {
 	var out []Item
 	for _, b := range bs {
 		switch b.Type {
 		case "text", "output_text":
-			if t := strings.TrimSpace(b.Text); t != "" && (role == "user" || role == "assistant") {
+			t := strings.TrimSpace(b.Text)
+			if role == "user" {
+				t = strings.TrimSpace(pastedTag.ReplaceAllString(t, ""))
+			}
+			if t != "" && (role == "user" || role == "assistant") {
 				out = append(out, Item{Role: role, Text: clip(t, maxText)})
 			}
 		case "thinking":
