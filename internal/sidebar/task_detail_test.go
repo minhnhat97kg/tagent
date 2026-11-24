@@ -1,9 +1,12 @@
 package sidebar
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
+
+	tea "github.com/charmbracelet/bubbletea"
 
 	"tagent/internal/metrics"
 	"tagent/internal/tasks"
@@ -418,4 +421,62 @@ func TestTaskDetailRightPane(t *testing.T) {
 			t.Fatalf("row %d is %d wide, pane is %d: %q", i, w, m.width, line)
 		}
 	}
+}
+
+// Back (esc, or i toggling the drawer) from a ticket detail opened on the
+// dashboard's Tasks card must land on the dashboard with the same ticket
+// selected, never on the board.
+func TestTaskDetailBackFromDashboardReturnsHome(t *testing.T) {
+	open := map[string]func(*testing.T) Model{
+		"enter": func(t *testing.T) Model {
+			m := dashCardModel(t)
+			m, _ = boardPress(m, "enter")
+			return m
+		},
+		"click": func(t *testing.T) Model { // a click on a card is the same origin
+			m := dashCardModel(t)
+			g := m.dashGeometry()
+			next, _ := m.handleMouse(tea.MouseMsg{X: g.tasks.x + 5, Y: g.tasks.y + 1, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress})
+			return next.(Model)
+		},
+	}
+	for _, back := range []string{"esc", "i"} {
+		for name, openDetail := range open {
+			t.Run(back+"/"+name, func(t *testing.T) {
+				m := openDetail(t)
+				if !m.boardMode || !m.boardDrawer {
+					t.Fatalf("the Tasks card did not open the detail: boardMode=%v drawer=%v", m.boardMode, m.boardDrawer)
+				}
+				selected := m.taskCursor
+				m, _ = boardPress(m, back)
+				if m.boardMode {
+					t.Fatalf("%s from the detail rendered the board, want the dashboard:\n%s", back, ansi.Strip(m.View()))
+				}
+				if m.boardDrawer {
+					t.Fatalf("%s left the detail drawer open", back)
+				}
+				if m.taskCursor != selected {
+					t.Fatalf("selection moved to %d, want %d", m.taskCursor, selected)
+				}
+				view := ansi.Strip(m.View())
+				if strings.Contains(view, "Board · ") {
+					t.Fatalf("%s rendered the board header:\n%s", back, view)
+				}
+				if !strings.Contains(view, "Tasks") || !strings.Contains(view, "Ticket number "+fmt.Sprint(selected+1)) {
+					t.Fatalf("%s did not render the dashboard with the selected ticket:\n%s", back, view)
+				}
+			})
+		}
+	}
+}
+
+// dashCardModel is the dashboard with the Tasks card focused on the second
+// ticket, already loaded from disk so opening a detail only touches the view.
+func dashCardModel(t *testing.T) Model {
+	t.Helper()
+	m := dashSample()
+	m.width, m.height = 120, 35
+	m.boardDir, m.repoDir = m.notesScope, m.notesScope
+	m.focus, m.taskCursor = cardTasks, 1
+	return m
 }

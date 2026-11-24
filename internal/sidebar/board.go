@@ -25,7 +25,7 @@ type boardConfigMsg struct {
 
 func (m Model) openBoard() Model {
 	m.boardMode, m.focus = true, cardTasks
-	m.boardDrawer = false
+	m.boardDrawer, m.detailFromDash = false, false
 	return m.boardContext()
 }
 

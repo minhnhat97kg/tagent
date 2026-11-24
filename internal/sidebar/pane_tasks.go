@@ -53,21 +53,26 @@ func (m Model) ticketsKey(key string) (Model, tea.Cmd, bool) {
 		m.flowWorkflow, m.boardConfigScroll = "", 0
 		return m, nil, true
 	case "enter", "i":
+		if !m.boardMode { // opened on the dashboard's Tasks card: back goes there
+			m.detailFromDash = true
+		}
 		m.boardMode = true
 		m.boardDrawer = !m.boardDrawer
+		if !m.boardDrawer {
+			m = m.closeDetail()
+		}
 		m.detailScroll = 0
 		m.detailTab = detailTabDetails
 		m.detailDescOpen, m.detailSysOpen = false, false
 		return m, nil, true
 	case "esc":
 		if m.boardDrawer {
-			m.boardDrawer = false
-			return m, nil, true
+			return m.closeDetail(), nil, true
 		}
 		m.boardMode = false
 		return m, nil, true
 	case "q", "b":
-		m.boardMode, m.boardDrawer = false, false
+		m.boardMode, m.boardDrawer, m.detailFromDash = false, false, false
 		return m, nil, true
 	case "c", "C": // comment on the selected ticket (a blocked one prefills the @role)
 		if len(m.notes) > 0 {
@@ -145,6 +150,17 @@ func (m Model) ticketsKey(key string) (Model, tea.Cmd, bool) {
 		return m, nil, true
 	}
 	return m.laneStep(step), nil, true
+}
+
+// closeDetail closes the ticket drawer. A drawer opened from the dashboard's
+// Tasks card goes back to that card (the ticket stays selected); one opened on
+// the board stays on the board.
+func (m Model) closeDetail() Model {
+	m.boardDrawer = false
+	if m.detailFromDash {
+		m.boardMode, m.detailFromDash = false, false
+	}
+	return m
 }
 
 // tasksCardKey is the dashboard Tasks card: the ticket keys without leaving

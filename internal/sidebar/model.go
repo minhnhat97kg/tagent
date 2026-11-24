@@ -676,6 +676,7 @@ type Model struct {
 	boardMode         bool
 	flowFromDash      bool // the workflow view was opened from the dashboard card
 	boardDrawer       bool
+	detailFromDash    bool                // the ticket drawer was opened from the dashboard's Tasks card
 	boardWorkflows    []workflow.Workflow // listed under the board
 	boardFlow         bool                // workflow view: the configured statuses and who acts in each
 	boardConfigView   bool                // read-only board config summary (B)
@@ -1567,6 +1568,7 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 			m, card = m.tasksCardClick(msg.X-g.tasks.x, msg.Y-g.tasks.y, g.tasks.w, g.tasks.h, paneNum(2))
 			if card && wasFocused {
 				m = m.openBoard()
+				m.detailFromDash = true // opened from this card: back returns here
 				m, cmd, _ := m.boardKey("enter")
 				return m, cmd
 			}
