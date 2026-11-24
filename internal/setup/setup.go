@@ -90,8 +90,8 @@ func ResolveHookScript() ResolvedHookScript {
 	}
 	home, _ := os.UserHomeDir()
 	if _, err := os.Stat(filepath.Join(home, ".tmux/plugins/tagent")); os.IsNotExist(err) {
-		if _, err := os.Stat(filepath.Join(home, ".tmux/plugins/tmux-agent/assets/hook.sh")); err == nil {
-			return ResolvedHookScript{Path: "~/.tmux/plugins/tmux-agent/assets/hook.sh", Detected: false}
+		if _, err := os.Stat(filepath.Join(home, ".tmux/plugins/tagent/assets/hook.sh")); err == nil {
+			return ResolvedHookScript{Path: "~/.tmux/plugins/tagent/assets/hook.sh", Detected: false}
 		}
 	}
 	return ResolvedHookScript{Path: FallbackHookScript, Detected: false}

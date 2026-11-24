@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # tagent installer.
 #
-#   curl -fsSL https://raw.githubusercontent.com/minhnhat97kg/tmux-agent/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/minhnhat97kg/tagent/main/install.sh | bash
 #
 # Clones (or updates) the repo, builds the binary, links it into
 # ~/.local/bin, hooks the plugin into tmux.conf (once), loads it into a
@@ -17,7 +17,7 @@
 #   TMUX_AGENT_NO_HARNESS=1  don't run `tagent install` (hooks/skills)
 set -euo pipefail
 
-REPO="${TAGENT_REPO:-https://github.com/minhnhat97kg/tmux-agent.git}"
+REPO="${TAGENT_REPO:-https://github.com/minhnhat97kg/tagent.git}"
 REF="${TMUX_AGENT_REF:-main}"
 DIR="${TMUX_AGENT_DIR:-$HOME/.local/share/tagent}"
 BIN_DIR="${TMUX_AGENT_BIN_DIR:-$HOME/.local/bin}"

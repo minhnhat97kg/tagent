@@ -51,7 +51,7 @@ See the [keybindings](#keys) and [CLI reference](#cli) for the full workflow.
 ## Install
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/minhnhat97kg/tmux-agent/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/minhnhat97kg/tagent/main/install.sh | bash
 ```
 
 The script clones into `~/.local/share/tagent` → builds → links
@@ -442,7 +442,7 @@ see [NOTICE](./NOTICE). The orchestration ideas come from
 
 ## Contributing
 
-Contributions, bug reports and feature requests are welcome. Please open an [issue](https://github.com/minhnhat97kg/tmux-agent/issues) or a pull request.
+Contributions, bug reports and feature requests are welcome. Please open an [issue](https://github.com/minhnhat97kg/tagent/issues) or a pull request.
 
 ## License
 
