@@ -115,11 +115,19 @@ func (m Model) taskDetailSummary(t tasks.Task, w int) []string {
 	add := func(text string) { lines = append(lines, ansi.Truncate(text, w, "")) }
 
 	status := statusGlyph(t.Status) + " " + t.Status
-	head := m.boardStyle(m.boardColor(t.Status)).Reverse(true).Bold(true).Render(status) + "  " + dim.Render(m.laneOf(t.Status))
+	head := m.boardStyle(m.boardColor(t.Status)).Reverse(true).Bold(true).Render(status)
+	// The lane and the step only show when they say something the status does not.
+	var extra []string
+	if lane := m.laneOf(t.Status); lane != t.Status {
+		extra = append(extra, lane)
+	}
 	if t.Workflow != "" {
-		if step := m.detailStep(t); step != "" {
-			head += dim.Render(" · ") + step
+		if step := m.detailStep(t); step != "" && step != t.Status {
+			extra = append(extra, step)
 		}
+	}
+	if len(extra) > 0 {
+		head += "  " + dim.Render(strings.Join(extra, " · "))
 	}
 	if t.ID != "" {
 		head = dim.Render("#"+t.ID) + "  " + head
