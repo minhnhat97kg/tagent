@@ -108,8 +108,8 @@ func TestBoardDetailDrawerAndFields(t *testing.T) {
 			t.Fatalf("missing drawer detail: %s", view)
 		}
 		// The conversation lives on the Activity tab, one keypress away.
-		activity, _ := boardPress(next, "5")
-		if view := ansi.Strip(activity.View()); !strings.Contains(view, "hello @builder") || !strings.Contains(view, "[Activity") {
+		activity, _ := boardPress(next, "3")
+		if view := ansi.Strip(activity.View()); !strings.Contains(view, "hello @builder") || !strings.Contains(view, "[Activity]") {
 			t.Fatalf("missing activity tab: %s", view)
 		}
 		closed, _ := boardPress(next, "esc")
