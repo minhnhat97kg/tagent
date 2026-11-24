@@ -153,6 +153,9 @@ func move(scope, id, to, body string, seq int64, safety bool, opts ...MutationOp
 	})
 	if err == nil {
 		notice.send()
+		if notice != nil && notice.to == "done" {
+			cleanupDone(scope, id)
+		}
 	}
 	return err
 }

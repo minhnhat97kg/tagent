@@ -183,6 +183,7 @@ func spawnAgent(o spawnOpts) (pane, warn string, err error) {
 	if o.Terminal {
 		tmux.SetPaneOption(pane, tmux.PaneKeep, "1")
 	}
+	tagSession(pane, tasks.MainRoot(o.ConfigDir))
 	if o.Name != "" {
 		tmux.SetPaneOption(pane, tmux.PaneName, o.Name)
 	}
