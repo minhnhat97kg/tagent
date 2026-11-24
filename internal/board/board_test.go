@@ -37,6 +37,7 @@ func TestActions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	cfg.Roles = map[string]tasks.Role{"a": {}, "b": {}}
 	task := tasks.Task{ID: "abc", Title: "Title", Assignees: []string{"a", "b"}, Comments: []tasks.TaskComment{{ID: "c", Body: "raw {{task.id}}", Author: "user"}}}
 	actions, err := Actions("dir", cfg, tasks.Event{Kind: "mention", Actor: "user", CommentID: "c", Names: []string{"a", "b"}}, task)
 	if err != nil || len(actions) != 2 || actions[1].Agent != "b" || !strings.HasSuffix(actions[0].Prompt, "raw {{task.id}} / a,b\n") {
@@ -206,5 +207,18 @@ func TestDoneClosesPanes(t *testing.T) {
 		if a.Close {
 			t.Fatal("non-done status closed panes")
 		}
+	}
+}
+
+func TestMentionIgnoresNonAgents(t *testing.T) {
+	cfg, err := tasks.ParseBoardConfig([]byte("triggers:\n  - on: mention\n    when: {to: '*'}\n    agent: '{{event.name}}'\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.Roles = map[string]tasks.Role{"qa": {}}
+	task := tasks.Task{ID: "1", Comments: []tasks.TaskComment{{ID: "c"}}}
+	a, err := Actions(t.TempDir(), cfg, tasks.Event{Kind: "mention", Actor: "dev", CommentID: "c", Names: []string{"pane_role", "qa"}}, task)
+	if err != nil || len(a) != 1 || a[0].Agent != "qa" {
+		t.Fatal(a, err)
 	}
 }

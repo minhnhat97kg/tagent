@@ -9,8 +9,8 @@ tagent · tmux-agent
 ┃                             ┃
 ┗━━━━━━━━━━━━━━━━━━━━ 1 of 3 ━┛
 ╭─ ▥ Usage  1d  [7d]  30d ────╮
-│  1 blocked                 │
 │ Now                         │
+│ Tokens today 0              │
 ╰─────────────────────────────╯
 ╭─ ☷ Tasks  todo 2  [doing 2…╮
 │ ▌ Ticket number 3 with a l… │
@@ -28,10 +28,10 @@ tagent · tmux-agent
 │   codex-fix              ▲  │
 ╰──────────────────── 1 of 3 ─╯
 ┏━ ▥ Usage  1d  [7d]  30d ━━━━┓
-┃  1 blocked                 ┃
 ┃ Now                         ┃
 ┃ Tokens today 0              ┃
 ┃  ·······                    ┃
+┃                             ┃
 ┃                             ┃
 ┃                             ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
@@ -51,9 +51,9 @@ tagent · tmux-agent
 │   codex-fix              ▲  │
 ╰──────────────────── 1 of 3 ─╯
 ╭─ ▥ Usage  1d  [7d]  30d ────╮
-│  1 blocked                 │
 │ Now                         │
 │ Tokens today 0              │
+│  ·······                    │
 ╰─────────────────────────────╯
 ┏━ ☷ Tasks  todo 2  [doing 2…┓
 ┃ ▌ Ticket number 3 with a l… ┃
@@ -74,8 +74,8 @@ tagent · tmux-agent
 │   codex-fix              ▲  │
 ╰──────────────────── 1 of 3 ─╯
 ╭─ ▥ Usage  1d  [7d]  30d ────╮
-│  1 blocked                 │
 │ Now                         │
+│ Tokens today 0              │
 ╰─────────────────────────────╯
 ╭─ ☷ Tasks  todo 2  [doing 2…╮
 │ ▌ Ticket number 3 with a l… │
@@ -148,12 +148,10 @@ tagent · tmux-agent                     ? help · , settings
 ┃                                                         ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1 of 3 ━┛
 ╭─ ▥ Usage  1d  [7d]  30d ────────────────────────────────╮
-│  1 blocked                                             │
 │ Now                                                     │
-│ Claude 5h ~ │
-│        7d ~ │
-│ Codex  5h ~ │
-│        7d ~ │
+│         5h      7d                                      │
+│ Claude  ○  –  ○  –                                      │
+│ Codex   ○  –  ○  –                                      │
 │ Tokens today 0                                          │
 │  ·······  0 in 7d                                       │
 ╰─────────────────────────────────────────────────────────╯
@@ -162,6 +160,8 @@ tagent · tmux-agent                     ? help · , settings
 │   ● doing #3 builder 1                                 │
 │   Ticket number 4 with a longer title                   │
 │   ● review #4 builder                                   │
+│                                                         │
+│                                                         │
 ╰──────────────────────────────────────────────── 1 of 2 ─╯
 ╭─ [Workflows]  Agents ───────────────────────────────────╮
 │ No workflows · tagent workflow new <name>               │
@@ -189,12 +189,10 @@ tagent · tmux-agent                     ? help · , settings
 │                                                         │
 ╰──────────────────────────────────────────────── 1 of 3 ─╯
 ┏━ ▥ Usage  1d  [7d]  30d ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃  1 blocked                                             ┃
 ┃ Now                                                     ┃
-┃ Claude 5h ~ ┃
-┃        7d ~ ┃
-┃ Codex  5h ~ ┃
-┃        7d ~ ┃
+┃         5h      7d                                      ┃
+┃ Claude  ○  –  ○  –                                      ┃
+┃ Codex   ○  –  ○  –                                      ┃
 ┃ Tokens today 0                                          ┃
 ┃  ·······  0 in 7d                                       ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
@@ -203,6 +201,8 @@ tagent · tmux-agent                     ? help · , settings
 │   ● doing #3 builder 1                                 │
 │   Ticket number 4 with a longer title                   │
 │   ● review #4 builder                                   │
+│                                                         │
+│                                                         │
 ╰──────────────────────────────────────────────── 1 of 2 ─╯
 ╭─ [Workflows]  Agents ───────────────────────────────────╮
 │ No workflows · tagent workflow new <name>               │
@@ -230,12 +230,10 @@ tagent · tmux-agent                     ? help · , settings
 │                                                         │
 ╰──────────────────────────────────────────────── 1 of 3 ─╯
 ╭─ ▥ Usage  1d  [7d]  30d ────────────────────────────────╮
-│  1 blocked                                             │
 │ Now                                                     │
-│ Claude 5h ~ │
-│        7d ~ │
-│ Codex  5h ~ │
-│        7d ~ │
+│         5h      7d                                      │
+│ Claude  ○  –  ○  –                                      │
+│ Codex   ○  –  ○  –                                      │
 │ Tokens today 0                                          │
 │  ·······  0 in 7d                                       │
 ╰─────────────────────────────────────────────────────────╯
@@ -244,6 +242,8 @@ tagent · tmux-agent                     ? help · , settings
 ┃   ● doing #3 builder 1                                 ┃
 ┃   Ticket number 4 with a longer title                   ┃
 ┃   ● review #4 builder                                   ┃
+┃                                                         ┃
+┃                                                         ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1 of 2 ━┛
 ╭─ [Workflows]  Agents ───────────────────────────────────╮
 │ No workflows · tagent workflow new <name>               │
@@ -271,12 +271,10 @@ tagent · tmux-agent                     ? help · , settings
 │                                                         │
 ╰──────────────────────────────────────────────── 1 of 3 ─╯
 ╭─ ▥ Usage  1d  [7d]  30d ────────────────────────────────╮
-│  1 blocked                                             │
 │ Now                                                     │
-│ Claude 5h ~ │
-│        7d ~ │
-│ Codex  5h ~ │
-│        7d ~ │
+│         5h      7d                                      │
+│ Claude  ○  –  ○  –                                      │
+│ Codex   ○  –  ○  –                                      │
 │ Tokens today 0                                          │
 │  ·······  0 in 7d                                       │
 ╰─────────────────────────────────────────────────────────╯
@@ -285,6 +283,8 @@ tagent · tmux-agent                     ? help · , settings
 │   ● doing #3 builder 1                                 │
 │   Ticket number 4 with a longer title                   │
 │   ● review #4 builder                                   │
+│                                                         │
+│                                                         │
 ╰──────────────────────────────────────────────── 1 of 2 ─╯
 ┏━ [Workflows]  Agents ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃ No workflows · tagent workflow new <name>               ┃
@@ -398,12 +398,10 @@ tagent · tmux-agent                     ? help · , settings
 ┃                                                         ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1 of 3 ━┛
 ╭─ ▥ Usage  1d  [7d]  30d ────────────────────────────────╮
-│  1 blocked                                             │
 │ Now                                                     │
-│ Claude 5h ~ │
-│        7d ~ │
-│ Codex  5h ~ │
-│        7d ~ │
+│         5h      7d                                      │
+│ Claude  ○  –  ○  –                                      │
+│ Codex   ○  –  ○  –                                      │
 │ Tokens today 0                                          │
 │  ·······  0 in 7d                                       │
 ╰─────────────────────────────────────────────────────────╯
@@ -412,6 +410,8 @@ tagent · tmux-agent                     ? help · , settings
 │   ● doing #3 builder 1                                 │
 │   Ticket number 4 with a longer title                   │
 │   ● review #4 builder                                   │
+│                                                         │
+│                                                         │
 │                                                         │
 │                                                         │
 │                                                         │
@@ -454,12 +454,10 @@ tagent · tmux-agent                     ? help · , settings
 │                                                         │
 ╰──────────────────────────────────────────────── 1 of 3 ─╯
 ┏━ ▥ Usage  1d  [7d]  30d ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃  1 blocked                                             ┃
 ┃ Now                                                     ┃
-┃ Claude 5h ~ ┃
-┃        7d ~ ┃
-┃ Codex  5h ~ ┃
-┃        7d ~ ┃
+┃         5h      7d                                      ┃
+┃ Claude  ○  –  ○  –                                      ┃
+┃ Codex   ○  –  ○  –                                      ┃
 ┃ Tokens today 0                                          ┃
 ┃  ·······  0 in 7d                                       ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
@@ -468,6 +466,8 @@ tagent · tmux-agent                     ? help · , settings
 │   ● doing #3 builder 1                                 │
 │   Ticket number 4 with a longer title                   │
 │   ● review #4 builder                                   │
+│                                                         │
+│                                                         │
 │                                                         │
 │                                                         │
 │                                                         │
@@ -510,12 +510,10 @@ tagent · tmux-agent                     ? help · , settings
 │                                                         │
 ╰──────────────────────────────────────────────── 1 of 3 ─╯
 ╭─ ▥ Usage  1d  [7d]  30d ────────────────────────────────╮
-│  1 blocked                                             │
 │ Now                                                     │
-│ Claude 5h ~ │
-│        7d ~ │
-│ Codex  5h ~ │
-│        7d ~ │
+│         5h      7d                                      │
+│ Claude  ○  –  ○  –                                      │
+│ Codex   ○  –  ○  –                                      │
 │ Tokens today 0                                          │
 │  ·······  0 in 7d                                       │
 ╰─────────────────────────────────────────────────────────╯
@@ -524,6 +522,8 @@ tagent · tmux-agent                     ? help · , settings
 ┃   ● doing #3 builder 1                                 ┃
 ┃   Ticket number 4 with a longer title                   ┃
 ┃   ● review #4 builder                                   ┃
+┃                                                         ┃
+┃                                                         ┃
 ┃                                                         ┃
 ┃                                                         ┃
 ┃                                                         ┃
@@ -566,12 +566,10 @@ tagent · tmux-agent                     ? help · , settings
 │                                                         │
 ╰──────────────────────────────────────────────── 1 of 3 ─╯
 ╭─ ▥ Usage  1d  [7d]  30d ────────────────────────────────╮
-│  1 blocked                                             │
 │ Now                                                     │
-│ Claude 5h ~ │
-│        7d ~ │
-│ Codex  5h ~ │
-│        7d ~ │
+│         5h      7d                                      │
+│ Claude  ○  –  ○  –                                      │
+│ Codex   ○  –  ○  –                                      │
 │ Tokens today 0                                          │
 │  ·······  0 in 7d                                       │
 ╰─────────────────────────────────────────────────────────╯
@@ -580,6 +578,8 @@ tagent · tmux-agent                     ? help · , settings
 │   ● doing #3 builder 1                                 │
 │   Ticket number 4 with a longer title                   │
 │   ● review #4 builder                                   │
+│                                                         │
+│                                                         │
 │                                                         │
 │                                                         │
 │                                                         │
@@ -751,12 +751,12 @@ tagent · tmux-agent                                                            
 ┃                                          ┃│                                                                                   │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1 of 3 ━┛│                                                                                   │
 ╭─ ▥ Usage  1d  [7d]  30d ─────────────────╮│                                                                                   │
-│  1 blocked                              ││                                                                                   │
 │ Now                                      ││                                                                                   │
-│ Claude 5h ~ ││                                                                                   │
-│        7d ~ │╰────────────────────────────────────────────────────────────────────────── 1 of 2 ─╯
-│ Codex  5h ~ │╭─ [Workflows]  Agents ─────────────────────────────────────────────────────────────╮
-│        7d ~ ││ No workflows · tagent workflow new <name>                                         │
+│         5h      7d                       ││                                                                                   │
+│ Claude  ○  –  ○  –                       ││                                                                                   │
+│ Codex   ○  –  ○  –                       │╰────────────────────────────────────────────────────────────────────────── 1 of 2 ─╯
+│ Tokens today 0                           │╭─ [Workflows]  Agents ─────────────────────────────────────────────────────────────╮
+│  ·······  0 in 7d                        ││ No workflows · tagent workflow new <name>                                         │
 ╰──────────────────────────────────────────╯│                                                                                   │
 ╭─ ◈ Companion ────────────────────────────╮│                                                                                   │
 │ ~~~~~~~~~~~~~~ All quiet…                ││                                                                                   │
@@ -797,12 +797,12 @@ tagent · tmux-agent                                                            
 │                                          ││                                                                                   │
 ╰───────────────────────────────── 1 of 3 ─╯│                                                                                   │
 ┏━ ▥ Usage  1d  [7d]  30d ━━━━━━━━━━━━━━━━━┓│                                                                                   │
-┃  1 blocked                              ┃│                                                                                   │
 ┃ Now                                      ┃│                                                                                   │
-┃ Claude 5h ~ ┃│                                                                                   │
-┃        7d ~ ┃╰────────────────────────────────────────────────────────────────────────── 1 of 2 ─╯
-┃ Codex  5h ~ ┃╭─ [Workflows]  Agents ─────────────────────────────────────────────────────────────╮
-┃        7d ~ ┃│ No workflows · tagent workflow new <name>                                         │
+┃         5h      7d                       ┃│                                                                                   │
+┃ Claude  ○  –  ○  –                       ┃│                                                                                   │
+┃ Codex   ○  –  ○  –                       ┃╰────────────────────────────────────────────────────────────────────────── 1 of 2 ─╯
+┃ Tokens today 0                           ┃╭─ [Workflows]  Agents ─────────────────────────────────────────────────────────────╮
+┃  ·······  0 in 7d                        ┃│ No workflows · tagent workflow new <name>                                         │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛│                                                                                   │
 ╭─ ◈ Companion ────────────────────────────╮│                                                                                   │
 │ ~~~~~~~~~~~~~~ All quiet…                ││                                                                                   │
@@ -843,12 +843,12 @@ tagent · tmux-agent                                                            
 │                                          │┃                                                                                   ┃
 ╰───────────────────────────────── 1 of 3 ─╯┃                                                                                   ┃
 ╭─ ▥ Usage  1d  [7d]  30d ─────────────────╮┃                                                                                   ┃
-│  1 blocked                              │┃                                                                                   ┃
 │ Now                                      │┃                                                                                   ┃
-│ Claude 5h ~ │┃                                                                                   ┃
-│        7d ~ │┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1 of 2 ━┛
-│ Codex  5h ~ │╭─ [Workflows]  Agents ─────────────────────────────────────────────────────────────╮
-│        7d ~ ││ No workflows · tagent workflow new <name>                                         │
+│         5h      7d                       │┃                                                                                   ┃
+│ Claude  ○  –  ○  –                       │┃                                                                                   ┃
+│ Codex   ○  –  ○  –                       │┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1 of 2 ━┛
+│ Tokens today 0                           │╭─ [Workflows]  Agents ─────────────────────────────────────────────────────────────╮
+│  ·······  0 in 7d                        ││ No workflows · tagent workflow new <name>                                         │
 ╰──────────────────────────────────────────╯│                                                                                   │
 ╭─ ◈ Companion ────────────────────────────╮│                                                                                   │
 │ ~~~~~~~~~~~~~~ All quiet…                ││                                                                                   │
@@ -889,12 +889,12 @@ tagent · tmux-agent                                                            
 │                                          ││                                                                                   │
 ╰───────────────────────────────── 1 of 3 ─╯│                                                                                   │
 ╭─ ▥ Usage  1d  [7d]  30d ─────────────────╮│                                                                                   │
-│  1 blocked                              ││                                                                                   │
 │ Now                                      ││                                                                                   │
-│ Claude 5h ~ ││                                                                                   │
-│        7d ~ │╰────────────────────────────────────────────────────────────────────────── 1 of 2 ─╯
-│ Codex  5h ~ │┏━ [Workflows]  Agents ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-│        7d ~ │┃ No workflows · tagent workflow new <name>                                         ┃
+│         5h      7d                       ││                                                                                   │
+│ Claude  ○  –  ○  –                       ││                                                                                   │
+│ Codex   ○  –  ○  –                       │╰────────────────────────────────────────────────────────────────────────── 1 of 2 ─╯
+│ Tokens today 0                           │┏━ [Workflows]  Agents ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+│  ·······  0 in 7d                        │┃ No workflows · tagent workflow new <name>                                         ┃
 ╰──────────────────────────────────────────╯┃                                                                                   ┃
 ╭─ ◈ Companion ────────────────────────────╮┃                                                                                   ┃
 │ ~~~~~~~~~~~~~~ All quiet…                │┃                                                                                   ┃

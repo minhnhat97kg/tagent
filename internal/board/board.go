@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"tagent/internal/roles"
 	"time"
 
 	"tagent/internal/tasks"
@@ -350,6 +351,12 @@ func Actions(dir string, cfg tasks.BoardConfig, ev tasks.Event, t tasks.Task) ([
 			to := ev.To
 			if ev.Kind == "mention" {
 				to = name
+				// "@pane_role" in prose is not an agent: dispatch only to known ones.
+				if _, ok := cfg.Roles[name]; !ok {
+					if _, ok := roles.GetIn(dir, name); !ok {
+						continue
+					}
+				}
 			}
 			if !match(tr.When.To, to) || !match(tr.When.From, ev.From) || !match(tr.When.Actor, ev.Actor) {
 				continue

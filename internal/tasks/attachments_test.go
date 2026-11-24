@@ -123,3 +123,24 @@ func TestSymlinkedAncestorAboveBoardAllowed(t *testing.T) {
 		}
 	}
 }
+
+// A sentence output is text, not a file; a plan still in the ticket's worktree is found there.
+func TestOutputAttachmentsSkipTextAndFindWorktreeFiles(t *testing.T) {
+	dir, scope := testBoard(t)
+	ticket, err := Add(scope, "Plan", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wt := filepath.Join(dir, ".worktrees", "workflow-"+ticket.ID, ".tasks", "plans")
+	os.MkdirAll(wt, 0700)
+	os.WriteFile(filepath.Join(wt, ticket.ID+".md"), []byte("plan"), 0600)
+	ticket, _ = Get(scope, ticket.ID)
+	ticket.Outputs = map[string]map[string]string{"plan": {"plan": ".tasks/plans/" + ticket.ID + ".md"}, "reproduce": {"cause": "server.go newAgent", "test": "worktree field never reaches it"}}
+	if err = write(scope, ticket); err != nil {
+		t.Fatal(err)
+	}
+	list, err := AttachmentList(scope, dir, ticket.ID)
+	if err != nil || len(list) != 1 || list[0].Error != "" || list[0].Size != 4 {
+		t.Fatalf("%+v %v", list, err)
+	}
+}

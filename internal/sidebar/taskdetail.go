@@ -339,9 +339,6 @@ func (m Model) taskDetailActivity(t tasks.Task, w int) []string {
 		return nil
 	}
 	lines := m.detailSection(fmt.Sprintf("Activity · %d", m.detailCommentCount(t)), w)
-	if m.commentBox {
-		lines = append(lines, m.commentBoxLines(w)...)
-	}
 	lines = append(lines, m.replyingLines(t, w)...)
 	return append(lines, m.detailActivity(t, w, time.Now())...)
 }

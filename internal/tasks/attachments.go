@@ -102,6 +102,10 @@ func AttachmentList(scope, project, id string) ([]TicketAttachment, error) {
 			if value == "" {
 				continue
 			}
+			// An output is a file only if it reads like a path; a sentence or "server.go newAgent" is text.
+			if strings.ContainsAny(value, " \t\n") {
+				continue
+			}
 			path := value
 			if filepath.IsAbs(path) {
 				path, err = filepath.Rel(project, path)
@@ -109,11 +113,19 @@ func AttachmentList(scope, project, id string) ([]TicketAttachment, error) {
 					continue
 				}
 			}
-			_, e := os.Stat(filepath.Join(project, path))
-			if e != nil && !strings.ContainsAny(value, "/\\") {
-				continue
+			root := project
+			if _, e := os.Stat(filepath.Join(root, path)); e != nil {
+				if !strings.ContainsAny(value, "/\\") {
+					continue
+				}
+				// A running ticket's files live in its worktree until it is merged and removed.
+				if wt := filepath.Join(project, ".worktrees", "workflow-"+id); !filepath.IsAbs(value) {
+					if _, e := os.Stat(filepath.Join(wt, path)); e == nil {
+						root = wt
+					}
+				}
 			}
-			add(TicketAttachment{Source: "output", Name: filepath.Base(value), Author: "unknown", root: project, path: path}, "output:"+job+":"+key)
+			add(TicketAttachment{Source: "output", Name: filepath.Base(value), Author: "unknown", root: root, path: path}, "output:"+job+":"+key)
 		}
 	}
 	sort.SliceStable(out, func(i, j int) bool { return out[i].Ref < out[j].Ref })

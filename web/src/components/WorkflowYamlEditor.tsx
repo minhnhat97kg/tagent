@@ -17,6 +17,7 @@ type Props = {
   errorLine: number // 1-based; 0 means the error has no line
   errorMessage: string
   goto?: Goto
+  insert?: { text: string; n: number } // text to put at the cursor; n makes repeats distinct
   onCursor?: (line: number) => void
   label?: string
 }
@@ -62,7 +63,7 @@ function build(view: EditorView): DecorationSet {
   return Decoration.set(ranges, true)
 }
 
-export default function WorkflowYamlEditor({ value, onChange, readOnly, errorLine, errorMessage, goto, onCursor, label = 'Workflow YAML' }: Props) {
+export default function WorkflowYamlEditor({ value, onChange, readOnly, errorLine, errorMessage, goto, insert, onCursor, label = 'Workflow YAML' }: Props) {
   const host = useRef<HTMLDivElement>(null)
   const view = useRef<EditorView>(undefined)
   const callbacks = useRef({ onChange, onCursor })
@@ -117,6 +118,13 @@ export default function WorkflowYamlEditor({ value, onChange, readOnly, errorLin
     const to = doc.line(Math.min(Math.max(goto.to ?? goto.line, 1), doc.lines)).to
     v.dispatch({ selection: { anchor: from, head: to }, effects: EditorView.scrollIntoView(from, { y: 'center' }) })
   }, [goto])
+
+  useEffect(() => {
+    const v = view.current
+    if (!v || !insert) return
+    v.dispatch(v.state.replaceSelection(insert.text), { scrollIntoView: true })
+    v.focus()
+  }, [insert])
 
   return <div ref={host} className="h-full min-h-0" />
 }

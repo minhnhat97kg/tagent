@@ -245,7 +245,9 @@ test("Details shows per-job usage with n/a and partial", async () => {
     { role: "doc", harness: "antigravity", model: "", effort: "", loops: 1, elapsed: 1e9, count: c(0), has: false, live: false },
   ], models: [], total: c(1500), partial: true, elapsed: 6e9, loops: 3 } : run)
   mount()
-  expect(await screen.findByText(/1\.5k tokens \(partial\)/)).toBeTruthy()
+  expect(await screen.findByText("partial")).toBeTruthy()
+  expect(screen.getAllByText("1.5k").length).toBeGreaterThan(0)
+  expect(screen.getByText("tokens")).toBeTruthy()
   expect(screen.getByText("n/a")).toBeTruthy()
-  expect(screen.getByText("×2")).toBeTruthy()
+  expect(screen.getByText(/×2 loops/)).toBeTruthy()
 })

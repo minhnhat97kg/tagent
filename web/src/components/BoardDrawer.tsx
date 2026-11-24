@@ -18,6 +18,8 @@ import type { Project, RunEntry, RunView as RunData, Task, TicketUsage, Workflow
 const TABS = [{ id: "details", label: "Details" }, { id: "chat", label: "Chat" }, { id: "activity", label: "Activity" }, { id: "run", label: "Run" }] as const
 type TabID = (typeof TABS)[number]["id"]
 
+// dur formats a Go duration (nanoseconds).
+const dur = (ns: number) => { const s = Math.round(ns / 1e9); return s >= 3600 ? `${Math.floor(s / 3600)}h ${Math.round(s % 3600 / 60)}m` : s >= 60 ? `${Math.floor(s / 60)}m ${s % 60}s` : `${s}s` }
 const tok = (n: number) => n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : String(n)
 
 // Status colours are reserved and always sit next to a text label.
@@ -278,10 +280,28 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
       {!!task.assignees?.length && <><dt>Assignees</dt><dd>{task.assignees.join(", ")}</dd></>}
       <dt>Updated</dt><dd title={task.updated}>{rel(task.updated) || "—"}</dd>
       </dl>
-      {!!usage?.jobs?.length && <section><h3>Usage <span className="board-muted">{tok(usage.total.Total)} tokens{usage.partial ? " (partial)" : ""} · {usage.loops} loops</span></h3>
-        <table className="w-full text-[11px]"><tbody>{usage.jobs.map((j, i) => <tr key={i}><td>{j.role}</td><td className="board-muted">{[j.harness, j.model, j.effort].filter(Boolean).join(" / ")}</td><td>{j.has ? tok(j.count.Total) + (j.count.CacheRead + j.count.CacheWrite > 0 ? ` (cache ${tok(j.count.CacheRead)}/${tok(j.count.CacheWrite)})` : "") : "n/a"}</td><td className="board-muted">{j.loops > 1 ? `×${j.loops}` : ""}</td><td className="board-muted">{Math.round(j.elapsed / 1e9)}s</td></tr>)}</tbody></table>
-        {usage.models.length > 1 && <p className="board-muted">{usage.models.map(m => `${m.model || m.harness}: ${m.has ? tok(m.count.Total) : "n/a"}`).join(" · ")}</p>}
-      </section>}
+      {!!usage?.jobs?.length && (() => {
+        const peak = Math.max(1, ...usage.jobs.map(j => j.count.Total))
+        return <section><h3>Usage{usage.partial && <span className="usage-partial" title="Some harnesses report no tokens">partial</span>}</h3>
+          <div className="usage-card">
+            <dl className="usage-stats">
+              <div><dd>{tok(usage.total.Total)}</dd><dt>tokens</dt></div>
+              <div><dd>{usage.loops}</dd><dt>loops</dt></div>
+              <div><dd>{dur(usage.elapsed)}</dd><dt>elapsed</dt></div>
+            </dl>
+            <ul className="usage-rows">{usage.jobs.map((j, i) => <li key={i}>
+              <div className="usage-who">
+                <span className="usage-role">{j.role}</span>
+                <span className="usage-model" title={[j.harness, j.model, j.effort].filter(Boolean).join(" / ")}>{[j.harness, (j.model || "").split("/").pop(), j.effort].filter(Boolean).join(" · ")}</span>
+                <span className="usage-n">{j.has ? tok(j.count.Total) : "n/a"}</span>
+              </div>
+              <div className="usage-bar"><i style={{ width: j.has ? `${Math.max(2, Math.round(100 * j.count.Total / peak))}%` : 0 }} /></div>
+              <div className="usage-sub">{[j.loops > 1 && `×${j.loops} loops`, j.count.CacheRead + j.count.CacheWrite > 0 && `cache ${tok(j.count.CacheRead)} read · ${tok(j.count.CacheWrite)} write`, dur(j.elapsed)].filter(Boolean).join(" · ")}</div>
+            </li>)}</ul>
+            {usage.models.length > 1 && <div className="usage-models">{usage.models.map((m, i) => <span key={i}>{(m.model || m.harness).split("/").pop()} <b>{m.has ? tok(m.count.Total) : "n/a"}</b></span>)}</div>}
+          </div>
+        </section>
+      })()}
       {!!needs.length && <section><h3>Waits for <span className="board-muted">{needs.length}</span></h3><ul className="dep-list">{needs.map(id => {
         const dep = all.find(t => t.id === id)
         return <li key={id}><button type="button" onClick={() => onOpen?.(id)}><span className="board-key">{shortId(id)}</span> {dep ? title(dep) : "missing"}{dep && <StatusBadge status={dep.status} />}</button></li>

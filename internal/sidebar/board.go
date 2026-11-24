@@ -904,9 +904,15 @@ func (m Model) boardDetail(w, rows int) []string {
 	if len(m.notes) == 0 {
 		return []string{boardFit("No tasks yet", w)}
 	}
-	summary, body, bodyRows := m.detailLayout(m.notes[m.taskCursor], w, rows)
+	// The comment composer is pinned above the footer so scrolling never hides it.
+	var composer []string
+	if m.commentBox && rows >= 8 {
+		composer = m.commentBoxLines(w)
+	}
+	summary, body, bodyRows := m.detailLayout(m.notes[m.taskCursor], w, rows-len(composer))
 	out := append([]string{}, summary...)
 	out = append(out, m.detailViewport(body, w, bodyRows, m.detailScroll)...)
+	out = append(out, composer...)
 	if rows >= 6 {
 		out = append(out, m.detailFooter(w))
 	}
@@ -935,6 +941,9 @@ func (m Model) detailMaxScroll() int {
 		return 0
 	}
 	w, rows := m.width-4, max(0, m.height-5)
+	if m.commentBox && rows >= 8 {
+		rows -= len(m.commentBoxLines(w))
+	}
 	_, body, bodyRows := m.detailLayout(m.notes[m.taskCursor], w, rows)
 	return max(0, len(body)-max(0, bodyRows-2))
 }

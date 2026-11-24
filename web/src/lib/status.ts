@@ -22,3 +22,11 @@ export function ago(epochSec: number) {
 }
 
 export const agentLabel = (a: { name: string; agent: string }) => a.name || a.agent
+
+// taskOf is the ticket a board agent works on: its pane is named "<role>-<ticket>" (or "<role>#<ticket>"); "" for any other agent.
+export const taskOf = (a: { name: string }) => /[-#](\d+)$/.exec(a.name)?.[1] ?? ""
+// byTaskOrder puts agents without a task first, then orders by ticket id (stable otherwise).
+export const byTaskOrder = (a: { name: string }, b: { name: string }) => {
+  const x = taskOf(a), y = taskOf(b)
+  return x === y ? 0 : !x ? -1 : !y ? 1 : x.length - y.length || (x < y ? -1 : 1)
+}

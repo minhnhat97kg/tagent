@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Panel } from "@/components/Panel"
 import { StatusDot } from "@/components/StatusDot"
 import { enc, nav } from "@/hooks/useRoute"
-import { ago, agentLabel, baseName, shortPrompt } from "@/lib/status"
+import { ago, agentLabel, baseName, shortPrompt, taskOf } from "@/lib/status"
 import { cn } from "@/lib/utils"
 import { useState, Fragment } from "react"
 import type { Agent } from "@/types"
@@ -12,7 +12,7 @@ import type { Agent } from "@/types"
 const projOf = (a: Agent) => a.project || baseName(a.path)
 
 // AgentsPanel lists agents in the order useKeys walks them (grouped by project).
-export function AgentsPanel({ ordered, selPane, className }: { ordered: Agent[]; selPane?: string; className?: string }) {
+export function AgentsPanel({ ordered, byTask, onToggleTask, selPane, className }: { ordered: Agent[]; byTask: boolean; onToggleTask: () => void; selPane?: string; className?: string }) {
   const [open, setOpen] = useState<string | null>(null)
   const multi = new Set(ordered.map(projOf)).size > 1
 
@@ -21,6 +21,7 @@ export function AgentsPanel({ ordered, selPane, className }: { ordered: Agent[];
       className={className}
       icon={<Bot className="text-brand" />}
       title="Agents"
+      right={<Button size="xs" variant={byTask ? "secondary" : "ghost"} aria-pressed={byTask} title="Group agents by task" onClick={onToggleTask}>By task</Button>}
       bodyClass="py-1"
     >
       {!ordered.length && <p className="px-2.5 py-2 text-xs text-muted-foreground">No agents. Press + New agent.</p>}
@@ -33,6 +34,9 @@ export function AgentsPanel({ ordered, selPane, className }: { ordered: Agent[];
               <h3 className="px-2.5 pt-2 pb-0.5 text-[11px] font-semibold text-muted-foreground">
                 {projOf(a)}
               </h3>
+            )}
+            {byTask && taskOf(a) && (i === 0 || projOf(ordered[i - 1]!) !== projOf(a) || taskOf(ordered[i - 1]!) !== taskOf(a)) && (
+              <h4 className="px-2.5 pt-1.5 pb-0.5 text-[10.5px] font-medium text-muted-foreground">Task #{taskOf(a)}</h4>
             )}
             <div
               role="button"

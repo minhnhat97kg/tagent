@@ -98,6 +98,7 @@ function WorkflowEditor({ dir, initial }: { dir: string; initial: string }) {
   const [validationLine, setValidationLine] = useState(0)
   const [goto, setGoto] = useState<{ line: number; to?: number }>()
   const [activeJob, setActiveJob] = useState('')
+  const [insert, setInsert] = useState<{ text: string; n: number }>()
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [run, setRun] = useState<Flow>()
@@ -168,9 +169,14 @@ function WorkflowEditor({ dir, initial }: { dir: string; initial: string }) {
           <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-2 md:grid-cols-2 md:grid-rows-1">
             <div className="flex min-h-0 flex-col border-b md:border-b-0 md:border-r">
               <div className="shrink-0 px-3 pt-2 text-[11px] font-medium text-muted-foreground">YAML{selected.global && ' · global, read-only'}</div>
+              {!selected.global && <div className="flex shrink-0 flex-wrap items-center gap-1 px-3 pt-1 text-[11px]" aria-label="Insert into YAML">
+                <span className="text-muted-foreground">Insert</span>
+                {[...['${{ next }}', '${{ status }}', '${{ ticket.id }}', '${{ ticket.title }}'], ...Object.keys(selected.inputs ?? {}).map(k => '$' + '{{ inputs.' + k + ' }}'), ...new Set((preview?.Jobs ?? selected.jobs ?? []).map(j => j.Status))]
+                  .map(text => <button key={text} type="button" className="rounded border px-1.5 py-0.5 font-mono hover:bg-accent" onClick={() => setInsert({ text, n: (insert?.n ?? 0) + 1 })}>{text}</button>)}
+              </div>}
               <div className={`min-h-0 flex-1 ${selected.global ? 'bg-muted/40' : ''}`}>
                 <Suspense fallback={<pre className="h-full overflow-auto p-3 font-mono text-[12px] leading-5">{yaml}</pre>}>
-                  <WorkflowYamlEditor key={selected.key + selected.global} value={yaml} onChange={setYAML} readOnly={selected.global} errorLine={validationLine} errorMessage={validation} goto={goto} onCursor={line => setActiveJob(jobAt(line))} />
+                  <WorkflowYamlEditor key={selected.key + selected.global} value={yaml} onChange={setYAML} readOnly={selected.global} errorLine={validationLine} errorMessage={validation} goto={goto} insert={insert} onCursor={line => setActiveJob(jobAt(line))} />
                 </Suspense>
               </div>
             </div>

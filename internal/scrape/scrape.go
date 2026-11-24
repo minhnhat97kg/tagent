@@ -160,6 +160,7 @@ func tick(streak map[string]int, lastSig *string) bool {
 		refreshClients()
 	}
 	deliverQueued(out)
+	nudgeStuck()
 	var candidates, hookedPanes []pane
 	for _, line := range strings.Split(strings.TrimSpace(out), "\n") {
 		f := strings.SplitN(line, "|", 9)

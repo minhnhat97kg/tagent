@@ -369,8 +369,9 @@ or `agent` with optional `prompt`, optional `status` (defaults to job ID),
 Agent-only jobs use generated handoff guidance. Model overrides apply only to
 new panes; reused role panes retain their model.
 
-Expressions `${{ inputs.goal }}`, `${{ ticket.id }}`, `${{ ticket.title }}` and
-`${{ jobs.collect.outputs.file }}` expand once at dispatch; unknown values are
+Expressions `${{ inputs.goal }}`, `${{ ticket.id }}`, `${{ ticket.title }}`,
+`${{ jobs.collect.outputs.file }}`, `${{ next }}` (the statuses this job may move the ticket to) and
+`${{ status }}` (the job's own status) expand once at dispatch; unknown values are
 empty. Recipes and interpolated shell inputs are trusted executable code, not
 shell-escaped data. Never interpolate untrusted inputs or publish secrets.
 

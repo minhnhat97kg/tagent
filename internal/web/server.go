@@ -174,7 +174,10 @@ func self(args ...string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	out, err := exec.Command(bin, args...).CombinedOutput()
+	cmd := exec.Command(bin, args...)
+	// The server is no pane; an inherited TMUX_PANE would make `kill` refuse that pane as "this pane".
+	cmd.Env = append(os.Environ(), "TMUX_PANE=")
+	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", errors.New(strings.TrimSpace(string(out)))
 	}

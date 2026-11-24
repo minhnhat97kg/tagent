@@ -35,3 +35,10 @@ func TestStatusPromptDelta(t *testing.T) {
 		t.Fatal(again)
 	}
 }
+
+func TestStatusPromptNextVar(t *testing.T) {
+	got := statusPrompt(tasks.Task{ID: "7"}, tasks.Status{ID: "reviewing", Prompt: "Pick ${{ next }} from ${{ status }}"}, tasks.Event{}, []string{"done", "fixing"}, -1)
+	if !strings.Contains(got, "Pick done, fixing from reviewing") {
+		t.Fatal(got)
+	}
+}

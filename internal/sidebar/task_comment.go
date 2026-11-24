@@ -52,16 +52,8 @@ func (m Model) handleCommentBox(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		scope, id := m.notesScope, m.notes[m.taskCursor].ID
 		return m, func() tea.Msg { return actionResult("Comment added", tasks.Comment(scope, id, "user", text, nil)) }
-	case tea.KeyBackspace, tea.KeyDelete:
-		if r := []rune(m.taskInput); len(r) > 0 {
-			m.taskInput = string(r[:len(r)-1])
-		}
-		m.commentPick = 0
-	case tea.KeySpace:
-		m.taskInput += " "
-		m.commentPick = 0
-	case tea.KeyRunes:
-		m.taskInput += string(key.Runes)
+	case tea.KeyBackspace, tea.KeyDelete, tea.KeyRunes, tea.KeySpace:
+		m.taskInput, _ = editText(m.taskInput, key)
 		m.commentPick = 0
 	}
 	return m, nil

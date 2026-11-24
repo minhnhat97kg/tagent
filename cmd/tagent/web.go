@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"syscall"
 	"time"
@@ -44,6 +45,7 @@ func cmdWeb(args []string, stdout, stderr io.Writer) int {
 // runBackground is the scraper's other work: board triggers always, plus the
 // web UI when @agent_web is on (its server runs the triggers itself).
 func runBackground() {
+	tmux.SetOption("@agent_web_status", "") // off, or replaced below
 	if setting("@agent_web") == "on" {
 		addr, token := setting("@agent_web_addr"), setting("@agent_web_token")
 		if token == "" {
@@ -53,12 +55,15 @@ func runBackground() {
 			}
 		}
 		tmux.SetOption("@agent_web_url", web.URLs(addr, token)[0])
+		_, port, _ := net.SplitHostPort(addr)
+		tmux.SetOption("@agent_web_status", "🌐 :"+port)
 		dir, _ := os.UserHomeDir()
 		// The scraper being replaced keeps the port until its next tick.
 		for range 15 {
 			err := web.Serve(addr, token, dir, dispatchBoardAction)
 			if !errors.Is(err, syscall.EADDRINUSE) {
 				fmt.Fprintln(os.Stderr, "web:", err)
+				tmux.SetOption("@agent_web_status", "🌐✗ :"+port)
 				break
 			}
 			time.Sleep(time.Second)

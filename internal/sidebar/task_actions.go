@@ -138,15 +138,8 @@ func (m Model) handleTaskForm(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.saveChatInput()
 	}
 	switch key.Type {
-	case tea.KeyBackspace, tea.KeyDelete:
-		r := []rune(m.taskInput)
-		if len(r) > 0 {
-			m.taskInput = string(r[:len(r)-1])
-		}
-	case tea.KeyRunes:
-		m.taskInput += string(key.Runes)
-	case tea.KeySpace:
-		m.taskInput += " "
+	case tea.KeyBackspace, tea.KeyDelete, tea.KeyRunes, tea.KeySpace:
+		m.taskInput, _ = editText(m.taskInput, key)
 	case tea.KeyEnter:
 		mode, input := m.taskForm, strings.TrimSpace(m.taskInput)
 		m.taskForm = ""

@@ -100,3 +100,14 @@ func TestMentionMatchesWholeRoleNamesOnly(t *testing.T) {
 		t.Fatal("mention matched a longer name or missed a whole one")
 	}
 }
+
+func TestCommentBoxStaysVisibleWhenScrolled(t *testing.T) {
+	m := commentModel()
+	m, _ = boardPress(m, "c")
+	m = typeText(m, "hello")
+	m.detailScroll = 1 << 20 // far past the end
+	view := ansi.Strip(strings.Join(m.boardDetail(100, 20), "\n"))
+	if !strings.Contains(view, "hello") || !strings.Contains(view, "enter send") {
+		t.Fatalf("composer scrolled out of the drawer:\n%s", view)
+	}
+}

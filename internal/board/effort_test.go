@@ -15,6 +15,9 @@ func TestRoleEffortActions(t *testing.T) {
 			r := cfg.Roles["implementer"]
 			r.Effort = effort
 			cfg.Roles["implementer"] = r
+			if _, ok := cfg.Roles[target]; !ok {
+				cfg.Roles[target] = tasks.Role{}
+			}
 			cfg.Statuses[1].Model = "override"
 			cfg.Triggers = []tasks.Trigger{{On: "comment", Agent: target}, {On: "mention", Agent: target}}
 			for _, kind := range []string{"status", "comment", "mention"} {

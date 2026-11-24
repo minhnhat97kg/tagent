@@ -197,15 +197,8 @@ func (m Model) handleAgentForm(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch key.Type {
 	case tea.KeyEsc:
 		m.taskForm = ""
-	case tea.KeyBackspace, tea.KeyDelete:
-		r := []rune(m.taskInput)
-		if len(r) > 0 {
-			m.taskInput = string(r[:len(r)-1])
-		}
-	case tea.KeyRunes:
-		m.taskInput += string(key.Runes)
-	case tea.KeySpace:
-		m.taskInput += " "
+	case tea.KeyBackspace, tea.KeyDelete, tea.KeyRunes, tea.KeySpace:
+		m.taskInput, _ = editText(m.taskInput, key)
 	case tea.KeyEnter:
 		input, form := strings.TrimSpace(m.taskInput), m.taskForm
 		m.taskForm = ""

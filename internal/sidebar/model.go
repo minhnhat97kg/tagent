@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -396,7 +397,7 @@ func buildRows(sessions []tmux.SessionInfo, repoFilter string, extras rowExtras)
 	query := strings.ToLower(strings.TrimSpace(extras.FilterQuery))
 	var rows []Row
 	for _, s := range sessions {
-		for _, w := range s.Windows {
+		for _, w := range byTask(s.Windows) {
 			var unit []Row
 			for _, p := range w.Panes {
 				if repoFilter != RepoFilterAll && repoOf[p.Path] != repoFilter {
@@ -420,6 +421,42 @@ func buildRows(sessions []tmux.SessionInfo, repoFilter string, extras rowExtras)
 		}
 	}
 	return rows
+}
+
+// taskOf is the ticket a pane works on: board panes are named "<role>-<ticket>" (or "<role>#<ticket>");
+// "" for any other pane.
+func taskOf(name string) string {
+	if i := strings.LastIndexAny(name, "-#"); i >= 0 {
+		if _, err := strconv.Atoi(name[i+1:]); err == nil {
+			return name[i+1:]
+		}
+	}
+	return ""
+}
+
+// byTask orders windows so the agents of one ticket sit together; windows without a ticket
+// (self-created or manual agents) come first. Stable, so everything else keeps its order.
+func byTask(ws []tmux.WindowInfo) []tmux.WindowInfo {
+	key := func(w tmux.WindowInfo) string {
+		for _, p := range w.Panes {
+			if t := taskOf(p.Name); t != "" {
+				return t
+			}
+		}
+		return ""
+	}
+	out := append([]tmux.WindowInfo(nil), ws...)
+	sort.SliceStable(out, func(i, j int) bool {
+		a, b := key(out[i]), key(out[j])
+		if a == "" || b == "" {
+			return a == "" && b != ""
+		}
+		if len(a) != len(b) {
+			return len(a) < len(b)
+		}
+		return a < b
+	})
+	return out
 }
 
 // focusedPane is the agent pane the user is looking at in window (its active
@@ -566,6 +603,7 @@ func moveCursor(cursor, delta, count int) (int, bool) {
 // tmux — the result of a tmux.QuerySessions() call completed inside a
 // tea.Cmd, whether triggered by the periodic tick or by SIGUSR1.
 type RefreshMsg struct {
+	Web        string
 	SizeOwners map[string]bool
 	Sessions   []tmux.SessionInfo
 	Theme      Theme
@@ -795,6 +833,7 @@ type Model struct {
 	// its stale id staying in this set is harmless (never looked up again).
 	pinnedPanes map[string]bool
 	sizeOwners  map[string]bool
+	webStatus   string // @agent_web_status: "🌐 :7777", empty when the web UI is off
 
 	// filterQuery/filterEditing: the "/" text filter (name/agent/status
 	// substring, case-insensitive). filterEditing is true while the user is
@@ -909,6 +948,7 @@ func refreshCmd() tea.Cmd {
 			Avatar:     avatarConfigFromOptions(opts),
 			Dialogs:    readDialogs(sessions),
 			SizeOwners: readSizeOwners(sessions),
+			Web:        opts["@agent_web_status"],
 		}
 		return msg
 	}
@@ -1260,6 +1300,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case RefreshMsg:
 		m.sessions = msg.Sessions
 		m.sizeOwners = msg.SizeOwners
+		m.webStatus = msg.Web
 		m.theme = msg.Theme
 		m.icons = msg.Icons
 		m.dialogs = msg.Dialogs

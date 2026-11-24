@@ -164,3 +164,25 @@
 /* Chat takes the rest of the drawer: the transcript scrolls, the composer stays at the bottom. */
 .board-drawer .drawer-panel.drawer-chat { flex: 1 1 auto; gap: 0; }
 .board-drawer .drawer-panel.drawer-chat > * { flex-shrink: 1; }
+
+/* Usage block in the ticket details: three stats, then one row per dispatch with a share bar. */
+.usage-partial { margin-left: 8px; padding: 1px 8px; border-radius: 999px; background: var(--brand-soft); color: var(--brand-ink); font-size: 10.5px; letter-spacing: 0; text-transform: none; font-weight: 500; }
+.usage-card { border-radius: 12px; background: var(--muted); box-shadow: inset 0 0 0 1px var(--border); overflow: hidden; }
+.usage-stats { display: grid; grid-template-columns: repeat(3, 1fr); border-bottom: 1px solid var(--border); }
+.usage-stats > div { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; }
+.usage-stats > div + div { border-left: 1px solid var(--border); }
+.usage-stats dd { font-size: 20px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.usage-stats dt { font-size: 11px; color: var(--muted-foreground); }
+.usage-rows { display: flex; flex-direction: column; }
+.usage-rows li { display: flex; flex-direction: column; gap: 6px; padding: 10px 14px; }
+.usage-rows li + li { border-top: 1px solid var(--border); }
+.usage-who { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.usage-role { padding: 0 8px; border-radius: 999px; background: var(--card); box-shadow: inset 0 0 0 1px var(--border); font-size: 11.5px; font-weight: 600; line-height: 20px; }
+.usage-model { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted-foreground); font: 11.5px ui-monospace, "SF Mono", Menlo, monospace; }
+.usage-n { font-weight: 600; font-variant-numeric: tabular-nums; }
+.usage-bar { height: 4px; border-radius: 999px; background: var(--accent); overflow: hidden; }
+.usage-bar i { display: block; height: 100%; border-radius: 999px; background: var(--brand); }
+.usage-sub { color: var(--muted-foreground); font-size: 11px; font-variant-numeric: tabular-nums; }
+.usage-models { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 14px; border-top: 1px solid var(--border); font-size: 11.5px; color: var(--muted-foreground); }
+.usage-models span { padding: 1px 8px; border-radius: 999px; background: var(--card); box-shadow: inset 0 0 0 1px var(--border); }
+.usage-models b { color: var(--foreground); font-weight: 600; margin-left: 2px; }

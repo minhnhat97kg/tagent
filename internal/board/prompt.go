@@ -3,10 +3,15 @@ package board
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 	"tagent/internal/tasks"
 	"tagent/internal/workflow"
 )
+
+// stateVars are the job-prompt expressions only a dispatch knows: the statuses this job may move to, and
+// the status it is in. Prompts use them instead of hard-coding status names.
+var stateVars = regexp.MustCompile(`\$\{\{\s*(next|status)\s*\}\}`)
 
 func statusPrompt(t tasks.Task, s tasks.Status, ev tasks.Event, next []string, since int) string {
 	if ev.From == "blocked" {
@@ -30,7 +35,13 @@ func statusPrompt(t tasks.Task, s tasks.Status, ev tasks.Event, next []string, s
 		}
 	}
 	if since < 0 {
-		b += workflow.Expand(s.Prompt, t.Inputs, t.Outputs, t.ID, t.Title) + "\n"
+		prompt := stateVars.ReplaceAllStringFunc(s.Prompt, func(m string) string {
+			if strings.Contains(m, "next") {
+				return strings.Join(next, ", ")
+			}
+			return s.ID
+		})
+		b += workflow.Expand(prompt, t.Inputs, t.Outputs, t.ID, t.Title) + "\n"
 	}
 	b += "Allowed next statuses: " + strings.Join(next, ", ") + "\n"
 	target := "<next>"

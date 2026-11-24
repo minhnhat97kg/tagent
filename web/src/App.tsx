@@ -10,7 +10,6 @@ import { agentLabel } from '@/lib/status'
 import { notifications, nextNotice, useAlerts, type Notice } from '@/lib/notifications'
 import { Board, TaskDrawer } from "@/components/Board"
 import { BoardConfigPage } from "@/components/BoardConfigPage"
-import { HelpDialog } from "@/components/HelpDialog"
 import { NewAgentDialog } from "@/components/NewAgentDialog"
 import { ProjectSelect } from "@/components/ProjectSelect"
 import { RailStrip } from "@/components/Rail"
@@ -28,7 +27,7 @@ import { usePoll } from "@/hooks/usePoll"
 import { useProjectDir } from "@/hooks/useProjectDir"
 import { useRailCollapsed } from "@/hooks/useRail"
 import { enc, nav, parseSel, useRoute } from "@/hooks/useRoute"
-import { baseName } from "@/lib/status"
+import { baseName, byTaskOrder } from "@/lib/status"
 import { useAppState } from "@/state"
 import type { Agent, Overview, Project } from "@/types"
 
@@ -41,7 +40,6 @@ export default function App() {
   const sel = parseSel(route)
   const { state, error } = useAppState()
   const [newOpen, setNewOpen] = useState(false)
-  const [help, setHelp] = useState(false)
   const [settings, setSettings] = useState(false)
   // Rail collapsed state: an icon strip keeps the board room to itself.
   const [railCollapsed, setRailCollapsed] = useRailCollapsed()
@@ -59,14 +57,17 @@ export default function App() {
   // Agents in the old tagent-bg session are listed too, after the visible ones, like the TUI.
   const agents = useMemo(() => [...(state?.agents ?? [])].sort((a, b) => Number(!!a.hidden) - Number(!!b.hidden)), [state])
   // Agents grouped by project, in the order the list shows them and j/k walk them.
+  const [byTask, setByTask] = useState(() => { try { return localStorage.getItem("tagent.byTask") === "1" } catch { return false } })
+  const toggleByTask = () => setByTask(v => { try { localStorage.setItem("tagent.byTask", v ? "0" : "1") } catch { /* not remembered in private mode */ } return !v })
   const ordered = useMemo(() => {
     const groups = new Map<string, Agent[]>()
     for (const a of agents) {
       const k = a.project || baseName(a.path)
       groups.set(k, [...(groups.get(k) ?? []), a])
     }
-    return [...groups.values()].flat().sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned))
-  }, [agents])
+    const lists = [...groups.values()].map(g => byTask ? g.sort(byTaskOrder) : g)
+    return lists.flat().sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned))
+  }, [agents, byTask])
 
   const agent = sel?.kind === "agent" ? state?.agents.find((a) => a.pane === sel.pane) : undefined
   const [dir, setDir] = useProjectDir(agent?.path)
@@ -88,7 +89,7 @@ export default function App() {
       setNoticeTicket({dir, id:n.task.id, reply:reply && n.role ? `@${n.role} ` : ''})
     }
   }
-  useKeys(ordered, agent?.pane, () => setHelp(true), () => {
+  useKeys(ordered, agent?.pane, () => {
     const next = nextNotice(notices, lastNotice.current ?? (agent ? 'agent:' + agent.pane : undefined))
     if (next) openNotice(next)
   })
@@ -121,7 +122,7 @@ export default function App() {
     {/* Phone home: the rail's lists stacked; the board is in the header. */}
     <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto md:hidden">
       <OverviewPanel days={usageDays} onDays={setUsageDays} overview={overview} className="shrink-0" />
-      <AgentsPanel ordered={ordered} className="shrink-0" />
+      <AgentsPanel ordered={ordered} byTask={byTask} onToggleTask={toggleByTask} className="shrink-0" />
       {tasks}
     </div>
     <div className="hidden min-h-0 min-w-0 flex-1 md:flex">
@@ -146,14 +147,13 @@ export default function App() {
             {canFull && <Button className="hidden sm:inline-flex" variant="ghost" size="icon-xs" aria-label={full ? "Exit full screen" : "Full screen"} title={full ? "Exit full screen" : "Full screen"} onClick={() => void toggleFull()}>{full ? <Minimize2 /> : <Maximize2 />}</Button>}
             <Button variant="ghost" size="icon-xs" aria-label={`Web theme: ${webTheme}`} title={`Web theme: ${webTheme} (this browser only)`} onClick={() => setWebTheme(nextTheme[webTheme])}>{webTheme === "dark" ? <Moon /> : webTheme === "light" ? <Sun /> : <Monitor />}</Button>
             <Button variant="ghost" size="icon-xs" aria-label="Settings" title="Settings" onClick={() => setSettings(true)}><Settings /></Button>
-            <Button variant="ghost" size="icon-xs" aria-label="Shortcuts" onClick={() => setHelp(true)}>?</Button>
           </div>
         </header>
 
         <div className="flex min-h-0 flex-1 gap-2 p-2">
           {railCollapsed ? <RailStrip tasks={!home} onExpand={() => setRailCollapsed(false)} /> : <aside className="hidden w-72 shrink-0 flex-col gap-2 md:flex">
             <OverviewPanel days={usageDays} onDays={setUsageDays} overview={overview} className="shrink-0" />
-            <AgentsPanel ordered={ordered} selPane={agent?.pane} className={home ? "min-h-24 flex-1" : "max-h-[35%] shrink-0"} />
+            <AgentsPanel ordered={ordered} byTask={byTask} onToggleTask={toggleByTask} selPane={agent?.pane} className={home ? "min-h-24 flex-1" : "max-h-[35%] shrink-0"} />
             {!home && tasks}
           </aside>}
           <main className="flex min-h-0 min-w-0 flex-1 flex-col">{main}</main>
@@ -162,7 +162,6 @@ export default function App() {
       <TaskDrawer proj={proj} dir={dir} reload={projPoll.reload} id={noticeTicket?.dir === dir ? noticeTicket.id : undefined} initialReply={noticeTicket?.reply} origin={noticeOrigin} onClose={() => setNoticeTicket(undefined)} />
       {newOpen && <NewAgentDialog dir={dir} onOpenChange={setNewOpen} />}
       <SettingsDialog open={settings} onOpenChange={setSettings} />
-      <HelpDialog open={help} onOpenChange={setHelp} />
       <Toaster richColors position="top-right" />
     </TooltipProvider>
   )

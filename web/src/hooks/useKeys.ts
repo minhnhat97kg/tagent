@@ -6,10 +6,10 @@ import type { Agent } from "@/types"
 const SKIP = "input, textarea, select, [contenteditable], [data-terminal], [role=dialog]"
 
 // useKeys binds the dashboard shortcuts: j/k move, n jumps to the next agent that needs you,
-// Enter focuses the terminal, ? opens help. Ctrl+Shift+F6 returns focus to the agent header.
-export function useKeys(order: Agent[], selPane: string | undefined, onHelp: () => void, onNext?: () => void) {
-  const latest = useRef({ order, selPane, onHelp, onNext })
-  latest.current = { order, selPane, onHelp, onNext }
+// Enter focuses the terminal. Ctrl+Shift+F6 returns focus to the agent header.
+export function useKeys(order: Agent[], selPane: string | undefined, onNext?: () => void) {
+  const latest = useRef({ order, selPane, onNext })
+  latest.current = { order, selPane, onNext }
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -21,7 +21,7 @@ export function useKeys(order: Agent[], selPane: string | undefined, onHelp: () 
         return
       }
       if (e.metaKey || e.ctrlKey || e.altKey || t?.closest?.(SKIP)) return
-      const { order, selPane, onHelp, onNext } = latest.current
+      const { order, selPane, onNext } = latest.current
       const n = order.length
       const i = order.findIndex((a) => a.pane === selPane)
       const go = (idx: number) => nav("/agent/" + enc(order[(idx + n) % n]!.pane))
@@ -50,9 +50,6 @@ export function useKeys(order: Agent[], selPane: string | undefined, onHelp: () 
           if (!selPane || (t && t !== document.body && t.closest?.("button, a, [role=button]"))) return
           e.preventDefault()
           document.querySelector<HTMLElement>("[data-terminal] .xterm-helper-textarea")?.focus()
-          return
-        case "?":
-          onHelp()
           return
       }
     }

@@ -2,6 +2,7 @@ package sidebar
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 	"time"
@@ -70,11 +71,15 @@ func (m Model) dashboardView() string {
 	usageName, uw := m.cardName(paneNum(3), "▥ Usage")
 	rng, _ := m.tabStrip([]string{"1d", "7d", "30d"}, slices.Index([]int{1, 7, 30}, m.chartDaysOrDefault()), 3+uw+2)
 	agentsName, _ := m.cardName(paneNum(0), "Agents")
+	agentsPos := position(m.cursor, paneRowCount(m.rows))
+	if slices.Contains(slices.Collect(maps.Values(m.sizeOwners)), true) {
+		agentsPos += " · f handoff"
+	}
 	card := func(r rect, title, pos string, lines []string, focused bool) string {
 		return m.boardPanel(title, pos, lines, r.w, r.h, focused)
 	}
 	cards := map[string]string{
-		"agents": card(g.agents, agentsName, position(m.cursor, paneRowCount(m.rows)), m.agentRows(g.agents.w-4, g.agents.h-2), focus(0)),
+		"agents": card(g.agents, agentsName, agentsPos, m.agentRows(g.agents.w-4, g.agents.h-2), focus(0)),
 		"usage":  card(g.usage, usageName+"  "+rng, "", g.usageLines, focus(3)),
 		"tasks":  m.tasksCard(g.tasks.w, g.tasks.h, paneNum(2), focus(2)),
 		"wf":     m.workflowCard(g.wf.w, g.wf.h, paneNum(4)),
@@ -120,6 +125,9 @@ func (m Model) topBar(repo string, width int) string {
 	left := lipgloss.NewStyle().Foreground(m.theme.TextPrimary).Bold(true).Render("tagent") +
 		lipgloss.NewStyle().Foreground(m.theme.TextMuted).Render(" · "+repo)
 	right := "? help · , settings"
+	if m.webStatus != "" {
+		right = m.webStatus + " · " + right
+	}
 	if width < 40+lipgloss.Width(right) {
 		return fitLine(left, width)
 	}
@@ -147,15 +155,34 @@ func (m Model) meter(label string, used *float64) string {
 	return muted.Render(label+" ") + bar + lipgloss.NewStyle().Foreground(m.theme.TextPrimary).Render(fmt.Sprintf(" %.0f%%", v))
 }
 
-// providerMeters is the web Usage rows: "Claude 5h ▰▰▱▱▱ 42%" over "       7d ▰▱▱▱▱ 12%".
-func (m Model) providerMeters(name string, p quota.Provider) []string {
-	pad := fmt.Sprintf("%-6s", name)
-	l1 := lipgloss.NewStyle().Foreground(m.theme.TextPrimary).Bold(true).Render(pad) + " " + m.meter("5h", p.Five.Used)
-	l2 := strings.Repeat(" ", 6) + " " + m.meter("7d", p.Week.Used)
-	if p.Stale {
-		l2 += lipgloss.NewStyle().Foreground(m.theme.TextMuted).Render(" stale")
+// quotaCell is "● 88%": a dot colored like the web Meter (green <70, amber >=70, red >=90, muted when unknown).
+func (m Model) quotaCell(used *float64) string {
+	if used == nil {
+		return lipgloss.NewStyle().Foreground(m.theme.TextMuted).Render("○  –")
 	}
-	return []string{l1, l2}
+	v := max(0, min(100, *used))
+	color := m.theme.StatusRunning
+	if v >= 90 {
+		color = m.theme.StatusError
+	} else if v >= 70 {
+		color = m.theme.StatusWaiting
+	}
+	return lipgloss.NewStyle().Foreground(color).Render("●") + lipgloss.NewStyle().Foreground(m.theme.TextPrimary).Render(fmt.Sprintf(" %3.0f%%", v))
+}
+
+// quotaGrid is the provider quotas as a grid: a 5h/7d header over one row per provider.
+func (m Model) quotaGrid(ps map[string]quota.Provider) []string {
+	dim := lipgloss.NewStyle().Foreground(m.theme.TextMuted)
+	out := []string{dim.Render(fmt.Sprintf("%-7s %-7s %s", "", "5h", "7d"))}
+	for _, name := range []string{"Claude", "Codex"} {
+		p := ps[name]
+		row := lipgloss.NewStyle().Foreground(m.theme.TextPrimary).Bold(true).Render(fmt.Sprintf("%-7s", name)) + " " + m.quotaCell(p.Five.Used) + "  " + m.quotaCell(p.Week.Used)
+		if p.Stale {
+			row += dim.Render(" stale")
+		}
+		out = append(out, row)
+	}
+	return out
 }
 
 func (m Model) chartDaysOrDefault() int {
@@ -220,6 +247,10 @@ func (m Model) agentLines(width, height int) []string {
 		start = min(start, len(rows)-(height-1))
 	}
 	for _, row := range rows[start:min(len(rows), start+height-1)] {
+		// No row is selected while another card has focus: drop the cursor column.
+		if cursor == -1 {
+			row = strings.TrimPrefix(row, noCursorMarker)
+		}
 		out = append(out, fitLine(row, width))
 	}
 	for len(out) < height {
@@ -388,26 +419,18 @@ func (m Model) dashGeometry() dashGeom {
 	return g
 }
 
-// usageLines is the Usage card body: what needs the user, then provider
+// usageLines is the Usage card body: what runs now, then provider
 // quotas (when the pane is tall enough) and tokens with the sparkline.
 func (m Model) usageLines(width, bodyHeight int) []string {
 	dim := lipgloss.NewStyle().Foreground(m.theme.TextMuted)
-	attention, now := metrics.OverviewFacts(m.scopePanes(""), m.notes, m.metricState)
+	_, now := metrics.OverviewFacts(m.scopePanes(""), m.notes, m.metricState)
 	var out []string
-	if attention.Needed {
-		out = append(out, lipgloss.NewStyle().Foreground(m.theme.StatusConfirm).Bold(true).Render(fitLine(m.icons.Warning+" "+attention.Text, width)))
-	} else {
-		out = append(out, dim.Render(fitLine("✓ "+attention.Text, width)))
-	}
 	if len(now) > 0 {
 		out = append(out, lipgloss.NewStyle().Foreground(m.theme.StatusRunning).Render(fitLine("Now  "+strings.Join(now, " · "), width)))
-	} else {
-		out = append(out, "") // a fixed row count keeps the card height steady
 	}
 	if bodyHeight >= 22 { // short panes keep the space for agents and tasks
 		q := quota.Get()
-		out = append(out, m.providerMeters("Claude", q.Claude)...)
-		out = append(out, m.providerMeters("Codex", q.Codex)...)
+		out = append(out, m.quotaGrid(map[string]quota.Provider{"Claude": q.Claude, "Codex": q.Codex})...)
 	}
 	today := metrics.TokenWindow(m.metricState, time.Now(), 7).Today
 	out = append(out, dim.Render("Tokens today ")+lipgloss.NewStyle().Foreground(m.theme.TextPrimary).Bold(true).Render(compactTokens(today)), m.chartLine(width))
