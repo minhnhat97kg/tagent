@@ -922,22 +922,6 @@ func (m Model) boardDetail(w, rows int) []string {
 	return out
 }
 
-func (m Model) triggerSummary() string {
-	var parts []string
-	for _, t := range m.boardConfig.Triggers {
-		event := t.On
-		if t.When.To != "" {
-			event += "→" + t.When.To
-		}
-		target := "agent " + t.Agent
-		parts = append(parts, event+" ▸ "+target)
-	}
-	if len(parts) == 0 {
-		return "Triggers: none · E edit board config"
-	}
-	return "Triggers: " + strings.Join(parts, " · ")
-}
-
 // Returns handled=false only for the existing Tasks actions, routed to their forms.
 // boardKey routes a key to the focused pane (the same call handleKey makes).
 func (m Model) boardKey(key string) (Model, tea.Cmd, bool) {

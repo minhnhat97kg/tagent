@@ -126,17 +126,6 @@ func agentReadOnly(a agents.Agent) bool {
 	return a.Source == "global" || a.Source == "legacy"
 }
 
-func agentSummary(a agents.Agent) string {
-	model := a.Model
-	if model == "" {
-		model = "default model"
-	}
-	if i := strings.LastIndex(model, "/"); i >= 0 {
-		model = model[i+1:] // drop the provider prefix, it only crowds the row
-	}
-	return a.Harness + " · " + model
-}
-
 // stripPanel is the bottom card's body: workflows, or agents while the agents panel is open.
 func (m Model) stripPanel(width int) (lines []string, cursor, n int) {
 	if m.agentsOpen {

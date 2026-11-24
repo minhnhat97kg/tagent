@@ -2,8 +2,6 @@ package sidebar
 
 import (
 	"fmt"
-	"os"
-	"os/exec"
 	"slices"
 	"strings"
 	"time"
@@ -38,31 +36,6 @@ func (m Model) metricRefreshCmd() tea.Cmd {
 		}
 		state := metrics.RefreshOrRead(scope, sessions)
 		return metricMsg{Scope: scope, State: state}
-	}
-}
-
-func (m Model) startSelectedTaskCmd() tea.Cmd {
-	if m.taskCursor >= len(m.notes) || m.notesScope == "" {
-		return nil
-	}
-	id := m.notes[m.taskCursor].ID
-	paneID, ok := paneIDAt(m.rows, m.cursor)
-	if !ok {
-		return nil
-	}
-	p, ok := paneInfoByID(m.sessions, paneID)
-	if !ok || p.Path == "" {
-		return nil
-	}
-	return func() tea.Msg {
-		bin, err := os.Executable()
-		if err != nil {
-			return refreshRequestMsg{}
-		}
-		cmd := exec.Command(bin, "task", "start", id, paneID)
-		cmd.Dir = p.Path
-		_ = cmd.Run()
-		return refreshRequestMsg{}
 	}
 }
 
@@ -205,14 +178,6 @@ func (m Model) chartLine(width int) string {
 		return " " + spark
 	}
 	return " " + spark + lipgloss.NewStyle().Foreground(m.theme.TextMuted).Render("  "+compactTokens(window.Total)+" in "+fmt.Sprintf("%dd", m.chartDaysOrDefault()))
-}
-
-func sumInts(v []int64) int64 {
-	var n int64
-	for _, x := range v {
-		n += x
-	}
-	return n
 }
 func compactTokens(n int64) string {
 	if n >= 1000000 {

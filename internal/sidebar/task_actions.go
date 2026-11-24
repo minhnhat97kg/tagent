@@ -314,13 +314,6 @@ func (m Model) scopePanes(harness string) []tmux.PaneInfo {
 	return out
 }
 
-func agentLabel(p tmux.PaneInfo) string {
-	if p.Name != "" {
-		return p.Name
-	}
-	return string(p.Agent)
-}
-
 func (m Model) scopeDir() string {
 	if ps := m.scopePanes(""); len(ps) > 0 {
 		return ps[0].Path
