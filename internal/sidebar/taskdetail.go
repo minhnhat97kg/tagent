@@ -272,7 +272,7 @@ func (m Model) taskDetailDetails(t tasks.Task, w int) []string {
 		lines = append(lines, m.detailSection(label, w)...)
 	}
 
-	section("Description")
+	section("Description · e edit")
 	desc := m.detailDescription(t, w)
 	if len(desc) == 0 {
 		desc = []string{ansi.Truncate("  "+dim.Render("No description"), w, "")}
@@ -287,8 +287,11 @@ func (m Model) taskDetailDetails(t tasks.Task, w int) []string {
 	}
 	lines = append(lines, desc...)
 
-	if len(m.attachments) > 0 {
-		section("Attachments · a view · A attach")
+	section(fmt.Sprintf("Attachments %d · a view · A attach", len(m.attachments)))
+	if len(m.attachments) == 0 {
+		lines = append(lines, ansi.Truncate("  "+dim.Render("None"), w, ""))
+	}
+	{
 		for _, a := range m.attachments {
 			lines = append(lines, m.detailBlock(m.icons.Attach+" "+a.Name+dim.Render(" · "+detailSize(a.Size)), "  ", "", w)...)
 		}
@@ -297,8 +300,11 @@ func (m Model) taskDetailDetails(t tasks.Task, w int) []string {
 		section("Note")
 		lines = append(lines, m.detailBlock(t.Note, "  ", "", w)...)
 	}
-	if len(t.Needs) > 0 {
-		section("Dependencies · D edits")
+	section(fmt.Sprintf("Dependencies %d · D edit", len(t.Needs)))
+	if len(t.Needs) == 0 {
+		lines = append(lines, ansi.Truncate("  "+dim.Render("None"), w, ""))
+	}
+	{
 		for _, id := range t.Needs {
 			status, name := "missing", ""
 			for _, n := range m.notes {
