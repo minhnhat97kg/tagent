@@ -259,47 +259,42 @@ func (m Model) taskDetailDetails(t tasks.Task, w int) []string {
 	}
 	now := time.Now()
 	dim := m.boardStyle(m.theme.TextDim)
+	iw := max(1, w-4) // inside a pane: border and a space on each side
 	var lines []string
-	section := func(label string) {
-		if len(lines) > 0 {
-			lines = append(lines, "")
-		}
-		lines = append(lines, m.detailSection(label, w)...)
+	pane := func(name, hint string, content []string) {
+		lines = append(lines, m.detailPane(name, hint, content, w)...)
 	}
+	block := func(text string) []string { return m.detailBlock(text, "", "", iw) }
+	none := func(text string) []string { return []string{dim.Render(text)} }
 
-	section("Description · e edit")
-	desc := m.detailDescription(t, w)
+	desc := m.detailDescription(t, iw)
+	for i := range desc { // the description helper indents for the old flat layout
+		desc[i] = strings.TrimPrefix(desc[i], "  ")
+	}
 	if len(desc) == 0 {
-		desc = []string{ansi.Truncate("  "+dim.Render("No description"), w, "")}
+		desc = none("No description")
 	}
 	switch {
 	case len(desc) <= detailDescLines:
 	case m.detailDescOpen:
-		desc = append(slices.Clone(desc), "", ansi.Truncate("  "+dim.Render("… enter/space collapse"), w, ""))
+		desc = append(slices.Clone(desc), "", dim.Render("… enter/space collapse"))
 	default:
-		hint := fmt.Sprintf("… %d more lines · enter/space expand", len(desc)-detailDescLines)
-		desc = append(append([]string{}, desc[:detailDescLines]...), ansi.Truncate("  "+dim.Render(hint), w, ""))
+		desc = append(append([]string{}, desc[:detailDescLines]...), dim.Render(fmt.Sprintf("… %d more lines · enter/space expand", len(desc)-detailDescLines)))
 	}
-	lines = append(lines, desc...)
+	pane("Description", "e edit", desc)
 
-	section(fmt.Sprintf("Attachments %d · a view · A attach", len(m.attachments)))
-	if len(m.attachments) == 0 {
-		lines = append(lines, ansi.Truncate("  "+dim.Render("None"), w, ""))
-	}
-	{
+	files := none("None")
+	if len(m.attachments) > 0 {
+		files = nil
 		for _, a := range m.attachments {
-			lines = append(lines, m.detailBlock(m.icons.Attach+" "+a.Name+dim.Render(" · "+detailSize(a.Size)), "  ", "", w)...)
+			files = append(files, block(m.icons.Attach+" "+a.Name+dim.Render(" · "+detailSize(a.Size)))...)
 		}
 	}
-	if t.Note != "" {
-		section("Note")
-		lines = append(lines, m.detailBlock(t.Note, "  ", "", w)...)
-	}
-	section(fmt.Sprintf("Dependencies %d · D edit", len(t.Needs)))
-	if len(t.Needs) == 0 {
-		lines = append(lines, ansi.Truncate("  "+dim.Render("None"), w, ""))
-	}
-	{
+	pane(fmt.Sprintf("Attachments %d", len(m.attachments)), "a view · A attach", files)
+
+	needs := none("None")
+	if len(t.Needs) > 0 {
+		needs = nil
 		for _, id := range t.Needs {
 			status, name := "missing", ""
 			for _, n := range m.notes {
@@ -312,24 +307,28 @@ func (m Model) taskDetailDetails(t tasks.Task, w int) []string {
 			if name != "" {
 				line += dim.Render(" · ") + name
 			}
-			lines = append(lines, m.detailBlock(line, "  ", "", w)...)
+			needs = append(needs, block(line)...)
 		}
 	}
+	pane(fmt.Sprintf("Dependencies %d", len(t.Needs)), "D edit", needs)
+
 	if dependents := m.dependents(t.ID); len(dependents) > 0 {
-		section("Blocks")
+		var blocks []string
 		for _, d := range dependents {
-			lines = append(lines, m.detailBlock(m.boardStyle(m.boardColor(d.Status)).Render("#"+d.ID+" "+d.Status)+dim.Render(" · ")+boardTitle(d), "  ", "", w)...)
+			blocks = append(blocks, block(m.boardStyle(m.boardColor(d.Status)).Render("#"+d.ID+" "+d.Status)+dim.Render(" · ")+boardTitle(d))...)
 		}
+		pane(fmt.Sprintf("Blocks %d", len(dependents)), "", blocks)
+	}
+	if t.Note != "" {
+		pane("Note", "", block(t.Note))
 	}
 	cfg := m.boardConfig
 	if c, err := tasks.ConfigForTask(m.boardDir, cfg, t); err == nil {
 		cfg = c
 	}
-	if usage := metrics.TicketUsageOf(m.metricState, t, cfg, m.boardHistory, now).Lines(compactTokens); len(usage) > 0 {
-		section("Usage")
-		for _, l := range usage {
-			lines = append(lines, m.detailBlock(l, "  ", "", w)...)
-		}
+	var usage []string
+	for _, l := range metrics.TicketUsageOf(m.metricState, t, cfg, m.boardHistory, now).Lines(compactTokens) {
+		usage = append(usage, block(l)...)
 	}
 	if t.Status == "doing" {
 		running := false
@@ -337,10 +336,33 @@ func (m Model) taskDetailDetails(t tasks.Task, w int) []string {
 			running = running || r.Ended.IsZero()
 		}
 		if !running && len(metrics.RunsOf(m.metricState, t.ID)) > 0 {
-			lines = append(lines, m.detailBlock(m.boardStyle(m.theme.StatusError).Render("! no agent is running this task"), "  ", "", w)...)
+			usage = append(usage, block(m.boardStyle(m.theme.StatusError).Render("! no agent is running this task"))...)
 		}
 	}
+	if len(usage) > 0 {
+		pane("Usage", "", usage)
+	}
 	return lines
+}
+
+// detailPane is one section of the Details tab as its own pane: a light
+// rounded frame with the name (and the keys that act on it) in the top border.
+func (m Model) detailPane(name, hint string, content []string, w int) []string {
+	if w < 8 {
+		return content
+	}
+	edge := m.boardStyle(m.theme.TextDim)
+	title := " " + m.boardStyle(m.theme.TextPrimary).Bold(true).Render(name)
+	if hint != "" {
+		title += edge.Render(" · " + hint)
+	}
+	title = ansi.Truncate(title+" ", w-4, "…")
+	out := []string{edge.Render("╭─") + title + edge.Render(strings.Repeat("─", max(0, w-3-ansi.StringWidth(title)))+"╮")}
+	for _, l := range content {
+		l = ansi.Truncate(l, w-4, "")
+		out = append(out, edge.Render("│")+" "+l+strings.Repeat(" ", max(0, w-4-ansi.StringWidth(l)))+" "+edge.Render("│"))
+	}
+	return append(out, edge.Render("╰"+strings.Repeat("─", w-2)+"╯"))
 }
 
 // taskDetailActivity is the Activity tab: comments and the folded dispatch
