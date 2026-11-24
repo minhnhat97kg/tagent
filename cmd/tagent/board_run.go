@@ -68,8 +68,10 @@ func baseFailing(dir string, tests []string) []string {
 	}
 	defer exec.Command("git", "-C", dir, "worktree", "remove", "--force", wt).Run()
 	pattern := "^(" + strings.Join(tests, "|") + ")$"
-	test := exec.Command("go", "test", "-run", pattern, "./...")
+	// Same environment as scripts/check.sh, so a base failure is never just a different setup.
+	test := exec.Command("go", "test", "-skip", "TestSidebarLayoutHook", "-run", pattern, "./...")
 	test.Dir = wt
+	test.Env = append(os.Environ(), "TMPDIR=/tmp")
 	out, _ := test.CombinedOutput()
 	return board.FailedTests(string(out))
 }
