@@ -112,3 +112,16 @@ export function splitSystem(text: string): { text: string; notes: string[] } {
     .trim()
   return { text: rest, notes }
 }
+
+// createdTask: the ticket a tool call created (MCP task_add or `tagent task add`); both print the new id.
+export function createdTask(row: Row): { id: string; title?: string } | undefined {
+  if (row.kind !== "tool" || !row.output) return undefined
+  const t = row.call.tool ?? {}
+  const id = /^\s*(\d+)\s*$/.exec(row.output)?.[1]
+  if (!id) return undefined
+  if (/task_add$/.test(t.name ?? "")) {
+    try { return { id, title: (JSON.parse(t.input ?? "") as { title?: string }).title } } catch { return { id } }
+  }
+  if (/^bash$/i.test(t.name ?? "") && /\btagent\s+task\s+add\b/.test(t.input ?? "")) return { id }
+  return undefined
+}

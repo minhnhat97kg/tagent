@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Bubble, Composer, Fold, Markup, Typing, chatColumn, chatIndent, composerInput, sendButton } from "@/components/ChatParts"
 import { paneInput } from "@/lib/paneInput"
-import { clock, currentModel, runningTool, splitSystem, toRows, type Feed, type Item, type Row } from "@/lib/transcript"
+import { clock, createdTask, currentModel, runningTool, splitSystem, toRows, type Feed, type Item, type Row } from "@/lib/transcript"
 import { cn } from "@/lib/utils"
 import { effortLevels } from "@/lib/roles"
 import { commandMatches } from "@/lib/harnessCommands"
@@ -213,7 +213,7 @@ export function AgentChat({ pane, onOpenTerminal, onUnavailable, project, onSave
   const status = statusLabel(feed?.status, tool)
   const busy = feed?.status === "running" || feed?.status === "background"
   // Work rows (tool calls, reasoning) fold into WorkGroup; a message or a question is rendered as it is.
-  const renderRow = (r: Row) => r.kind === "msg" ? <Message key={r.item.id} item={r.item} onSave={onSave} /> : <AskCard key={r.call.id} ask={toAsk(r)!} answer={r.output === undefined ? undefined : cleanAnswer(r.output)} actions={r.output === undefined ? actions : undefined} picked={r.output === undefined ? picked : undefined} />
+  const renderRow = (r: Row) => r.kind === "msg" ? <Message key={r.item.id} item={r.item} onSave={onSave} /> : createdTask(r) ? <TaskCard key={r.call.id} row={r} project={project} /> : <AskCard key={r.call.id} ask={toAsk(r)!} answer={r.output === undefined ? undefined : cleanAnswer(r.output)} actions={r.output === undefined ? actions : undefined} picked={r.output === undefined ? picked : undefined} />
   const renderSeg = (seg: Row[]) => isWork(seg[0]!) ? <WorkGroup key={rowKey(seg[0]!)} rows={seg} /> : renderRow(seg[0]!)
   return <div className="flex min-h-0 flex-1 flex-col">
     <div className="flex shrink-0 items-center gap-2 border-b px-3 py-1">
@@ -459,7 +459,22 @@ function toAsk(row: ToolRow): AskView | undefined {
 }
 
 // Work: tool calls and reasoning with no message between them fold into one card.
-const isWork = (r: Row) => r.kind === "tool" ? !isQuestion(r) : r.item.role === "thinking"
+const isWork = (r: Row) => r.kind === "tool" ? !isQuestion(r) && !createdTask(r) : r.item.role === "thinking"
+
+// TaskCard: a ticket the agent just created, linked to its run page; title and status come from the board when it has it.
+function TaskCard({ row, project }: { row: ToolRow; project?: Project }) {
+  const made = createdTask(row)!
+  const task = project?.tasks?.find(t => t.id === made.id)
+  const href = `#/runs/${encodeURIComponent(made.id)}${project?.dir ? `?dir=${encodeURIComponent(project.dir)}` : ""}`
+  return <div className={chatIndent}>
+    <a href={href} className="flex min-w-0 items-center gap-2 rounded-lg border bg-card px-3 py-2 text-sm hover:bg-accent">
+      <ListTodo className="size-4 shrink-0 text-teal-700 dark:text-teal-400" />
+      <span className="shrink-0 font-mono text-xs text-muted-foreground">#{made.id}</span>
+      <span className="min-w-0 truncate">{task?.title || made.title || "New task"}</span>
+      {task?.status && <span className="ml-auto shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">{task.status}</span>}
+    </a>
+  </div>
+}
 const rowKey = (r: Row) => r.kind === "msg" ? r.item.id : r.call.id
 function segments(rows: Row[]): Row[][] {
   const out: Row[][] = []

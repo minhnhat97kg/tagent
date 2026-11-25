@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from "vitest"
-import { clock, getMode, runningTool, setMode, splitSystem, toRows, type Item } from "./transcript"
+import { clock, createdTask, getMode, runningTool, setMode, splitSystem, toRows, type Item } from "./transcript"
 
 afterEach(() => { vi.restoreAllMocks() })
 
@@ -54,4 +54,13 @@ test("clock shows HH:MM today, with the date for older messages, and nothing whe
   expect(clock("2026-11-24T09:05:00", now)).toMatch(/^\D+ \d{1,2} \d{2}:\d{2}$/)
   expect(clock(undefined, now)).toBe("")
   expect(clock("not a time", now)).toBe("")
+})
+
+test("createdTask finds tickets made by MCP task_add or `tagent task add`, nothing else", () => {
+  const row = (name: string, input: string, output?: string) => ({ kind: "tool" as const, call: { id: "c", role: "tool" as const, tool: { name, input, label: name } }, output })
+  expect(createdTask(row("mcp__tagent__task_add", '{"title":"Fix it"}', "70"))).toEqual({ id: "70", title: "Fix it" })
+  expect(createdTask(row("Bash", '{"command":"./bin/tagent task add --desc x \\"T\\""}', "71\n"))).toEqual({ id: "71" })
+  expect(createdTask(row("Bash", '{"command":"tagent task ls"}', "71"))).toBeUndefined()
+  expect(createdTask(row("mcp__tagent__task_add", "{}", "error: title required"))).toBeUndefined()
+  expect(createdTask(row("mcp__tagent__task_add", "{}"))).toBeUndefined()
 })

@@ -62,6 +62,6 @@ export const sendButton = "size-7 shrink-0 self-end rounded-full max-md:size-9"
 // Memoized: a new poll appends items, and the messages already shown must not be parsed again.
 export const Markup = memo(function Markup({ text }: { text: string }) {
   return <div className="space-y-2 [&_a]:underline [&_blockquote]:border-l-2 [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:font-mono [&_code]:text-[12px] [&_h1]:text-base [&_h1]:font-semibold [&_h2]:text-[15px] [&_h2]:font-semibold [&_h3]:font-semibold [&_hr]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_pre]:overflow-auto [&_pre]:rounded-lg [&_pre]:border [&_pre]:bg-muted [&_pre]:p-2.5 [&_pre]:text-[12px] [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_table]:block [&_table]:overflow-x-auto [&_td]:border [&_td]:px-2 [&_td]:py-1 [&_th]:border [&_th]:bg-muted/50 [&_th]:px-2 [&_th]:py-1 [&_th]:text-left [&_ul]:list-disc [&_ul]:pl-5 [&_li]:my-0.5">
-    <Markdown skipHtml remarkPlugins={[remarkGfm]} components={{ a: ({ node: _n, ...p }) => <a {...p} target="_blank" rel="noreferrer" /> }}>{text}</Markdown>
+    <Markdown skipHtml remarkPlugins={[remarkGfm]} components={{ a: ({ node: _n, ...p }) => <a {...p} target="_blank" rel="noreferrer" />, img: ({ node: _n, ...p }) => <a href={p.src} target="_blank" rel="noreferrer"><img {...p} className="max-h-80 max-w-full cursor-zoom-in rounded-lg border" /></a> }}>{text}</Markdown>
   </div>
 })
