@@ -133,6 +133,7 @@ func dispatchBoardAction(a board.Action) error {
 	priority := 1
 	var note, browserProfile string
 	var remote workplace.Remote
+	var container string
 	if a.Event.Task != "" {
 		ticket, err := tasks.Get(scope, a.Event.Task)
 		if err != nil {
@@ -155,6 +156,10 @@ func dispatchBoardAction(a board.Action) error {
 			if r, ok := wp.(workplace.Remote); ok {
 				remote, a.LongLived = r, false
 				note = "Remote workplace: you run on " + r.Host + " in " + r.Dir + ". The tagent CLI, MCP ticket tools and hooks are not available here; ignore instructions to run `tagent task ...`. Reply with your verdict and outputs; a human moves the ticket."
+			}
+			if d, ok := wp.(workplace.Docker); ok {
+				container, a.LongLived = d.Container(ticket.ID), false
+				note = "Docker workplace: you run in container " + d.Container(ticket.ID) + " with the ticket's files at /work. The tagent CLI, MCP ticket tools and hooks are not available here; ignore instructions to run `tagent task ...`. Reply with your verdict and outputs; a human moves the ticket."
 			}
 		}
 	}
@@ -229,9 +234,9 @@ func dispatchBoardAction(a board.Action) error {
 		o.Effort = a.Effort
 		o.BoardRole, o.Preset = a.Agent, a.Preset
 		o.BrowserProfile = browserProfile
-		o.Remote = remote
-		if remote.Host != "" {
-			if err := ensureBoardScraper(); err != nil { // a remote pane's status comes only from the scraper
+		o.Remote, o.Container = remote, container
+		if remote.Host != "" || container != "" {
+			if err := ensureBoardScraper(); err != nil { // a remote or docker pane's status comes only from the scraper
 				return err
 			}
 		}

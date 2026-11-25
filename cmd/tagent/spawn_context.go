@@ -35,7 +35,7 @@ func roleArgs(o spawnOpts, boardRole string) ([]string, error) {
 	if !rc.Set() {
 		return nil, nil
 	}
-	if o.Remote.Host != "" {
+	if o.Remote.Host != "" || o.Container != "" { // neither has tagent's MCP servers
 		var err error
 		if rc, err = remoteRoleContext(rc); err != nil {
 			return nil, err

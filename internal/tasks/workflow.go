@@ -38,6 +38,13 @@ func TicketWorkplace(scope string, t Task) (workplace.Workplace, error) {
 			return nil, fmt.Errorf("workplace remote needs remote: {host, dir} in board.yaml")
 		}
 		return base.Remote, nil
+	case "docker":
+		if base.Docker.Image == "" {
+			return nil, fmt.Errorf("workplace docker needs docker: {image} in board.yaml")
+		}
+		d := base.Docker
+		d.Base, d.Keep = realpath(filepath.Join(sharedctx.Dir(scope), "docker")), w.Cleanup == "keep"
+		return d, nil
 	}
 	return workplace.Git{Keep: w.Cleanup == "keep"}, nil
 }

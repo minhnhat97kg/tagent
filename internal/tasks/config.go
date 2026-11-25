@@ -87,6 +87,8 @@ type BoardConfig struct {
 	Pricing map[string]ModelPrice `yaml:"pricing,omitempty"`
 	// Remote is the host and dir of workplace: remote tickets.
 	Remote workplace.Remote `yaml:"remote,omitempty"`
+	// Docker is the image of workplace: docker tickets' containers.
+	Docker workplace.Docker `yaml:"docker,omitempty"`
 
 	Legacy              bool     `yaml:"-"` // statuses were converted to the implicit workflow "board"
 	Warnings            []string `yaml:"-"`
@@ -355,6 +357,11 @@ func ParseBoardConfigFor(dir string, b []byte) (BoardConfig, error) {
 	if c.Remote != (workplace.Remote{}) {
 		if err := c.Remote.Validate(); err != nil {
 			return c, configErr(lines.top["remote"], "%w", err)
+		}
+	}
+	if c.Docker != (workplace.Docker{}) {
+		if err := c.Docker.Validate(); err != nil {
+			return c, configErr(lines.top["docker"], "%w", err)
 		}
 	}
 	for i, t := range c.Triggers {

@@ -39,6 +39,7 @@ type spawnOpts struct {
 	BoardRole, Preset                     string           // board.yaml role whose context applies; preset "scout" overrides it
 	BrowserProfile                        string           // a browser ticket's Chrome profile dir; set on the browser MCP server's args
 	Remote                                workplace.Remote // a remote ticket's host and dir: the harness runs over ssh there (empty = local)
+	Container                             string           // a docker ticket's container: the harness runs in it via docker exec (empty = not docker)
 }
 
 // Pane options recording how an agent was started (restore, merge).
@@ -160,7 +161,7 @@ func spawnAgent(o spawnOpts) (pane, warn string, err error) {
 	}
 	// Only a legacy file in the running harness's own agents directory is loaded by
 	// that harness natively. App-owned instructions arrive in the dispatch prompt.
-	native := o.Remote.Host == "" && o.Role != "" && role.Native && role.Harness == roles.Harness(o.Agent) // the host has no local role file
+	native := o.Remote.Host == "" && o.Container == "" && o.Role != "" && role.Native && role.Harness == roles.Harness(o.Agent) // the host has no local role file
 	roleEnv := ""
 	if native && o.ConfigDir != o.Cwd && (role.Harness == "claude" || role.Harness == "opencode") {
 		config, e := nativeRoleConfig(role)
@@ -209,6 +210,9 @@ func spawnAgent(o spawnOpts) (pane, warn string, err error) {
 		// Keepalives: a silent network drop ends ssh (and so the pane) after ~45 s.
 		command = "exec ssh -t -o BatchMode=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=3 " + setup.ShellQuote(o.Remote.Host) + " " + setup.ShellQuote("cd "+setup.ShellQuote(o.Remote.Dir)+" && exec "+command)
 	}
+	if o.Container != "" {
+		command = "exec docker exec -it -w /work " + setup.ShellQuote(o.Container) + " sh -c " + setup.ShellQuote(command)
+	}
 	win := o.Window
 	if win == "" {
 		win = o.Name
@@ -228,7 +232,7 @@ func spawnAgent(o spawnOpts) (pane, warn string, err error) {
 	if o.Terminal {
 		tmux.SetPaneOption(pane, tmux.PaneKeep, "1")
 	}
-	if o.Remote.Host != "" {
+	if o.Remote.Host != "" || o.Container != "" {
 		// Src first: a scrape tick between the two writes must not see a hooked pane.
 		tmux.SetPaneOption(pane, tmux.PaneAgentSrc, tmux.AgentSrcRemote)
 		tmux.SetPaneOption(pane, tmux.PaneAgent, roles.Harness(o.Agent))

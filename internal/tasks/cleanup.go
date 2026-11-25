@@ -76,7 +76,7 @@ func cleanupDone(scope, id, note string) {
 	var keepErr error
 	switch wp.(type) {
 	case workplace.Remote: // the files are on another host: nothing here to keep
-	case workplace.Folder, workplace.Browser: // Browser.Output is its captures dir, so the profile is never walked
+	case workplace.Folder, workplace.Browser, workplace.Docker: // Browser.Output is its captures dir, so the profile is never walked; Docker.Output is the /work mount
 		keepErr = keepFolder(scope, id, wp.Output(r, id))
 	default:
 		keepOutputs(scope, id, wp.Output(r, id))
@@ -91,7 +91,7 @@ func cleanupDone(scope, id, note string) {
 	notes := wp.Cleanup(r, id)
 	for _, n := range notes {
 		DispatchAudit(scope, id, n)
-		if strings.HasPrefix(n, "cleanup: kept worktree") || strings.HasPrefix(n, "cleanup: kept folder") { // its agents may still be working in it
+		if strings.HasPrefix(n, "cleanup: kept worktree") || strings.HasPrefix(n, "cleanup: kept folder") || strings.HasPrefix(n, "cleanup: kept container") { // its agents may still be working in it
 			return
 		}
 	}

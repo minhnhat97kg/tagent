@@ -59,17 +59,20 @@ func TestCleanupKey(t *testing.T) {
 
 func TestWorkplaceKey(t *testing.T) {
 	const job = "jobs:\n  a: {run: x}\n"
-	for src, want := range map[string]string{job: "", "workplace: git-worktree\n" + job: "git-worktree", "workplace: none\n" + job: "none", "workplace: folder\n" + job: "folder", "workplace: browser\n" + job: "browser", "workplace: remote\njobs:\n  a: {agent: x}\n": "remote"} {
+	for src, want := range map[string]string{job: "", "workplace: git-worktree\n" + job: "git-worktree", "workplace: none\n" + job: "none", "workplace: folder\n" + job: "folder", "workplace: browser\n" + job: "browser", "workplace: remote\njobs:\n  a: {agent: x}\n": "remote", "workplace: docker\njobs:\n  a: {agent: x}\n": "docker"} {
 		if w, err := Parse([]byte(src)); err != nil || w.Workplace != want {
 			t.Fatalf("%q: %q %v", src, w.Workplace, err)
 		}
 	}
-	for _, src := range []string{"workplace: docker\n" + job, "workplace:\n" + job, "workplace: [none]\n" + job} {
+	for _, src := range []string{"workplace:\n" + job, "workplace: [none]\n" + job} {
 		if _, err := Parse([]byte(src)); ErrorLine(err) != 1 {
 			t.Fatalf("%q accepted or wrong line: %v", src, err)
 		}
 	}
 	if _, err := Parse([]byte("workplace: remote\njobs:\n  a: {run: x}\n")); ErrorLine(err) != 3 {
 		t.Fatalf("run job in remote workplace accepted or wrong line: %v", err)
+	}
+	if _, err := Parse([]byte("workplace: docker\njobs:\n  a: {run: x}\n")); ErrorLine(err) != 3 {
+		t.Fatalf("run job in docker workplace accepted or wrong line: %v", err)
 	}
 }

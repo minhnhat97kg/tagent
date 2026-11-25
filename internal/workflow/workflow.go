@@ -80,7 +80,7 @@ type Workflow struct {
 	Name, File  string
 	Description string
 	Global      bool
-	Workplace   string // "" or "git-worktree" (default), "none": run in the main root, "folder": a plain directory of files, "browser": a Chrome profile and captures, or "remote": the agent runs over ssh in board.yaml's remote dir
+	Workplace   string // "" or "git-worktree" (default), "none": run in the main root, "folder": a plain directory of files, "browser": a Chrome profile and captures, "remote": the agent runs over ssh in board.yaml's remote dir, or "docker": the agent runs in a container of board.yaml's docker image
 	Cleanup     string // "" or "remove" (default), or "keep": done keeps the worktree and its branch (or the folder, or the browser profile)
 	Inputs      map[string]Input
 	Jobs        []Job
@@ -108,10 +108,10 @@ func Parse(b []byte) (Workflow, error) {
 	w := Workflow{Name: raw.Name, Description: raw.Description, Inputs: raw.Inputs}
 	if raw.Workplace.Kind != 0 {
 		switch raw.Workplace.Value {
-		case "git-worktree", "none", "folder", "browser", "remote":
+		case "git-worktree", "none", "folder", "browser", "remote", "docker":
 			w.Workplace = raw.Workplace.Value
 		default:
-			return w, errAt(raw.Workplace.Line, "unknown workplace %q (git-worktree, none, folder, browser or remote)", raw.Workplace.Value)
+			return w, errAt(raw.Workplace.Line, "unknown workplace %q (git-worktree, none, folder, browser, remote or docker)", raw.Workplace.Value)
 		}
 	}
 	if raw.Cleanup.Kind != 0 {
@@ -168,8 +168,8 @@ func Parse(b []byte) (Workflow, error) {
 		if (j.Run == "") == (j.Agent == "") || (j.Run != "" && (j.Prompt != "" || j.Model != "")) || j.MaxLoops < 0 {
 			return w, errAt(key.Line, "job %s requires run or agent (+ optional prompt)", j.ID)
 		}
-		if j.Run != "" && w.Workplace == "remote" {
-			return w, errAt(key.Line, "job %s: run jobs cannot run in a remote workplace", j.ID)
+		if j.Run != "" && (w.Workplace == "remote" || w.Workplace == "docker") {
+			return w, errAt(key.Line, "job %s: run jobs cannot run in a %s workplace", j.ID, w.Workplace)
 		}
 		ids[j.ID] = j
 		lines[j.ID] = key.Line

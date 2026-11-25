@@ -12,7 +12,7 @@ Agent      named, long-lived instance of a role (harness, model, memory, skills)
      └─ Workplace?  0..1, typed:
           git-worktree  output: diff      gate: merge on done succeeds
           folder        output: files     gate: always passes (implemented, ticket 93)
-          remote        output: logs/files (ssh/docker)  gate: always passes (R1 ssh implemented, ticket 99; docker R2, hooks/MCP R3 open)
+          remote        output: logs/files (ssh/docker)  gate: always passes (R1 ssh implemented, ticket 99; R2 docker implemented, ticket 100; hooks/MCP R3 open)
           browser       output: captures      gate: always passes (implemented, tickets 97, 98)
           none          output: comment/report, no gate
 ```

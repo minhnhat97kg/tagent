@@ -386,7 +386,7 @@ Discovery and configuration use the main worktree root. Native Claude/OpenCode
 role definitions are passed inline from that checkout, so main-only or edited
 roles do not fall back to stale definitions in the ticket tree. Reuse validates
 the worktree's repository identity, expected branch and committed HEAD.
-A recipe's top-level `workplace:` key is `git-worktree` (the default), `none`, `folder`, `browser` or `remote`;
+A recipe's top-level `workplace:` key is `git-worktree` (the default), `none`, `folder`, `browser`, `remote` or `docker`;
 any other value fails validation on its line. A top-level `cleanup:` key is `remove`
 (the default) or `keep`, validated the same way; `keep` leaves a done ticket's worktree and
 branch in place (its work is still merged). With the default, workflow
@@ -431,7 +431,8 @@ of receiving the prompt. The host needs the harness on its non-interactive PATH,
 their dispatch prompt says so, they cannot run `tagent task`, and a human moves the ticket. `run:` jobs are rejected in a remote recipe, and `long_lived` is ignored for remote tickets. Nothing is
 copied and no git runs; on done the panes are closed and the ticket records `cleanup: remote files stay in
 <host>:<dir>`, so files on the host are removed by hand. Remote tickets share `dir` and can overwrite each other.
-Docker and remote hooks/MCP are not supported yet.
+With `workplace: docker` the harness runs in a container of the image set by `docker:` in `board.yaml` (e.g. `docker: {image: devbox:latest}`; the image must already exist, tagent builds nothing). The local `docker` CLI creates the ticket's container on first dispatch (`docker create --name tagent-<id> -v <dir>:/work -w /work <image> tail -f /dev/null`, then `docker start`; a re-dispatch only starts it again), and each pane runs `docker exec -it -w /work tagent-<id> sh -c '<harness> …'`. `<dir>` is the ticket's own directory under the shared context (`folder`-style, with its files attached on done). The image must hold the harness and its auth: tagent does not put them there. Like remote tickets there are no tagent MCP/hooks, `run:` jobs are rejected, and `long_lived` is ignored. On done the container is removed with its directory (`cleanup: keep` keeps both and records `cleanup: kept container tagent-<id>`, which keeps the panes open). A failed `docker rm` keeps the container and its directory and says so on the ticket.
+Hooks and MCP are not supported for remote or docker agents yet.
 On done, the ticket's chat and role panes are closed after the worktree removal, never
 during it. A worktree kept for uncommitted changes keeps its panes, since its agents may still
 be working in it. Only the done step closes panes; the dispatcher does not.
