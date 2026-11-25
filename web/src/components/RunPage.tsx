@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react"
-import { ArrowLeft, ArrowRight, CircleDot, Loader2, Pencil, Repeat, Terminal } from "lucide-react"
+import { ArrowLeft, CircleDot, Loader2, Pencil, Repeat, Terminal } from "lucide-react"
 import { api } from "@/api"
 import { usePoll } from "@/hooks/usePoll"
 import { enc, nav } from "@/hooks/useRoute"
@@ -104,11 +104,11 @@ function Entry({ e, prev, live, clock, attachment, open, openButton }: {
   // The first CI line is the exit code, already shown; the rest is the failure summary.
   const ciSummary = e.exit_code === undefined ? "" : (e.comment ?? "").split("\n").slice(1).join("\n").trim()
   return <li className="rounded-lg border bg-card p-2.5 shadow-sm">
-    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-      <span className="inline-flex min-w-0 items-center gap-1 text-[13px] font-medium">{e.loop > 1 && <Repeat className="size-3.5 shrink-0 text-amber-600" />}<span className="truncate">{entryLabel(e, prev)}</span></span>
-      <span className={`rounded px-1.5 py-px text-[11px] ${chip.cls}`}>{chip.label}</span>
+    <div className="flex items-center gap-x-2">
+      <span className="inline-flex min-w-0 shrink items-center gap-1 text-[13px] font-medium">{e.loop > 1 && <Repeat className="size-3.5 shrink-0 text-amber-600" />}<span className="truncate">{entryLabel(e, prev)}</span></span>
+      <span className={`shrink-0 rounded px-1.5 py-px text-[11px] ${chip.cls}`}>{chip.label}</span>
       {(e.role || e.harness) && <span className="inline-flex min-w-0 items-center gap-1 text-[11.5px] text-muted-foreground"><Avatar role={e.role ?? ""} /><span className="truncate">{[e.role, e.harness, e.model].filter(Boolean).join(" · ")}</span></span>}
-      <span className="ml-auto shrink-0 text-[11px] tabular-nums text-muted-foreground">{clock(e.start)} <ArrowRight className="inline size-3" /> {e.end ? clock(e.end) : "now"} · {formatDuration(e.duration)}</span>
+      <span className="ml-auto shrink-0 text-[11px] tabular-nums text-muted-foreground" title={`${clock(e.start)} → ${e.end ? clock(e.end) : "now"}`}>{clock(e.start)} · {formatDuration(e.duration)}</span>
     </div>
     {e.pane && <p className="mt-1 text-[11.5px] text-muted-foreground">pane {live ? <a href={`#/agent/${enc(e.pane)}`} className="text-teal-700 underline-offset-2 hover:underline dark:text-teal-400">{e.pane_name || e.pane}</a> : <span>{e.pane_name || e.pane} · closed</span>}</p>}
     {e.reason && e.loop > 1 && <p className="mt-1 line-clamp-3 whitespace-pre-wrap text-[11.5px] text-amber-700 dark:text-amber-400">{e.reason}</p>}

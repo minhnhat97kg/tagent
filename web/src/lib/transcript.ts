@@ -117,11 +117,13 @@ export function splitSystem(text: string): { text: string; notes: string[] } {
 export function createdTask(row: Row): { id: string; title?: string } | undefined {
   if (row.kind !== "tool" || !row.output) return undefined
   const t = row.call.tool ?? {}
-  const id = /^\s*(\d+)\s*$/.exec(row.output)?.[1]
-  if (!id) return undefined
   if (/task_add$/.test(t.name ?? "")) {
+    const id = /^\s*(\d+)\s*$/.exec(row.output)?.[1]
+    if (!id) return undefined
     try { return { id, title: (JSON.parse(t.input ?? "") as { title?: string }).title } } catch { return { id } }
   }
-  if (/^bash$/i.test(t.name ?? "") && /\btagent\s+task\s+add\b/.test(t.input ?? "")) return { id }
+  // Bash: `tagent task add` may be chained with other commands, so only its first output line must be the id.
+  const id = /^\s*(\d+)\s*(?:\n|$)/.exec(row.output)?.[1]
+  if (id && /^bash$/i.test(t.name ?? "") && /\btagent\s+task\s+add\b/.test(t.input ?? "")) return { id }
   return undefined
 }

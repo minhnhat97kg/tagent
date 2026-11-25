@@ -61,6 +61,8 @@ test("createdTask finds tickets made by MCP task_add or `tagent task add`, nothi
   expect(createdTask(row("mcp__tagent__task_add", '{"title":"Fix it"}', "70"))).toEqual({ id: "70", title: "Fix it" })
   expect(createdTask(row("Bash", '{"command":"./bin/tagent task add --desc x \\"T\\""}', "71\n"))).toEqual({ id: "71" })
   expect(createdTask(row("Bash", '{"command":"tagent task ls"}', "71"))).toBeUndefined()
+  expect(createdTask(row("Bash", '{"command":"tagent task add T && tagent task move 72 backlog"}', "72\n72: T\nStatus: backlog"))).toEqual({ id: "72" })
+  expect(createdTask(row("Bash", '{"command":"tagent task add T; tagent task ls"}', "error: x\n73"))).toBeUndefined()
   expect(createdTask(row("mcp__tagent__task_add", "{}", "error: title required"))).toBeUndefined()
   expect(createdTask(row("mcp__tagent__task_add", "{}"))).toBeUndefined()
 })
