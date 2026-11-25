@@ -58,6 +58,10 @@ func (m Model) dashboardView() string {
 		return fitLine("tagent", w)
 	}
 	g := m.dashGeometry()
+	sx, sy := g.clampScroll(m.scrollX, m.scrollY)
+	if m.layoutEdit { // the pane being moved shows the heavy border; the companion has no card focus
+		m.focus = cardFocus(m.layoutSel)
+	}
 	repo := m.notesScope
 	if i := strings.LastIndexByte(repo, '-'); i > 0 {
 		repo = repo[:i]
@@ -79,31 +83,20 @@ func (m Model) dashboardView() string {
 		return m.boardPanel(title, pos, lines, r.w, r.h, focused)
 	}
 	cards := map[string]string{
-		"agents": card(g.agents, agentsName, agentsPos, m.agentRows(g.agents.w-4, g.agents.h-2), focus(0)),
-		"usage":  card(g.usage, usageName+"  "+rng, "", g.usageLines, focus(3)),
-		"tasks":  m.tasksCard(g.tasks.w, g.tasks.h, paneNum(2), focus(2)),
-		"wf":     m.workflowCard(g.wf.w, g.wf.h, paneNum(4)),
+		"agents":    card(g.agents, agentsName, agentsPos, m.agentRows(g.agents.w-4, g.agents.h-2), focus(0)),
+		"usage":     card(g.usage, usageName+"  "+rng, "", g.usageLines, focus(3)),
+		"tasks":     m.tasksCard(g.tasks.w, g.tasks.h, paneNum(2), focus(2)),
+		"workflows": m.workflowCard(g.wf.w, g.wf.h, paneNum(4)),
 	}
 	if g.comp.h > 0 {
 		_, avatar := m.companionPanel(g.comp.w)
-		cards["comp"] = card(g.comp, m.boardStyle(m.theme.TextPrimary).Bold(true).Render("◈ Companion"), "", avatar, false)
-	}
-	stack := func(names ...string) string {
-		var parts []string
-		for _, n := range names {
-			if c, ok := cards[n]; ok {
-				parts = append(parts, c)
-			}
-		}
-		return strings.Join(parts, "\n")
+		cards["comp"] = card(g.comp, m.boardStyle(m.theme.TextPrimary).Bold(true).Render("◈ Companion"), "", avatar, m.layoutEdit && m.layoutSel == "comp")
 	}
 	var body string
 	if m.agentsOpen && m.agentDetail { // like the task detail: the whole pane
 		body = m.workflowCard(w, max(3, h-2), 0)
-	} else if g.wide {
-		body = lipgloss.JoinHorizontal(lipgloss.Top, stack("agents", "usage", "comp"), stack("tasks", "wf"))
 	} else {
-		body = stack("agents", "usage", "tasks", "wf", "comp")
+		body = strings.Join(composite(g.rects(), cards, sx, sy, g.bw, g.bh), "\n")
 	}
 	help := m.footerHints()
 	if m.taskDelete {
@@ -336,9 +329,89 @@ type rect struct{ x, y, w, h int }
 // and mouse hit-testing. y counts from the top bar (row 0).
 type dashGeom struct {
 	wide                           bool
+	bw, bh                         int // the body (the viewport the canvas scrolls in), in columns and rows
 	agents, usage, comp, tasks, wf rect
 	usageLines                     []string
 }
+
+// rects are the cards by layout id (see layoutIDs); a card with h 0 is not shown.
+func (g dashGeom) rects() map[string]rect {
+	return map[string]rect{"agents": g.agents, "usage": g.usage, "comp": g.comp, "tasks": g.tasks, "workflows": g.wf}
+}
+
+// interior reports whether (x, y) is inside a card's border.
+func (g dashGeom) interior(x, y int) bool {
+	for _, r := range g.rects() {
+		if r.h > 0 && x > r.x && x < r.x+r.w-1 && y > r.y && y < r.y+r.h-1 {
+			return true
+		}
+	}
+	return false
+}
+
+// clampScroll keeps the canvas offset on the canvas: it may overflow right and
+// down, never past the far edge of its last card.
+func (g dashGeom) clampScroll(x, y int) (int, int) {
+	maxX, maxY := 0, 0
+	for _, r := range g.rects() {
+		if r.h > 0 {
+			maxX = max(maxX, r.x+r.w-g.bw)
+			maxY = max(maxY, r.y+r.h-1-g.bh)
+		}
+	}
+	return max(0, min(x, maxX)), max(0, min(y, maxY))
+}
+
+// composite draws the window of the canvas at (scrollX, scrollY) that is width x
+// height: each line is the cards covering its row, left to right, with spaces
+// between them. rects are screen rows (row 0 is the top bar), so y 1 is the
+// first body row.
+func composite(rects map[string]rect, cards map[string]string, scrollX, scrollY, width, height int) []string {
+	lines := make(map[string][]string, len(cards))
+	for id, c := range cards {
+		lines[id] = strings.Split(c, "\n")
+	}
+	out := make([]string, height)
+	for i := range out {
+		row := scrollY + 1 + i
+		var covering []string
+		for id, r := range rects {
+			if _, ok := lines[id]; ok && r.h > 0 && row >= r.y && row < r.y+r.h {
+				covering = append(covering, id)
+			}
+		}
+		slices.SortFunc(covering, func(a, b string) int { return rects[a].x - rects[b].x })
+		var b strings.Builder
+		col := 0
+		for _, id := range covering {
+			r := rects[id]
+			cell := ""
+			if k := row - r.y; k < len(lines[id]) {
+				cell = lines[id][k]
+			}
+			b.WriteString(strings.Repeat(" ", max(0, r.x-col)))
+			b.WriteString(ansi.Truncate(cell, r.w, ""))
+			b.WriteString(strings.Repeat(" ", max(0, r.w-ansi.StringWidth(cell))))
+			col = r.x + r.w
+		}
+		b.WriteString(strings.Repeat(" ", max(0, scrollX+width-col)))
+		out[i] = ansi.Cut(b.String(), scrollX, scrollX+width)
+	}
+	return out
+}
+
+// cardFocus is the focus value of a card's layout id (-1: none, the companion).
+func cardFocus(id string) int {
+	for f, c := range cardIDs {
+		if c == id {
+			return f
+		}
+	}
+	return -1
+}
+
+// cardIDs are the Tab-order cards by focus value, as layout ids.
+var cardIDs = map[int]string{cardAgents: "agents", cardUsage: "usage", cardTasks: "tasks", cardWorkflows: "workflows"}
 
 // focusOrder is the Tab order (focus values): Agents, Usage, Tasks,
 // Workflows. Its index + 1 is the card's [n] number.
@@ -362,13 +435,24 @@ const (
 	minWfH     = 8
 )
 
-// dashGeometry: wide = left column (Agents, Usage, Companion)
+// dashGeometry is the cards' rectangles: the saved layout (layout.json, merged
+// onto the default) or the layout being edited; with neither, the default
+// (defaultGeometry).
+func (m Model) dashGeometry() dashGeom {
+	def := m.defaultGeometry()
+	if boxes, ok := m.customBoxes(def); ok {
+		return m.geometryFrom(boxes, def)
+	}
+	return def
+}
+
+// defaultGeometry: wide = left column (Agents, Usage, Companion)
 // beside Tasks over Workflows; narrow or short = all cards stacked in Tab
 // order. Every card is always present and the cards together fill the body
 // (h-2 rows) exactly: each keeps a minimum height, Tasks and Workflows take
 // the spare rows, and a short column shrinks the cards instead of leaving a
 // gap under the last one (split).
-func (m Model) dashGeometry() dashGeom {
+func (m Model) defaultGeometry() dashGeom {
 	w, h := m.width, m.height
 	if w <= 0 {
 		w = fallbackWidth
@@ -378,7 +462,7 @@ func (m Model) dashGeometry() dashGeom {
 	}
 	width := max(6, w-1)
 	bh := max(6, h-2) // minus top bar and footer
-	g := dashGeom{wide: w >= 90}
+	g := dashGeom{wide: m.wideLayout(), bw: width, bh: bh}
 	left := width
 	if g.wide {
 		left = min(44, max(38, width*40/100))

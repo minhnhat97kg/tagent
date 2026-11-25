@@ -158,10 +158,16 @@ ticket detail (`a` opens the list). See [attachment limits and previews](docs/bo
 | `j` `k` | focused list | select an agent or task; selected task details stay visible |
 | `s` / `T` / `x` | focused task | start with its type (picker if none) / type picker (todo) / confirm task deletion |
 | `[` `]` | sidebar / dashboard | change chart range: 24 hours, 7 days, 30 days |
+| `M` | dashboard | move and resize the panes: `h j k l` move, `H J K L` shrink width / grow height / shrink height / grow width, `tab` select, `enter` save, `esc` discard, `0` reset to the default |
 
 The sidebar and zoomed dashboard use one view and one process. Narrow panes
 stack analytics, agents, tasks, and detail. Wide panes place agents and tasks
 side by side, with session history below.
+
+Press `M` on the dashboard to change the layout. Panes can overflow the
+terminal (the dashboard scrolls to the selected pane) or leave gaps. The layout
+is saved in `layout.json` next to `config.conf`, one for narrow (under 90
+columns) and one for wide, and survives restarts.
 
 ### CLI
 

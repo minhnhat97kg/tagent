@@ -30,10 +30,14 @@ const (
 	paneWorkflowView
 	paneBoardConfig
 	paneTaskDetail
+	paneLayoutEdit
 )
 
 // focused derives the pane that gets the keys from the screen and focus flags.
 func (m Model) focused() paneID {
+	if m.layoutEdit {
+		return paneLayoutEdit
+	}
 	if m.boardMode {
 		switch {
 		case m.boardDrawer:
@@ -86,6 +90,7 @@ var panes = map[paneID]pane{
 	paneWorkflowView:   simplePane{"Board · Workflow view", Model.flowHints, Model.flowKey},
 	paneBoardConfig:    simplePane{"Board · Config view", Model.configHints, Model.configKey},
 	paneTaskDetail:     simplePane{"Board · Task detail", Model.detailHints, Model.detailKey},
+	paneLayoutEdit:     simplePane{"Layout", layoutHints, Model.layoutKey},
 }
 
 // hint is one key of a pane. Keys and Foot show in the footer line ("j/k card";
@@ -115,6 +120,7 @@ var globalHints = []hint{
 	{"", "", "?", "help"}, {"", "", ",", "settings"}, {"", "", "B", "board config (default workflow, agents, triggers)"}, {"", "", "q", "quit"},
 	{"", "", "Tab S-Tab", "next / previous card: Agents, Usage, Tasks, Workflows"}, {"", "", "[ ]", "chart range (1 / 7 / 30 days)"},
 	{"", "", "o", "expand / collapse (prefix + A)"}, {"", "", "b", "board (from the Tasks card)"},
+	{"", "", "M", "move and resize the panes (saved per width)"},
 }
 
 // globalKey is what every pane shares, tried after the focused pane.
@@ -153,13 +159,18 @@ func (m Model) globalKey(key string) (Model, tea.Cmd, bool) {
 			step = len(focusOrder) - 1
 		}
 		m.focus = focusOrder[(slices.Index(focusOrder, m.focus)+step)%len(focusOrder)]
-		return m, nil, true
+		return m.followPane(cardIDs[m.focus]), nil, true
 	case "B": // board config, from any dashboard card; esc returns here
 		m.boardMode, m.boardFlow, m.boardConfigView, m.boardDrawer = true, true, true, false
 		m.flowWorkflow, m.boardConfigScroll, m.flowFromDash = "", 0, true
 		return m, nil, true
 	case "[", "]": // chart range, from any card
 		return m.chartStep(key == "]"), nil, true
+	case "M": // move and resize the panes (pane_layout.go); not from the full-pane detail
+		if m.boardMode || (m.agentsOpen && m.agentDetail) {
+			return m, nil, false
+		}
+		return m.startLayoutEdit(), nil, true
 	}
 	return m, nil, false
 }

@@ -205,7 +205,7 @@ func (m Model) closeDetail() Model {
 // the dashboard; b opens the board.
 func (m Model) tasksCardKey(key string) (Model, tea.Cmd, bool) {
 	switch key {
-	case "tab", "shift+tab", "q", "ctrl+c", ",", "o", "B", "[", "]":
+	case "tab", "shift+tab", "q", "ctrl+c", ",", "o", "B", "[", "]", "M":
 		return m, nil, false
 	case "b":
 		return m.openBoard(), nil, true

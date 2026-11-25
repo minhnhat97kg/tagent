@@ -83,6 +83,7 @@ type hintCase struct {
 }
 
 func hintCases(t *testing.T) []hintCase {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir()) // the layout keys save; keep that out of the real config
 	flows := []workflow.Workflow{{Name: "research", File: "research.yml", Jobs: make([]workflow.Job, 1)}}
 	ags := []agents.Agent{{Name: "planner", Harness: "pi", Source: "board"}}
 	base := func() Model {
@@ -116,6 +117,7 @@ func hintCases(t *testing.T) []hintCase {
 		{"dashboard usage", dash(3, nil), dashHint, nil},
 		{"dashboard tasks", dash(2, nil), dashHint, nil},
 		{"dashboard workflows", dash(4, nil), dashHint, nil},
+		{"dashboard layout", dash(0, func(m *Model) { *m = m.startLayoutEdit() }), dashHint, nil},
 		{"dashboard agents tab", dash(4, func(m *Model) { m.agentsOpen = true }), dashHint, nil},
 		{"board tickets", board(func(m *Model) {}), boardHint, nil},
 		{"board workflows", board(func(m *Model) { m.focus = cardWorkflows }), boardHint, nil},

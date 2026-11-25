@@ -740,6 +740,15 @@ type Model struct {
 	taskCursor        int
 	taskDelete        bool
 	chartDays         int
+	// The free-form pane layout (panegrid.go): the saved boxes per width class,
+	// the boxes being edited (M), the selected pane, and the canvas scroll.
+	layouts     layoutFile
+	layoutEdit  bool
+	layoutSel   string
+	layoutDraft []paneBox
+	layoutDirty bool // enter saves only after a change, so an untouched layout stays auto-sized
+	scrollX     int
+	scrollY     int
 
 	// tmuxPane is the sidebar pane's own $TMUX_PANE — for future operations
 	// that need to distinguish "my own pane" (task 3, selecting a pane other
@@ -864,6 +873,7 @@ func NewModel(tmuxPane string) Model {
 		theme:      DefaultTheme(),
 		icons:      DefaultIcons(),
 		chartDays:  7,
+		layouts:    loadLayouts(),
 	}
 }
 
@@ -1330,6 +1340,9 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case RefreshMsg:
+		if !m.layoutEdit { // a save from another sidebar shows up here
+			m.layouts = loadLayouts()
+		}
 		m.sessions = msg.Sessions
 		m.sizeOwners = msg.SizeOwners
 		m.webStatus = msg.Web
@@ -1624,6 +1637,26 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 			}
 		}
 		return m, nil // Dashboard hit targets are not valid while an overlay replaces it.
+	}
+	if m.dashboard {
+		g := m.dashGeometry()
+		canvas := !(m.agentsOpen && m.agentDetail) // the Agents detail fills the pane unscrolled
+		sx, sy := 0, 0
+		if canvas {
+			sx, sy = g.clampScroll(m.scrollX, m.scrollY)
+		}
+		inBody := msg.Y >= 1 && msg.Y < m.height-1 // top bar and footer are not canvas rows
+		if canvas && inBody {                      // body rows are canvas rows: undo the scroll once, for every hit test below
+			msg.X, msg.Y = msg.X+sx, msg.Y+sy
+		}
+		if canvas && inBody && (msg.Button == tea.MouseButtonWheelUp || msg.Button == tea.MouseButtonWheelDown) {
+			if m.layoutEdit || !g.interior(msg.X, msg.Y) { // over empty canvas or a border: scroll the canvas
+				return m.scrollCanvas(g, map[bool]int{true: 3, false: -3}[msg.Button == tea.MouseButtonWheelDown]), nil
+			}
+		}
+		if m.layoutEdit { // clicks do nothing while a layout is being edited
+			return m, nil
+		}
 	}
 	if m.dashboard && msg.Button == tea.MouseButtonLeft && msg.Action == tea.MouseActionPress {
 		g := m.dashGeometry()

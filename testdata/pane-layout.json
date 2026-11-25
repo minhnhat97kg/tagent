@@ -1,0 +1,585 @@
+[
+  {
+    "name": "push down: the moved box stays, the other moves below it",
+    "minH": 3,
+    "saved": [
+      {
+        "id": "a",
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      {
+        "id": "b",
+        "x": 3,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      }
+    ],
+    "defaults": [
+      {
+        "id": "a",
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      {
+        "id": "b",
+        "x": 3,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      }
+    ],
+    "moved": "a",
+    "want": [
+      {
+        "id": "a",
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      {
+        "id": "b",
+        "x": 3,
+        "y": 4,
+        "w": 6,
+        "h": 4
+      }
+    ]
+  },
+  {
+    "name": "moved box stays even when it is listed last",
+    "minH": 3,
+    "saved": [
+      {
+        "id": "a",
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      {
+        "id": "b",
+        "x": 3,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      }
+    ],
+    "defaults": [
+      {
+        "id": "a",
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      {
+        "id": "b",
+        "x": 3,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      }
+    ],
+    "moved": "b",
+    "want": [
+      {
+        "id": "a",
+        "x": 0,
+        "y": 4,
+        "w": 6,
+        "h": 4
+      },
+      {
+        "id": "b",
+        "x": 3,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      }
+    ]
+  },
+  {
+    "name": "chain push: each pushed box pushes the next one",
+    "minH": 3,
+    "saved": [
+      {
+        "id": "a",
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      {
+        "id": "b",
+        "x": 0,
+        "y": 3,
+        "w": 6,
+        "h": 4
+      },
+      {
+        "id": "c",
+        "x": 0,
+        "y": 4,
+        "w": 6,
+        "h": 4
+      }
+    ],
+    "defaults": [
+      {
+        "id": "a",
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      {
+        "id": "b",
+        "x": 0,
+        "y": 3,
+        "w": 6,
+        "h": 4
+      },
+      {
+        "id": "c",
+        "x": 0,
+        "y": 4,
+        "w": 6,
+        "h": 4
+      }
+    ],
+    "moved": "a",
+    "want": [
+      {
+        "id": "a",
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      {
+        "id": "b",
+        "x": 0,
+        "y": 4,
+        "w": 6,
+        "h": 4
+      },
+      {
+        "id": "c",
+        "x": 0,
+        "y": 8,
+        "w": 6,
+        "h": 4
+      }
+    ]
+  },
+  {
+    "name": "gap preserved: boxes that do not overlap keep their rows",
+    "minH": 3,
+    "saved": [
+      {
+        "id": "a",
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 3
+      },
+      {
+        "id": "b",
+        "x": 0,
+        "y": 5,
+        "w": 6,
+        "h": 3
+      },
+      {
+        "id": "c",
+        "x": 8,
+        "y": 0,
+        "w": 4,
+        "h": 3
+      }
+    ],
+    "defaults": [
+      {
+        "id": "a",
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 3
+      },
+      {
+        "id": "b",
+        "x": 0,
+        "y": 5,
+        "w": 6,
+        "h": 3
+      },
+      {
+        "id": "c",
+        "x": 8,
+        "y": 0,
+        "w": 4,
+        "h": 3
+      }
+    ],
+    "moved": "",
+    "want": [
+      {
+        "id": "a",
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 3
+      },
+      {
+        "id": "b",
+        "x": 0,
+        "y": 5,
+        "w": 6,
+        "h": 3
+      },
+      {
+        "id": "c",
+        "x": 8,
+        "y": 0,
+        "w": 4,
+        "h": 3
+      }
+    ]
+  },
+  {
+    "name": "overflow past 12 units is allowed up to 24",
+    "minH": 3,
+    "saved": [
+      {
+        "id": "a",
+        "x": 10,
+        "y": 0,
+        "w": 10,
+        "h": 4
+      },
+      {
+        "id": "b",
+        "x": 20,
+        "y": 0,
+        "w": 8,
+        "h": 4
+      }
+    ],
+    "defaults": [
+      {
+        "id": "a",
+        "x": 10,
+        "y": 0,
+        "w": 10,
+        "h": 4
+      },
+      {
+        "id": "b",
+        "x": 20,
+        "y": 0,
+        "w": 8,
+        "h": 4
+      }
+    ],
+    "moved": "",
+    "want": [
+      {
+        "id": "a",
+        "x": 10,
+        "y": 0,
+        "w": 10,
+        "h": 4
+      },
+      {
+        "id": "b",
+        "x": 16,
+        "y": 4,
+        "w": 8,
+        "h": 4
+      }
+    ]
+  },
+  {
+    "name": "clamp: size, position and minimum height",
+    "minH": 3,
+    "saved": [
+      {
+        "id": "a",
+        "x": -3,
+        "y": -1,
+        "w": 1,
+        "h": 1
+      },
+      {
+        "id": "b",
+        "x": 5,
+        "y": 600,
+        "w": 4,
+        "h": 3
+      }
+    ],
+    "defaults": [
+      {
+        "id": "a",
+        "x": -3,
+        "y": -1,
+        "w": 1,
+        "h": 1
+      },
+      {
+        "id": "b",
+        "x": 5,
+        "y": 600,
+        "w": 4,
+        "h": 3
+      }
+    ],
+    "moved": "",
+    "want": [
+      {
+        "id": "a",
+        "x": 0,
+        "y": 0,
+        "w": 2,
+        "h": 3
+      },
+      {
+        "id": "b",
+        "x": 5,
+        "y": 500,
+        "w": 4,
+        "h": 3
+      }
+    ]
+  },
+  {
+    "name": "missing default id is appended below the lowest box",
+    "minH": 3,
+    "saved": [
+      {
+        "id": "a",
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      }
+    ],
+    "defaults": [
+      {
+        "id": "a",
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      {
+        "id": "b",
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      }
+    ],
+    "moved": "",
+    "want": [
+      {
+        "id": "a",
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      {
+        "id": "b",
+        "x": 6,
+        "y": 4,
+        "w": 6,
+        "h": 4
+      }
+    ]
+  },
+  {
+    "name": "unknown id is kept in storage",
+    "minH": 3,
+    "saved": [
+      {
+        "id": "a",
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      {
+        "id": "ext:notes",
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      }
+    ],
+    "defaults": [
+      {
+        "id": "a",
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      }
+    ],
+    "moved": "",
+    "want": [
+      {
+        "id": "a",
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      {
+        "id": "ext:notes",
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      }
+    ]
+  },
+  {
+    "name": "unknown box listed first does not push a drawn pane down",
+    "minH": 3,
+    "saved": [
+      {
+        "id": "ext:notes",
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 4
+      },
+      {
+        "id": "a",
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      }
+    ],
+    "defaults": [
+      {
+        "id": "a",
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      }
+    ],
+    "moved": "",
+    "want": [
+      {
+        "id": "a",
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      {
+        "id": "ext:notes",
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 4
+      }
+    ]
+  },
+  {
+    "name": "unknown non-custom id listed first does not push a drawn pane down",
+    "minH": 3,
+    "saved": [
+      {
+        "id": "foo",
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 4
+      },
+      {
+        "id": "a",
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      }
+    ],
+    "defaults": [
+      {
+        "id": "a",
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      }
+    ],
+    "moved": "",
+    "want": [
+      {
+        "id": "a",
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      {
+        "id": "foo",
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 4
+      }
+    ]
+  },
+  {
+    "name": "duplicate id: the first box wins",
+    "minH": 3,
+    "saved": [
+      {
+        "id": "a",
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      {
+        "id": "a",
+        "x": 0,
+        "y": 8,
+        "w": 6,
+        "h": 4
+      }
+    ],
+    "defaults": [
+      {
+        "id": "a",
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      }
+    ],
+    "moved": "",
+    "want": [
+      {
+        "id": "a",
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      }
+    ]
+  }
+]
