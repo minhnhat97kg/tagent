@@ -495,14 +495,15 @@ bounce reuses it). This is a regex heuristic: it can false-positive (e.g. "Node.
 or miss a name, costing one skipped or one extra cheap scout. A scout output over
 8000 characters is refused: shorten it and resubmit.
 
-### CI bounce and Haiku cap
+### CI bounce and Haiku context
 
 A CI failure sent back to a build status reuses the existing dev pane (no fresh
 pane) and gets the full log path (`Full CI log: ...`). A dead pane still starts
 fresh. Identical repeated CI failures are still blocked by `repeatedFailure`.
-A Claude pane whose model contains `haiku` starts with
-`CLAUDE_CODE_AUTO_COMPACT_WINDOW=100000` (the harness minimum) unless the
-environment already sets it. Compaction at that size was not measured live here.
+Haiku panes keep the harness's default compaction window. A forced 100K window
+(tried in #67) made Claude Code's autocompact thrash on a real UI ticket (#68): the
+fixed context plus the files being edited refilled it within three turns. Keep Haiku
+contexts small by splitting tickets and starting from the scout/plan output instead.
 
 ### Rollout (after merge)
 
@@ -511,7 +512,7 @@ The change is inert until the binary is installed and the workflows are copied.
 2. Copy `examples/workflows/*.yml` into `.tasks/workflows/` (merge local edits).
 3. Optionally set role context on the Agents page.
 4. Re-run one feature and one bugfix ticket; compare with `task show ID --all`:
-   fewer CI loops, lower lead tokens, no Haiku job above 100K cache write, and scout
+   fewer CI loops, lower lead tokens, and scout
    skipped when files are named.
 
 Verified in development: claude 2.1.332 tool and MCP flags (stream-json init

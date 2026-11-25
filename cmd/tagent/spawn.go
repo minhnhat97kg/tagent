@@ -179,10 +179,6 @@ func spawnAgent(o spawnOpts) (pane, warn string, err error) {
 			args = append(args, "-c", "developer_instructions="+strconv.Quote(text))
 		}
 	}
-	// Haiku bills 5x: a pane auto-compacts at 100K tokens instead of its default window.
-	if isClaude(o.Agent) && strings.Contains(o.Model, "haiku") && os.Getenv("CLAUDE_CODE_AUTO_COMPACT_WINDOW") == "" {
-		roleEnv = "env CLAUDE_CODE_AUTO_COMPACT_WINDOW=100000 " + strings.TrimPrefix(roleEnv, "env ")
-	}
 	command := roleEnv + setup.ShellQuote(o.Agent)
 	for _, a := range args {
 		command += " " + setup.ShellQuote(a)
