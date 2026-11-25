@@ -9,7 +9,8 @@ import (
 	"time"
 )
 
-func TestRetryDispatchAndCaps(t *testing.T) {
+// A retry re-dispatches the current step; it is not a rejection, so max_loops never blocks it.
+func TestRetryDispatchIgnoresMaxLoops(t *testing.T) {
 	dir, scope := setup(t, "statuses:\n  - {id: todo}\n  - {id: doing, role: builder, max_loops: 2}\n  - {id: blocked}\n  - {id: done}\n")
 	ticket, err := tasks.Add(scope, "work", nil)
 	if err != nil {
@@ -35,7 +36,7 @@ func TestRetryDispatchAndCaps(t *testing.T) {
 	run()
 	run()
 	got, _ := tasks.Get(scope, ticket.ID)
-	if calls != 2 || got.Status != "blocked" {
+	if calls != 3 || got.Status != "doing" {
 		t.Fatal(calls, got)
 	}
 }

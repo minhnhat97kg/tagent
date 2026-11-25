@@ -2,6 +2,7 @@ package board
 
 import (
 	"context"
+	"strings"
 	"tagent/internal/tasks"
 	"testing"
 	"time"
@@ -17,18 +18,27 @@ statuses:
 max_fires_per_hour: 1
 `
 
+// handBackConfig is jiraConfig with review handing the ticket back to build.
+var handBackConfig = strings.Replace(jiraConfig, "- {id: review}", "- {id: review, next: [build, blocked, done]}", 1)
+
 func TestStatusEntryReentryAndLoopLimit(t *testing.T) {
-	dir, scope := setup(t, jiraConfig)
+	dir, scope := setup(t, handBackConfig)
 	cfg, _ := tasks.LoadBoardConfig(dir)
 	task, _ := tasks.Add(scope, "ticket", []string{"ignored"})
+	if err := tasks.Move(scope, task.ID, "build", "", tasks.MutationOptions{Actor: "implementer"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := tasks.Move(scope, task.ID, "review", ""); err != nil {
+		t.Fatal(err)
+	}
 	for i := 1; i <= 3; i++ {
-		if err := tasks.Move(scope, task.ID, "build", "", tasks.MutationOptions{Actor: "implementer"}); err != nil {
+		// QA hands back to build: hand-back i of max_loops 2.
+		if err := tasks.Move(scope, task.ID, "build", "findings", tasks.MutationOptions{Actor: "qa"}); err != nil {
 			t.Fatal(err)
 		}
 		events, _ := tasks.ReadEvents(scope, 0)
 		ev := events[len(events)-1]
-		// Current task status may already differ; entry must use event destination.
-		task.Status = "review"
+		task, _ = tasks.Get(scope, task.ID)
 		actions, err := Actions(dir, cfg, ev, task)
 		if err != nil || len(actions) != 1 {
 			t.Fatal(actions, err)

@@ -37,7 +37,7 @@ Another role routes to its first status in the ticket's flow. Unknown or multipl
 distinct tags save the comment but keep the ticket blocked with a notice.
 Without history or for a roleless step, type a valid role explicitly. An unchanged
 prefill cancels. Resumed agents receive only the reply, not old comment history.
-`max_loops` counts entries since the last exit from blocked. Agents must include
+`max_loops` counts rejections (hand-backs to the on-failure status) since the last exit from blocked; the step that hit the cap still runs once more, and its next rejection blocks. Agents must include
 exactly one concrete question in their blocking move comment.
 
 A ticket is the work state. Status entry dispatches work; comments carry handoffs.
@@ -297,10 +297,11 @@ re-entered meanwhile, record a stale-result comment without overwriting it.
 No execution timeout or cancellation scheduler is provided. Commands run with
 local user privileges: only trust board configs you intend to execute.
 
-`max-loops` on a workflow job counts persisted status-change events into that
-status for the ticket, through the current event (all actors), across restarts. Entry N+1 moves to blocked
-with a system explanation instead of dispatching or running configured triggers
-for that entry. Safety blocking bypasses next and the fire cap.
+`max-loops` counts rejections, not entries: status-change events from a looped step
+to its on-failure status (all actors, across restarts, since the last exit from blocked).
+A task retry is not a rejection and never blocks: it re-dispatches the current step. The step that hit the cap still runs once more, and the rejection that exceeds the
+cap moves the ticket to blocked with a system reason such as
+`review rejected 4/3; last findings: ...`. Safety blocking bypasses next and the fire cap.
 
 ## Delivery and migration
 

@@ -376,6 +376,16 @@ func Actions(dir string, cfg tasks.BoardConfig, ev tasks.Event, t tasks.Task) ([
 			}
 		}
 	}
+	if ev.Kind == "status" && ev.From != ev.To {
+		// A hand-back past max_loops blocks instead of running the step again.
+		why, err := loopCapBlock(dir, cfg, ev, comment)
+		if err != nil {
+			return nil, err
+		}
+		if why != "" {
+			return []Action{{Dir: dir, Event: ev, Trigger: -1, BlockReason: why}}, nil
+		}
+	}
 	if (ev.Kind == "status" && ev.From != ev.To) || ev.Kind == "retry" {
 		for _, s := range cfg.Statuses {
 			if s.ID != ev.To {
@@ -396,28 +406,6 @@ func Actions(dir string, cfg tasks.BoardConfig, ev tasks.Event, t tasks.Task) ([
 			}
 			if s.Run != "" {
 				a.Skip = userSkip(t)
-			}
-			if s.MaxLoops > 0 {
-				history, err := tasks.ReadEvents(tasks.Scope(dir), 0)
-				if err != nil {
-					return nil, err
-				}
-				count := 0
-				for _, e := range history {
-					if e.Seq > ev.Seq || e.Task != ev.Task || (e.Kind != "status" && e.Kind != "retry") || (e.Kind == "status" && e.From == e.To) {
-						continue
-					}
-					if e.From == "blocked" {
-						count = 0
-					}
-					if e.To == s.ID {
-						count++
-					}
-				}
-				if count > s.MaxLoops {
-					a.BlockReason = fmt.Sprintf("Status %s exceeded max_loops %d (entry %d)", s.ID, s.MaxLoops, count)
-					return []Action{a}, nil
-				}
 			}
 			a.FreshAfter = 3
 			if r, ok := cfg.Roles[s.Role]; ok {

@@ -656,7 +656,7 @@ func (m Model) flowLines(width int) []string {
 			next += " · fail → " + s.Failure
 		}
 		if s.MaxLoops > 0 {
-			next += fmt.Sprintf(" · max %d loops, then blocked", s.MaxLoops)
+			next += fmt.Sprintf(" · max %d rejections, then blocked", s.MaxLoops)
 		}
 		lines = append(lines, boardFit("  "+strings.Repeat(" ", idw)+dim.Render(next), width))
 	}

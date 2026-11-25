@@ -12,7 +12,7 @@ blocked row (the editor prefills the interrupted role). The row shows the questi
 The same role returns to its interrupted step; another role selects its first
 status in the ticket's flow. Unknown or multiple distinct tags save without
 unblocking and show a notice. Missing history or roleless steps require typing a
-valid role. Resumed agents receive only the reply. `max_loops` resets on exit from
+valid role. Resumed agents receive only the reply. `max_loops` (rejections) resets on exit from
 blocked; ordinary non-blocked mentions are unchanged.
 
 ## If you were dispatched a ticket

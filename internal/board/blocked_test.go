@@ -7,7 +7,7 @@ import (
 )
 
 func TestBlockedReplyResetsLoopsAndContext(t *testing.T) {
-	dir, scope := setup(t, jiraConfig)
+	dir, scope := setup(t, handBackConfig)
 	cfg, _ := tasks.LoadBoardConfig(dir)
 	ticket, _ := tasks.Add(scope, "ticket", nil)
 	for i := 0; i < 3; i++ {
@@ -29,7 +29,7 @@ func TestBlockedReplyResetsLoopsAndContext(t *testing.T) {
 			t.Fatal(prompt)
 		}
 	}
-	for i := 0; i < 2; i++ {
+	for i := 0; i < 3; i++ {
 		tasks.Move(scope, ticket.ID, "review", "")
 		tasks.Move(scope, ticket.ID, "build", "")
 	}

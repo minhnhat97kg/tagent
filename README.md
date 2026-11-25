@@ -274,8 +274,8 @@ tagent task move ID build "Plan and verification strategy"
 ```
 
 Jobs with `run:` execute shell checks asynchronously and comment as `ci`, then
-move to their next/on-failure status. `max-loops` stops repeated entries at
-`blocked`, counting since the last exit from blocked.
+move to their next/on-failure status. `max-loops` counts rejections (hand-backs to the on-failure status) and blocks at the one past the cap,
+counting since the last exit from blocked.
 
 Agent roles refresh their pane on entry 3 by default (entries 1–2 reuse, 3 replaces,
 4 reuses, 5 replaces). Set `fresh_after` on a role to override the default 3

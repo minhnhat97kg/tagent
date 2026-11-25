@@ -127,6 +127,14 @@ jobs:
 	if e = tasks.Move(scope, ticket.ID, "review", ""); e != nil {
 		t.Fatal(e)
 	}
+	// max-loops 1 allows one hand-back: the review entry after it still runs.
+	a = actions()
+	if len(a) != 1 || a[0].BlockReason != "" {
+		t.Fatal(a)
+	}
+	if e = tasks.Move(scope, ticket.ID, "collect", "retry again"); e != nil {
+		t.Fatal(e)
+	}
 	a = actions()
 	if len(a) != 1 || a[0].BlockReason == "" {
 		t.Fatal(a)
