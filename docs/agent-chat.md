@@ -18,7 +18,7 @@ The mode is remembered per agent in this browser. The default is Chat on phones 
 - User messages (right) and assistant replies (left, Markdown with code blocks), newest at the bottom, each with the time it was written. The feed follows new messages until you scroll up.
 - A working indicator at the end of the thread while the agent runs; the status line in the header says whether it is working, waiting, idle or failed.
 - Each tool call as one line (`Edit Board.tsx`, `Bash go test ./...`); tap to see its input and output. Reasoning is collapsed.
-- A ticket the agent creates (MCP `task_add` or `tagent task add`) as its own card: `#id`, title and live status from the board, linking to the ticket's run page.
+- A ticket the agent creates (MCP `task_add` or `tagent task add`) as its own card: `#id`, title and live status from the board, tap opens the ticket drawer.
 - A status line: working (with the current tool), waiting for approval, idle, or error.
 - A composer: Enter sends and Shift+Enter adds a newline on desktop; the send button works on touch. Messages go through the same queue as `tagent send`: while the agent is busy or waiting, they wait and are delivered when it is idle. Queued messages are listed.
 

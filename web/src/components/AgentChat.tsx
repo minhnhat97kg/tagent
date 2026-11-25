@@ -465,14 +465,14 @@ const isWork = (r: Row) => r.kind === "tool" ? !isQuestion(r) && !createdTask(r)
 function TaskCard({ row, project }: { row: ToolRow; project?: Project }) {
   const made = createdTask(row)!
   const task = project?.tasks?.find(t => t.id === made.id)
-  const href = `#/runs/${encodeURIComponent(made.id)}${project?.dir ? `?dir=${encodeURIComponent(project.dir)}` : ""}`
+  const open = () => window.dispatchEvent(new CustomEvent("tagent:ticket", { detail: { id: made.id, dir: project?.dir } }))
   return <div className={chatIndent}>
-    <a href={href} className="flex min-w-0 items-center gap-2 rounded-lg border bg-card px-3 py-2 text-sm hover:bg-accent">
+    <button type="button" onClick={open} className="flex w-full min-w-0 items-center gap-2 rounded-lg border bg-card px-3 py-2 text-left text-sm hover:bg-accent">
       <ListTodo className="size-4 shrink-0 text-teal-700 dark:text-teal-400" />
       <span className="shrink-0 font-mono text-xs text-muted-foreground">#{made.id}</span>
       <span className="min-w-0 truncate">{task?.title || made.title || "New task"}</span>
       {task?.status && <span className="ml-auto shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">{task.status}</span>}
-    </a>
+    </button>
   </div>
 }
 const rowKey = (r: Row) => r.kind === "msg" ? r.item.id : r.call.id

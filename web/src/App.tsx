@@ -98,6 +98,18 @@ export default function App() {
   useAlerts(notices, n => 'agent' in n ? `${agentLabel(n.agent)}: ${n.agent.dialog?.question || n.agent.wait || n.agent.prompt}` : n.kind === 'config' ? n.message : n.task.title || n.reason)
   const [noticeTicket, setNoticeTicket] = useState<{id: string; reply: string; dir: string}>()
   const noticeOrigin = useRef<HTMLElement | null>(null)
+  // A ticket card in chat asks for its drawer with a "tagent:ticket" event ({id, dir}).
+  useEffect(() => {
+    const f = (e: Event) => {
+      const t = (e as CustomEvent<{ id: string; dir?: string }>).detail
+      const d = t.dir || dir
+      noticeOrigin.current = document.activeElement as HTMLElement
+      if (d !== dir) setDir(d)
+      setNoticeTicket({ dir: d, id: t.id, reply: '' })
+    }
+    window.addEventListener('tagent:ticket', f)
+    return () => window.removeEventListener('tagent:ticket', f)
+  }, [dir])
   const lastNotice = useRef<string | undefined>(undefined)
   useEffect(() => { if (agent?.pane) lastNotice.current = 'agent:' + agent.pane }, [agent?.pane])
   const openNotice = (n: Notice, reply = false) => {
