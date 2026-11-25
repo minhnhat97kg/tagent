@@ -269,7 +269,7 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
           if (e.key === "Home" || e.key === "End") { e.preventDefault(); pickTab(e.key === "Home" ? 0 : TABS.length - 1) }
         }}>{t.label}</button>)}
     </div>
-    {chatOff && <p role="status" className="-mt-3 flex items-start gap-1.5 rounded-md border border-amber-500/40 bg-amber-500/5 px-2 py-1.5 text-[11.5px] text-amber-700 dark:text-amber-400"><TriangleAlert className="mt-px size-3.5 shrink-0" /><span>Chat unavailable · {chat.info?.reason || "this ticket's chat cannot be read"}</span></p>}
+    {chatOff && <p role="status" className="-mt-1 flex items-start gap-1.5 rounded-md border border-amber-500/40 bg-amber-500/5 px-2 py-1.5 text-[11.5px] text-amber-700 dark:text-amber-400"><TriangleAlert className="mt-px size-3.5 shrink-0" /><span>Chat unavailable · {chat.info?.reason || "this ticket's chat cannot be read"}</span></p>}
     {tab === "details" && <div role="tabpanel" id="task-panel-details" aria-labelledby="task-tab-details" className="drawer-panel">
       <div className="meta-row">
         <span className="meta-item"><select aria-label="Task status" value={task.status} onChange={e => act(post("/api/tasks", { Dir: dir, Op: "set", ID: task.id, Status: e.target.value }).then(reload))}>{statuses.map(s => <option key={s}>{s}</option>)}</select><i className="status-dot" style={{ background: statusColor(task.status) }} /></span>
