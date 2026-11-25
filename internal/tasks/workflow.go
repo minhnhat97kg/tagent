@@ -27,7 +27,7 @@ func TicketWorkplace(scope string, t Task) (workplace.Workplace, error) {
 	if w.Workplace == "none" {
 		return workplace.None{}, nil
 	}
-	return workplace.Git{}, nil
+	return workplace.Git{Keep: w.Cleanup == "keep"}, nil
 }
 
 // ConfigForTask is the single per-ticket configuration boundary.

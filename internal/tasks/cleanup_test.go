@@ -255,6 +255,94 @@ func TestDoneConflictOnWorkflowTicketBlocks(t *testing.T) {
 	}
 }
 
+// panesFake lists one ticket pane and the given board panes for the ticket's repo.
+func panesFake(t *testing.T, ticketPane string, boardPanes ...string) *tmux.Fake {
+	t.Helper()
+	fake := tmux.NewFake()
+	t.Cleanup(tmux.SetRunner(fake))
+	fake.Set(ticketPane, "list-panes", "-a", "-F", "#{pane_id}|#{q:"+tmux.PaneTicket+"}|#{q:"+tmux.PaneAgent+"}|#{q:"+tmux.PaneStatusOpt+"}|#{q:pane_current_path}")
+	fake.Set(strings.Join(boardPanes, "\n"), "list-panes", "-a", "-F", "#{pane_id}|#{q:@board_target}|#{q:@pane_cwd}|#{q:pane_current_path}")
+	return fake
+}
+
+// killedPanes returns the panes killed, in order.
+func killedPanes(fake *tmux.Fake) string {
+	var killed []string
+	for _, c := range fake.Calls() {
+		if c[0] == "kill-pane" {
+			killed = append(killed, c[len(c)-1])
+		}
+	}
+	return strings.Join(killed, ",")
+}
+
+// Done closes the ticket's chat pane and its role panes once the worktree is gone;
+// the same ticket id in a foreign repo, or another ticket's pane, survives.
+func TestDoneClosesTicketPanesAfterRemoval(t *testing.T) {
+	repo, scope, id, wt := newMergeRepo(t)
+	foreign := t.TempDir()
+	fake := panesFake(t, "%1|"+scope+"#"+id+"|||"+repo,
+		"%2|researcher#"+id+"||"+wt,
+		"%3|researcher#"+id+"||"+foreign,
+		"%4|researcher#other||"+wt)
+	if err := Move(scope, id, "done", ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(wt); !os.IsNotExist(err) {
+		t.Fatal("worktree kept")
+	}
+	if got := killedPanes(fake); got != "%1,%2" {
+		t.Fatalf("killed %q, want %%1,%%2", got)
+	}
+}
+
+// `cleanup: keep` merges the workflow ticket's work but leaves its worktree and branch.
+func TestDoneKeepsWorktreeForCleanupKeep(t *testing.T) {
+	repo, scope, _, _ := newMergeRepo(t)
+	dir := filepath.Join(repo, ".tasks", "workflows")
+	os.MkdirAll(dir, 0o700)
+	os.WriteFile(filepath.Join(dir, "keep.yml"), []byte("name: keep\ncleanup: keep\njobs:\n  build: {status: building, agent: implementer}\n"), 0o600)
+	if err := SaveBoardConfig(repo, []byte("roles: {implementer: {agent: pi}}\ndefault_workflow: keep\n")); err != nil {
+		t.Fatal(err)
+	}
+	ticket, err := Add(scope, "Keep the thing", nil, MutationOptions{Workflow: "keep"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Move(scope, ticket.ID, "building", ""); err != nil {
+		t.Fatal(err)
+	}
+	wt := filepath.Join(repo, ".worktrees", "workflow-"+ticket.ID)
+	gitRun(t, repo, "worktree", "add", "-q", "-b", "agent/workflow-"+ticket.ID, wt)
+	os.WriteFile(filepath.Join(wt, "fix.txt"), []byte("fix\n"), 0o644)
+	if err := Move(scope, ticket.ID, "done", ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.ReadFile(filepath.Join(repo, "fix.txt")); err != nil {
+		t.Fatalf("work not merged: %v", err)
+	}
+	if _, err := os.Stat(wt); err != nil {
+		t.Fatal("worktree removed with cleanup: keep")
+	}
+	if b := gitRun(t, repo, "branch", "--list", "agent/workflow-"+ticket.ID); b == "" {
+		t.Fatal("branch removed with cleanup: keep")
+	}
+}
+
+// A kept worktree keeps its panes: its agents may still be working in it.
+func TestKeptWorktreeKeepsPanes(t *testing.T) {
+	_, scope, id, wt := newMergeRepo(t)
+	os.WriteFile(filepath.Join(wt, "dirty.txt"), []byte("dirty\n"), 0o644)
+	fake := panesFake(t, "", "%2|researcher#"+id+"||"+wt)
+	cleanupDone(scope, id, "")
+	if _, err := os.Stat(wt); err != nil {
+		t.Fatal("dirty worktree removed")
+	}
+	if got := killedPanes(fake); got != "" {
+		t.Fatalf("killed %q with a kept worktree", got)
+	}
+}
+
 // captureNotices records the status notices sent while the test runs.
 func captureNotices(t *testing.T) *[]string {
 	t.Helper()

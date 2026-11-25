@@ -3,6 +3,7 @@ package tasks
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -37,8 +38,10 @@ func gateDone(scope string, t *Task) (note string, refused *TaskComment, err err
 
 // cleanupDone tidies a ticket that has just reached done, after gateDone merged it:
 // its outputs are kept, the merge note (if any) goes to the history, then its
-// worktree and branch are removed when that loses nothing and its panes are
-// killed. What was kept, and why, goes to the ticket history. Best effort.
+// worktree and branch are removed when that loses nothing. Its panes are killed
+// last, after the removal, so no pane is closed mid-removal. A kept worktree keeps
+// its panes: its agents may still be working in it. What was kept, and why, goes
+// to the ticket history. Best effort.
 func cleanupDone(scope, id, note string) {
 	root, ok := scopeRoots.Load(scope)
 	if !ok {
@@ -49,6 +52,7 @@ func cleanupDone(scope, id, note string) {
 	if err != nil {
 		return
 	}
+	panes := ticketPanes(scope, id) // before removal: Scope() of a removed worktree no longer resolves
 	wp := ticketWorkplace(scope, t)
 	keepOutputs(scope, id, wp.Output(r, id))
 	if note != "" {
@@ -61,7 +65,7 @@ func cleanupDone(scope, id, note string) {
 			return
 		}
 	}
-	killTicketPanes(scope + "#" + id)
+	killPanes(panes)
 }
 
 // ticketWorkplace is the workplace the ticket ran in. A lookup error keeps the
@@ -96,26 +100,39 @@ func keepOutputs(scope, id, wt string) {
 		}
 	}
 	if len(files) > 0 {
-		Comment(scope, id, "tagent", "cleanup: kept outputs of the removed worktree", files)
+		Comment(scope, id, "tagent", "cleanup: kept outputs of the worktree", files)
 	}
 }
 
-func killTicketPanes(ticket string) {
-	panes, err := tmux.TicketPanes()
-	if err != nil {
-		return
-	}
-	self := os.Getenv("TMUX_PANE")
-	for _, p := range panes {
-		if p.Ticket == ticket && p.PaneID != self {
-			tmux.RunTmux("kill-pane", "-t", p.PaneID)
-		}
-	}
-	if self != "" { // the caller may be one of them: last, it ends this process
+// ticketPanes lists the panes of a ticket: its chat panes (@pane_ticket) and the
+// role panes dispatched for it in its repo (@board_target "role#id").
+func ticketPanes(scope, id string) []string {
+	var ids []string
+	if panes, err := tmux.TicketPanes(); err == nil {
 		for _, p := range panes {
-			if p.Ticket == ticket && p.PaneID == self {
-				tmux.RunTmux("kill-pane", "-t", self)
+			if p.Ticket == scope+"#"+id {
+				ids = append(ids, p.PaneID)
 			}
 		}
+	}
+	if panes, err := tmux.BoardPanes(); err == nil {
+		for _, p := range panes {
+			if _, ticket, ok := strings.Cut(p.BoardTarget, "#"); ok && ticket == id && Scope(p.Path) == scope && !slices.Contains(ids, p.PaneID) {
+				ids = append(ids, p.PaneID)
+			}
+		}
+	}
+	return ids
+}
+
+func killPanes(ids []string) {
+	self := os.Getenv("TMUX_PANE")
+	for _, id := range ids {
+		if id != self {
+			tmux.RunTmux("kill-pane", "-t", id)
+		}
+	}
+	if self != "" && slices.Contains(ids, self) { // the caller may be one of them: last, it ends this process
+		tmux.RunTmux("kill-pane", "-t", self)
 	}
 }

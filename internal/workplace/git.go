@@ -5,9 +5,11 @@ package workplace
 
 import (
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -22,8 +24,9 @@ type Workplace interface {
 	Cleanup(root, id string) []string
 }
 
-// Git keeps each ticket in a git worktree on branch agent/workflow-<id>.
-type Git struct{}
+// Git keeps each ticket in a git worktree on branch agent/workflow-<id>. Keep
+// (`cleanup: keep`) leaves the worktree and branch in place after done.
+type Git struct{ Keep bool }
 
 var _ Workplace = Git{}
 
@@ -102,14 +105,16 @@ func (g Git) Gate(root, id, title string) (note string, err error) {
 // Cleanup removes the ticket checkout only if it has no uncommitted changes, and
 // its agent/workflow-<id> branch only if merged into the main checkout's HEAD.
 // It returns one note per thing it left in place.
-func (Git) Cleanup(root, id string) (notes []string) {
+func (g Git) Cleanup(root, id string) (notes []string) {
+	if g.Keep {
+		return nil
+	}
 	name := "workflow-" + id
 	path := filepath.Join(root, Dir, name)
 	branch := "agent/" + name
 	if _, err := os.Stat(path); err == nil {
-		out, serr := Run(path, "status", "--porcelain")
-		if serr != nil || out != "" {
-			return []string{"cleanup: kept worktree " + path + " (uncommitted changes)"}
+		if why := dirty(path, branch); why != "" {
+			return []string{"cleanup: kept worktree " + path + " (" + why + ")"}
 		}
 		if _, err := Run(root, "worktree", "remove", path); err != nil {
 			return []string{"cleanup: kept worktree " + path + " (" + err.Error() + ")"}
@@ -125,6 +130,63 @@ func (Git) Cleanup(root, id string) (notes []string) {
 		notes = append(notes, "cleanup: kept branch "+branch+" ("+err.Error()+")")
 	}
 	return notes
+}
+
+// dirty returns why the checkout at path must stay, or "" when it is a usable git
+// checkout on branch with no uncommitted changes. A plain directory is refused
+// (git would report the main checkout), and so is a detached HEAD, whose commits
+// would be unreachable once the worktree is removed.
+func dirty(path, branch string) string {
+	if _, err := os.Stat(filepath.Join(path, ".git")); err != nil {
+		return "not a usable git worktree"
+	}
+	if _, err := Run(path, "rev-parse", "--git-dir"); err != nil {
+		return "not a usable git worktree"
+	}
+	if head, err := Run(path, "symbolic-ref", "-q", "HEAD"); err != nil || head != "refs/heads/"+branch {
+		return "HEAD is not " + branch
+	}
+	if out, err := Run(path, "status", "--porcelain"); err != nil || out != "" {
+		return "uncommitted changes"
+	}
+	return ""
+}
+
+// PruneBlocker returns why ticket id's work must stay, or "" when it can go: any
+// checkout is clean on its branch, and that branch is merged into the main
+// checkout's HEAD (or there is no branch).
+func (Git) PruneBlocker(root, id string) string {
+	name := "workflow-" + id
+	path := filepath.Join(root, Dir, name)
+	branch := "agent/" + name
+	if _, err := os.Stat(path); err == nil {
+		if why := dirty(path, branch); why != "" {
+			return why
+		}
+	}
+	if _, err := Run(root, "rev-parse", "--verify", "-q", "refs/heads/"+branch); err != nil {
+		return ""
+	}
+	if _, err := Run(root, "merge-base", "--is-ancestor", branch, "HEAD"); err != nil {
+		return "not merged"
+	}
+	return ""
+}
+
+// Tickets lists the ids that have a checkout directory or an agent/workflow-<id>
+// branch, sorted, so a worktree without a branch and a branch without a worktree
+// are both seen.
+func Tickets(root string) []string {
+	set := map[string]bool{}
+	dirs, _ := filepath.Glob(filepath.Join(root, Dir, "workflow-*"))
+	for _, d := range dirs {
+		set[strings.TrimPrefix(filepath.Base(d), "workflow-")] = true
+	}
+	refs, _ := Run(root, "for-each-ref", "--format=%(refname:short)", "refs/heads/agent/workflow-*")
+	for _, r := range strings.Fields(refs) {
+		set[strings.TrimPrefix(r, "agent/workflow-")] = true
+	}
+	return slices.Sorted(maps.Keys(set))
 }
 
 // Paths returns the repo root of dir, and the branch and path an agent's

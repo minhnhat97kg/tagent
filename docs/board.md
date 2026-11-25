@@ -387,20 +387,33 @@ role definitions are passed inline from that checkout, so main-only or edited
 roles do not fall back to stale definitions in the ticket tree. Reuse validates
 the worktree's repository identity, expected branch and committed HEAD.
 A recipe's top-level `workplace:` key is `git-worktree` (the default) or `none`;
-any other value fails validation on its line. With the default, workflow
+any other value fails validation on its line. A top-level `cleanup:` key is `remove`
+(the default) or `keep`, validated the same way; `keep` leaves a done ticket's worktree and
+branch in place (its work is still merged). With the default, workflow
 execution lazily creates `.worktrees/workflow-<ticket>` from committed HEAD (a Git
 repository with a commit is required). All agent jobs, mentions, shell jobs and retries for that
 ticket share this directory; relative files survive handoffs and dispatcher
 restarts. Different tickets are isolated. Moving a ticket to done commits any uncommitted work in its worktree on
 `agent/workflow-<ticket>`, rebases that branch onto the main checkout's HEAD if
 needed, and fast-forwards the main checkout to it (never forced or reset). Then the
-clean worktree and merged branch are removed. If the merge fails, the ticket moves
+clean worktree and merged branch are removed (`cleanup: keep` skips this). If the merge fails, the ticket moves
 to blocked with a `merge failed` comment and the worktree and branch are kept. The merge runs before done is recorded, so a failed merge leaves the ticket blocked, the command exits with an error, no done notice is sent and dependents do not start. Uncommitted files, ignored dependencies,
 secrets and local-only scripts are not copied. Ordinary board execution is unchanged.
 With `workplace: none` there is no worktree, branch or merge: the ticket's jobs run in
 the main root, and its panes are reused like any other role's. Edits they leave are
 uncommitted in the main checkout for a human to commit. On done, the ticket's output files
 are copied into its attachments (shown by `tagent task show`), as with the default.
+On done, the ticket's chat and role panes are closed after the worktree removal, never
+during it. A worktree kept for uncommitted changes keeps its panes, since its agents may still
+be working in it. Only the done step closes panes; the dispatcher does not.
+`tagent workplace prune` is a dry run unless `--yes` is given. It covers every ticket with a
+`.worktrees/workflow-*` checkout or an `agent/workflow-*` branch. It removes one only when the
+ticket is done or missing, any checkout is a usable git worktree on `agent/workflow-<ticket>`
+with no uncommitted changes (a detached HEAD is not usable), and the branch, if any, is merged
+into the main checkout's HEAD. It ignores `cleanup: keep` and never forces. Anything else is
+skipped with its reason (not merged, uncommitted changes, HEAD is not the ticket branch, ticket
+not done, or not a usable git worktree, such as an orphan left by a moved repository). Non-git
+workplaces are out of scope.
 Creation failures are reported before launch; retry requires a new status entry. Recipes are resolved
 live: editing affects existing tickets; missing or broken recipes report errors.
 

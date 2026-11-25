@@ -192,24 +192,6 @@ func TestInvalidConfigDoesNotConsume(t *testing.T) {
 	}
 }
 
-func TestDoneClosesPanes(t *testing.T) {
-	cfg, err := tasks.ParseBoardConfig([]byte("statuses:\n  - {id: todo}\n  - {id: review}\n  - {id: done}\n"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	task := tasks.Task{ID: "abc"}
-	got, _ := Actions("/x", cfg, tasks.Event{Kind: "status", From: "review", To: "done", Task: "abc", Actor: "reviewer"}, task)
-	if len(got) != 1 || !got[0].Close {
-		t.Fatalf("done should close panes: %+v", got)
-	}
-	got, _ = Actions("/x", cfg, tasks.Event{Kind: "status", From: "todo", To: "review", Task: "abc", Actor: "u"}, task)
-	for _, a := range got {
-		if a.Close {
-			t.Fatal("non-done status closed panes")
-		}
-	}
-}
-
 func TestMentionIgnoresNonAgents(t *testing.T) {
 	cfg, err := tasks.ParseBoardConfig([]byte("triggers:\n  - on: mention\n    when: {to: '*'}\n    agent: '{{event.name}}'\n"))
 	if err != nil {

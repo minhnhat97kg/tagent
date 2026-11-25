@@ -43,6 +43,20 @@ func TestErrorLine(t *testing.T) {
 	}
 }
 
+func TestCleanupKey(t *testing.T) {
+	const job = "jobs:\n  a: {run: x}\n"
+	for src, want := range map[string]string{job: "", "cleanup: remove\n" + job: "remove", "cleanup: keep\n" + job: "keep"} {
+		if w, err := Parse([]byte(src)); err != nil || w.Cleanup != want {
+			t.Fatalf("%q: %q %v", src, w.Cleanup, err)
+		}
+	}
+	for _, src := range []string{"cleanup: delete\n" + job, "cleanup:\n" + job} {
+		if _, err := Parse([]byte(src)); ErrorLine(err) != 1 {
+			t.Fatalf("%q accepted or wrong line: %v", src, err)
+		}
+	}
+}
+
 func TestWorkplaceKey(t *testing.T) {
 	const job = "jobs:\n  a: {run: x}\n"
 	for src, want := range map[string]string{job: "", "workplace: git-worktree\n" + job: "git-worktree", "workplace: none\n" + job: "none"} {

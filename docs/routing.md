@@ -71,7 +71,7 @@ on the first candidate, since a one-shot CLI has no quota reading.
 
 - Quota is read in the dispatcher's background refresh (about once a minute).
   A fresh dispatcher has no reading, so its first dispatches use the first candidate.
-- Routed panes that no longer match stay running (they may be busy). Done closes them all.
+- Routed panes that no longer match stay running (they may be busy). Done closes them all, unless the ticket's worktree is kept for uncommitted changes.
 - Not included: retry at reset time, switching candidates mid-step after a
   rate limit, quota for other pi providers, editing routing in the TUI or web,
   an LLM proxy.

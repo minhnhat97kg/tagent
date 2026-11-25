@@ -116,7 +116,9 @@ Haiku step whose output (`scout`, under 8000 characters) starts the next job.
 It is skipped when the ticket already names files or functions. Examples are in
 `examples/workflows/`; copy them into `.tasks/workflows/` to use them. A top-level
 `workplace: none` runs a recipe in the main root with no worktree or branch
-(`research` and `docs` are such examples); the default is `git-worktree`.
+(`research` and `docs` are such examples); the default is `git-worktree`. A top-level
+`cleanup: keep` leaves a done ticket's worktree and branch in place; `tagent workplace prune
+[--yes]` removes clean, merged ticket worktrees of done or deleted tickets (dry run by default).
 
 ## Manual panes, fanout and reports
 

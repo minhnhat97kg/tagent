@@ -110,21 +110,6 @@ var harnesses = map[string]bool{"claude": true, "codex": true, "pi": true, "open
 
 func dispatchBoardAction(a board.Action) error {
 	scope := tasks.Scope(a.Dir)
-	if a.Close {
-		panes, err := tmux.BoardPanes()
-		if err != nil {
-			return err
-		}
-		for _, p := range panes {
-			_, ticket, ok := strings.Cut(p.BoardTarget, "#")
-			if ok && ticket == a.Event.Task && tasks.Scope(p.Path) == scope {
-				if _, err = tmux.RunTmuxCapture("kill-pane", "-t", p.PaneID); err != nil {
-					return err
-				}
-			}
-		}
-		return nil
-	}
 	priority := 1
 	if a.Event.Task != "" {
 		ticket, err := tasks.Get(scope, a.Event.Task)

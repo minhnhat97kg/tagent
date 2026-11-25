@@ -81,6 +81,7 @@ type Workflow struct {
 	Description string
 	Global      bool
 	Workplace   string // "" or "git-worktree" (default), or "none": run in the main root
+	Cleanup     string // "" or "remove" (default), or "keep": done keeps the worktree and its branch
 	Inputs      map[string]Input
 	Jobs        []Job
 	Err         error
@@ -91,6 +92,7 @@ func Parse(b []byte) (Workflow, error) {
 		Name        string           `yaml:"name"`
 		Description string           `yaml:"description"`
 		Workplace   yaml.Node        `yaml:"workplace"`
+		Cleanup     yaml.Node        `yaml:"cleanup"`
 		Inputs      map[string]Input `yaml:"inputs"`
 		Jobs        yaml.Node        `yaml:"jobs"`
 	}
@@ -110,6 +112,14 @@ func Parse(b []byte) (Workflow, error) {
 			w.Workplace = raw.Workplace.Value
 		default:
 			return w, errAt(raw.Workplace.Line, "unknown workplace %q (git-worktree or none)", raw.Workplace.Value)
+		}
+	}
+	if raw.Cleanup.Kind != 0 {
+		switch raw.Cleanup.Value {
+		case "remove", "keep":
+			w.Cleanup = raw.Cleanup.Value
+		default:
+			return w, errAt(raw.Cleanup.Line, "unknown cleanup %q (remove or keep)", raw.Cleanup.Value)
 		}
 	}
 	if raw.Jobs.Kind != yaml.MappingNode || len(raw.Jobs.Content) == 0 {

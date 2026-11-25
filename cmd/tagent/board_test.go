@@ -164,9 +164,6 @@ func TestBoardAgentLaunchReuseAndQueue(t *testing.T) {
 	if tmux.ResolvePane(name) != previous || tmux.GetPaneOptionValue(previous, "@agent_role_entries") != before {
 		t.Fatal("mention counted")
 	}
-	if err := dispatchBoardAction(board.Action{Dir: dir, Event: a.Event, Close: true}); err != nil {
-		t.Fatal(err)
-	}
 }
 
 func TestRunStatus(t *testing.T) {

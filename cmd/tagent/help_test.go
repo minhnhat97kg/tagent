@@ -42,7 +42,7 @@ func TestHelpListsRepoAgents(t *testing.T) {
 		t.Fatalf("help code %d: %s", code, &errOut)
 	}
 	got := out.String()
-	for _, want := range []string{"task add", "task retry id", "dispatch activity", "new --repo-agent", "Agents defined in this repo:", "  reviewer\n"} {
+	for _, want := range []string{"task add", "task retry id", "workplace prune", "dispatch activity", "new --repo-agent", "Agents defined in this repo:", "  reviewer\n"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("help missing %q", want)
 		}
