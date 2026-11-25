@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"tagent/internal/apppath"
 
 	"github.com/BurntSushi/toml"
@@ -36,9 +37,17 @@ func Harness(command string) string {
 	return filepath.Base(fields[0])
 }
 
+// roots caches git answers: a checkout's toplevel never changes, and the board asks per role on every refresh.
+var roots sync.Map
+
 func Root(dir string) string {
+	if root, ok := roots.Load(dir); ok {
+		return root.(string)
+	}
 	if out, err := exec.Command("git", "-C", dir, "rev-parse", "--show-toplevel").Output(); err == nil {
-		return strings.TrimSpace(string(out))
+		root := strings.TrimSpace(string(out))
+		roots.Store(dir, root)
+		return root
 	}
 	return dir
 }
