@@ -42,7 +42,7 @@ func cmdTask(args []string, stdout, stderr io.Writer) int {
 		return exitOK
 	}
 	usage := func() int {
-		fmt.Fprintln(stderr, "usage: tagent task [ls [--usage]] | add [--desc details] [--to name[,name]] [--needs id[,id]] [--priority high|normal|low] [--workflow name [--input k=v]...] <text> | done <id> [note] | move <id> <status> [comment] | retry <id> | start <id> [workflow|pane] | set <id> <configured-status> [note] | assign <id> <name[,name]|-> | needs <id> <id[,id]|-> | priority <id> <high|normal|low> | workflow <id> <name|-> | show <id> | attachments <id> | comment <id> [--attach path]... [--diff] <text> | due <id> <YYYY-MM-DD|-> | rm <id>")
+		fmt.Fprintln(stderr, "usage: tagent task [ls [--usage]] | add [--desc details] [--to name[,name]] [--needs id[,id]] [--priority high|normal|low] [--auto-start] [--workflow name [--input k=v]...] <text> | done <id> [note] | move <id> <status> [comment] | retry <id> | start <id> [workflow|pane] | set <id> <configured-status> [note] | assign <id> <name[,name]|-> | needs <id> <id[,id]|-> | priority <id> <high|normal|low> | auto <id> <on|off> | workflow <id> <name|-> | show <id> | attachments <id> | comment <id> [--attach path]... [--diff] <text> | due <id> <YYYY-MM-DD|-> | rm <id>")
 		return exitUsage
 	}
 	var err error
@@ -308,6 +308,11 @@ func cmdTask(args []string, stdout, stderr io.Writer) int {
 		var desc string
 		opt := tasks.MutationOptions{Actor: tasks.CallerActor()}
 		for len(rest) > 0 && strings.HasPrefix(rest[0], "--") {
+			if rest[0] == "--auto-start" {
+				opt.AutoStart = true
+				rest = rest[1:]
+				continue
+			}
 			if len(rest) < 2 {
 				return usage()
 			}
@@ -393,6 +398,11 @@ func cmdTask(args []string, stdout, stderr io.Writer) int {
 			return usage()
 		}
 		err = tasks.SetPriority(scope, args[1], args[2])
+	case "auto":
+		if len(args) != 3 || (args[2] != "on" && args[2] != "off") {
+			return usage()
+		}
+		err = tasks.SetAutoStart(scope, args[1], args[2] == "on")
 	case "workflow":
 		if len(args) != 3 {
 			return usage()
@@ -496,7 +506,7 @@ func taskBinding(scope string, args []string) error {
 	}
 	target := ""
 	switch args[0] {
-	case "attachments", "assign", "comment", "done", "due", "move", "needs", "priority", "retry", "rm", "set", "show", "start", "workflow":
+	case "attachments", "assign", "auto", "comment", "done", "due", "move", "needs", "priority", "retry", "rm", "set", "show", "start", "workflow":
 		if len(args) > 1 {
 			target = args[1]
 		}

@@ -1,6 +1,7 @@
 package board
 
 import (
+	"errors"
 	"fmt"
 	"tagent/internal/tasks"
 )
@@ -43,4 +44,24 @@ func Start(dir, id, name string) error {
 	}
 	_, err = tasks.Update(scope, id, w.Jobs[0].Status, nil, tasks.MutationOptions{Actor: "user"})
 	return err
+}
+
+// autoStart starts the todo dependents with auto_start set, once their last
+// dependency is done. Tickets without a workflow are left for a human.
+func autoStart(dir, done string) error {
+	scope := tasks.Scope(dir)
+	var errs []error
+	for _, d := range tasks.Dependents(scope, done) {
+		if !d.AutoStart || d.Status != "todo" || d.Workflow == "" || len(tasks.OpenNeeds(scope, d)) > 0 {
+			continue
+		}
+		if err := Start(dir, d.ID, ""); err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		if err := tasks.Comment(scope, d.ID, "board", "auto-started: #"+done+" done", nil, tasks.MutationOptions{Actor: "board"}); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errors.Join(errs...)
 }

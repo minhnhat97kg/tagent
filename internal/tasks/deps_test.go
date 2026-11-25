@@ -65,6 +65,20 @@ func TestNeedsGateAndValidation(t *testing.T) {
 	}
 }
 
+func TestAutoStartFlag(t *testing.T) {
+	_, scope := testBoard(t)
+	task, err := Add(scope, "Auto", nil, MutationOptions{AutoStart: true})
+	if err != nil || !task.AutoStart {
+		t.Fatal(task, err)
+	}
+	if err = SetAutoStart(scope, task.ID, false); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := Get(scope, task.ID); got.AutoStart {
+		t.Fatal("auto_start still on after off")
+	}
+}
+
 func TestPriority(t *testing.T) {
 	_, scope := testBoard(t)
 	task, err := Add(scope, "Priority", nil, MutationOptions{Priority: "high"})

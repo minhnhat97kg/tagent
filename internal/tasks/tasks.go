@@ -27,6 +27,7 @@ type Task struct {
 	Outputs     map[string]map[string]string `json:"outputs,omitempty"`
 	Needs       []string                     `json:"needs,omitempty"`
 	Priority    string                       `json:"priority,omitempty"` // high | low; empty is normal
+	AutoStart   bool                         `json:"auto_start,omitempty"`
 	Title       string                       `json:"title"`
 	Due         string                       `json:"due,omitempty"`
 	Comments    []TaskComment                `json:"comments"`
@@ -50,6 +51,7 @@ type MutationOptions struct {
 	Actor       string
 	Needs       []string
 	Priority    string
+	AutoStart   bool
 }
 
 var scopeCache sync.Map // dir → scope: it runs git, and the UI asks for it many times a frame
@@ -212,6 +214,7 @@ func Add(scope, text string, assignees []string, opts ...MutationOptions) (Task,
 			if p := NormalizePriority(opts[0].Priority); p != "normal" {
 				t.Priority = p
 			}
+			t.AutoStart = opts[0].AutoStart
 			t.Workflow = opts[0].Workflow
 			if t.Workflow != "" {
 				dir, ok := scopeRoots.Load(scope)

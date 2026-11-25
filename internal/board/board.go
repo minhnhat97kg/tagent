@@ -193,6 +193,11 @@ func Run(ctx context.Context, dir string, fire Fire) error {
 					}
 					continue
 				}
+				if ev.Kind == "status" && ev.To == "done" {
+					if e = autoStart(dir, task.ID); e != nil {
+						s.LastError = e.Error()
+					}
+				}
 				actions, e := Actions(dir, cfg, ev, task)
 				if e != nil {
 					s.LastError = e.Error()

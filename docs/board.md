@@ -273,8 +273,14 @@ waits for. Dependencies gate the start: a ticket whose dependencies are not all
 done cannot leave todo — `start`, `move` and `set` refuse with
 `waiting for #12, #15`, the dispatcher never fires it, and the card shows a dim
 `waits #12` badge. When the last dependency reaches done the card turns to
-`ready`, but nothing starts it: a human still starts the ticket. Cycles, itself
-and unknown ids are rejected when saved; a deleted dependency stops blocking.
+`ready`. A ticket can be set to auto-start (`task add --auto-start`, or
+`task auto ID on|off`; default off). When its last dependency reaches done, an
+auto-start ticket that has a workflow starts itself: its first job fires and a
+comment names the dependency (`auto-started: #12 done`). A ticket waiting on
+several dependencies starts only when the last one is done. A ticket without a
+workflow, or with auto-start off, still waits for a human to start it.
+Auto-start does not run for a blocked or failed dependency. Cycles, itself and unknown ids are rejected when
+saved; a deleted dependency stops blocking.
 The Details tab lists dependencies and dependents with their status (clickable
 in the web). In the web, **+ Add** picks a dependency from the board's tickets
 (filter by id or title; done tickets sort last) and × removes one; no id is typed.

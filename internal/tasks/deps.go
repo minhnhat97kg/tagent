@@ -85,6 +85,21 @@ func SetPriority(scope, id, priority string) error {
 	})
 }
 
+// SetAutoStart turns on or off starting the ticket when its last dependency is done.
+func SetAutoStart(scope, id string, on bool) error {
+	return withLock(scope, func() error {
+		t, err := Get(scope, id)
+		if err != nil {
+			return err
+		}
+		if t.AutoStart == on {
+			return nil
+		}
+		t.AutoStart, t.Updated = on, time.Now()
+		return write(scope, t)
+	})
+}
+
 // ValidateNeeds checks that every dependency exists, no id repeats and no
 // dependency reaches back to id. Self is empty for a ticket that does not
 // exist yet (task add), where a cycle is impossible.
