@@ -40,10 +40,10 @@ export function Fold({ icon, title, end, open, className, children }: { icon?: R
 // Typing: shown at the end of the thread while the agent works. The header already announces the status.
 export function Typing({ label }: { label: string }) {
   return <div aria-hidden className={cn(chatIndent, "flex items-center gap-2 text-xs text-muted-foreground")}>
-    <span className="flex gap-1">
+    <span className="flex shrink-0 gap-1">
       {[0, 150, 300].map(d => <span key={d} className="size-1.5 animate-bounce rounded-full bg-muted-foreground/60" style={{ animationDelay: `${d}ms` }} />)}
     </span>
-    {label}
+    <span className="min-w-0 truncate">{label}</span>
   </div>
 }
 
