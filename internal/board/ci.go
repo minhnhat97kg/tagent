@@ -1,6 +1,7 @@
 package board
 
 import (
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -16,6 +17,16 @@ var (
 	volatile  = regexp.MustCompile(`\(?\d+(\.\d+)?s\)?|(/[\w.\-]+)+|:\d+`)
 	skipWords = regexp.MustCompile(`(?i)\bskip (test|ci)\b`)
 )
+
+// ciLogNote points the agent at the full CI log attached to a failed run.
+func ciLogNote(dir string, t tasks.Task, c tasks.TaskComment) string {
+	for _, att := range c.Attachments {
+		if att.Name == "ci.log" {
+			return "Full CI log: " + filepath.Join(tasks.BoardDir(tasks.Scope(dir)), t.ID, att.File) + "; read only the failing part.\n"
+		}
+	}
+	return ""
+}
 
 func isCIResult(c tasks.TaskComment) bool { return c.Author == "ci" && ciResult.MatchString(c.Body) }
 

@@ -45,10 +45,11 @@ type Trigger struct {
 	Prompt string `yaml:"prompt"`
 }
 type Role struct {
-	FreshAfter *int   `yaml:"fresh_after,omitempty"`
-	Effort     string `yaml:"effort,omitempty"`
-	Agent      string `yaml:"agent"`
-	Model      string `yaml:"model"`
+	FreshAfter  *int   `yaml:"fresh_after,omitempty"`
+	Effort      string `yaml:"effort,omitempty"`
+	Agent       string `yaml:"agent"`
+	Model       string `yaml:"model"`
+	RoleContext `yaml:",inline"`
 }
 type Status struct {
 	FreshAfter *int     `yaml:"fresh_after,omitempty"`
@@ -57,6 +58,7 @@ type Status struct {
 	Prompt     string   `yaml:"prompt,omitempty"`
 	Model      string   `yaml:"model,omitempty"`
 	Job        string   `yaml:"-"`
+	Uses       string   `yaml:"-"`
 	Outputs    []string `yaml:"-"`
 	ID         string   `yaml:"id"`
 	Role       string   `yaml:"role"`
@@ -311,6 +313,9 @@ func ParseBoardConfigFor(dir string, b []byte) (BoardConfig, error) {
 		}
 		if strings.TrimSpace(name) == "" || strings.TrimSpace(r.Agent) == "" || (r.FreshAfter != nil && *r.FreshAfter < 0) {
 			return c, configErr(lines.roles[name], "role requires name and agent")
+		}
+		if _, err := r.Args(r.Agent, "x"); err != nil {
+			return c, configErr(lines.roles[name], "role %s: %w", name, err)
 		}
 	}
 	if c.Legacy {

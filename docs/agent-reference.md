@@ -109,6 +109,10 @@ Main-worktree `.tasks/workflows` overrides global recipes. Jobs form one chain.
 Command jobs publish key=value to `$TMUX_AGENT_OUTPUT`; agents use move --output.
 Files resolve live. Interpolated shell inputs are trusted code; never publish
 secrets. See docs/board.md for schema and failure routing.
+`uses: scout` is the first job of feature, refactor and bugfix: a read-only
+Haiku step whose output (`scout`, under 8000 characters) starts the next job.
+It is skipped when the ticket already names files or functions. Examples are in
+`examples/workflows/`; copy them into `.tasks/workflows/` to use them.
 
 ## Manual panes, fanout and reports
 

@@ -25,6 +25,10 @@ type Agent struct {
 	Running      int        `json:"running"`
 	Panes        []LivePane `json:"panes"`
 	UsedBy       []string   `json:"usedBy"`
+	tasks.RoleContext
+	// ContextSet is true when the request carried context keys. Save writes context
+	// only then, so a client that omits them cannot delete a role's restrictions.
+	ContextSet bool `json:"-"`
 }
 
 // LivePane is an agent pane and the role it runs (board target, else pane name).
@@ -91,6 +95,7 @@ func List(dir, harness string, live []LivePane) []Agent {
 			out[i].Harness = r.Agent
 		}
 		out[i].Model, out[i].Effort = r.Model, r.Effort
+		out[i].RoleContext = r.RoleContext
 		if out[i].Harness == "" {
 			out[i].Harness = process // a board-only role with no agent: runs on the process harness
 		}

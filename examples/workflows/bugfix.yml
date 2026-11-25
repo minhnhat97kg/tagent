@@ -1,0 +1,38 @@
+name: bugfix
+description: "Fix a bug in 1-3 files, no lead: scout, reproduce with a failing test, fix the root cause, test, review"
+inputs:
+  bug: {description: symptom and how to reproduce, required: true}
+jobs:
+  scout: {uses: scout}
+  reproduce:
+    needs: scout
+    status: reproducing
+    agent: dev
+    prompt: |
+      Bug: ${{ inputs.bug }}
+      Start from the scout output in Job outputs; open only the files it names unless it is wrong.
+      Find the root cause (grep every caller of the function involved). Write a failing test that reproduces it.
+      Do not fix yet. Output the test name and the root cause in one line each.
+    outputs: [test, cause]
+  fix:
+    needs: reproduce
+    status: fixing
+    agent: dev
+    prompt: |
+      Work from the reproduce outputs; do not re-explore the repo.
+      Fix the root cause (${{ jobs.reproduce.outputs.cause }}) in the shared place all callers route through,
+      so ${{ jobs.reproduce.outputs.test }} passes. Smallest diff. Don't commit.
+    max-loops: 4
+  test:
+    needs: fix
+    status: testing
+    run: ./scripts/check.sh
+    on-failure: fix
+  review:
+    needs: test
+    status: reviewing
+    agent: qa
+    prompt: |
+      Check the fix addresses the root cause, not the symptom, and that sibling callers are covered. Do not edit code. Move the ticket to one of: ${{ next }} (pass -> the forward status; otherwise the earlier one, with file:line findings).
+    on-failure: fix
+    max-loops: 2

@@ -88,11 +88,14 @@ func move(scope, id, to, body string, seq int64, safety bool, opts ...MutationOp
 			}
 		}
 		if !stale && len(opts) > 0 && opts[0].Outputs != nil {
-			job := ""
+			job, uses := "", ""
 			for _, s := range cfg.Statuses {
 				if s.ID == t.Status {
-					job = s.Job
+					job, uses = s.Job, s.Uses
 				}
+			}
+			if size := outputSize(opts[0].Outputs); uses == "scout" && size > scoutOutputMax {
+				return fmt.Errorf("scout output is %d characters, over %d: shorten and resubmit", size, scoutOutputMax)
 			}
 			if job == "" {
 				return fmt.Errorf("outputs require a workflow job")
@@ -158,4 +161,15 @@ func move(scope, id, to, body string, seq int64, safety bool, opts ...MutationOp
 		}
 	}
 	return err
+}
+
+// scoutOutputMax caps the scout handoff (~2K tokens); the next steps read it in full.
+const scoutOutputMax = 8000
+
+func outputSize(outputs map[string]string) int {
+	n := 0
+	for _, v := range outputs {
+		n += len(v)
+	}
+	return n
 }

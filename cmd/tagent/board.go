@@ -213,6 +213,7 @@ func dispatchBoardAction(a board.Action) error {
 		}
 		o.Model = a.Model
 		o.Effort = a.Effort
+		o.BoardRole, o.Preset = a.Agent, a.Preset
 		if harnesses[target] {
 			o.Agent = target
 		} else {

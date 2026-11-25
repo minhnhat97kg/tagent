@@ -1,0 +1,39 @@
+name: feature
+description: "Larger new feature or behaviour change: scout, plan, build, test, review. Use improvement or bugfix for 1-3 files."
+inputs:
+  goal: {description: what to build, required: true}
+jobs:
+  scout: {uses: scout}
+  plan:
+    needs: scout
+    status: planning
+    agent: lead
+    prompt: |
+      Goal: ${{ inputs.goal }}
+      Start from the scout output in Job outputs; open only the files it names unless it is wrong. Do not edit source.
+      Write .tasks/plans/${{ ticket.id }}.md: files/functions to change or delete, steps that each build and pass tests, risks.
+      Prefer deleting over adding. If the work is large, split it into follow-up tickets, each small enough for one dev session.
+    outputs: [plan]
+  build:
+    needs: plan
+    status: building
+    agent: dev
+    prompt: |
+      Implement ${{ jobs.plan.outputs.plan }}. Work from the plan; do not re-explore the repo.
+      Minimal diff, delete more than you add, update docs/help.
+      Only move on when every step of the plan is done and tests pass locally. Don't commit.
+    max-loops: 5
+  test:
+    needs: build
+    status: testing
+    run: ./scripts/check.sh
+    on-failure: build
+  review:
+    needs: test
+    status: reviewing
+    agent: qa
+    prompt: |
+      Review the uncommitted diff against ${{ jobs.plan.outputs.plan }}: correctness bugs, dead code, docs drift.
+      Do not edit code. Move the ticket to one of: ${{ next }} (pass -> the forward status; otherwise the earlier one, with file:line findings).
+    on-failure: build
+    max-loops: 3

@@ -63,7 +63,7 @@ func Save(dir, harness string, a Agent) error {
 	if a.Instructions != "" && !global {
 		path = roles.LocalPath(dir, a.Name)
 	}
-	if slices.Contains(boardNames(dir), a.Name) || a.Source == "board" || a.Model != "" || a.Effort != "" || a.Harness == "pi" || (a.Instructions != "" && !global) {
+	if slices.Contains(boardNames(dir), a.Name) || a.Source == "board" || a.Model != "" || a.Effort != "" || a.Harness == "pi" || a.ContextSet || (a.Instructions != "" && !global) {
 		if err := editBoard(dir, func(rs *yaml.Node) error { return setRole(rs, a) }); err != nil {
 			return err
 		}
@@ -187,7 +187,43 @@ func setRole(rs *yaml.Node, a Agent) error {
 	tasks.SetYAMLField(role, "agent", a.Harness)
 	tasks.SetYAMLField(role, "model", a.Model)
 	tasks.SetYAMLField(role, "effort", a.Effort)
+	if !a.ContextSet {
+		return nil
+	}
+	c := a.RoleContext
+	setList(role, "skills", listOf(c.Skills), c.Skills != nil)
+	setList(role, "mcp", listOf(c.MCP), c.MCP != nil)
+	setList(role, "tools", c.Tools, len(c.Tools) > 0)
+	setList(role, "allow", c.Allow, len(c.Allow) > 0)
+	setList(role, "deny", c.Deny, len(c.Deny) > 0)
 	return nil
+}
+
+// setList writes a flow list under key; an unset list removes the key. An empty
+// set list stays [], which means none (not the harness default).
+func setList(m *yaml.Node, key string, items []string, set bool) {
+	if !set {
+		removeKey(m, key)
+		return
+	}
+	seq := &yaml.Node{Kind: yaml.SequenceNode, Style: yaml.FlowStyle}
+	for _, s := range items {
+		seq.Content = append(seq.Content, &yaml.Node{Kind: yaml.ScalarNode, Value: s})
+	}
+	for i := 0; i+1 < len(m.Content); i += 2 {
+		if m.Content[i].Value == key {
+			m.Content[i+1] = seq
+			return
+		}
+	}
+	m.Content = append(m.Content, &yaml.Node{Kind: yaml.ScalarNode, Value: key}, seq)
+}
+
+func listOf(p *[]string) []string {
+	if p == nil {
+		return nil
+	}
+	return *p
 }
 
 func removeKey(m *yaml.Node, key string) {
