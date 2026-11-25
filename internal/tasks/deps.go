@@ -198,6 +198,9 @@ func WaitingReason(scope string, t Task) string {
 	ids := make([]string, len(open))
 	for i, id := range open {
 		ids[i] = "#" + id
+		if d, err := Get(scope, id); err == nil && d.Status == "closed" { // closed never finishes
+			ids[i] = "closed #" + id
+		}
 	}
 	if len(ids) == 0 {
 		return ""

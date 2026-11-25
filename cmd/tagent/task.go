@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -42,7 +43,7 @@ func cmdTask(args []string, stdout, stderr io.Writer) int {
 		return exitOK
 	}
 	usage := func() int {
-		fmt.Fprintln(stderr, "usage: tagent task [ls [--usage]] | add [--desc details] [--to name[,name]] [--needs id[,id]] [--priority high|normal|low] [--auto-start] [--workflow name [--input k=v]...] <text> | done <id> [note] | move <id> <status> [comment] | retry <id> | start <id> [workflow|pane] | set <id> <configured-status> [note] | assign <id> <name[,name]|-> | needs <id> <id[,id]|-> | priority <id> <high|normal|low> | auto <id> <on|off> | workflow <id> <name|-> | show <id> | attachments <id> | comment <id> [--attach path]... [--diff] <text> | due <id> <YYYY-MM-DD|-> | rm <id>")
+		fmt.Fprintln(stderr, "usage: tagent task [ls [--usage]] | add [--desc details] [--to name[,name]] [--needs id[,id]] [--priority high|normal|low] [--auto-start] [--workflow name [--input k=v]...] <text> | done <id> [note] | close <id> [reason] | purge --closed [--yes] | move <id> <status> [comment] | retry <id> | start <id> [workflow|pane] | set <id> <configured-status> [note] | assign <id> <name[,name]|-> | needs <id> <id[,id]|-> | priority <id> <high|normal|low> | auto <id> <on|off> | workflow <id> <name|-> | show <id> | attachments <id> | comment <id> [--attach path]... [--diff] <text> | due <id> <YYYY-MM-DD|-> | rm <id>")
 		return exitUsage
 	}
 	var err error
@@ -190,6 +191,60 @@ func cmdTask(args []string, stdout, stderr io.Writer) int {
 				hook.Notify("task done", t.Text)
 			}
 		}
+	case "close":
+		if len(args) < 2 {
+			return usage()
+		}
+		err = tasks.Move(scope, args[1], "closed", strings.Join(args[2:], " "))
+		if err == nil {
+			err = metrics.End(scope, args[1])
+		}
+	case "purge":
+		yes, closed := false, false
+		for _, a := range args[1:] {
+			switch a {
+			case "--closed":
+				closed = true
+			case "--yes":
+				yes = true
+			default:
+				return usage()
+			}
+		}
+		if !closed {
+			return usage()
+		}
+		if yes && tasks.CallerActor() != "user" { // advisory: an agent pane deletes nothing
+			err = errors.New("purge --yes runs from a human pane only")
+			break
+		}
+		var items []tasks.PurgeItem
+		items, err = tasks.Purge(scope, yes)
+		failed := false
+		for _, it := range items {
+			verb := "remove"
+			switch {
+			case it.Kept != "":
+				verb = "keep"
+				failed = failed || strings.HasPrefix(it.Kept, "discard failed") || strings.HasPrefix(it.Kept, "workplace:")
+			case yes:
+				verb = "removed"
+			}
+			why := it.Kept
+			if why == "" {
+				why = strings.TrimSpace(it.Warning)
+			}
+			if why != "" {
+				why = " (" + why + ")"
+			}
+			fmt.Fprintf(stdout, "%s #%s %s%s\n", verb, it.ID, it.Title, why)
+		}
+		if err == nil && !yes {
+			fmt.Fprintln(stdout, "nothing removed: dry run, add --yes to delete")
+		}
+		if err == nil && failed {
+			err = errors.New("some closed tickets could not be removed; see above")
+		}
 	case "due":
 		if len(args) != 3 {
 			return usage()
@@ -258,6 +313,10 @@ func cmdTask(args []string, stdout, stderr io.Writer) int {
 		task, getErr := tasks.Get(scope, args[1])
 		if getErr != nil {
 			err = getErr
+			break
+		}
+		if task.Status == "closed" {
+			err = fmt.Errorf("ticket #%s is closed: reopen it with task set %s todo", task.ID, task.ID)
 			break
 		}
 		paneID := tmux.ResolvePane(args[2])
@@ -506,7 +565,7 @@ func taskBinding(scope string, args []string) error {
 	}
 	target := ""
 	switch args[0] {
-	case "attachments", "assign", "auto", "comment", "done", "due", "move", "needs", "priority", "retry", "rm", "set", "show", "start", "workflow":
+	case "attachments", "assign", "auto", "close", "comment", "done", "due", "move", "needs", "priority", "retry", "rm", "set", "show", "start", "workflow":
 		if len(args) > 1 {
 			target = args[1]
 		}

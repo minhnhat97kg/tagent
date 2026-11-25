@@ -28,7 +28,7 @@ func cmdWorkflow(args []string, out, errs io.Writer) int {
 		for _, w := range workflow.List(dir) {
 			n := 0
 			for _, t := range tasks.List(scope) {
-				if t.Workflow == w.Name && t.Status != "todo" && t.Status != "done" && t.Status != "blocked" {
+				if t.Workflow == w.Name && t.Status != "todo" && t.Status != "done" && t.Status != "blocked" && t.Status != "closed" {
 					n++
 				}
 			}

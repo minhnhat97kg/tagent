@@ -149,7 +149,7 @@ func legacyWorkflow(c BoardConfig) workflow.Workflow {
 	}
 	prev := ""
 	for _, s := range c.Statuses {
-		if s.ID == "todo" || s.ID == "blocked" || s.ID == "done" {
+		if s.ID == "todo" || s.ID == "blocked" || s.ID == "done" || s.ID == "closed" {
 			continue
 		}
 		j := workflow.Job{ID: s.ID, Status: s.ID, Agent: s.Role, Model: s.Model, Prompt: s.Prompt, Run: s.Run, MaxLoops: s.MaxLoops}
@@ -189,7 +189,7 @@ func jobStatus(cfg BoardConfig, to string) string {
 // when it leaves todo. The initial entry may name any job id or job status; the
 // caller skips the next-status check for that first move.
 func attachDefault(scope string, t *Task, cfg BoardConfig, to string) (BoardConfig, string, bool, error) {
-	if t.Workflow != "" || t.Status != "todo" || to == "todo" || to == "blocked" || to == "done" || cfg.DefaultWorkflow == "" {
+	if t.Workflow != "" || t.Status != "todo" || to == "todo" || to == "blocked" || to == "done" || to == "closed" || cfg.DefaultWorkflow == "" {
 		return cfg, to, false, nil
 	}
 	dir, ok := scopeRoots.Load(scope)

@@ -74,15 +74,10 @@ func move(scope, id, to, body string, seq int64, safety bool, opts ...MutationOp
 			return err
 		}
 		to = jobStatus(cfg, to)
-		if !slices.Contains(cfg.Columns, to) {
-			return fmt.Errorf("invalid status %q", to)
+		if err := checkStatus(scope, cfg, t, to); err != nil {
+			return err
 		}
-		if to != t.Status && t.Status == "todo" {
-			if reason := WaitingReason(scope, t); reason != "" {
-				return fmt.Errorf("cannot leave todo: %s", reason)
-			}
-		}
-		if to != t.Status && !safety && !attached {
+		if to != t.Status && !safety && !attached && to != "closed" {
 			for _, s := range cfg.Statuses {
 				if s.ID == t.Status && s.Next != nil && !slices.Contains(s.Next, to) {
 					return fmt.Errorf("move %s -> %s not allowed", t.Status, to)
@@ -171,11 +166,32 @@ func move(scope, id, to, body string, seq int64, safety bool, opts ...MutationOp
 		return err
 	}
 	notice.send()
+	if notice != nil && notice.to == "closed" {
+		killPanes(ticketPanes(scope, id))
+	}
 	if refused != nil {
 		return fmt.Errorf("ticket #%s is blocked, not done: %s", id, refused.Body)
 	}
 	if notice != nil && notice.to == "done" {
 		cleanupDone(scope, id, note)
+	}
+	return nil
+}
+
+// checkStatus holds the rules every status change shares (move and Update).
+// closed is a valid target from any status and skips the dependency wait: it
+// is terminal. A closed ticket reopens only to the todo lane.
+func checkStatus(scope string, cfg BoardConfig, t Task, to string) error {
+	if to != "closed" && !slices.Contains(cfg.Columns, to) {
+		return fmt.Errorf("invalid status %q", to)
+	}
+	if t.Status == "closed" && to != "closed" && cfg.Lane(to) != "todo" {
+		return fmt.Errorf("ticket #%s is closed: reopen it with task set %s todo", t.ID, t.ID)
+	}
+	if to != t.Status && t.Status == "todo" && to != "closed" {
+		if reason := WaitingReason(scope, t); reason != "" {
+			return fmt.Errorf("cannot leave todo: %s", reason)
+		}
 	}
 	return nil
 }

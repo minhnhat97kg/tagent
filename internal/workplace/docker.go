@@ -78,7 +78,7 @@ func (d Docker) Cleanup(root, id string) []string {
 	if d.Keep {
 		return []string{"cleanup: kept container " + name}
 	}
-	if _, err := dockerRun("rm", "-f", name); err != nil {
+	if _, err := dockerRun("rm", "-f", name); err != nil && !strings.Contains(err.Error(), "No such container") { // a container never created is already gone
 		return []string{"cleanup: kept container " + name + " (" + err.Error() + ")"}
 	}
 	if err := os.RemoveAll(d.Output(root, id)); err != nil {

@@ -75,7 +75,7 @@ func (s *server) workflows(w http.ResponseWriter, r *http.Request) {
 					continue
 				}
 				total++
-				if t.Status != "todo" && config.Lane(t.Status) != "done" {
+				if t.Status != "todo" && config.Lane(t.Status) != "done" && config.Lane(t.Status) != "closed" {
 					running++
 				}
 				if t.Created.After(last) {

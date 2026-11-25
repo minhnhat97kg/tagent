@@ -72,7 +72,7 @@ func nudgeStuck() {
 // i.e. the agent that stopped is the one expected to move it next.
 func ownedTicket(dir, id, role string) (tasks.Task, bool) {
 	t, err := tasks.Get(tasks.Scope(dir), id)
-	if err != nil || t.Workflow == "" || t.Status == "todo" || t.Status == "blocked" || t.Status == "done" {
+	if err != nil || t.Workflow == "" || t.Status == "todo" || t.Status == "blocked" || t.Status == "done" || t.Status == "closed" {
 		return t, false
 	}
 	cfg, err := tasks.LoadBoardConfig(dir)

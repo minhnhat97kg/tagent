@@ -68,7 +68,7 @@ triggers:
 `board init` also writes a starter `.tasks/workflows/feature.yml` when no
 `feature` workflow exists, so `default_workflow` resolves immediately.
 
-The board lanes are fixed: **todo, in progress, blocked, done**. Every workflow
+The board lanes are fixed: **todo, in progress, blocked, done, closed** (`closed` is built in, see below). Every workflow
 job status lands in *in progress*; its card shows the job's real status
 (`planning`, `building`, `testing`, ...). A ticket with no workflow gets
 `default_workflow` when it leaves todo — `s` in the TUI, `task start ID`, or any
@@ -130,7 +130,7 @@ the main worktree's `.tasks/workflows/<name>.yml`; existing files are never over
 The list reloads after the editor exits (including errors) or a deletion. Editing
 and deleting target the selected file, including global workflows marked `global`.
 
-The sidebar opens on the four fixed lanes: todo, in progress, blocked, done. At
+The sidebar opens on the five fixed lanes: todo, in progress, blocked, done, closed. At
 pane widths of 120 columns or more it shows those lanes, windowed around the
 selection when necessary. `h/l` selects a lane; `j/k` selects a card within it.
 Narrow panes retain the list with lane headers. `H/L` still moves the ticket's
@@ -183,9 +183,9 @@ an unknown name is an error at its line. The fire cap must be positive. A
 configured role requires an agent, or a `tier` (see [routing](routing.md)); a
 trigger requires an agent and valid template variables (see below).
 
-The TUI board always shows the four fixed lanes. Headers show the lane and
+The TUI board always shows the five fixed lanes. Headers show the lane and
 ticket count; a card shows its real status. Blocked cards show the question;
-done cards collapse to one line.
+done and closed cards collapse to one line. The web closed lane starts collapsed.
 
 ### Deprecated statuses and migration
 
@@ -266,13 +266,35 @@ workflow. Existing pane names/IDs still select
 legacy manual dispatch, which requires a doing status; Tasks panel shares the board ticket actions.
 Assignees are metadata; `needs` are a start gate (see below).
 
+### Closing and purging tickets
+
+`closed` is a built-in status for work that will not be done. `task close ID
+[reason]` closes a ticket from any status; so do `task set ID closed`, a web
+status change, and a web drag onto the closed lane. A closed ticket never fires
+triggers, and `start`, auto-start and the dispatcher all refuse it. Its agent
+panes are closed; its worktree and branch stay. Open dependents keep waiting:
+their badge reads `waits closed #12`. The TUI's `H/L` and `m` picker never close
+a ticket by accident. An agent can close one through MCP `task_move`.
+
+A closed ticket reopens only to the todo lane: `task set ID todo`. Other moves
+are refused with `reopen it with task set ID todo`.
+
+`task purge --closed` is a dry run: it lists every closed ticket and what
+removing it discards (uncommitted changes, unmerged branches). `task purge
+--closed --yes` deletes them with their worktrees, branches and attachments, and
+it is refused from an agent pane. The web closed lane offers the same purge
+behind a second click. A closed ticket that a live ticket still needs is kept
+and reported, since deleting it would unblock that ticket. Event history stays,
+so ticket ids are never reused. Archiving or exporting closed tickets is not
+covered.
+
 ### Dependencies and priority
 
 `--needs` (on `task add`) and `task needs ID ids|-` record the tickets this one
 waits for. Dependencies gate the start: a ticket whose dependencies are not all
 done cannot leave todo — `start`, `move` and `set` refuse with
 `waiting for #12, #15`, the dispatcher never fires it, and the card shows a dim
-`waits #12` badge. When the last dependency reaches done the card turns to
+`waits #12` badge. A closed dependency never finishes: the badge reads `waits closed #12`. When the last dependency reaches done the card turns to
 `ready`. A ticket can be set to auto-start (`task add --auto-start`, or
 `task auto ID on|off`, the TUI key `U` in the ticket detail or lane, or the
 Auto-start checkbox in the web Details; default off). A card with auto-start on

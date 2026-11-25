@@ -176,7 +176,12 @@ func (m Model) ticketsKey(key string) (Model, tea.Cmd, bool) {
 			return m, nil, true
 		}
 		columns := cfg.Columns
-		target := slices.Index(columns, m.notes[m.taskCursor].Status) + step
+		cur := slices.Index(columns, m.notes[m.taskCursor].Status)
+		if cur < 0 { // closed is not a column: H/L must not reopen it
+			m.taskNotice = "closed: reopen with task set " + m.notes[m.taskCursor].ID + " todo"
+			return m, nil, true
+		}
+		target := cur + step
 		if target >= 0 && target < len(columns) {
 			return m, m.moveTask(columns[target]), true
 		}
@@ -225,7 +230,7 @@ func (m Model) workflowRow(name string) int {
 // ticketHints is the ticket keys; nav says where Tab and esc go.
 func ticketHints(nav hint) []hint {
 	return []hint{
-		{"h/l", "lane", "h l", "select lane: todo / in progress / blocked / done (or click its tab)"},
+		{"h/l", "lane", "h l", "select lane: todo / in progress / blocked / done / closed (or click its tab)"},
 		{"j/k", "card", "j k ↑ ↓", "select ticket"},
 		{"n", "new", "n", "new ticket: pick its type, then write it in $EDITOR"},
 		{"s", "start", "s", "start with its type (picker when it has none)"},
@@ -234,14 +239,14 @@ func ticketHints(nav hint) []hint {
 		{"B", "config", "B", "board config summary (default workflow, roles, triggers; E edits)"},
 		{"p", "priority", "p / D", "cycle priority / edit dependencies"},
 		{"D", "deps", "", ""},
-				{"e", "edit", "e", "edit in $EDITOR"},
+		{"e", "edit", "e", "edit in $EDITOR"},
 		{"C", "comment", "c C", "comment on ticket (blocked: prefills @role reply)"},
 		{"H/L", "status", "H L", "previous / next status (each card shows its status)"},
 		{"m", "move", "m", "move to a status (picker, enter saves)"},
 		{"@", "assign", "@", "assign to a role or agent (picker, enter saves)"},
 		{"a", "files", "a / A", "attachments: view or open (images, pdf) / attach file"},
 		{"x", "delete", "x", "delete (confirm)"},
-			{"U", "auto-start", "U", "toggle auto-start: start when the last dependency is done"},
+		{"U", "auto-start", "U", "toggle auto-start: start when the last dependency is done"},
 		{"w", "workflow", "w", "workflow view"},
 		{"", "", "t", "swap Workflows / Agents tab (and back)"},
 		{"", "", "E", "edit .tasks/board.yaml"},

@@ -262,6 +262,34 @@ func removeCheckout(root, path string) error {
 	return err
 }
 
+// Discard removes ticket id's checkout and its branch whatever they hold. Purge
+// uses it; Cleanup keeps dirty or unmerged work instead.
+func (Git) Discard(root, id string) error {
+	if err := checkID(id); err != nil {
+		return err
+	}
+	if _, err := Run(root, "rev-parse", "--git-dir"); err != nil { // not a repo: no checkout or branch exists
+		return nil
+	}
+	name := "workflow-" + id
+	path := filepath.Join(root, Dir, name)
+	branch := "agent/" + name
+	if _, err := os.Stat(path); err == nil {
+		if err := removeCheckout(root, path); err != nil {
+			return err
+		}
+	}
+	// A worktree whose directory is already gone is still registered: prune it, or git refuses to delete its branch.
+	if _, err := Run(root, "worktree", "prune"); err != nil {
+		return err
+	}
+	if _, err := Run(root, "rev-parse", "--verify", "-q", "refs/heads/"+branch); err != nil {
+		return nil
+	}
+	_, err := Run(root, "branch", "-D", branch)
+	return err
+}
+
 // PruneBlocker returns why ticket id's work must stay, or "" when it can go: its
 // checkout passes checkoutBlocker, and its branch (if any) is merged.
 func (Git) PruneBlocker(root, id string) string {

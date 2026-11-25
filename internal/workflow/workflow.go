@@ -162,7 +162,7 @@ func Parse(b []byte) (Workflow, error) {
 		if j.Status == "" {
 			j.Status = j.ID
 		}
-		if _, ok := statuses[j.Status]; ok {
+		if _, ok := statuses[j.Status]; ok || j.Status == "closed" {
 			return w, errAt(key.Line, "duplicate/reserved status %s", j.Status)
 		}
 		if (j.Run == "") == (j.Agent == "") || (j.Run != "" && (j.Prompt != "" || j.Model != "")) || j.MaxLoops < 0 {

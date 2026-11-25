@@ -63,7 +63,7 @@ tagent task show ID --brief
 
 Use the board's actual entry status, not necessarily plan. `move` validates next;
 omitted next allows any status, empty next allows none. `task set ID STATUS [note]`
-and `task done ID [note]` bypass next for admin repair. `task start ID PANE` is
+and `task done ID [note]` bypass next for admin repair; `closed` is reached through `task close`, the web status change, or MCP `task_move`. `task start ID PANE` is
 legacy manual dispatch requiring idle pane and configured doing status.
 `task start ID [WORKFLOW]` attaches a workflow to a todo ticket and enters its
 first job; omit the name to use `default_workflow`. On a deprecated board,
@@ -88,7 +88,7 @@ Re-entering a limited status beyond its cap blocks with an explanation.
 - `task assign ID role[,role]` (`-` clears): metadata unless triggers configured.
 - Create tickets with plain `task add`.
 - `task add [--to names] [--needs ids] [--priority high|normal|low] [--workflow NAME [--input k=v]] "text"`; `task needs ID ids|-`;
-  `task priority ID high|normal|low`; `task workflow ID NAME|-` sets or clears a todo ticket's type (`s` in the board starts with it, `T` picks it); `task rm ID` for human cleanup. Cycles/unknown ids are rejected.
+  `task priority ID high|normal|low`; `task workflow ID NAME|-` sets or clears a todo ticket's type (`s` in the board starts with it, `T` picks it); `task rm ID` for human cleanup; `task close ID [reason]` ends a ticket that will not be done (it never fires; reopen with `task set ID todo`). Cycles/unknown ids are rejected.
 - `board init|run [--dir DIR]`: shared config/dispatcher.
 
 Main-worktree `.tasks/board.yaml` falls back to

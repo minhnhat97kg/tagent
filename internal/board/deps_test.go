@@ -128,3 +128,25 @@ func hasComment(t tasks.Task, text string) bool {
 	}
 	return false
 }
+
+func TestClosedDependencyNeverAutoStartsDependent(t *testing.T) {
+	dir, scope := setup(t, "max_fires_per_hour: 20\n")
+	must := func(err error) {
+		t.Helper()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	must(os.MkdirAll(filepath.Join(dir, ".tasks", "workflows"), 0700))
+	must(os.WriteFile(filepath.Join(dir, ".tasks", "workflows", "build.yml"), []byte("name: build\njobs:\n  build: {run: echo ok}\n"), 0600))
+	a, err := tasks.Add(scope, "A", nil)
+	must(err)
+	b, err := tasks.Add(scope, "B", nil, tasks.MutationOptions{Needs: []string{a.ID}, AutoStart: true})
+	must(err)
+	must(tasks.SetWorkflow(scope, b.ID, "build"))
+	must(tasks.Move(scope, a.ID, "closed", "dropped"))
+	must(autoStart(dir, a.ID))
+	if got, _ := tasks.Get(scope, b.ID); got.Status != "todo" {
+		t.Fatalf("B started on a closed dependency: %q", got.Status)
+	}
+}

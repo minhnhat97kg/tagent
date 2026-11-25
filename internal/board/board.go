@@ -345,7 +345,7 @@ func Actions(dir string, cfg tasks.BoardConfig, ev tasks.Event, t tasks.Task) ([
 	if err != nil {
 		return nil, err
 	}
-	if ev.Actor == "system" {
+	if ev.Actor == "system" || t.Status == "closed" { // closed never fires or starts
 		return nil, nil
 	}
 	// A ticket whose dependencies are not done is never dispatched: the CLI, the

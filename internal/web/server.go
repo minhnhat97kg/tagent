@@ -481,6 +481,7 @@ func (s *server) project(w http.ResponseWriter, r *http.Request) {
 	}
 	add("blocked", "", "")
 	add("done", "", "")
+	add("closed", "", "")
 	workers := map[string]map[string]any{}
 	// running lists the roles whose pane is working on each ticket (the replying indicator).
 	running := map[string][]string{}
@@ -598,6 +599,14 @@ func (s *server) taskOp(w http.ResponseWriter, r *http.Request) {
 		err = tasks.Remove(scope, o.ID)
 	case "start": // Status names a workflow, or "board" for the next column (same as the TUI's s picker)
 		err = board.Start(o.Dir, o.ID, o.Status)
+	case "purge": // deletes every closed ticket with its worktrees and branches; the reply lists them
+		items, perr := tasks.Purge(scope, true)
+		if perr != nil {
+			fail(w, perr)
+			return
+		}
+		writeJSON(w, items)
+		return
 	default:
 		err = fmt.Errorf("unknown op %q", o.Op)
 	}

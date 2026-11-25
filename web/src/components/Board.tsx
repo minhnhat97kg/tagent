@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from "react"
 import { KanbanSquare, MessageSquare, Search, Settings } from "lucide-react"
+import { toast } from "sonner"
 import { Avatar, BoardDrawer, needState, priorityMark, priorityRank, shortId, statusColor, title } from "./BoardDrawer"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { act, post } from "@/api"
 import { baseName } from "@/lib/status"
 import type { Project, Task } from "@/types"
 import "./board.css"
+
+type PurgeItem = { id: string; title: string; removed: boolean; warning?: string; kept?: string }
 
 function useMedia(q: string) {
   const [on, setOn] = useState(() => matchMedia(q).matches)
@@ -28,8 +31,8 @@ export function TaskDrawer({ proj, dir, reload, id, onClose, onOpen, origin, ini
   </Dialog>
 }
 
-const LANES = ["todo", "in progress", "blocked", "done"]
-const laneOf = (status: string) => (status === "todo" || status === "blocked" || status === "done" ? status : "in progress")
+const LANES = ["todo", "in progress", "blocked", "done", "closed"]
+const laneOf = (status: string) => (status === "todo" || status === "blocked" || status === "done" || status === "closed" ? status : "in progress")
 
 export function Board({ dir, proj, reload }: { dir: string; proj?: Project; reload: () => void }) {
   const [query, setQuery] = useState("")
@@ -43,6 +46,20 @@ export function Board({ dir, proj, reload }: { dir: string; proj?: Project; relo
   const all = proj?.tasks ?? []
   const tasks = all.filter(t => (!role || taskRole(t) === role || t.assignees?.includes(role)) && (!query || `${t.id} ${t.title} ${t.text}`.toLowerCase().includes(query.toLowerCase())))
   const move = (id: string, status: string) => act(post("/api/tasks", { Dir: dir, Op: "set", ID: id, Status: status }).then(reload))
+  const [closedOpen, setClosedOpen] = useState(false)
+  const [purgeArmed, setPurgeArmed] = useState(false)
+  const closedCount = all.filter(t => t.status === "closed").length
+  // Purge deletes every closed ticket, filtered or not; the second click confirms.
+  const purge = () => {
+    if (!purgeArmed) { setPurgeArmed(true); return }
+    setPurgeArmed(false)
+    act(post<PurgeItem[]>("/api/tasks", { Dir: dir, Op: "purge" }).then(items => {
+      const kept = items.filter(i => i.kept)
+      toast.success(`Deleted ${items.length - kept.length} closed ticket(s) with their worktrees and branches`)
+      if (kept.length) toast(`Kept ${kept.length}: ${kept.map(i => `${shortId(i.id)} ${i.kept}`).join("; ")}`)
+      reload()
+    }))
+  }
   return <section className={`task-board ${selectedID ? "has-drawer" : ""}`}>
     <header className="board-tools">
       <h2><span className="board-icon"><KanbanSquare /></span>Board</h2>
@@ -59,14 +76,20 @@ export function Board({ dir, proj, reload }: { dir: string; proj?: Project; relo
       const live = column.some(t => proj?.workers?.[t.id]?.live)
       // "in progress" spans every working status, so a drop there has no single target status.
       const drop = lane !== "in progress"
+      const collapsed = lane === "closed" && !closedOpen // closed tickets are finished: hidden until asked for
       return <section key={lane} aria-label={`${lane} column`} className={`board-column ${column.length ? "" : "is-empty"} ${over === lane ? "drop-over" : ""}`}
         onDragOver={e => { if (drop) { e.preventDefault(); setOver(lane) } }} onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOver("") }} onDrop={e => { e.preventDefault(); setOver(""); const id = e.dataTransfer.getData("text/task"); if (id && drop) move(id, lane) }}>
         <header className="column-heading">
           <i className="status-dot" style={{ background: statusColor(lane === "in progress" ? "build" : lane) }} />
           <h3>{lane}</h3><span className="column-count">{column.length}</span>
           {live && <span className="board-live" title="Agent working">●</span>}
+          {lane === "closed" && <span className="closed-tools">
+            <button type="button" aria-expanded={closedOpen} onClick={() => setClosedOpen(!closedOpen)}>{closedOpen ? "Hide" : "Show"}</button>
+            <button type="button" disabled={!closedCount} onClick={purge}>{purgeArmed ? `Delete ${closedCount} and discard their worktrees and branches` : "Delete closed"}</button>
+            {purgeArmed && <button type="button" onClick={() => setPurgeArmed(false)}>Cancel</button>}
+          </span>}
         </header>
-        <div className="board-cards">{column.map(t => {
+        {!collapsed && <div className="board-cards">{column.map(t => {
           const working = proj?.workers?.[t.id]?.live
           const state = needState(t, all)
           return <button type="button" key={t.id} draggable onDragStart={e => { e.dataTransfer.setData("text/task", t.id); e.dataTransfer.effectAllowed = "move" }} onDragEnd={() => setOver("")}
@@ -85,7 +108,7 @@ export function Board({ dir, proj, reload }: { dir: string; proj?: Project; relo
               <Avatar role={taskRole(t)} />
             </span>
           </button>
-        })}{!column.length && <p className="board-empty">{query || role ? "No match" : "Empty"}</p>}</div>
+        })}{!column.length && <p className="board-empty">{query || role ? "No match" : "Empty"}</p>}</div>}
       </section>
     })}</div>
     </>}

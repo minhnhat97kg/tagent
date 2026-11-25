@@ -31,7 +31,7 @@ MCP equivalent:
 Need a human decision? `{{BIN}} task move 12 blocked "Should the redirect keep the old path?"`
 
 ## Other questions
-- Open (not done) tickets, one per line `id<TAB>status<TAB>assignees<TAB>title`: `{{BIN}} task ls | awk -F'\t' '$2!="done"'`
+- Open (not done or closed) tickets, one per line `id<TAB>status<TAB>assignees<TAB>title`: `{{BIN}} task ls | awk -F'\t' '$2!="done" && $2!="closed"'`
 - One ticket: `{{BIN}} task show ID`. Comment: `{{BIN}} task comment ID "text"`. New ticket: `{{BIN}} task add --desc "context, steps, acceptance" "Short title under 80 chars"` (MCP: `task_add {"title": ..., "description": ...}`). Never put the details in the title.
 
 ## Rules of thumb

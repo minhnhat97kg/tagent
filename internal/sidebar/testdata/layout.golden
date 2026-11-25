@@ -155,7 +155,7 @@ tagent · tagent                         ? help · , settings
 │ Tokens today 0                                          │
 │  ·······  0 in 7d                                       │
 ╰─────────────────────────────────────────────────────────╯
-╭─ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1 ────────╮
+╭─ ☷ Tasks  ○2  [doing 2]  !1  ✓1  ⊘0 ───────────────────╮
 │ ▌ Ticket number 3 with a longer title                   │
 │   ● doing #3 builder 1                                 │
 │   Ticket number 4 with a longer title                   │
@@ -196,7 +196,7 @@ tagent · tagent                         ? help · , settings
 ┃ Tokens today 0                                          ┃
 ┃  ·······  0 in 7d                                       ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-╭─ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1 ────────╮
+╭─ ☷ Tasks  ○2  [doing 2]  !1  ✓1  ⊘0 ───────────────────╮
 │ ▌ Ticket number 3 with a longer title                   │
 │   ● doing #3 builder 1                                 │
 │   Ticket number 4 with a longer title                   │
@@ -237,7 +237,7 @@ tagent · tagent                         ? help · , settings
 │ Tokens today 0                                          │
 │  ·······  0 in 7d                                       │
 ╰─────────────────────────────────────────────────────────╯
-┏━ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1 ━━━━━━━━┓
+┏━ ☷ Tasks  ○2  [doing 2]  !1  ✓1  ⊘0 ━━━━━━━━━━━━━━━━━━━┓
 ┃ ▌ Ticket number 3 with a longer title                   ┃
 ┃   ● doing #3 builder 1                                 ┃
 ┃   Ticket number 4 with a longer title                   ┃
@@ -278,7 +278,7 @@ tagent · tagent                         ? help · , settings
 │ Tokens today 0                                          │
 │  ·······  0 in 7d                                       │
 ╰─────────────────────────────────────────────────────────╯
-╭─ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1 ────────╮
+╭─ ☷ Tasks  ○2  [doing 2]  !1  ✓1  ⊘0 ───────────────────╮
 │ ▌ Ticket number 3 with a longer title                   │
 │   ● doing #3 builder 1                                 │
 │   Ticket number 4 with a longer title                   │
@@ -302,7 +302,7 @@ tagent · tagent                         ? help · , settings
 h/l agents  enter view  a add  B board config  Tab focus  …
 === board 60x40 wf false
 Board · kanban                                              
-┏━ ☷ Tasks  [todo 2]  doing 0  blocked 0  done 1 ━━━━━━━━━┓
+┏━ ☷ Tasks  [todo 2]  ▶0  !0  ✓1  ⊘0 ━━━━━━━━━━━━━━━━━━━━━┓
 ┃ ▌ ● #1 First card                                        ┃
 ┃   ● #2 Second card                                       ┃
 ┃                                                          ┃
@@ -343,7 +343,7 @@ h/l lane  j/k card  n new  s start  T type  enter detail  B
                                                             
 === board 60x40 wf true
 Board · kanban                                              
-╭─ ☷ Tasks  [todo 2]  doing 0  blocked 0  done 1 ─────────╮
+╭─ ☷ Tasks  [todo 2]  ▶0  !0  ✓1  ⊘0 ─────────────────────╮
 │ ▌ ● #1 First card                                        │
 │   ● #2 Second card                                       │
 │                                                          │
@@ -405,7 +405,7 @@ tagent · tagent                         ? help · , settings
 │ Tokens today 0                                          │
 │  ·······  0 in 7d                                       │
 ╰─────────────────────────────────────────────────────────╯
-╭─ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1 ────────╮
+╭─ ☷ Tasks  ○2  [doing 2]  !1  ✓1  ⊘0 ───────────────────╮
 │ ▌ Ticket number 3 with a longer title                   │
 │   ● doing #3 builder 1                                 │
 │   Ticket number 4 with a longer title                   │
@@ -461,7 +461,7 @@ tagent · tagent                         ? help · , settings
 ┃ Tokens today 0                                          ┃
 ┃  ·······  0 in 7d                                       ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-╭─ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1 ────────╮
+╭─ ☷ Tasks  ○2  [doing 2]  !1  ✓1  ⊘0 ───────────────────╮
 │ ▌ Ticket number 3 with a longer title                   │
 │   ● doing #3 builder 1                                 │
 │   Ticket number 4 with a longer title                   │
@@ -517,7 +517,7 @@ tagent · tagent                         ? help · , settings
 │ Tokens today 0                                          │
 │  ·······  0 in 7d                                       │
 ╰─────────────────────────────────────────────────────────╯
-┏━ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1 ━━━━━━━━┓
+┏━ ☷ Tasks  ○2  [doing 2]  !1  ✓1  ⊘0 ━━━━━━━━━━━━━━━━━━━┓
 ┃ ▌ Ticket number 3 with a longer title                   ┃
 ┃   ● doing #3 builder 1                                 ┃
 ┃   Ticket number 4 with a longer title                   ┃
@@ -573,7 +573,7 @@ tagent · tagent                         ? help · , settings
 │ Tokens today 0                                          │
 │  ·······  0 in 7d                                       │
 ╰─────────────────────────────────────────────────────────╯
-╭─ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1 ────────╮
+╭─ ☷ Tasks  ○2  [doing 2]  !1  ✓1  ⊘0 ───────────────────╮
 │ ▌ Ticket number 3 with a longer title                   │
 │   ● doing #3 builder 1                                 │
 │   Ticket number 4 with a longer title                   │
@@ -608,7 +608,7 @@ tagent · tagent                         ? help · , settings
 h/l agents  enter view  a add  B board config  Tab focus  …
 === board 60x55 wf false
 Board · kanban                                              
-┏━ ☷ Tasks  [todo 2]  doing 0  blocked 0  done 1 ━━━━━━━━━┓
+┏━ ☷ Tasks  [todo 2]  ▶0  !0  ✓1  ⊘0 ━━━━━━━━━━━━━━━━━━━━━┓
 ┃ ▌ ● #1 First card                                        ┃
 ┃   ● #2 Second card                                       ┃
 ┃                                                          ┃
@@ -664,7 +664,7 @@ h/l lane  j/k card  n new  s start  T type  enter detail  B
                                                             
 === board 60x55 wf true
 Board · kanban                                              
-╭─ ☷ Tasks  [todo 2]  doing 0  blocked 0  done 1 ─────────╮
+╭─ ☷ Tasks  [todo 2]  ▶0  !0  ✓1  ⊘0 ─────────────────────╮
 │ ▌ ● #1 First card                                        │
 │   ● #2 Second card                                       │
 │                                                          │
@@ -720,7 +720,7 @@ enter view  a add  e edit  x delete  t agents  B config  Tab
                                                             
 === dash 130x45 focus 0
 tagent · tagent                                                                                               ? help · , settings
-┏━ Agents ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭─ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1 ──────────────────────────────────╮
+┏━ Agents ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭─ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1  closed 0 ────────────────────────╮
 ┃ ▌ claude-main                  main   ┃│ ▌ Ticket number 3 with a longer title                                             │
 ┃   codex-fix                           ▲  ┃│   ● doing #3 builder 1                                                           │
 ┃   plain                                  ┃│   Ticket number 4 with a longer title                                             │
@@ -766,7 +766,7 @@ tagent · tagent                                                                
 Tab/S-Tab panel  ↑↓ select  enter open  N new agent  l log  i prompt  f handoff  ? help                                         …
 === dash 130x45 focus 3
 tagent · tagent                                                                                               ? help · , settings
-╭─ Agents ─────────────────────────────────╮╭─ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1 ──────────────────────────────────╮
+╭─ Agents ─────────────────────────────────╮╭─ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1  closed 0 ────────────────────────╮
 │ ▌ claude-main                  main   ││ ▌ Ticket number 3 with a longer title                                             │
 │   codex-fix                           ▲  ││   ● doing #3 builder 1                                                           │
 │   plain                                  ││   Ticket number 4 with a longer title                                             │
@@ -812,7 +812,7 @@ tagent · tagent                                                                
 h/l or [ ] range  Tab/S-Tab panel  ? help                                                                                       …
 === dash 130x45 focus 2
 tagent · tagent                                                                                               ? help · , settings
-╭─ Agents ─────────────────────────────────╮┏━ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+╭─ Agents ─────────────────────────────────╮┏━ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1  closed 0 ━━━━━━━━━━━━━━━━━━━━━━━━┓
 │ claude-main                  main     │┃ ▌ Ticket number 3 with a longer title                                             ┃
 │ codex-fix                           ▲    │┃   ● doing #3 builder 1                                                           ┃
 │ plain                                    │┃   Ticket number 4 with a longer title                                             ┃
@@ -858,7 +858,7 @@ tagent · tagent                                                                
 h/l lane  j/k card  n new  s start  T type  enter detail  B config  p priority  D deps  e edit  C comment  H/L status  m move  @…
 === dash 130x45 focus 4
 tagent · tagent                                                                                               ? help · , settings
-╭─ Agents ─────────────────────────────────╮╭─ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1 ──────────────────────────────────╮
+╭─ Agents ─────────────────────────────────╮╭─ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1  closed 0 ────────────────────────╮
 │ ▌ claude-main                  main   ││ ▌ Ticket number 3 with a longer title                                             │
 │   codex-fix                           ▲  ││   ● doing #3 builder 1                                                           │
 │   plain                                  ││   Ticket number 4 with a longer title                                             │
@@ -904,7 +904,7 @@ tagent · tagent                                                                
 h/l agents  enter view  a add  B board config  Tab focus  ? help                                                                …
 === board 130x45 wf false
 Board · kanban                                                                                                                    
-┏━ ☷ Tasks  [todo 2]  doing 0  blocked 0  done 1 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┏━ ☷ Tasks  [todo 2]  doing 0  blocked 0  done 1  closed 0 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃ ▌ ● #1 First card                                                                                                              ┃
 ┃   ● #2 Second card                                                                                                             ┃
 ┃                                                                                                                                ┃
@@ -950,7 +950,7 @@ h/l lane  j/k card  n new  s start  T type  enter detail  B config  p priority  
                                                                                                                                   
 === board 130x45 wf true
 Board · kanban                                                                                                                    
-╭─ ☷ Tasks  [todo 2]  doing 0  blocked 0  done 1 ───────────────────────────────────────────────────────────────────────────────╮
+╭─ ☷ Tasks  [todo 2]  doing 0  blocked 0  done 1  closed 0 ─────────────────────────────────────────────────────────────────────╮
 │ ▌ ● #1 First card                                                                                                              │
 │   ● #2 Second card                                                                                                             │
 │                                                                                                                                │

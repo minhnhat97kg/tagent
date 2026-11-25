@@ -14,6 +14,9 @@ func Start(dir, id, name string) error {
 	if err != nil {
 		return err
 	}
+	if t.Status == "closed" {
+		return fmt.Errorf("ticket #%s is closed: reopen it with task set %s todo", id, id)
+	}
 	cfg, err := tasks.LoadBoardConfig(dir)
 	if err != nil {
 		return err

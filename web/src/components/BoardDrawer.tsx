@@ -41,7 +41,7 @@ function byModel(jobs: TicketUsage["jobs"]) {
 const usd = (m?: Money) => !m ? "" : m.low === m.high ? usd1(m.low) : `${usd1(m.low)}–${usd1(m.high)}`
 
 // Status colours are reserved and always sit next to a text label.
-const COLORS: Record<string, string> = { todo: "#a1a1aa", plan: "#3b82f6", planning: "#3b82f6", researching: "#3b82f6", reproducing: "#3b82f6", build: "#6366f1", building: "#6366f1", refactoring: "#6366f1", fixing: "#6366f1", writing: "#6366f1", test: "#0ea5e9", testing: "#0ea5e9", review: "#f59e0b", reviewing: "#f59e0b", blocked: "#ef4444", done: "#10b981" }
+const COLORS: Record<string, string> = { todo: "#a1a1aa", plan: "#3b82f6", planning: "#3b82f6", researching: "#3b82f6", reproducing: "#3b82f6", build: "#6366f1", building: "#6366f1", refactoring: "#6366f1", fixing: "#6366f1", writing: "#6366f1", test: "#0ea5e9", testing: "#0ea5e9", review: "#f59e0b", reviewing: "#f59e0b", blocked: "#ef4444", done: "#10b981", closed: "#71717a" }
 export const statusColor = (s: string) => COLORS[s] ?? "#a1a1aa"
 export function StatusBadge({ status }: { status: string }) {
   return <span className="status-badge"><i style={{ background: statusColor(status) }} />{status}</span>
@@ -51,11 +51,12 @@ export const shortId = (id: string) => "#" + (/^\d+$/.test(id) ? id : id.slice(-
 // Priority is an ordering rank, not a label: high first, then normal, then low.
 export const priorityRank = (p?: string) => (p === "high" ? 0 : p === "low" ? 2 : 1)
 export const priorityMark = (p?: string) => (p === "high" ? "↑" : p === "low" ? "↓" : "")
+const finished = (t: Task) => t.status === "done" || t.status === "closed"
 // needState is a card's dependency badge: "waits #12", "ready" or "" (no dependencies).
 export function needState(t: Task, all: Task[]) {
   if (!t.needs?.length || t.status !== "todo") return ""
-  const open = t.needs.filter(id => { const dep = all.find(x => x.id === id); return !!dep && dep.status !== "done" }) // a deleted dependency stops blocking
-  return open.length ? `waits ${open.map(shortId).join(", ")}` : "ready"
+  const open = t.needs.filter(id => { const dep = all.find(x => x.id === id); return !!dep && dep.status !== "done" }) // a deleted dependency stops blocking; a closed one never finishes
+  return open.length ? `waits ${open.map(id => (all.find(x => x.id === id)?.status === "closed" ? "closed " : "") + shortId(id)).join(", ")}` : "ready"
 }
 export function rel(iso?: string) {
   const t = iso ? Date.parse(iso) : NaN
@@ -153,7 +154,7 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
     if (!task.workflow) return
     api<RunData>(`/api/tasks/${enc(task.id)}/run?dir=${enc(dir)}`).then(r => setHistory(r.entries ?? [])).catch(() => setHistory([]))
   }, [dir, task.id, task.workflow, task.updated])
-  const usage = usePoll(() => api<TicketUsage>(`/api/tasks/${enc(task.id)}/usage?dir=${enc(dir)}`), task.status === "done" ? 3_600_000 : 3000, dir + task.id).data
+  const usage = usePoll(() => api<TicketUsage>(`/api/tasks/${enc(task.id)}/usage?dir=${enc(dir)}`), task.status === "done" || task.status === "closed" ? 3_600_000 : 3000, dir + task.id).data
   const enqueue = (incoming: File[]) => {
     const error = validateUpload([...files, ...incoming]); if (error) { setUploadError(error); return }
     setFiles([...files, ...incoming]); setUploadError("")
@@ -223,7 +224,7 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
   const all = project?.tasks ?? []
   const setNeeds = (ids: string[]) => act(post("/api/tasks", { Dir: dir, Op: "needs", ID: task.id, Needs: ids }).then(reload))
   const q = depFilter.trim().toLowerCase()
-  const pickable = all.filter(t => t.id !== task.id && !needs.includes(t.id) && `${t.id} ${title(t)}`.toLowerCase().includes(q)).sort((a, b) => Number(a.status === "done") - Number(b.status === "done"))
+  const pickable = all.filter(t => t.id !== task.id && !needs.includes(t.id) && `${t.id} ${title(t)}`.toLowerCase().includes(q)).sort((a, b) => Number(finished(a)) - Number(finished(b)))
   const dependents = all.filter(t => t.needs?.includes(task.id))
   // Replying belongs to the conversation: the composer opens prefilled with the @mention.
   const replyTo = (who: string) => { setTab("activity"); setFilter("all"); setBody(`@${who} `); setComposerOpen(true) }
@@ -231,7 +232,7 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
   // Start runs the ticket's type (Details > Workflow), or the board's default workflow.
   const startLabel = task.workflow || project?.defaultWorkflow || "default workflow"
   const canSend = !sending && (!!body.trim() || files.length > 0)
-  const canStart = (task.status === "todo" || !task.workflow) && task.status !== "done"
+  const canStart = (task.status === "todo" || !task.workflow) && task.status !== "done" && task.status !== "closed"
   // Roles still working on this ticket after being @mentioned: no reply comment from them since.
   const comments = task.comments ?? []
   const replying = (project?.running?.[task.id] ?? []).filter(r => {
@@ -291,6 +292,7 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
         {task.workflow && (() => {
           // Steps of the ticket's recipe: finished ones checked, the current one highlighted.
           const jobs = workflows.find(w => w.name === task.workflow || w.file === task.workflow)?.jobs ?? []
+          // done ticks every step; closed matches no step, so none is ticked (it did not finish the recipe).
           const at = task.status === "done" ? jobs.length : jobs.findIndex(j => j.status === task.status)
           return <>{jobs.map((j, i) => <span key={j.id} title={j.agent || j.run || ""} className={`rounded px-1.5 py-px text-[11px] ${i === at ? "bg-foreground text-background" : i < at ? "text-emerald-600" : "text-muted-foreground"}`}>
             {i > 0 && <span className="mr-1 text-muted-foreground">›</span>}{i < at && <Check className="mr-0.5 inline size-3" />}{j.status}</span>)}

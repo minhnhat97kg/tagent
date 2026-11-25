@@ -30,6 +30,8 @@ Board and coordination
   task priority id high|normal|low  Set ordering; normal is the default
   task workflow id name|-      Set or clear a todo ticket's type (its workflow)
   task done id [note]          Admin shorthand for set done
+  task close id [reason]       End a ticket that will not be done: it never fires or starts; reopen with task set id todo
+  task purge --closed [--yes]  List closed tickets; --yes deletes them with their worktrees and branches (not from an agent pane)
   workflow list|new NAME|run NAME [--input k=v] [--wait] [title]
 task move id status [--output k=v]... [comment]  Handoff along configured transitions
   task retry id               Fresh current-status dispatch after repairing a failure

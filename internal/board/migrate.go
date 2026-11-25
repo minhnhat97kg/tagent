@@ -35,7 +35,7 @@ func Migrate(dir string, dryRun bool) ([]Migration, error) {
 	scope := tasks.Scope(dir)
 	var out []Migration
 	for _, t := range tasks.List(scope) {
-		if (t.Workflow != "" && t.Workflow != "board") || t.Status == "todo" || t.Status == "blocked" || t.Status == "done" {
+		if (t.Workflow != "" && t.Workflow != "board") || t.Status == "todo" || t.Status == "blocked" || t.Status == "done" || t.Status == "closed" {
 			continue
 		}
 		m := Migration{ID: t.ID, From: t.Status, Workflow: name}

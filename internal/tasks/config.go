@@ -651,6 +651,9 @@ func AtomicWrite(path string, b []byte) error {
 // Lane is the board column a status is shown in. Lanes are fixed; every
 // workflow job status lands in "in progress" and the card shows the real status.
 func (c BoardConfig) Lane(status string) string {
+	if status == "closed" { // built in: never declared, never dispatched
+		return "closed"
+	}
 	for lane, ids := range c.LaneStatuses {
 		if slices.Contains(ids, status) {
 			return lane
@@ -664,14 +667,16 @@ func (c BoardConfig) Lane(status string) string {
 }
 
 // Lanes lists the board columns in display order.
-func (c BoardConfig) Lanes() []string { return []string{"todo", "in progress", "blocked", "done"} }
+func (c BoardConfig) Lanes() []string {
+	return []string{"todo", "in progress", "blocked", "done", "closed"}
+}
 
 // validateLanes checks the declared lanes: known lane names, plain status ids,
 // each status in one lane only.
 func (c BoardConfig) validateLanes() error {
 	seen := map[string]string{}
 	for lane, ids := range c.LaneStatuses {
-		if !slices.Contains(c.Lanes(), lane) {
+		if lane == "closed" || !slices.Contains(c.Lanes(), lane) { // closed is built in
 			return fmt.Errorf("lanes: unknown lane %q (use %s)", lane, strings.Join(c.Lanes(), ", "))
 		}
 		for _, id := range ids {

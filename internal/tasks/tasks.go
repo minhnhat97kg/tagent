@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -424,13 +423,8 @@ func Update(scope, id, status string, assignees []string, opts ...MutationOption
 				return err
 			}
 			status = jobStatus(cfg, status)
-			if !slices.Contains(cfg.Columns, status) {
-				return fmt.Errorf("invalid status %q", status)
-			}
-			if status != t.Status && t.Status == "todo" {
-				if reason := WaitingReason(scope, t); reason != "" {
-					return fmt.Errorf("cannot leave todo: %s", reason)
-				}
+			if err := checkStatus(scope, cfg, t, status); err != nil {
+				return err
 			}
 		}
 		from := t.Status
@@ -475,6 +469,9 @@ func Update(scope, id, status string, assignees []string, opts ...MutationOption
 	})
 	if err == nil {
 		notice.send()
+		if notice != nil && notice.to == "closed" {
+			killPanes(ticketPanes(scope, id))
+		}
 		if refused != nil {
 			return t, fmt.Errorf("ticket #%s is blocked, not done: %s", id, refused.Body)
 		}

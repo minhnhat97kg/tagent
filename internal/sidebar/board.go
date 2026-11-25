@@ -129,10 +129,10 @@ func editBoardConfig(dir, pane string) tea.Cmd {
 	}
 }
 
-// boardColumns are the fixed lanes: todo, in progress, blocked, done.
+// boardColumns are the fixed lanes: todo, in progress, blocked, done, closed.
 func (m Model) boardColumns() []string { return m.boardConfig.Lanes() }
 
-// boardGlyph: many statuses, four icons (todo, in progress, blocked, done).
+// boardGlyph: many statuses, five icons (todo, in progress, blocked, done, closed).
 func (m Model) boardGlyph(status string) (string, lipgloss.Color) {
 	switch {
 	case status == "blocked":
@@ -141,6 +141,8 @@ func (m Model) boardGlyph(status string) (string, lipgloss.Color) {
 		return "✓", m.theme.StatusDone
 	case m.boardConfig.Lane(status) == "todo":
 		return "○", m.theme.TextMuted
+	case m.boardConfig.Lane(status) == "closed":
+		return "⊘", m.theme.TextMuted
 	}
 	return "◐", m.theme.Accent
 }
@@ -154,9 +156,9 @@ func boardTitle(t tasks.Task) string {
 }
 func (m Model) boardStyle(c lipgloss.Color) lipgloss.Style { return lipgloss.NewStyle().Foreground(c) }
 
-// The board has four fixed lanes however many statuses a workflow defines; a
+// The board has five fixed lanes however many statuses a workflow defines; a
 // card shows its real status.
-var boardLanes = []string{"todo", "in progress", "blocked", "done"}
+var boardLanes = []string{"todo", "in progress", "blocked", "done", "closed"}
 
 func (m Model) laneOf(status string) string { return m.boardConfig.Lane(status) }
 
@@ -169,14 +171,16 @@ func (m Model) needState(t tasks.Task) string {
 	}
 	var open []string
 	for _, id := range t.Needs {
-		done, found := false, false
+		done, found, closed := false, false, false
 		for _, n := range m.notes {
 			if n.ID == id {
-				done, found = n.Status == "done", true
+				done, found, closed = n.Status == "done", true, n.Status == "closed"
 				break
 			}
 		}
-		if found && !done {
+		if closed {
+			open = append(open, "closed #"+id)
+		} else if found && !done {
 			open = append(open, "#"+id)
 		}
 	}
@@ -345,6 +349,8 @@ func laneGlyph(lane string) string {
 		return "▶"
 	case "blocked":
 		return "!"
+	case "closed":
+		return "⊘"
 	}
 	return "✓"
 }
@@ -399,7 +405,7 @@ func (m Model) boardCardLine(idx, width int) string {
 // boardCard: title, then "● status #id role worker"; a blocked card adds its question.
 func (m Model) boardCard(idx, width int) []string {
 	t := m.notes[idx]
-	if lane := m.laneOf(t.Status); lane == "done" || lane == "todo" { // todo and done cards: one line
+	if lane := m.laneOf(t.Status); lane == "done" || lane == "todo" || lane == "closed" { // todo, done and closed cards: one line
 		return []string{m.boardCardLine(idx, width)}
 	}
 	mark := "  "
@@ -533,7 +539,7 @@ func (m Model) workflowLines(width int) []string {
 		}
 		active := 0
 		for _, t := range m.notes {
-			if t.Workflow == w.Name && m.boardConfig.Lane(t.Status) != "done" && t.Status != "todo" {
+			if t.Workflow == w.Name && !slices.Contains([]string{"done", "closed"}, m.boardConfig.Lane(t.Status)) && t.Status != "todo" {
 				active++
 			}
 		}

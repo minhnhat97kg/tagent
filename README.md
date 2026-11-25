@@ -174,7 +174,7 @@ Run `tagent help` to see the commands and the agents defined in the current repo
 | `tagent answer <pane> <1\|2\|…\|y\|n\|?>` | Answer an agent's approval prompt (also right in the sidebar) |
 | `tagent diff <name> [--stat]` · `merge <name> [--discard]` · `discard <name>` | Review / merge / drop the changes of an agent running in a worktree |
 | `tagent fanout -n 3 [--role r] [--wait] "<prompt>"` · `compare <prefix>` | Best-of-N: the same task to N agents in N worktrees, compare, keep the best |
-| `tagent task [ls]` · `task add --to <name> "<text>"` · `task start <id> <pane>` · `task set <id> <todo\|doing\|blocked\|done>` · `task assign <id> <name[,name]>` · `task rm <id>` | Create, dispatch, and track tasks on the repo board |
+| `tagent task [ls]` · `task add --to <name> "<text>"` · `task start <id> <pane>` · `task set <id> <todo\|doing\|blocked\|done\|closed>` · `task close <id> [reason]` · `task purge --closed [--yes]` · `task assign <id> <name[,name]>` · `task rm <id>` | Create, dispatch, and track tasks on the repo board |
 | `tagent chat [--dir DIR] [--agent claude\|pi] [--clear] <id>` | One assistant pane per ticket, reused until cleared. The first message is a ticket brief (summary, step, `tagent task show` for details); `tagent task` in that pane refuses other tickets |
 | `tagent stats [ls\|clear]` | Show or delete local Claude, Codex, OpenCode and Pi usage history |
 | `tagent save` · `restore [--dry-run]` | Save / bring back your agents after a restart (Claude resumes its session); auto-saved every 30s |
@@ -296,6 +296,7 @@ type the role explicitly. Agents must block with exactly one concrete question.
 `task set` and `task done` remain admin overrides. Assignees are metadata; `needs`
 is a start gate: a ticket with open dependencies cannot leave todo, and its card
 shows `waits #12` until the last one is done, then `ready` (a human still starts it).
+`task close ID [reason]` ends a ticket that will not be done (see docs/board.md).
 `task needs ID ids|-` edits them; cycles and unknown ids are rejected. Priority is
 `high`, `normal` (default) or `low` (`task add --priority`, `task priority`); lanes
 and the dispatcher's busy/approval queue order by it. Mention triggers still notify.
@@ -346,6 +347,8 @@ tagent task start <id> <pane>
 tagent task set <id> doing
 tagent task set <id> blocked
 tagent task set <id> done
+tagent task close <id> "dropped"
+tagent task purge --closed          # dry run; --yes deletes closed tickets and their worktrees
 tagent task assign <id> reviewer,tester
 tagent task rm <id>
 tagent stats ls

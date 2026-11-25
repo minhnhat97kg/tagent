@@ -47,7 +47,11 @@ func TestBoardScreenUsesColumnsAtEveryWidth(t *testing.T) {
 		m.width, m.height = size[0], size[1]
 		lines := strings.Split(m.View(), "\n")
 		view := ansi.Strip(strings.Join(lines, "\n"))
-		if !strings.Contains(view, "[todo 2]  doing 1  blocked 1  done 1") || !strings.Contains(view, "[Workflows]  Agents") {
+		want := "[todo 2]  doing 1  blocked 1  done 1  closed 0"
+		if size[0] == 60 { // too narrow for words: inactive tabs shrink to glyphs
+			want = "[todo 2]  ▶1  !1  ✓1  ⊘0"
+		}
+		if !strings.Contains(view, want) || !strings.Contains(view, "[Workflows]  Agents") {
 			t.Errorf("%v: no columns/workflows card:\n%s", size, view)
 		}
 		for i, l := range lines {

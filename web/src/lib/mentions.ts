@@ -10,7 +10,7 @@ const clip = (s: string, n: number) => (s.length > n ? s.slice(0, n - 1) + "…"
 export function mentionItems(agents: Agent[], tasks: Task[], workflows: Workflow[], self?: string): Mention[] {
   return [
     ...agents.filter(a => a.pane !== self).map<Mention>(a => ({ kind: "agent", key: `${a.name} ${a.pane}`, label: a.name || a.pane, detail: `${a.agent} · ${a.status}`, insert: `@${a.name || a.pane}` })),
-    ...tasks.filter(t => t.status !== "done").map<Mention>(t => ({ kind: "task", key: `${t.id} ${shortId(t.id)} ${title(t)}`, label: `#${shortId(t.id)} ${clip(title(t), 48)}`, detail: t.status, insert: `task #${shortId(t.id)} (${clip(title(t), 60)})` })),
+    ...tasks.filter(t => t.status !== "done" && t.status !== "closed").map<Mention>(t => ({ kind: "task", key: `${t.id} ${shortId(t.id)} ${title(t)}`, label: `#${shortId(t.id)} ${clip(title(t), 48)}`, detail: t.status, insert: `task #${shortId(t.id)} (${clip(title(t), 60)})` })),
     ...workflows.filter(w => !w.error).map<Mention>(w => ({ kind: "workflow", key: w.name, label: w.name, detail: w.description || `${w.jobs.length} steps`, insert: `workflow "${w.name}"` })),
   ]
 }

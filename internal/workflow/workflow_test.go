@@ -76,3 +76,9 @@ func TestWorkplaceKey(t *testing.T) {
 		t.Fatalf("run job in docker workplace accepted or wrong line: %v", err)
 	}
 }
+
+func TestReservedClosedStatusRejected(t *testing.T) {
+	if _, e := Parse([]byte("jobs:\n  a: {run: x, status: closed}\n")); e == nil {
+		t.Fatal("job with status closed accepted")
+	}
+}

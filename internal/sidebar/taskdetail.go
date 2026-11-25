@@ -166,7 +166,7 @@ func (m Model) taskDetailSummary(t tasks.Task, w int) []string {
 		if date, err := time.ParseInLocation("2006-01-02", t.Due, now.Location()); err == nil {
 			today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 			days := int(date.Sub(today).Hours() / 24)
-			if days < 0 && t.Status != "done" {
+			if days < 0 && t.Status != "done" && t.Status != "closed" {
 				due = m.boardStyle(m.theme.StatusError).Render(due + " · overdue")
 			} else if days >= 0 {
 				due += fmt.Sprintf(" · in %dd", days)

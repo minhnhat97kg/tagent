@@ -236,3 +236,35 @@ func TestGateAllowsMergedHalfRemovedCheckout(t *testing.T) {
 		t.Error("half-removed dir left behind")
 	}
 }
+
+// Discard removes unmerged work, and a worktree whose directory is already gone.
+func TestDiscardRemovesUnmergedAndStaleCheckout(t *testing.T) {
+	repo := newRepo(t)
+	wt, err := Git{}.Create(repo, "2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	commitIn(t, wt, "unmerged")
+	if err := (Git{}).Discard(repo, "2"); err != nil {
+		t.Fatal(err)
+	}
+	if exists(wt) {
+		t.Error("worktree left behind")
+	}
+	if _, err := Run(repo, "rev-parse", "--verify", "-q", "refs/heads/agent/workflow-2"); err == nil {
+		t.Error("unmerged branch left behind")
+	}
+	wt, err = Git{}.Create(repo, "3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.RemoveAll(wt); err != nil { // stale: directory gone, worktree still registered
+		t.Fatal(err)
+	}
+	if err := (Git{}).Discard(repo, "3"); err != nil {
+		t.Fatalf("stale checkout: %v", err)
+	}
+	if _, err := Run(repo, "rev-parse", "--verify", "-q", "refs/heads/agent/workflow-3"); err == nil {
+		t.Error("branch of stale checkout left behind")
+	}
+}
