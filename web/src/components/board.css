@@ -165,6 +165,9 @@
 /* Chat takes the rest of the drawer: the transcript scrolls, the composer stays at the bottom. */
 .board-drawer .drawer-panel.drawer-chat { flex: 1 1 auto; gap: 0; }
 .board-drawer .drawer-panel.drawer-chat > * { flex-shrink: 1; }
+/* Ticket drawer (has tabs): the drawer itself does not scroll; the active tab body does, so the header and tab strip stay put. Settings has no tabs and keeps its scroll. */
+.board-drawer:has(.drawer-tabs) { overflow: hidden; }
+.board-drawer:has(.drawer-tabs) > .drawer-panel:not(.drawer-chat) { flex: 1 1 0; overflow-y: auto; }
 
 /* Usage in the ticket details: one summary line that opens the card (three stats, then one row per dispatch with a share bar). */
 .usage-summary b { color: var(--foreground); font-weight: 600; }

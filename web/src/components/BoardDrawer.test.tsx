@@ -1,7 +1,11 @@
+/// <reference types="node" />
+import { readFileSync } from "node:fs"
+import path from "node:path"
 import { afterEach, beforeEach, expect, test, vi } from "vitest"
 import { cleanup, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { BoardDrawer } from "./BoardDrawer"
+import { DialogContent } from "@/components/ui/dialog"
 import type { RunView as RunData, Task, Workflow } from "@/types"
 
 const mocks = vi.hoisted(() => ({ api: vi.fn(), post: vi.fn() }))
@@ -9,7 +13,7 @@ vi.mock("@/api", () => ({ api: mocks.api, post: mocks.post, act: (p: Promise<unk
 // The drawer only exists inside a Radix dialog; the tabs are what this test is about.
 vi.mock("@/components/ui/dialog", () => ({
   Dialog: ({ children }: { children?: React.ReactNode }) => children,
-  DialogContent: ({ children }: { children?: React.ReactNode }) => children,
+  DialogContent: ({ children, className }: { children?: React.ReactNode; className?: string }) => <div className={className} data-slot="dialog-content">{children}</div>,
   DialogTitle: ({ children }: { children?: React.ReactNode }) => children,
   DialogDescription: () => null,
 }))
@@ -283,4 +287,28 @@ test("a dependency is picked from the ticket list, not typed, and removed with i
   expect(mocks.post).toHaveBeenCalledWith("/api/tasks", { Dir: "/repo", Op: "needs", ID: "30", Needs: ["31", "33"] })
   await userEvent.click(screen.getByRole("button", { name: "Remove dependency #31" }))
   expect(mocks.post).toHaveBeenCalledWith("/api/tasks", { Dir: "/repo", Op: "needs", ID: "30", Needs: [] })
+})
+
+// Layout contract from board.css: only the active tab body scrolls; the drawer, its header and the tab strip do not.
+test("a long Run scrolls only the tab body; the header and tab strip stay put", async () => {
+  const style = document.createElement("style")
+  style.textContent = readFileSync(path.resolve(import.meta.dirname, "board.css"), "utf8")
+  document.head.append(style)
+  try {
+    const entry = run.entries![0]
+    mocks.api.mockResolvedValue({ ...run, entries: Array.from({ length: 60 }, (_, i) => ({ ...entry, seq: i + 1, comment: `entry ${i + 1}` })) })
+    // Board.tsx wraps the drawer in the Radix content that carries the board-drawer class.
+    render(<DialogContent className="board-drawer translate-x-0 translate-y-0 sm:max-w-none"><BoardDrawer task={task} statuses={["todo", "build", "done"]} roles={["builder"]} role="builder" dir="/repo" reload={() => {}} workflows={[workflow]} /></DialogContent>)
+    await userEvent.click(screen.getByRole("tab", { name: "Run" }))
+    await screen.findByText("entry 60")
+    const drawer = document.querySelector<HTMLElement>('[data-slot="dialog-content"]')!
+    const panel = screen.getByRole("tabpanel")
+    const tabs = screen.getByRole("tablist")
+    expect(getComputedStyle(drawer).overflowY).not.toBe("auto")
+    expect(getComputedStyle(panel).overflowY).toBe("auto")
+    expect(getComputedStyle(panel).flexShrink).not.toBe("0")
+    expect(getComputedStyle(tabs).flexShrink).toBe("0")
+  } finally {
+    style.remove()
+  }
 })
