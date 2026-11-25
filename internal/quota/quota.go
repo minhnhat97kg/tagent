@@ -231,11 +231,9 @@ func Get() Snapshot {
 	}
 	return cached
 }
-func format(w Window) string {
-	if w.Used == nil {
-		return "n/a"
-	}
-	s := fmt.Sprintf("%.0f%%", *w.Used)
+
+// ResetAt is when the window resets; zero when the snapshot does not say.
+func (w Window) ResetAt() time.Time {
 	var at time.Time
 	var n int64
 	var v string
@@ -244,6 +242,15 @@ func format(w Window) string {
 	} else if json.Unmarshal(w.Reset, &v) == nil {
 		at, _ = time.Parse(time.RFC3339, v)
 	}
+	return at
+}
+
+func format(w Window) string {
+	if w.Used == nil {
+		return "n/a"
+	}
+	s := fmt.Sprintf("%.0f%%", *w.Used)
+	at := w.ResetAt()
 	if *w.Used > 80 && !at.IsZero() {
 		s += " reset " + at.Local().Format("Jan 2 15:04")
 		if at.Before(time.Now()) {

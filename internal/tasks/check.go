@@ -19,7 +19,7 @@ var harnesses = map[string]bool{"claude": true, "codex": true, "pi": true, "open
 func CheckBoard(dir string, cfg BoardConfig) []string {
 	var out []string
 	for name, r := range cfg.Roles {
-		if !harnesses[r.Agent] {
+		if r.Tier == "" && !harnesses[r.Agent] {
 			out = append(out, fmt.Sprintf("role %s: unsupported agent %q", name, r.Agent))
 		}
 	}

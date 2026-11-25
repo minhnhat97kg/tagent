@@ -68,9 +68,13 @@ func (m Model) agentStripLines(width int) []string {
 		if agentReadOnly(a) {
 			title += dim.Render(" · read-only")
 		}
+		kind, harness := "Harness", a.Harness
+		if a.Tier != "" {
+			kind, harness = "Tier", a.Tier
+		}
 		lines := []string{
 			boardFit(title, width),
-			row("Harness", a.Harness),
+			row(kind, harness),
 			row("Model", model),
 			row("Used by", used),
 			row("Live", running),
@@ -186,6 +190,8 @@ func (m Model) agentPanelKey(key string) (Model, tea.Cmd, bool) {
 		switch {
 		case (key == "x" || key == "m" || key == "e") && agentReadOnly(a):
 			m.taskNotice = "! " + a.Name + " is " + a.Source + ": read-only · copy it to the repo first"
+		case key == "m" && a.Tier != "":
+			m.taskNotice = "! " + a.Name + " runs on tier " + a.Tier + ": its harness and model come from routing.yaml"
 		case key == "m":
 			m.taskForm, m.taskInput = "agent-model", a.Model
 		case key == "x":

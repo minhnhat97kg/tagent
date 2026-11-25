@@ -265,3 +265,14 @@ func TestBuildRunsSkipsAuditLines(t *testing.T) {
 		t.Fatalf("audit line took the detail slot: %+v", runs)
 	}
 }
+
+func TestBuildRunsCarriesTierAndRoute(t *testing.T) {
+	events := []Event{
+		ev(1, "status", "todo", "planning", ""),
+		{Seq: 2, Task: "22", Kind: "dispatch", To: "planning", Role: "planner", Harness: "pi", Model: "gpt-6-luna", Tier: "fast", Route: "tier fast (Claude 5h 93%)", Time: runStart.Add(2 * time.Minute)},
+	}
+	runs := BuildRuns(runTask(), runSteps(), events, runStart.Add(time.Hour))
+	if runs[0].Tier != "fast" || runs[0].Route != "tier fast (Claude 5h 93%)" {
+		t.Fatalf("%+v", runs[0])
+	}
+}

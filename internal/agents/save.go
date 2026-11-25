@@ -29,7 +29,12 @@ func Save(dir, harness string, a Agent) error {
 	if !nameRe.MatchString(a.Name) {
 		return fmt.Errorf("agent name: start with a letter or digit, then letters, digits, - or _")
 	}
-	if !slices.Contains([]string{"pi", "claude", "codex"}, a.Harness) {
+	if a.Tier != "" {
+		if a.Model != "" || a.RoleContext.Set() {
+			return fmt.Errorf("tier %s: a tier role takes no model or context", a.Tier)
+		}
+		a.Harness = ""
+	} else if !slices.Contains([]string{"pi", "claude", "codex"}, a.Harness) {
 		return fmt.Errorf("unknown harness %q (pi, claude or codex)", a.Harness)
 	}
 	if err := tasks.ValidateEffort(a.Harness, a.Effort); err != nil {
@@ -63,7 +68,7 @@ func Save(dir, harness string, a Agent) error {
 	if a.Instructions != "" && !global {
 		path = roles.LocalPath(dir, a.Name)
 	}
-	if slices.Contains(boardNames(dir), a.Name) || a.Source == "board" || a.Model != "" || a.Effort != "" || a.Harness == "pi" || a.ContextSet || (a.Instructions != "" && !global) {
+	if slices.Contains(boardNames(dir), a.Name) || a.Source == "board" || a.Tier != "" || a.Model != "" || a.Effort != "" || a.Harness == "pi" || a.ContextSet || (a.Instructions != "" && !global) {
 		if err := editBoard(dir, func(rs *yaml.Node) error { return setRole(rs, a) }); err != nil {
 			return err
 		}
@@ -184,6 +189,8 @@ func setRole(rs *yaml.Node, a Agent) error {
 	if role.Kind != yaml.MappingNode {
 		*role = yaml.Node{Kind: yaml.MappingNode}
 	}
+	// An empty value removes the key, so a tier role drops agent and model, and a fixed one drops tier.
+	tasks.SetYAMLField(role, "tier", a.Tier)
 	tasks.SetYAMLField(role, "agent", a.Harness)
 	tasks.SetYAMLField(role, "model", a.Model)
 	tasks.SetYAMLField(role, "effort", a.Effort)

@@ -44,6 +44,8 @@ type Event struct {
 	Harness  string            `json:"harness,omitempty"`
 	Model    string            `json:"model,omitempty"`
 	Effort   string            `json:"effort,omitempty"`
+	Tier     string            `json:"tier,omitempty"`
+	Route    string            `json:"route,omitempty"` // why this harness and model: "tier fast (Claude 5h 93%)"
 	Pane     string            `json:"pane,omitempty"`
 	PaneName string            `json:"pane_name,omitempty"`
 	Prompt   string            `json:"prompt,omitempty"` // CapText'd

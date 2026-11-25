@@ -47,8 +47,9 @@ type Trigger struct {
 type Role struct {
 	FreshAfter  *int   `yaml:"fresh_after,omitempty"`
 	Effort      string `yaml:"effort,omitempty"`
-	Agent       string `yaml:"agent"`
+	Agent       string `yaml:"agent,omitempty"`
 	Model       string `yaml:"model"`
+	Tier        string `yaml:"tier,omitempty"` // harness and model come from routing.yaml at dispatch
 	RoleContext `yaml:",inline"`
 }
 type Status struct {
@@ -100,6 +101,7 @@ type ModelPrice struct {
 type BoardRoleSummary struct {
 	Name       string `json:"name"`
 	Agent      string `json:"agent"`
+	Tier       string `json:"tier,omitempty"`
 	Model      string `json:"model,omitempty"`
 	Effort     string `json:"effort,omitempty"`
 	FreshAfter *int   `json:"freshAfter,omitempty"`
@@ -242,7 +244,7 @@ func (c BoardConfig) Summary() BoardSummary {
 	sum := BoardSummary{DefaultWorkflow: c.DefaultWorkflow, MaxFiresPerHour: c.MaxFiresPerHour,
 		Roles: []BoardRoleSummary{}, Triggers: []BoardTriggerSummary{}}
 	for name, r := range c.Roles {
-		sum.Roles = append(sum.Roles, BoardRoleSummary{Name: name, Agent: r.Agent, Model: r.Model, Effort: r.Effort, FreshAfter: r.FreshAfter})
+		sum.Roles = append(sum.Roles, BoardRoleSummary{Name: name, Agent: r.Agent, Tier: r.Tier, Model: r.Model, Effort: r.Effort, FreshAfter: r.FreshAfter})
 	}
 	slices.SortFunc(sum.Roles, func(a, b BoardRoleSummary) int { return strings.Compare(a.Name, b.Name) })
 	for _, t := range c.Triggers {
@@ -321,6 +323,13 @@ func ParseBoardConfigFor(dir string, b []byte) (BoardConfig, error) {
 	for name, r := range c.Roles {
 		if err := ValidateEffort(r.Agent, r.Effort); err != nil {
 			return c, configErr(lines.roles[name], "role %s: %w", name, err)
+		}
+		if r.Tier != "" {
+			// A tier role's harness is chosen per dispatch, so it cannot pin a model or harness context.
+			if r.Agent != "" || r.Model != "" || r.Set() || strings.TrimSpace(name) == "" {
+				return c, configErr(lines.roles[name], "role %s: a tier role sets only tier and effort", name)
+			}
+			continue
 		}
 		if strings.TrimSpace(name) == "" || strings.TrimSpace(r.Agent) == "" || (r.FreshAfter != nil && *r.FreshAfter < 0) {
 			return c, configErr(lines.roles[name], "role requires name and agent")
@@ -471,12 +480,7 @@ func ValidateTemplate(s string) error {
 func LoadBoardConfig(dir string) (BoardConfig, error) {
 	b, err := os.ReadFile(BoardConfigPath(dir))
 	if os.IsNotExist(err) {
-		base := os.Getenv("XDG_CONFIG_HOME")
-		if base == "" {
-			h, _ := os.UserHomeDir()
-			base = filepath.Join(h, ".config")
-		}
-		b, err = os.ReadFile(filepath.Join(apppath.Dir(base), "board.yaml"))
+		b, err = os.ReadFile(filepath.Join(apppath.ConfigDir(), "board.yaml"))
 	}
 	if os.IsNotExist(err) {
 		return ParseBoardConfigFor(dir, nil)

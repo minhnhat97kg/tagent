@@ -18,6 +18,7 @@ import (
 	"tagent/internal/hook"
 	"tagent/internal/roles"
 	"tagent/internal/roster"
+	"tagent/internal/routing"
 	"tagent/internal/setup"
 	"tagent/internal/tasks"
 	"tagent/internal/tmux"
@@ -71,6 +72,22 @@ func spawnAgent(o spawnOpts) (pane, warn string, err error) {
 		if cfg, err := tasks.LoadBoardConfig(o.ConfigDir); err == nil {
 			if br, ok := cfg.Roles[o.Role]; ok {
 				if _, def := roles.GetIn(o.ConfigDir, o.Role); !def {
+					if br.Tier != "" && o.Agent == "" {
+						// A one-shot CLI has no quota reading yet, so a tier role starts on its first candidate;
+						// an explicit --model keeps its model.
+						rc, err := routing.Load()
+						if err != nil {
+							return "", "", err
+						}
+						c, err := rc.First(br.Tier)
+						if err != nil {
+							return "", "", err
+						}
+						o.Agent, o.Model = c.Harness, cmp.Or(o.Model, c.Model)
+						if tasks.ValidateEffort(o.Agent, br.Effort) != nil {
+							br.Effort = ""
+						}
+					}
 					o.Agent, o.Model, o.Effort = cmp.Or(o.Agent, br.Agent), cmp.Or(o.Model, br.Model), cmp.Or(o.Effort, br.Effort)
 					if o.Name == "" {
 						o.Name = freeName(o.Role)

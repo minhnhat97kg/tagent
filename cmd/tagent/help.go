@@ -42,7 +42,7 @@ task move id status [--output k=v]... [comment]  Handoff along configured transi
   task due id YYYY-MM-DD|-      Set or clear a due date
   board init|run|validate|migrate [--dir DIR] [--dry-run]
                                Create config / run triggers / validate / move tickets to default_workflow
-                                     board.yaml roles support agent, model, effort (edit in the board's Agents panel or the web Agents page)
+                                     board.yaml roles support agent, model, effort, or tier (docs/routing.md) (edit in the board's Agents panel or the web Agents page)
   task rm id                   Delete a task
   task [ls] from a chat pane   Listing is read-only; a chat pane may only change its own ticket
   mcp                          stdio MCP server for small models: task_show, task_move, task_comment, task_add (docs/mcp.md)

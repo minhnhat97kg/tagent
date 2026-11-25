@@ -353,3 +353,30 @@ func readFile(t *testing.T, path string) string {
 }
 
 func tasksBoard(dir string) string { return filepath.Join(dir, ".tasks", "board.yaml") }
+
+func TestTierRoleRoundTrip(t *testing.T) {
+	dir := setup(t)
+	if err := Save(dir, "pi", Agent{Name: "planner", Tier: "fast", Effort: "low", Source: "board"}); err != nil {
+		t.Fatal(err)
+	}
+	a, _ := Find(dir, "pi", "planner")
+	if a.Tier != "fast" || a.Harness != "" || a.Model != "" || a.Effort != "low" {
+		t.Fatalf("tier role %+v", a)
+	}
+	if b := board(t, dir); !strings.Contains(b, "# the planner picks the plan") || strings.Contains(b, "agent: pi") {
+		t.Fatalf("board after tier:\n%s", b)
+	}
+	if err := Save(dir, "pi", Agent{Name: "planner", Tier: "fast", Model: "x", Source: "board"}); err == nil {
+		t.Fatal("tier with model should be refused")
+	}
+	if err := Save(dir, "pi", Agent{Name: "planner", Harness: "claude", Model: "opus", Source: "board"}); err != nil {
+		t.Fatal(err)
+	}
+	a, _ = Find(dir, "pi", "planner")
+	if a.Tier != "" || a.Harness != "claude" || a.Model != "opus" {
+		t.Fatalf("fixed role %+v", a)
+	}
+	if b := board(t, dir); strings.Contains(b, "tier:") || !strings.Contains(b, "# the planner picks the plan") {
+		t.Fatalf("board after fixed:\n%s", b)
+	}
+}

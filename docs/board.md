@@ -173,8 +173,8 @@ the fixed lanes, no roles, no triggers and no default workflow: set
 
 `default_workflow` must name a local or global workflow with at least one job;
 an unknown name is an error at its line. The fire cap must be positive. A
-configured role requires an agent; a trigger requires an agent and valid
-template variables (see below).
+configured role requires an agent, or a `tier` (see [routing](routing.md)); a
+trigger requires an agent and valid template variables (see below).
 
 The TUI board always shows the four fixed lanes. Headers show the lane and
 ticket count; a card shows its real status. Blocked cards show the question;

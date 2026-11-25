@@ -585,7 +585,11 @@ func (m Model) flowLines(width int) []string {
 		case s.Role != "":
 			who = s.Role
 			if r, ok := m.boardConfig.Roles[s.Role]; ok {
-				who += " · " + strings.TrimSpace(r.Agent+" "+r.Model)
+				if r.Tier != "" {
+					who += " · tier " + r.Tier
+				} else {
+					who += " · " + strings.TrimSpace(r.Agent+" "+r.Model)
+				}
 			}
 			working, panes := 0, 0
 			for _, r := range m.rows {
@@ -684,6 +688,9 @@ func (m Model) boardConfigLines(width int) []string {
 	}
 	for _, r := range sum.Roles {
 		info := strings.TrimSpace(r.Agent + " " + r.Model)
+		if r.Tier != "" {
+			info = "tier " + r.Tier
+		}
 		if r.Effort != "" {
 			info += " · effort " + r.Effort
 		}

@@ -168,7 +168,7 @@ func dispatchBoardAction(a board.Action) error {
 				if p.Agent == "" || tasks.Scope(p.Path) != scope || (a.ExecDir != "" && p.Path != a.ExecDir) {
 					continue
 				}
-				if p.BoardTarget == key {
+				if p.BoardTarget == key && reusable(a, tmux.GetPaneOptionValue(p.PaneID, tmux.AgentRoute)) {
 					pane = p.PaneID
 					break
 				}
@@ -242,6 +242,7 @@ func dispatchBoardAction(a board.Action) error {
 			fmt.Fprintln(os.Stderr, "board:", warn)
 		}
 		tmux.SetPaneOption(pane, tmux.BoardTarget, key)
+		tmux.SetPaneOption(pane, tmux.AgentRoute, a.Role+":"+a.Model)
 	}
 	// Record what was actually sent; the run view reads these fields. Best effort:
 	// the audit line below still records delivery.
@@ -250,7 +251,7 @@ func dispatchBoardAction(a board.Action) error {
 		if harness == "" && harnesses[a.Role] {
 			harness = a.Role
 		}
-		_ = tasks.RecordDispatch(scope, a.Event.Task, tasks.Event{To: a.Event.To, Role: a.Agent, Harness: harness, Model: a.Model, Effort: a.Effort, Pane: pane, PaneName: tmux.GetPaneOptionValue(pane, tmux.PaneName), Prompt: tasks.CapText(a.Prompt, 8000)})
+		_ = tasks.RecordDispatch(scope, a.Event.Task, tasks.Event{To: a.Event.To, Role: a.Agent, Harness: harness, Model: a.Model, Effort: a.Effort, Tier: a.Tier, Route: a.Route, Pane: pane, PaneName: tmux.GetPaneOptionValue(pane, tmux.PaneName), Prompt: tasks.CapText(a.Prompt, 8000)})
 	}
 	// cmdSend handles active/approval states. Unknown startup states must queue too.
 	status := tmux.GetPaneOptionValue(pane, tmux.PaneStatusOpt)
@@ -274,6 +275,11 @@ func dispatchBoardAction(a board.Action) error {
 		tmux.SetPaneOption(pane, "@agent_role_entries", strconv.Itoa(entries+1))
 	}
 	return nil
+}
+
+// reusable: a tier pane is reused only on the harness and model it was spawned with.
+func reusable(a board.Action, paneRoute string) bool {
+	return a.Tier == "" || paneRoute == a.Role+":"+a.Model
 }
 
 // roleHarness resolves the harness a role runs on, mirroring spawnAgent: the

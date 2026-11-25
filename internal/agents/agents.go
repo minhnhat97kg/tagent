@@ -19,7 +19,8 @@ type Agent struct {
 	Harness      string     `json:"harness"`
 	Model        string     `json:"model"`
 	Effort       string     `json:"effort"`
-	Source       string     `json:"source"` // repo, legacy, global or board
+	Tier         string     `json:"tier,omitempty"` // harness and model come from routing.yaml; Harness stays empty
+	Source       string     `json:"source"`         // repo, legacy, global or board
 	Path         string     `json:"path"`
 	Instructions string     `json:"instructions"`
 	Running      int        `json:"running"`
@@ -91,12 +92,14 @@ func List(dir, harness string, live []LivePane) []Agent {
 			out = append(out, Agent{Name: name, Source: "board"})
 			i = len(out) - 1
 		}
-		if r.Agent != "" {
-			out[i].Harness = r.Agent
-		}
-		out[i].Model, out[i].Effort = r.Model, r.Effort
+		out[i].Tier, out[i].Model, out[i].Effort = r.Tier, r.Model, r.Effort
 		out[i].RoleContext = r.RoleContext
-		if out[i].Harness == "" {
+		switch {
+		case r.Tier != "":
+			out[i].Harness = ""
+		case r.Agent != "":
+			out[i].Harness = r.Agent
+		case out[i].Harness == "":
 			out[i].Harness = process // a board-only role with no agent: runs on the process harness
 		}
 	}

@@ -11,7 +11,9 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"tagent/internal/quota"
 	"tagent/internal/roles"
+	"tagent/internal/routing"
 	"time"
 
 	"tagent/internal/tasks"
@@ -32,7 +34,49 @@ type Action struct {
 	Skip                                              bool   // run job passes without running: a user asked to skip it
 	Preset                                            string // harness preset for the spawned agent, e.g. "scout"
 	Advance, Note                                     string // finish the entry into Advance without running it (skipped scout)
+	Tier, Route                                       string // tier role: the tier, and why this harness:model was picked
 }
+
+// quotaGet is the provider quota a tier role routes by; tests replace it.
+var quotaGet = quota.Get
+
+// route picks the harness and model of a tier role for this dispatch. A step's own
+// model wins over quota: it keeps the tier's first candidate harness. A pick that
+// fails blocks the action through BlockReason.
+func route(a *Action, r tasks.Role, stepModel string) {
+	a.Tier = r.Tier
+	var c routing.Choice
+	cfg, err := routing.Load()
+	if err == nil && stepModel != "" {
+		c, err = cfg.First(r.Tier)
+		c.Model = stepModel
+		a.Route = "step model"
+	} else if err == nil {
+		c, err = cfg.Select(r.Tier, quotaGet())
+		a.Route = "tier " + r.Tier
+		if c.Reason != "" {
+			a.Route += " (" + c.Reason + ")"
+		}
+	}
+	if err != nil {
+		a.BlockReason = "routing: " + err.Error()
+		return
+	}
+	a.Role, a.Model = c.Harness, c.Model
+	if tasks.ValidateEffort(c.Harness, a.Effort) != nil {
+		a.Effort = ""
+	}
+}
+
+func hasTier(cfg tasks.BoardConfig) bool {
+	for _, r := range cfg.Roles {
+		if r.Tier != "" {
+			return true
+		}
+	}
+	return false
+}
+
 type Fire func(Action) error
 type state struct {
 	LastSeq   int64                  `json:"last_seq"`
@@ -121,6 +165,9 @@ func Run(ctx context.Context, dir string, fire Fire) error {
 				return err
 			}
 		} else {
+			if hasTier(cfg) {
+				quotaGet() // quota refreshes in the background; calling it keeps the cache warm
+			}
 			events, e := tasks.ReadEvents(scope, s.LastSeq)
 			if e != nil {
 				return e
@@ -186,6 +233,13 @@ func Run(ctx context.Context, dir string, fire Fire) error {
 						continue
 					}
 					if a.BlockReason != "" {
+						if a.Event.Kind == "mention" {
+							// A mention on an exhausted tier is not a workflow step: it does not move the ticket.
+							if err = audit(a, "suppressed: "+a.BlockReason); err != nil {
+								return err
+							}
+							continue
+						}
 						if e = tasks.FinishEntry(scope, task.ID, "blocked", a.BlockReason, ev.Seq, true, tasks.MutationOptions{Actor: "system"}); e != nil {
 							s.LastError = e.Error()
 						}
@@ -373,6 +427,9 @@ func Actions(dir string, cfg tasks.BoardConfig, ev tasks.Event, t tasks.Task) ([
 				a.Role = r.Agent
 				a.Model = r.Model
 				a.Effort = r.Effort
+				if r.Tier != "" {
+					route(&a, r, s.Model)
+				}
 			}
 			if s.FreshAfter != nil {
 				a.FreshAfter = *s.FreshAfter
@@ -433,6 +490,9 @@ func Actions(dir string, cfg tasks.BoardConfig, ev tasks.Event, t tasks.Task) ([
 				a.Role = r.Agent
 				a.Model = r.Model
 				a.Effort = r.Effort
+				if r.Tier != "" {
+					route(&a, r, "")
+				}
 			}
 			target := a.Agent
 			if target == "" {
