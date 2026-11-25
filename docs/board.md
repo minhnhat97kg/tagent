@@ -396,7 +396,7 @@ ticket share this directory; relative files survive handoffs and dispatcher
 restarts. Different tickets are isolated. Moving a ticket to done commits any uncommitted work in its worktree on
 `agent/workflow-<ticket>`, rebases that branch onto the main checkout's HEAD if
 needed, and fast-forwards the main checkout to it (never forced or reset). Then the
-clean worktree and merged branch are removed (`cleanup: keep` skips this). If the merge fails, the ticket moves
+worktree and merged branch are removed; one with untracked or modified files, or a detached HEAD, is kept (`cleanup: keep` skips this). If the merge fails, the ticket moves
 to blocked with a `merge failed` comment and the worktree and branch are kept. The merge runs before done is recorded, so a failed merge leaves the ticket blocked, the command exits with an error, no done notice is sent and dependents do not start. Uncommitted files, ignored dependencies,
 secrets and local-only scripts are not copied. Ordinary board execution is unchanged.
 With `workplace: none` there is no worktree, branch or merge: the ticket's jobs run in
@@ -408,11 +408,14 @@ during it. A worktree kept for uncommitted changes keeps its panes, since its ag
 be working in it. Only the done step closes panes; the dispatcher does not.
 `tagent workplace prune` is a dry run unless `--yes` is given. It covers every ticket with a
 `.worktrees/workflow-*` checkout or an `agent/workflow-*` branch. It removes one only when the
-ticket is done or missing, any checkout is a usable git worktree on `agent/workflow-<ticket>`
-with no uncommitted changes (a detached HEAD is not usable), and the branch, if any, is merged
-into the main checkout's HEAD. It ignores `cleanup: keep` and never forces. Anything else is
-skipped with its reason (not merged, uncommitted changes, HEAD is not the ticket branch, ticket
-not done, or not a usable git worktree, such as an orphan left by a moved repository). Non-git
+ticket is done or missing and its branch, if any, is merged into the main checkout's HEAD.
+A usable git worktree must be on `agent/workflow-<ticket>` (a detached HEAD is kept) with no
+untracked or modified files; files deleted from it are removed, since they are in the merged
+branch. A checkout that is not a usable git worktree (a removal that stopped partway, or an
+orphan left by a moved repository) is deleted directly once its branch is merged; the dry run labels it
+`merged, unusable dir (untracked files not checked)`. It ignores
+`cleanup: keep`. Anything else is skipped with its reason (not merged, uncommitted changes,
+HEAD is not the ticket branch, ticket not done or running). Non-git
 workplaces are out of scope.
 Creation failures are reported before launch; retry requires a new status entry. Recipes are resolved
 live: editing affects existing tickets; missing or broken recipes report errors.

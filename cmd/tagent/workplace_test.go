@@ -41,15 +41,31 @@ func TestWorkplacePrune(t *testing.T) {
 		}
 		return task.ID
 	}
-	merged, dirty, unmerged, todo, orphan := add("done"), add("done"), add("done"), add("todo"), add("done")
+	merged, dirty, unmerged, todo, orphan, half := add("done"), add("done"), add("done"), add("todo"), add("done"), add("done")
 	missing := "9001" // no ticket record at all
 	wt := func(id string) string { return filepath.Join(repo, workplace.Dir, "workflow-"+id) }
-	for _, id := range []string{merged, dirty, unmerged, todo, missing} {
+	for _, id := range []string{merged, dirty, unmerged, todo, missing, half} {
 		if _, err := (workplace.Git{}).Create(repo, id); err != nil {
 			t.Fatal(err)
 		}
 	}
 	if _, err := git(wt(unmerged), "commit", "--allow-empty", "-qm", "work"); err != nil {
+		t.Fatal(err)
+	}
+	// half: merged, then tracked files lost from disk by an interrupted removal
+	if err := os.WriteFile(filepath.Join(wt(half), "f.txt"), []byte("f\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := git(wt(half), "add", "f.txt"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := git(wt(half), "commit", "-qm", "work"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := git(repo, "merge", "--ff-only", "-q", "agent/workflow-"+half); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(filepath.Join(wt(half), "f.txt")); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(wt(dirty), "scratch.txt"), []byte("scratch\n"), 0o644); err != nil {
@@ -66,10 +82,18 @@ func TestWorkplacePrune(t *testing.T) {
 	if code := cmdWorkplace([]string{"prune"}, &out, &errs); code != exitOK {
 		t.Fatalf("dry run code %d: %s", code, errs.String())
 	}
-	if !strings.Contains(out.String(), "remove "+wt(merged)) || !strings.Contains(out.String(), "dry run") {
+	for _, id := range []string{merged, missing, half, orphan} {
+		if !strings.Contains(out.String(), "remove "+wt(id)) {
+			t.Fatalf("dry run does not list %s as remove:\n%s", id, out.String())
+		}
+	}
+	if !strings.Contains(out.String(), "remove "+wt(orphan)+" (ticket done, merged, unusable dir (untracked files not checked))") {
+		t.Fatalf("orphan dir not labelled unusable:\n%s", out.String())
+	}
+	if !strings.Contains(out.String(), "dry run") {
 		t.Fatalf("dry run output:\n%s", out.String())
 	}
-	for _, id := range []string{merged, missing, dirty, unmerged, todo, orphan} {
+	for _, id := range []string{merged, missing, dirty, unmerged, todo, orphan, half} {
 		if _, err := os.Stat(wt(id)); err != nil {
 			t.Fatalf("dry run removed %s", id)
 		}
@@ -83,13 +107,12 @@ func TestWorkplacePrune(t *testing.T) {
 		"skip " + wt(dirty) + " (uncommitted changes)",
 		"skip " + wt(unmerged) + " (not merged)",
 		"skip " + wt(todo) + " (ticket is todo)",
-		"skip " + wt(orphan) + " (not a usable git worktree)",
 	} {
 		if !strings.Contains(out.String(), want) {
 			t.Fatalf("missing %q in:\n%s", want, out.String())
 		}
 	}
-	for _, id := range []string{merged, missing} {
+	for _, id := range []string{merged, missing, half, orphan} {
 		if _, err := os.Stat(wt(id)); !os.IsNotExist(err) {
 			t.Fatalf("prune kept %s", id)
 		}
@@ -97,7 +120,7 @@ func TestWorkplacePrune(t *testing.T) {
 			t.Fatalf("branch kept for %s: %q", id, b)
 		}
 	}
-	for _, id := range []string{dirty, unmerged, todo, orphan} {
+	for _, id := range []string{dirty, unmerged, todo} {
 		if _, err := os.Stat(wt(id)); err != nil {
 			t.Fatalf("prune removed %s", id)
 		}

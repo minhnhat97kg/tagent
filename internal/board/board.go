@@ -30,6 +30,7 @@ type Action struct {
 	Job                                               string
 	Event                                             tasks.Event
 	Trigger                                           int
+	Close                                             bool   // ticket reached done: close its role panes
 	Skip                                              bool   // run job passes without running: a user asked to skip it
 	Preset                                            string // harness preset for the spawned agent, e.g. "scout"
 	Advance, Note                                     string // finish the entry into Advance without running it (skipped scout)
@@ -209,6 +210,24 @@ func Run(ctx context.Context, dir string, fire Fire) error {
 				for _, a := range actions {
 					if ctx.Err() != nil {
 						return nil
+					}
+					if a.Close {
+						if err = audit(a, "reserved; outcome uncertain"); err != nil {
+							return err
+						}
+						e = fire(a)
+						outcome := "accepted"
+						if e != nil {
+							s.LastError = e.Error()
+							outcome = "failure: " + e.Error()
+						}
+						if err = audit(a, outcome); err != nil {
+							return err
+						}
+						if err = save(); err != nil {
+							return err
+						}
+						continue
 					}
 					if a.Advance != "" {
 						if e = tasks.FinishEntry(scope, task.ID, a.Advance, a.Note, ev.Seq, false, tasks.MutationOptions{Actor: "board"}); e != nil {
@@ -436,6 +455,9 @@ func Actions(dir string, cfg tasks.BoardConfig, ev tasks.Event, t tasks.Task) ([
 				out = append(out, a)
 			}
 		}
+	}
+	if ev.Kind == "status" && ev.From != ev.To && cfg.Lane(ev.To) == "done" {
+		out = append(out, Action{Dir: dir, Event: ev, Trigger: -1, Close: true})
 	}
 	if ev.Kind == "retry" {
 		return out, nil

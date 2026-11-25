@@ -51,8 +51,12 @@ func cmdWorkplace(args []string, out, errs io.Writer) int {
 			fmt.Fprintf(out, "skip %s (%s)\n", path, why)
 			continue
 		}
+		how := "branch merged"
+		if _, err := os.Stat(path); err == nil && !workplace.Usable(path) {
+			how = "merged, unusable dir (untracked files not checked)"
+		}
 		if !yes {
-			fmt.Fprintf(out, "remove %s (%s, merged, clean)\n", path, state)
+			fmt.Fprintf(out, "remove %s (%s, %s)\n", path, state, how)
 			continue
 		}
 		if notes := (workplace.Git{}).Cleanup(root, id); len(notes) > 0 {
@@ -62,7 +66,7 @@ func cmdWorkplace(args []string, out, errs io.Writer) int {
 			failed = true
 			continue
 		}
-		fmt.Fprintf(out, "removed %s (%s, merged, clean)\n", path, state)
+		fmt.Fprintf(out, "removed %s (%s, %s)\n", path, state, how)
 	}
 	if !yes {
 		fmt.Fprintln(out, "dry run: nothing removed; pass --yes to remove the ones marked remove")

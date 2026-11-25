@@ -65,6 +65,12 @@ func (g Git) Gate(root, id, title string) (note string, err error) {
 		return "", nil
 	}
 	branch := "agent/workflow-" + id
+	if !Usable(wt) { // git would resolve a bare dir to the main checkout and commit there
+		if why := mergeBlocker(root, branch); why != "" {
+			return "", fmt.Errorf("%s is not a usable git worktree and its branch is %s", wt, why)
+		}
+		return "", nil // nothing to merge; Cleanup removes the directory
+	}
 	dirty, err := Run(wt, "status", "--porcelain")
 	if err != nil {
 		return "", err
@@ -102,8 +108,8 @@ func (g Git) Gate(root, id, title string) (note string, err error) {
 	return "merged " + short + " into " + cur, nil
 }
 
-// Cleanup removes the ticket checkout only if it has no uncommitted changes, and
-// its agent/workflow-<id> branch only if merged into the main checkout's HEAD.
+// Cleanup removes the ticket checkout when checkoutBlocker allows it, and its
+// agent/workflow-<id> branch only if merged into the main checkout's HEAD.
 // It returns one note per thing it left in place.
 func (g Git) Cleanup(root, id string) (notes []string) {
 	if g.Keep {
@@ -113,18 +119,18 @@ func (g Git) Cleanup(root, id string) (notes []string) {
 	path := filepath.Join(root, Dir, name)
 	branch := "agent/" + name
 	if _, err := os.Stat(path); err == nil {
-		if why := dirty(path, branch); why != "" {
+		if why := checkoutBlocker(root, path, branch); why != "" {
 			return []string{"cleanup: kept worktree " + path + " (" + why + ")"}
 		}
-		if _, err := Run(root, "worktree", "remove", path); err != nil {
+		if err := removeCheckout(root, path); err != nil {
 			return []string{"cleanup: kept worktree " + path + " (" + err.Error() + ")"}
 		}
 	}
+	if why := mergeBlocker(root, branch); why != "" {
+		return append(notes, "cleanup: kept branch "+branch+" ("+why+")")
+	}
 	if _, err := Run(root, "rev-parse", "--verify", "-q", "refs/heads/"+branch); err != nil {
 		return nil
-	}
-	if _, err := Run(root, "merge-base", "--is-ancestor", branch, "HEAD"); err != nil {
-		return append(notes, "cleanup: kept branch "+branch+" (not merged)")
 	}
 	if _, err := Run(root, "branch", "-d", branch); err != nil {
 		notes = append(notes, "cleanup: kept branch "+branch+" ("+err.Error()+")")
@@ -132,38 +138,47 @@ func (g Git) Cleanup(root, id string) (notes []string) {
 	return notes
 }
 
-// dirty returns why the checkout at path must stay, or "" when it is a usable git
-// checkout on branch with no uncommitted changes. A plain directory is refused
-// (git would report the main checkout), and so is a detached HEAD, whose commits
-// would be unreachable once the worktree is removed.
-func dirty(path, branch string) string {
-	if _, err := os.Stat(filepath.Join(path, ".git")); err != nil {
-		return "not a usable git worktree"
-	}
-	if _, err := Run(path, "rev-parse", "--git-dir"); err != nil {
-		return "not a usable git worktree"
+// checkoutBlocker returns why the checkout at path must stay, or "" when removing
+// it loses nothing. A checkout that is not a usable git worktree (a removal that
+// stopped partway) is kept while its branch is unmerged, since git cannot tell
+// what else is in it. A usable one must be on branch, with no untracked or
+// modified files. Deleted tracked files are allowed only once the branch is
+// merged, since their content is then in HEAD. A detached HEAD is kept: its
+// commits would be unreachable once the worktree is removed.
+func checkoutBlocker(root, path, branch string) string {
+	if !Usable(path) {
+		return mergeBlocker(root, branch)
 	}
 	if head, err := Run(path, "symbolic-ref", "-q", "HEAD"); err != nil || head != "refs/heads/"+branch {
 		return "HEAD is not " + branch
 	}
-	if out, err := Run(path, "status", "--porcelain"); err != nil || out != "" {
+	untracked, err := Run(path, "ls-files", "--others", "--exclude-standard")
+	if err != nil || untracked != "" {
+		return "uncommitted changes"
+	}
+	changes, err := Run(path, "diff", "--name-status", "HEAD")
+	if err != nil {
+		return "uncommitted changes"
+	}
+	deleted := false
+	for _, line := range strings.Split(changes, "\n") {
+		if line == "" {
+			continue
+		}
+		if !strings.HasPrefix(line, "D\t") {
+			return "uncommitted changes"
+		}
+		deleted = true
+	}
+	if deleted && mergeBlocker(root, branch) != "" {
 		return "uncommitted changes"
 	}
 	return ""
 }
 
-// PruneBlocker returns why ticket id's work must stay, or "" when it can go: any
-// checkout is clean on its branch, and that branch is merged into the main
-// checkout's HEAD (or there is no branch).
-func (Git) PruneBlocker(root, id string) string {
-	name := "workflow-" + id
-	path := filepath.Join(root, Dir, name)
-	branch := "agent/" + name
-	if _, err := os.Stat(path); err == nil {
-		if why := dirty(path, branch); why != "" {
-			return why
-		}
-	}
+// mergeBlocker returns "not merged" when branch exists and is not merged into the
+// main checkout's HEAD, else "" (no branch counts as merged).
+func mergeBlocker(root, branch string) string {
 	if _, err := Run(root, "rev-parse", "--verify", "-q", "refs/heads/"+branch); err != nil {
 		return ""
 	}
@@ -171,6 +186,46 @@ func (Git) PruneBlocker(root, id string) string {
 		return "not merged"
 	}
 	return ""
+}
+
+// Usable reports whether path is a git checkout of its own. It needs its own .git:
+// a bare directory would resolve to the enclosing repository.
+func Usable(path string) bool {
+	if _, err := os.Stat(filepath.Join(path, ".git")); err != nil {
+		return false
+	}
+	_, err := Run(path, "rev-parse", "--git-dir")
+	return err == nil
+}
+
+// removeCheckout deletes the checkout and its admin entry. A usable worktree goes
+// through git (the blocker already ruled out unsaved work, so the force only drops
+// deleted files and ignored output). A half-removed directory is deleted directly,
+// since git no longer recognises it, then pruned from the admin list.
+func removeCheckout(root, path string) error {
+	if Usable(path) {
+		_, err := Run(root, "worktree", "remove", "--force", path)
+		return err
+	}
+	if err := os.RemoveAll(path); err != nil {
+		return err
+	}
+	_, err := Run(root, "worktree", "prune")
+	return err
+}
+
+// PruneBlocker returns why ticket id's work must stay, or "" when it can go: its
+// checkout passes checkoutBlocker, and its branch (if any) is merged.
+func (Git) PruneBlocker(root, id string) string {
+	name := "workflow-" + id
+	path := filepath.Join(root, Dir, name)
+	branch := "agent/" + name
+	if _, err := os.Stat(path); err == nil {
+		if why := checkoutBlocker(root, path, branch); why != "" {
+			return why
+		}
+	}
+	return mergeBlocker(root, branch)
 }
 
 // Tickets lists the ids that have a checkout directory or an agent/workflow-<id>

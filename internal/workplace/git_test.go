@@ -119,3 +119,120 @@ func TestCleanupAndPrune(t *testing.T) {
 		}
 	})
 }
+
+// A new ticket reaching done leaves no worktree dir and no branch when its
+// checkout was half-removed after the merge: tracked files are gone from disk,
+// which git's non-forcing removal refused to finish.
+func TestDoneCleanupLeavesNoHalfRemovedWorktree(t *testing.T) {
+	repo := newRepo(t)
+	wt, err := Git{}.Create(repo, "10")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(wt, "f.txt"), []byte("f\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Run(wt, "add", "f.txt"); err != nil {
+		t.Fatal(err)
+	}
+	commitIn(t, wt, "work")
+	if _, err := (Git{}).Gate(repo, "10", "title"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(filepath.Join(wt, "f.txt")); err != nil { // interrupted removal
+		t.Fatal(err)
+	}
+	if notes := (Git{}).Cleanup(repo, "10"); len(notes) != 0 {
+		t.Errorf("notes = %v", notes)
+	}
+	if exists(wt) {
+		t.Error("worktree dir left behind")
+	}
+	if _, err := Run(repo, "rev-parse", "--verify", "-q", "refs/heads/agent/workflow-10"); err == nil {
+		t.Error("branch left behind")
+	}
+}
+
+// A checkout that is no longer a git worktree (its .git left dangling) is removed
+// with its directory and branch once the branch is merged.
+func TestCleanupRemovesHalfRemovedCheckout(t *testing.T) {
+	repo := newRepo(t)
+	wt, _ := Git{}.Create(repo, "11")
+	commitIn(t, wt, "work")
+	if _, err := (Git{}).Gate(repo, "11", "title"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(wt, "left.txt"), []byte("left\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(wt, ".git"), []byte("gitdir: /nowhere\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if why := (Git{}).PruneBlocker(repo, "11"); why != "" {
+		t.Errorf("blocker = %q", why)
+	}
+	if notes := (Git{}).Cleanup(repo, "11"); len(notes) != 0 {
+		t.Errorf("notes = %v", notes)
+	}
+	if exists(wt) {
+		t.Error("half-removed dir left behind")
+	}
+	if _, err := Run(repo, "rev-parse", "--verify", "-q", "refs/heads/agent/workflow-11"); err == nil {
+		t.Error("branch left behind")
+	}
+}
+
+// Without its own .git a checkout is never gated, since git would commit into the
+// main checkout. Its unmerged branch and directory stay.
+func TestHalfRemovedUnmergedCheckoutIsKept(t *testing.T) {
+	repo := newRepo(t)
+	wt, _ := Git{}.Create(repo, "12")
+	commitIn(t, wt, "unmerged")
+	if err := os.Remove(filepath.Join(wt, ".git")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(repo, "dirty.txt"), []byte("dirty\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := (Git{}).Gate(repo, "12", "title"); err == nil {
+		t.Error("Gate accepted a checkout without its own .git")
+	}
+	if out, _ := Run(repo, "status", "--porcelain"); out != "?? dirty.txt" {
+		t.Errorf("main checkout changed by Gate: %q", out)
+	}
+	if why := (Git{}).PruneBlocker(repo, "12"); why != "not merged" {
+		t.Errorf("blocker = %q", why)
+	}
+	if notes := (Git{}).Cleanup(repo, "12"); len(notes) != 1 {
+		t.Errorf("notes = %v, want one kept note", notes)
+	}
+	if !exists(wt) {
+		t.Error("unmerged half-removed dir removed")
+	}
+	if _, err := Run(repo, "rev-parse", "--verify", "-q", "refs/heads/agent/workflow-12"); err != nil {
+		t.Error("unmerged branch removed")
+	}
+}
+
+// A half-removed checkout whose branch is already merged has nothing to gate, so
+// the ticket can still reach done and Cleanup removes the directory.
+func TestGateAllowsMergedHalfRemovedCheckout(t *testing.T) {
+	repo := newRepo(t)
+	wt, _ := Git{}.Create(repo, "13")
+	commitIn(t, wt, "work")
+	if _, err := (Git{}).Gate(repo, "13", "title"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(filepath.Join(wt, ".git")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := (Git{}).Gate(repo, "13", "title"); err != nil {
+		t.Errorf("Gate refused a merged half-removed checkout: %v", err)
+	}
+	if notes := (Git{}).Cleanup(repo, "13"); len(notes) != 0 {
+		t.Errorf("notes = %v", notes)
+	}
+	if exists(wt) {
+		t.Error("half-removed dir left behind")
+	}
+}
