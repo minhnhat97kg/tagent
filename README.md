@@ -156,7 +156,7 @@ ticket detail (`a` opens the list). See [attachment limits and previews](docs/bo
 | `/` `r` `p` `v` `x` | sidebar | filter · repo filter · pin · select · delete worktree |
 | `tab` | sidebar / dashboard | cycle agents, definitions, and tasks |
 | `j` `k` | focused list | select an agent or task; selected task details stay visible |
-| `s` / `x` | focused task | workflow start picker / confirm task deletion |
+| `s` / `T` / `x` | focused task | start with its type (picker if none) / type picker (todo) / confirm task deletion |
 | `[` `]` | sidebar / dashboard | change chart range: 24 hours, 7 days, 30 days |
 
 The sidebar and zoomed dashboard use one view and one process. Narrow panes
@@ -298,7 +298,7 @@ shows `waits #12` until the last one is done, then `ready` (a human still starts
 `task needs ID ids|-` edits them; cycles and unknown ids are rejected. Priority is
 `high`, `normal` (default) or `low` (`task add --priority`, `task priority`); lanes
 and the dispatcher's busy/approval queue order by it. Mention triggers still notify.
-Recipes support `workflow new|list|run`, `workflow run NAME --input key=value --wait`,
+Recipes support `workflow new|list|run`, `task workflow ID NAME|-` (todo tickets) sets a type, `workflow run NAME --input key=value --wait`,
 and `task move ID NEXT --output key=value "Handoff"`.
 `task show ID` ends with a usage block (tokens per job, harness/model/effort, loops, elapsed; `n/a` when a harness reports nothing, total marked partial) and `task ls --usage` adds total tokens per ticket. The usage block also shows an estimated cost per job and per ticket, labelled API-equivalent (list prices, overridable with `pricing:` in `board.yaml`; see docs/board.md). The web drawer and TUI detail show the same block.
 
@@ -484,7 +484,7 @@ This project is licensed under the [MIT License](LICENSE). See [NOTICE](NOTICE) 
 
 README structure adapted from [readme-md-generator](https://github.com/kefranabg/readme-md-generator).
 
-Tasks panel and board share ticket controls: `s` workflow start picker
-(last row: `default_workflow`), `enter` detail, `e` edit, `C` comment, `H`/`L`
+Tasks panel and board share ticket controls: `s` starts with the ticket's type
+(picker if it has none; last row: `default_workflow`), `T` type (todo), `enter` detail, `e` edit, `C` comment, `H`/`L`
 status, `x` delete with confirmation, `w` workflow, `B` board config, `?` help.
 Dashboard `Tab` changes focus; `b` opens the board.

@@ -82,3 +82,13 @@ func TestTaskNameFromBranchNonDefaultPrefixUnchanged(t *testing.T) {
 		t.Fatalf("taskNameFromBranch(%q) = %q, want unchanged", "custom/do-task", got)
 	}
 }
+
+func TestTaskDetailShowsTypeNextToStatus(t *testing.T) {
+	m := boardTestModel()
+	for _, tc := range []struct{ workflow, want string }{{"", "type none"}, {"sample", "type sample"}} {
+		head := m.taskDetailSummary(tasks.Task{ID: "1", Title: "t", Text: "t", Status: "todo", Workflow: tc.workflow}, 80)[0]
+		if !strings.Contains(head, "todo") || !strings.Contains(head, tc.want) {
+			t.Fatalf("head %q lacks %q next to status", head, tc.want)
+		}
+	}
+}

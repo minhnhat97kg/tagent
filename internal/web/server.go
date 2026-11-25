@@ -563,6 +563,8 @@ func (s *server) taskOp(w http.ResponseWriter, r *http.Request) {
 		_, err = tasks.Update(scope, o.ID, o.Status, nil, tasks.MutationOptions{Actor: "user"})
 	case "priority":
 		err = tasks.SetPriority(scope, o.ID, o.Priority)
+	case "workflow": // Workflow "" clears the type
+		err = tasks.SetWorkflow(scope, o.ID, o.Workflow)
 	case "needs":
 		err = tasks.SetNeeds(scope, o.ID, o.Needs)
 	case "comment":
@@ -579,8 +581,6 @@ func (s *server) taskOp(w http.ResponseWriter, r *http.Request) {
 		err = tasks.Edit(scope, o.ID, o.Text)
 	case "rm":
 		err = tasks.Remove(scope, o.ID)
-	case "workflow": // the ticket's type, picked in todo; start runs it
-		err = tasks.SetWorkflow(scope, o.ID, o.Workflow, nil)
 	case "start": // Status names a workflow, or "board" for the next column (same as the TUI's s picker)
 		err = board.Start(o.Dir, o.ID, o.Status)
 	default:

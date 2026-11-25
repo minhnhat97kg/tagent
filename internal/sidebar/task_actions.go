@@ -78,7 +78,7 @@ func (m Model) handleTaskForm(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	}
-	if m.taskForm == "start" || m.taskForm == "new-task" {
+	if m.taskForm == "start" || m.taskForm == "new-task" || m.taskForm == "type" {
 		switch key.String() {
 		case "j", "down", "tab":
 			m.taskStep = min(len(m.boardWorkflows), m.taskStep+1)
@@ -92,6 +92,11 @@ func (m Model) handleTaskForm(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 			if m.taskForm == "new-task" {
 				m.taskForm = ""
 				return m, editTaskText(m.notesScope, tasks.Task{}, m.tmuxPane, false, name)
+			}
+			if m.taskForm == "type" {
+				scope, id := m.notesScope, m.notes[m.taskCursor].ID
+				m.taskForm = ""
+				return m, func() tea.Msg { return actionResult("Type set", tasks.SetWorkflow(scope, id, name)) }
 			}
 			dir, id := m.boardDir, m.notes[m.taskCursor].ID
 			m.taskForm = ""
@@ -269,14 +274,17 @@ func (m Model) taskFormView() string {
 			prefix = "› "
 		}
 		body += prefix + "none (no default)"
-	case "start", "new-task":
-		// The last row is the default (start) or no workflow (new ticket).
+	case "start", "new-task", "type":
+		// The last row is the default (start) or no workflow (new ticket, type).
 		last := "default workflow"
 		if m.taskForm == "start" {
 			title, hint = "Start "+m.notes[m.taskCursor].Title, m.keyHints("j/k select", "enter start", "esc cancel")
 			if m.boardConfig.DefaultWorkflow != "" {
 				last += " (" + m.boardConfig.DefaultWorkflow + ")"
 			}
+		} else if m.taskForm == "type" {
+			title, hint = "Type of #"+m.notes[m.taskCursor].ID, m.keyHints("j/k select", "enter save", "esc cancel")
+			last = "none (no workflow)"
 		} else {
 			title, hint = "New ticket", m.keyHints("j/k type", "enter write", "esc cancel")
 			last = "none (no workflow)"
@@ -356,7 +364,7 @@ func (m Model) taskFormView() string {
 		title, hint = "Message the chat", m.keyHints("enter send", "ctrl+s save to ticket", "esc cancel")
 
 	}
-	if m.taskForm != "start" && m.taskForm != "new-task" && m.taskForm != "default" && m.taskForm != "attachments" && m.taskForm != "needs" && m.taskForm != "assign" && m.taskForm != "status" && m.taskForm != "new-agent" {
+	if m.taskForm != "start" && m.taskForm != "new-task" && m.taskForm != "type" && m.taskForm != "default" && m.taskForm != "attachments" && m.taskForm != "needs" && m.taskForm != "assign" && m.taskForm != "status" && m.taskForm != "new-agent" {
 		body += "\n" + wrappedInput(m.taskInput, width, m.height)
 	}
 	head := m.boardStyle(m.theme.TextPrimary).Bold(true).Render(title)

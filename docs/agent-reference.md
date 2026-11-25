@@ -86,7 +86,7 @@ Re-entering a limited status beyond its cap blocks with an explanation.
 - `task assign ID role[,role]` (`-` clears): metadata unless triggers configured.
 - Create tickets with plain `task add`.
 - `task add [--to names] [--needs ids] [--priority high|normal|low] [--workflow NAME [--input k=v]] "text"`; `task needs ID ids|-`;
-  `task priority ID high|normal|low`; `task rm ID` for human cleanup. Cycles/unknown ids are rejected.
+  `task priority ID high|normal|low`; `task workflow ID NAME|-` sets or clears a todo ticket's type (`s` in the board starts with it, `T` picks it); `task rm ID` for human cleanup. Cycles/unknown ids are rejected.
 - `board init|run [--dir DIR]`: shared config/dispatcher.
 
 Main-worktree `.tasks/board.yaml` falls back to

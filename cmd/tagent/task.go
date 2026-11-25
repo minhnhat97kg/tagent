@@ -42,7 +42,7 @@ func cmdTask(args []string, stdout, stderr io.Writer) int {
 		return exitOK
 	}
 	usage := func() int {
-		fmt.Fprintln(stderr, "usage: tagent task [ls [--usage]] | add [--desc details] [--to name[,name]] [--needs id[,id]] [--priority high|normal|low] [--workflow name [--input k=v]...] <text> | done <id> [note] | move <id> <status> [comment] | retry <id> | start <id> [workflow|pane] | set <id> <configured-status> [note] | assign <id> <name[,name]|-> | needs <id> <id[,id]|-> | priority <id> <high|normal|low> | show <id> | attachments <id> | comment <id> [--attach path]... [--diff] <text> | due <id> <YYYY-MM-DD|-> | rm <id>")
+		fmt.Fprintln(stderr, "usage: tagent task [ls [--usage]] | add [--desc details] [--to name[,name]] [--needs id[,id]] [--priority high|normal|low] [--workflow name [--input k=v]...] <text> | done <id> [note] | move <id> <status> [comment] | retry <id> | start <id> [workflow|pane] | set <id> <configured-status> [note] | assign <id> <name[,name]|-> | needs <id> <id[,id]|-> | priority <id> <high|normal|low> | workflow <id> <name|-> | show <id> | attachments <id> | comment <id> [--attach path]... [--diff] <text> | due <id> <YYYY-MM-DD|-> | rm <id>")
 		return exitUsage
 	}
 	var err error
@@ -393,6 +393,15 @@ func cmdTask(args []string, stdout, stderr io.Writer) int {
 			return usage()
 		}
 		err = tasks.SetPriority(scope, args[1], args[2])
+	case "workflow":
+		if len(args) != 3 {
+			return usage()
+		}
+		name := args[2]
+		if name == "-" {
+			name = ""
+		}
+		err = tasks.SetWorkflow(scope, args[1], name)
 	case "assign":
 		if len(args) != 3 {
 			return usage()
@@ -487,7 +496,7 @@ func taskBinding(scope string, args []string) error {
 	}
 	target := ""
 	switch args[0] {
-	case "attachments", "assign", "comment", "done", "due", "move", "needs", "priority", "retry", "rm", "set", "show", "start":
+	case "attachments", "assign", "comment", "done", "due", "move", "needs", "priority", "retry", "rm", "set", "show", "start", "workflow":
 		if len(args) > 1 {
 			target = args[1]
 		}

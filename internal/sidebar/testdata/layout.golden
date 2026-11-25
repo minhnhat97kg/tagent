@@ -258,7 +258,7 @@ tagent · tagent                         ? help · , settings
 │ ~~~~~~~~~~~~~~ call me if you need anything             │
 │ ~~~~~~~~~~~~~~                                          │
 ╰─────────────────────────────────────────────────────────╯
-h/l lane  j/k card  n new  s start  enter detail  B config…
+h/l lane  j/k card  n new  s start  T type  enter detail  …
 === dash 60x40 focus 4
 tagent · tagent                         ? help · , settings
 ╭─ Agents ────────────────────────────────────────────────╮
@@ -339,7 +339,7 @@ Board · kanban
 ╭─ [Workflows]  Agents ────────────────────────────────────╮
 │ No workflows · tagent workflow new <name>                │
 ╰──────────────────────────────────────────────────────────╯
-h/l lane  j/k card  n new  s start  enter detail  B config  
+h/l lane  j/k card  n new  s start  T type  enter detail  B 
                                                             
 === board 60x40 wf true
 Board · kanban                                              
@@ -549,7 +549,7 @@ tagent · tagent                         ? help · , settings
 │ ~~~~~~~~~~~~~~ call me if you need anything             │
 │ ~~~~~~~~~~~~~~                                          │
 ╰─────────────────────────────────────────────────────────╯
-h/l lane  j/k card  n new  s start  enter detail  B config…
+h/l lane  j/k card  n new  s start  T type  enter detail  …
 === dash 60x55 focus 4
 tagent · tagent                         ? help · , settings
 ╭─ Agents ────────────────────────────────────────────────╮
@@ -660,7 +660,7 @@ Board · kanban
 ╭─ [Workflows]  Agents ────────────────────────────────────╮
 │ No workflows · tagent workflow new <name>                │
 ╰──────────────────────────────────────────────────────────╯
-h/l lane  j/k card  n new  s start  enter detail  B config  
+h/l lane  j/k card  n new  s start  T type  enter detail  B 
                                                             
 === board 60x55 wf true
 Board · kanban                                              
@@ -855,7 +855,7 @@ tagent · tagent                                                                
 │ ~~~~~~~~~~~~~~ call me if you need       ││                                                                                   │
 │ ~~~~~~~~~~~~~~ anything                  ││                                                                                   │
 ╰──────────────────────────────────────────╯╰───────────────────────────────────────────────────────────────────────────────────╯
-h/l lane  j/k card  n new  s start  enter detail  B config  p priority  D deps  e edit  C comment  H/L status  m move  @ assign …
+h/l lane  j/k card  n new  s start  T type  enter detail  B config  p priority  D deps  e edit  C comment  H/L status  m move  @…
 === dash 130x45 focus 4
 tagent · tagent                                                                                               ? help · , settings
 ╭─ Agents ─────────────────────────────────╮╭─ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1 ──────────────────────────────────╮
@@ -946,7 +946,7 @@ Board · kanban
 ╭─ [Workflows]  Agents ──────────────────────────────────────────────────────────────────────────────────────────────────────────╮
 │ No workflows · tagent workflow new <name>                                                                                      │
 ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-h/l lane  j/k card  n new  s start  enter detail  B config  p priority  D deps  e edit  C comment  H/L status  m move  @ assign  a
+h/l lane  j/k card  n new  s start  T type  enter detail  B config  p priority  D deps  e edit  C comment  H/L status  m move  @ a
                                                                                                                                   
 === board 130x45 wf true
 Board · kanban                                                                                                                    

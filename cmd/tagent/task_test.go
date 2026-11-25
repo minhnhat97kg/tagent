@@ -77,9 +77,15 @@ func TestTaskCommentDiffShowAndBoardInit(t *testing.T) {
 	if code := cmdBoard([]string{"init", "--dir", dir}, &out, &stderr); code != exitFailure {
 		t.Fatal("init overwrote config")
 	}
-	if err = tasks.SetWorkflow(tasks.Scope(dir), id, "feature", nil); err != nil {
-		t.Fatal(err)
+	run("workflow", id, "feature")
+	if task, _ = tasks.Get(tasks.Scope(dir), id); task.Workflow != "feature" {
+		t.Fatal(task.Workflow)
 	}
+	run("workflow", id, "-")
+	if task, _ = tasks.Get(tasks.Scope(dir), id); task.Workflow != "" {
+		t.Fatal(task.Workflow)
+	}
+	run("workflow", id, "feature")
 	if _, err = tasks.Update(tasks.Scope(dir), id, "build", nil); err != nil {
 		t.Fatal(err)
 	}

@@ -6,6 +6,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"tagent/internal/board"
 	"tagent/internal/metrics"
 	"tagent/internal/tasks"
 	"tagent/internal/workflow"
@@ -85,12 +86,18 @@ func (m Model) ticketsKey(key string) (Model, tea.Cmd, bool) {
 	case "n": // new ticket: pick its type (default: the board's), then write it in $EDITOR
 		m.taskForm, m.taskStep = "new-task", m.workflowRow(m.boardConfig.DefaultWorkflow)
 		return m, nil, true
-	case "s":
+	case "s": // a ticket with a type starts with it; otherwise pick one
 		if len(m.notes) > 0 {
-			m.taskForm, m.taskStep = "start", 0
-			if w := m.notes[m.taskCursor].Workflow; w != "" {
-				m.taskStep = m.workflowRow(w) // a stored type is what enter starts
+			dir, id := m.boardDir, m.notes[m.taskCursor].ID
+			if m.notes[m.taskCursor].Workflow != "" {
+				return m, func() tea.Msg { return actionResult("Task started", board.Start(dir, id, "")) }, true
 			}
+			m.taskForm, m.taskStep = "start", 0
+		}
+		return m, nil, true
+	case "T": // type: set or clear the workflow of a todo ticket
+		if len(m.notes) > 0 && m.notes[m.taskCursor].Status == "todo" {
+			m.taskForm, m.taskStep = "type", m.workflowRow(m.notes[m.taskCursor].Workflow)
 		}
 		return m, nil, true
 	case "p": // priority cycle: normal -> high -> low -> normal
@@ -211,7 +218,8 @@ func ticketHints(nav hint) []hint {
 		{"h/l", "lane", "h l", "select lane: todo / in progress / blocked / done (or click its tab)"},
 		{"j/k", "card", "j k ↑ ↓", "select ticket"},
 		{"n", "new", "n", "new ticket: pick its type, then write it in $EDITOR"},
-		{"s", "start", "s", "start: workflow picker"},
+		{"s", "start", "s", "start with its type (picker when it has none)"},
+		{"T", "type", "T", "type: pick or clear the workflow (todo only)"},
 		{"enter", "detail", "enter i", "ticket detail"},
 		{"B", "config", "B", "board config summary (default workflow, roles, triggers; E edits)"},
 		{"p", "priority", "p / D", "cycle priority / edit dependencies"},
