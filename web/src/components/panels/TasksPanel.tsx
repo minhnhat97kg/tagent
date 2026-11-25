@@ -24,7 +24,10 @@ export function TasksPanel({ proj, dir, reload, className }: { proj?: Project; d
   const order = (t: Task) => { const i = statuses.findIndex(s => s.id === t.status); return i < 0 ? statuses.length : i }
   const sorted = [...tasks].sort((a, b) => order(a) - order(b) || (b.updated || "").localeCompare(a.updated || ""))
   const done = sorted.filter(t => t.status === "done")
-  const shown = showDone ? sorted : sorted.filter(t => t.status !== "done")
+  // Fewer than 10 open tickets: the most recently updated done ones fill the list up to 10.
+  const open = sorted.filter(t => t.status !== "done")
+  const shown = showDone ? sorted : [...open, ...done.slice(0, Math.max(0, 10 - open.length))]
+  const hidden = sorted.length - shown.length
   return <Panel className={className} icon={<ListTodo className="text-amber-600" />} title={<a href="#/" className="hover:underline">Tasks</a>} right={<><span>{tasks.length}</span><button aria-label="Add task" className="flex size-6 items-center justify-center rounded-md hover:bg-accent" onClick={() => { setKind(proj?.defaultWorkflow ?? ""); setAdding(!adding) }}><Plus className="size-3.5" /></button></>} bodyClass="py-1">
     {adding && <form className="flex gap-1.5 px-2 pb-1" onSubmit={e => { e.preventDefault(); if (draft.trim()) act(post("/api/tasks", { Dir: dir, Op: "add", Text: draft.trim(), Workflow: kind }).then(() => { setDraft(""); setAdding(false); reload() })) }}>
       <Input autoFocus value={draft} onChange={e => setDraft(e.target.value)} placeholder="New task…" className="h-8 min-w-0 flex-1 text-[12.5px]" />
@@ -47,7 +50,7 @@ export function TasksPanel({ proj, dir, reload, className }: { proj?: Project; d
       {proj?.workers?.[t.id]?.live && <span className="board-live" title="Agent working">●</span>}
       <Avatar role={role(t)} />
     </button>)}
-    {!!done.length && <button className="flex h-8 w-full items-center px-2.5 text-[11.5px] text-muted-foreground hover:text-foreground" onClick={() => setShowDone(!showDone)}>{showDone ? "Hide done" : `Show ${done.length} done`}</button>}
+    {(showDone ? !!done.length : hidden > 0) && <button className="flex h-8 w-full items-center px-2.5 text-[11.5px] text-muted-foreground hover:text-foreground" onClick={() => setShowDone(!showDone)}>{showDone ? "Hide done" : `Show ${hidden} more done`}</button>}
     <TaskDrawer proj={proj} dir={dir} reload={reload} id={openId} onClose={() => setOpenId(undefined)} onOpen={setOpenId} origin={origin} />
   </Panel>
 }

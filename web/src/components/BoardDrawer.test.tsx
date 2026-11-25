@@ -249,13 +249,13 @@ test("Details shows usage as one line that opens the per-job breakdown", async (
   const summary = await screen.findByRole("button", { name: /Usage/ })
   expect(summary.getAttribute("aria-expanded")).toBe("false")
   expect(screen.getByText("partial")).toBeTruthy()
-  expect(screen.getByText("1.5k")).toBeTruthy()
+  expect(screen.getAllByText("1.5k")).toHaveLength(2) // summary and the legend
+  expect(screen.getByRole("img", { name: "gpt 100%" })).toBeTruthy() // per-model bar; jobs without tokens are left out
   expect(screen.queryByText("n/a")).toBeNull()
   await userEvent.click(summary)
   expect(summary.getAttribute("aria-expanded")).toBe("true")
-  expect(screen.getByText("tokens")).toBeTruthy()
+  expect(screen.getByText("gpt")).toBeTruthy()
   expect(screen.getByText("n/a")).toBeTruthy()
-  expect(screen.getByText(/×2 loops/)).toBeTruthy()
 })
 
 const others: Task[] = [

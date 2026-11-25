@@ -139,13 +139,14 @@ export default function App() {
   const agentsRoute = route === "/agents"
   const home = !sel && !boardRoute && !boardConfigRoute && !flowRoute && !runRoute && !agentsRoute
   const board = <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border bg-card"><Board dir={dir} proj={proj} reload={projPoll.reload} /></section>
-  const tasks = <TasksPanel proj={proj} dir={dir} reload={projPoll.reload} className="min-h-40 flex-1" />
+  const tasks = <TasksPanel proj={proj} dir={dir} reload={projPoll.reload} className="min-h-0 flex-1" />
 
 
   const railIds = layout.order
-  const railCls: Record<RailId, string> = { overview: "shrink-0", agents: "max-h-[35%] shrink-0", tasks: "min-h-40 flex-1" }
+  // Desktop rail never overflows: on a short window every panel shrinks and scrolls inside.
+  const railCls: Record<RailId, string> = { overview: "max-h-[40%]", agents: "max-h-[35%]", tasks: "min-h-24 flex-1" }
 
-  const railPanel = (id: RailId, i: number, ids: RailId[], cls: Record<RailId, string>) => <div key={id} className={cn("group/rail relative flex min-h-0 flex-col", id === "overview" && "overflow-y-auto", cls[id])} style={layout.heights[id] ? { flex: `0 1 ${layout.heights[id]}%`, minHeight: 64, maxHeight: "none" } : undefined}>
+  const railPanel = (id: RailId, i: number, ids: RailId[], cls: Record<RailId, string>) => <div key={id} className={cn("group/rail relative flex min-h-0 flex-col", id === "overview" && "overflow-y-auto", cls[id])} style={ids.every(x => layout.heights[x]) ? { flex: `${layout.heights[id]} 1 0%`, minHeight: 64, maxHeight: "none" } : undefined}>
               {editing && <div className="absolute top-1 left-1/2 z-10 flex -translate-x-1/2 rounded-md bg-card/90 shadow-sm ring-1 ring-border">
                 <button aria-label="Move panel up" disabled={i === 0} className="rounded hover:bg-accent disabled:invisible" onClick={() => layout.move(id, -1, ids)}><ChevronUp className="size-4" /></button>
                 <button aria-label="Move panel down" disabled={i === ids.length - 1} className="rounded hover:bg-accent disabled:invisible" onClick={() => layout.move(id, 1, ids)}><ChevronDown className="size-4" /></button>
@@ -153,22 +154,23 @@ export default function App() {
               {id === "overview" && <OverviewPanel days={usageDays} onDays={setUsageDays} overview={overview} className="shrink-0" />}
               {id === "agents" && <AgentsPanel ordered={dirAgents} byTask={byTask} onToggleTask={toggleByTask} selPane={agent?.pane} className="min-h-0 flex-1" />}
               {id === "tasks" && tasks}
-              {editing && <div role="separator" aria-orientation="horizontal" title="Drag to resize (double-click to reset)" className="group/grip absolute inset-x-0 bottom-0 z-10 flex h-3 cursor-row-resize touch-none items-end justify-center"
-                onDoubleClick={() => layout.setHeight(id, null)}
+              {editing && i < ids.length - 1 && <div role="separator" aria-orientation="horizontal" title="Drag to resize (double-click to reset)" className="group/grip absolute inset-x-0 bottom-0 z-10 flex h-3 cursor-row-resize touch-none items-end justify-center"
+                onDoubleClick={() => layout.setHeights({})}
                 onPointerDown={(e) => {
-                  const box = e.currentTarget.parentElement!
+                  // The bar trades height between this panel and the next; the panels always share the whole rail.
+                  const panels = Array.from(e.currentTarget.parentElement!.parentElement!.children) as HTMLElement[]
                   e.currentTarget.setPointerCapture(e.pointerId)
-                  // Heights are a percentage of the rail, so they scale with the window.
-                  const total = box.parentElement!.clientHeight || 1
-                  const y0 = e.clientY, h0 = box.offsetHeight
-                  let pct = (h0 / total) * 100
-                  const h = (ev: PointerEvent) => { pct = Math.max(10, Math.min(80, ((h0 + ev.clientY - y0) / total) * 100)); box.style.flex = `0 1 ${pct}%`; box.style.maxHeight = "none" }
-                  const up = () => { window.removeEventListener("pointermove", h); window.removeEventListener("pointerup", up); layout.setHeight(id, Math.round(pct * 10) / 10) }
-                  window.addEventListener("pointermove", h); window.addEventListener("pointerup", up)
+                  const hs = panels.map(p => p.offsetHeight), total = hs.reduce((a, b) => a + b, 0) || 1
+                  const pair = hs[i]! + hs[i + 1]!, h0 = hs[i]!, y0 = e.clientY
+                  const apply = () => panels.forEach((p, k) => { p.style.flex = `${(hs[k]! / total) * 100} 1 0%`; p.style.maxHeight = "none" })
+                  const h = (ev: PointerEvent) => { hs[i] = Math.max(64, Math.min(pair - 64, h0 + ev.clientY - y0)); hs[i + 1] = pair - hs[i]!; apply() }
+                  const up = () => { window.removeEventListener("pointermove", h); window.removeEventListener("pointerup", up); layout.setHeights(Object.fromEntries(ids.map((x, k) => [x, Math.round((hs[k]! / total) * 1000) / 10]))) }
+                  apply(); window.addEventListener("pointermove", h); window.addEventListener("pointerup", up)
                 }}><span className="mb-0.5 h-1 w-10 rounded-full bg-muted-foreground/30 group-hover/grip:bg-brand" /></div>}
   </div>
   const phoneIds: RailId[] = layout.order
-  const phoneCls: Record<RailId, string> = { overview: "shrink-0", agents: "max-h-[40vh] shrink-0", tasks: "min-h-40 flex-1" }
+  // Phone home fits the screen like the desktop rail: no page scroll, each panel scrolls inside.
+  const phoneCls: Record<RailId, string> = { overview: "max-h-[30%]", agents: "max-h-[30%]", tasks: "min-h-24 flex-1" }
 
   let main
   if (boardRoute) main = board
@@ -180,7 +182,7 @@ export default function App() {
   else if (sel) main = state ? <div className="p-6 text-muted-foreground">Agent not found. <a href="#/" className="text-foreground underline">Home</a></div> : null
   else main = <>
     {/* Phone home: the rail's lists stacked; the board is in the header. */}
-    <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto md:hidden">
+    <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden md:hidden">
       {phoneIds.map((id, i) => railPanel(id, i, phoneIds, phoneCls))}
     </div>
     <div className="hidden min-h-0 min-w-0 flex-1 md:flex">

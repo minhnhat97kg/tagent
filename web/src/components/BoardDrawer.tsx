@@ -24,6 +24,20 @@ type TabID = (typeof TABS)[number]["id"]
 const dur = (ns: number) => { const s = Math.round(ns / 1e9); return s >= 3600 ? `${Math.floor(s / 3600)}h ${Math.round(s % 3600 / 60)}m` : s >= 60 ? `${Math.floor(s / 60)}m ${s % 60}s` : `${s}s` }
 const tok = (n: number) => n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : String(n)
 const usd1 = (v: number) => v > 0 && v < 0.01 ? "<$0.01" : `$${v.toFixed(2)}`
+// byModel groups a ticket's jobs per model for the usage bar: tokens and summed cost, largest first.
+const MODEL_COLORS = ["var(--brand)", "#0284c7", "#059669", "#d97706", "#64748b"]
+const modelName = (j: { model: string; harness: string }) => (j.model || j.harness || "?").split("/").pop()!
+function byModel(jobs: TicketUsage["jobs"]) {
+  const m = new Map<string, { name: string; tokens: number; cost?: Money }>()
+  for (const j of jobs) {
+    if (!j.has) continue
+    const g = m.get(modelName(j)) ?? { name: modelName(j), tokens: 0 }
+    g.tokens += j.count.Total
+    if (j.cost) g.cost = { low: (g.cost?.low ?? 0) + j.cost.low, high: (g.cost?.high ?? 0) + j.cost.high }
+    m.set(g.name, g)
+  }
+  return [...m.values()].sort((a, b) => b.tokens - a.tokens).map((g, i) => ({ ...g, color: MODEL_COLORS[i % MODEL_COLORS.length]! }))
+}
 const usd = (m?: Money) => !m ? "" : m.low === m.high ? usd1(m.low) : `${usd1(m.low)}–${usd1(m.high)}`
 
 // Status colours are reserved and always sit next to a text label.
@@ -282,6 +296,33 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
             <button type="button" onClick={() => setTab("run")} className="inline-flex items-center gap-0.5 text-[11px] text-brand-ink underline-offset-2 hover:underline">View run<ArrowRight className="size-3" /></button></>
         })()}
       </div>
+      {/* Usage: one summary line under the meta; open it for one line per job. */}
+      {!!usage?.jobs?.length && <section className="usage">
+        <button type="button" className="usage-summary" aria-label={`Usage: ${tok(usage.total.Total)} tokens, ${usage.loops} loops, ${dur(usage.elapsed)}`} aria-expanded={usageOpen} onClick={() => setUsageOpen(v => !v)}>
+          <span><b>{tok(usage.total.Total)}</b> tokens{usage.cost && <> · <b title="Estimated at API list price, not a bill">≈{usd(usage.cost)}</b></>} · {usage.loops} loops · {dur(usage.elapsed)}</span>
+          {usage.partial && <span className="usage-partial" title="Some harnesses report no tokens">partial</span>}
+          <ChevronDown className="size-4 shrink-0" style={{ transform: usageOpen ? "rotate(180deg)" : undefined }} />
+        </button>
+        {(() => {
+          const models = byModel(usage.jobs), sum = models.reduce((a, g) => a + g.tokens, 0) || 1
+          const color = (j: TicketUsage["jobs"][number]) => models.find(g => g.name === modelName(j))?.color ?? "var(--muted-foreground)"
+          return <>
+            {!!models.length && <div className="usage-bar" role="img" aria-label={models.map(g => `${g.name} ${Math.round(100 * g.tokens / sum)}%`).join(", ")}>
+              {models.map(g => <i key={g.name} title={`${g.name}: ${tok(g.tokens)}`} style={{ width: `${(100 * g.tokens) / sum}%`, background: g.color }} />)}
+            </div>}
+            <ul className="usage-legend">{models.map(g => <li key={g.name}>
+              <i style={{ background: g.color }} />{g.name} <b>{tok(g.tokens)}</b> <span>{Math.round(100 * g.tokens / sum)}%</span>{g.cost && <span>≈{usd(g.cost)}</span>}
+            </li>)}</ul>
+            {usageOpen && <ul className="usage-rows">{usage.jobs.map((j, i) => <li key={i} title={[j.harness, j.model, j.effort].filter(Boolean).join(" / ")}>
+          <span className="usage-role"><i className="usage-dot" style={{ background: color(j) }} />{j.role}</span>
+          <span className="usage-model">{(j.model || j.harness || "").split("/").pop()}</span>
+          <span className="usage-n">{j.has ? tok(j.count.Total) : "n/a"}</span>
+          <span className="usage-n">{j.cost ? `≈${usd(j.cost)}` : ""}</span>
+          <span className="usage-n">{dur(j.elapsed)}</span>
+        </li>)}</ul>}
+          </>
+        })()}
+      </section>}
       {desc && <section><h3>Description</h3><Md text={desc} /></section>}
       <section>
         <div className="dep-head"><h3>Dependencies{!!needs.length && <span className="board-muted">{needs.length}</span>}</h3>
@@ -302,35 +343,6 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
           : !picking && <p className="board-muted">No dependencies.</p>}
       </section>
       {!!dependents.length && <section><h3>Blocks <span className="board-muted">{dependents.length}</span></h3><ul className="dep-list">{dependents.map(t => <li key={t.id}><button type="button" className="dep-open" onClick={() => onOpen?.(t.id)}><span className="board-key">{shortId(t.id)}</span><span className="dep-title">{title(t)}</span><StatusBadge status={t.status} /></button></li>)}</ul></section>}
-      {!!usage?.jobs?.length && (() => {
-        const peak = Math.max(1, ...usage.jobs.map(j => j.count.Total))
-        return <section>
-          <button type="button" className="usage-summary" aria-expanded={usageOpen} onClick={() => setUsageOpen(v => !v)}>
-            <span className="usage-label">Usage</span>
-            <span><b>{tok(usage.total.Total)}</b> tokens · <b>{usage.loops}</b> loops · <b>{dur(usage.elapsed)}</b> elapsed</span>
-            {usage.partial && <span className="usage-partial" title="Some harnesses report no tokens">partial</span>}
-            <ChevronDown className="size-4 shrink-0" style={{ transform: usageOpen ? "rotate(180deg)" : undefined }} />
-          </button>
-          {usageOpen && <div className="usage-card">
-            <dl className="usage-stats">
-              <div><dd>{tok(usage.total.Total)}</dd><dt>tokens</dt></div>
-              <div><dd>{usage.loops}</dd><dt>loops</dt></div>
-              <div><dd>{dur(usage.elapsed)}</dd><dt>elapsed</dt></div>
-              {usage.cost && <div><dd>≈{usd(usage.cost)}</dd><dt title="Estimated at API list price, not a bill: subscription logins are priced the same way">API-equivalent{usage.unpriced && " · some models unpriced"}</dt></div>}
-            </dl>
-            <ul className="usage-rows">{usage.jobs.map((j, i) => <li key={i}>
-              <div className="usage-who">
-                <span className="usage-role">{j.role}</span>
-                <span className="usage-model" title={[j.harness, j.model, j.effort].filter(Boolean).join(" / ")}>{[j.harness, (j.model || "").split("/").pop(), j.effort].filter(Boolean).join(" · ")}</span>
-                <span className="usage-n">{j.has ? tok(j.count.Total) : "n/a"}</span>
-              </div>
-              <div className="usage-bar"><i style={{ width: j.has ? `${Math.max(2, Math.round(100 * j.count.Total / peak))}%` : 0 }} /></div>
-              <div className="usage-sub">{[j.cost && `≈${usd(j.cost)} API-equivalent`, j.loops > 1 && `×${j.loops} loops`, j.count.CacheRead + j.count.CacheWrite > 0 && `cache ${tok(j.count.CacheRead)} read · ${tok(j.count.CacheWrite)} write`, dur(j.elapsed)].filter(Boolean).join(" · ")}</div>
-            </li>)}</ul>
-            {usage.models.length > 1 && <div className="usage-models">{usage.models.map((m, i) => <span key={i}>{(m.model || m.harness).split("/").pop()} <b>{m.has ? tok(m.count.Total) : "n/a"}</b></span>)}</div>}
-          </div>}
-        </section>
-      })()}
       {!!attachments.length && <section><h3>Attachments <span className="board-muted">{attachments.length}</span></h3><AttachmentRows items={attachments} open={setSelected} /></section>}
       {!desc && !attachments.length && <p className="board-muted">No description or attachments yet.</p>}
     </div>}

@@ -2,7 +2,7 @@ import { useState } from "react"
 
 export type RailId = "overview" | "agents" | "tasks"
 const DEFAULT: RailId[] = ["overview", "agents", "tasks"]
-const KEY = "tagent.rail"
+const KEY = "tagent.rail.layout" // not "tagent.rail": that key holds the collapsed flag (lib/rail.ts)
 
 type Saved = { order: RailId[]; heights: Partial<Record<RailId, number>> }
 
@@ -21,7 +21,7 @@ const load = (): Saved => {
 }
 
 // useRailLayout remembers (per device) the order of the rail panels and the
-// panel heights the user dragged to, as a percentage of the rail; no height = automatic.
+// panel heights the user dragged to, as shares of the rail summing to 100; none = automatic.
 export function useRailLayout() {
   const [s, setS] = useState(load)
   const set = (n: Saved) => {
@@ -31,11 +31,8 @@ export function useRailLayout() {
   return {
     order: s.order,
     heights: s.heights,
-    setHeight: (id: RailId, h: number | null) => {
-      const heights = { ...s.heights }
-      if (h === null) delete heights[id]; else heights[id] = h
-      set({ ...s, heights })
-    },
+    // heights is every panel's share, or {} for automatic.
+    setHeights: (heights: Saved["heights"]) => set({ ...s, heights }),
     // move swaps id with its neighbour among the visible panels.
     move: (id: RailId, d: -1 | 1, visible: RailId[]) => {
       const j = visible.indexOf(id) + d
