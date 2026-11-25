@@ -3,8 +3,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"tagent/internal/roles"
@@ -35,7 +37,7 @@ func roleArgs(o spawnOpts, boardRole string) ([]string, error) {
 	}
 	mcpFile := ""
 	if rc.MCP != nil && len(*rc.MCP) > 0 {
-		b, err := mcpConfig(o.ConfigDir, *rc.MCP)
+		b, err := mcpConfig(o.ConfigDir, *rc.MCP, o.BrowserProfile)
 		if err != nil {
 			return nil, err
 		}
@@ -44,7 +46,12 @@ func roleArgs(o spawnOpts, boardRole string) ([]string, error) {
 		if err := os.MkdirAll(dir, 0700); err != nil {
 			return nil, err
 		}
-		mcpFile = filepath.Join(dir, "mcp-"+strings.ReplaceAll(name, "/", "-")+".json")
+		file := "mcp-" + strings.ReplaceAll(name, "/", "-")
+		if o.BrowserProfile != "" {
+			// The profile is per ticket, so the file is too: two tickets on one role must not share it.
+			file += "-" + filepath.Base(filepath.Dir(o.BrowserProfile))
+		}
+		mcpFile = filepath.Join(dir, file+".json")
 		if err := os.WriteFile(mcpFile, b, 0600); err != nil {
 			return nil, err
 		}
@@ -52,9 +59,14 @@ func roleArgs(o spawnOpts, boardRole string) ([]string, error) {
 	return rc.Args(harness, mcpFile)
 }
 
+// browserServer is the MCP server a browser ticket points at its Chrome profile.
+// Its CLI takes --user-data-dir; no other server's args change.
+const browserServer = "playwright"
+
 // mcpConfig builds an MCP config holding only the named servers. "tagent" is
 // generated; any other name is copied from the project or the Claude config.
-func mcpConfig(dir string, names []string) ([]byte, error) {
+// A non-empty profile (browser ticket) is passed to browserServer as --user-data-dir.
+func mcpConfig(dir string, names []string, profile string) ([]byte, error) {
 	servers := map[string]any{}
 	for _, name := range names {
 		if name == "tagent" {
@@ -69,9 +81,25 @@ func mcpConfig(dir string, names []string) ([]byte, error) {
 		if !ok {
 			return nil, fmt.Errorf("unknown MCP server %q (not in .mcp.json or ~/.claude.json)", name)
 		}
+		if name == browserServer && profile != "" {
+			s = withUserDataDir(s, profile)
+		}
 		servers[name] = s
 	}
 	return json.Marshal(map[string]any{"mcpServers": servers})
+}
+
+// withUserDataDir returns a copy of the server entry with --user-data-dir=dir
+// appended to its args. The stored entry is not changed.
+func withUserDataDir(s any, dir string) any {
+	m, ok := s.(map[string]any)
+	if !ok {
+		return s
+	}
+	args, _ := m["args"].([]any)
+	c := maps.Clone(m)
+	c["args"] = append(slices.Clone(args), "--user-data-dir="+dir)
+	return c
 }
 
 // findMCPServer looks in the project's .mcp.json, then in ~/.claude.json for the

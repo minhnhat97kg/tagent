@@ -418,8 +418,10 @@ Chrome profile (mode 0700, outside the repo so cookies cannot be committed), and
 extracted text. On done, every regular file in `captures/` is attached under its base name, as with `folder`, and
 the whole `browser/<ticket>` directory is removed, profile included; nothing in `profile/` is attached.
 `cleanup: keep` attaches the captures and keeps both directories, since the profile holds sign-ins. A failed attach
-or removal keeps the directory and panes with a `cleanup: kept folder` note. tagent does not yet start a browser or
-point an MCP browser server at the profile (phase B2), so until then an agent must pass that path to its own browser tool.
+or removal keeps the directory and panes with a `cleanup: kept folder` note. tagent does not start a browser; it
+passes the profile to the `playwright` MCP server as `--user-data-dir=<profile>`, but only when the ticket is a browser
+ticket and the role lists `playwright` in `mcp:` (the server must be in `.mcp.json` or `~/.claude.json`). Other servers
+are unchanged. The profile flag is set when a pane starts, so a reused pane keeps its earlier args.
 On done, the ticket's chat and role panes are closed after the worktree removal, never
 during it. A worktree kept for uncommitted changes keeps its panes, since its agents may still
 be working in it. Only the done step closes panes; the dispatcher does not.
@@ -541,6 +543,7 @@ A role may limit what its agent loads, in `board.yaml` or on the Agents page
   lists and `allow` are rejected there; Claude has no per-skill flag, so a skill
   list is rejected too.
 - Plugin-provided MCP servers cannot be selected. Context applies to new panes only.
+- Browser tickets: the `playwright` server gets `--user-data-dir` for the ticket's profile (see the browser workplace above).
 An unsupported entry is a board config error for the whole `board.yaml`, as an
 invalid role effort already is: every role's spawn fails until it is fixed.
 This is intended, so a bad restriction never starts an agent with less

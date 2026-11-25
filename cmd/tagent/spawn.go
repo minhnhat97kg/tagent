@@ -37,6 +37,7 @@ type spawnOpts struct {
 	Window                                string   // tmux window name (default: Name)
 	PromptHasRole                         bool     // the caller puts the role's instructions in its prompt (dispatch)
 	BoardRole, Preset                     string   // board.yaml role whose context applies; preset "scout" overrides it
+	BrowserProfile                        string   // a browser ticket's Chrome profile dir; set on the browser MCP server's args
 }
 
 // Pane options recording how an agent was started (restore, merge).

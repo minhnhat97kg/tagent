@@ -131,7 +131,7 @@ func dispatchBoardAction(a board.Action) error {
 		return nil
 	}
 	priority := 1
-	var note string
+	var note, browserProfile string
 	if a.Event.Task != "" {
 		ticket, err := tasks.Get(scope, a.Event.Task)
 		if err != nil {
@@ -149,6 +149,7 @@ func dispatchBoardAction(a board.Action) error {
 			}
 			if b, ok := wp.(workplace.Browser); ok {
 				note = "Browser workplace for this ticket: save captures (screenshots, extracted text) in " + b.Output(a.ExecDir, ticket.ID) + "; they are attached to the ticket on done. Chrome profile directory: " + b.Profile(ticket.ID) + "."
+				browserProfile = b.Profile(ticket.ID)
 			}
 		}
 	}
@@ -222,6 +223,7 @@ func dispatchBoardAction(a board.Action) error {
 		o.Model = a.Model
 		o.Effort = a.Effort
 		o.BoardRole, o.Preset = a.Agent, a.Preset
+		o.BrowserProfile = browserProfile
 		if harnesses[target] {
 			o.Agent = target
 		} else {

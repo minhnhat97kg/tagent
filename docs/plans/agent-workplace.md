@@ -13,7 +13,7 @@ Agent      named, long-lived instance of a role (harness, model, memory, skills)
           git-worktree  output: diff      gate: merge on done succeeds
           folder        output: files     gate: always passes (implemented, ticket 93)
           remote        output: logs/files (ssh/docker)
-          browser       output: captures      gate: always passes (implemented, ticket 97; no MCP wiring yet)
+          browser       output: captures      gate: always passes (implemented, tickets 97, 98)
           none          output: comment/report, no gate
 ```
 
@@ -37,5 +37,5 @@ Local PR feature dropped (#79–#83, #87 closed); the `git-worktree` gate is jus
   types: later, only when a ticket needs them. The `folder` type is done (ticket 93): a plain directory
   per ticket outside git; every file is attached on done, then the directory is removed. The `browser`
   type is B1 done (ticket 97): a main-root run with a per-ticket Chrome profile and captures; only the
-  captures are attached. B2 (pointing an MCP browser at the profile) is open.
+  captures are attached. B2 is done (ticket 98): the `playwright` MCP server gets `--user-data-dir` for the ticket's profile.
 - Local PR feature dropped by the human (2026-11-25).

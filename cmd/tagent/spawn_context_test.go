@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -54,5 +56,40 @@ func TestSpawnFailsOnUnknownMCPServer(t *testing.T) {
 		if len(call) > 0 && call[0] == "new-window" {
 			t.Fatal("pane started despite bad MCP config")
 		}
+	}
+}
+
+func TestMCPConfigPassesBrowserProfileOnlyToBrowserServer(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	cwd := t.TempDir()
+	project := `{"mcpServers":{"playwright":{"command":"npx","args":["@playwright/mcp"]},"fs":{"command":"fs-mcp","args":["--root","/x"]}}}`
+	os.WriteFile(filepath.Join(cwd, ".mcp.json"), []byte(project), 0600)
+	profile := "/ctx/browser/T1/profile"
+	type doc struct {
+		MCPServers map[string]struct {
+			Args []string `json:"args"`
+		} `json:"mcpServers"`
+	}
+	decode := func(profile string) doc {
+		b, err := mcpConfig(cwd, []string{"playwright", "fs"}, profile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var d doc
+		if err := json.Unmarshal(b, &d); err != nil {
+			t.Fatal(err)
+		}
+		return d
+	}
+	got := decode(profile)
+	if want := []string{"@playwright/mcp", "--user-data-dir=" + profile}; !slices.Equal(got.MCPServers["playwright"].Args, want) {
+		t.Fatalf("browser args %q, want %q", got.MCPServers["playwright"].Args, want)
+	}
+	if want := []string{"--root", "/x"}; !slices.Equal(got.MCPServers["fs"].Args, want) {
+		t.Fatalf("other server args changed: %q", got.MCPServers["fs"].Args)
+	}
+	plain := decode("")
+	if want := []string{"@playwright/mcp"}; !slices.Equal(plain.MCPServers["playwright"].Args, want) {
+		t.Fatalf("non-browser spawn args %q, want %q", plain.MCPServers["playwright"].Args, want)
 	}
 }
