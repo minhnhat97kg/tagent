@@ -386,7 +386,7 @@ Discovery and configuration use the main worktree root. Native Claude/OpenCode
 role definitions are passed inline from that checkout, so main-only or edited
 roles do not fall back to stale definitions in the ticket tree. Reuse validates
 the worktree's repository identity, expected branch and committed HEAD.
-A recipe's top-level `workplace:` key is `git-worktree` (the default) or `none`;
+A recipe's top-level `workplace:` key is `git-worktree` (the default), `none` or `folder`;
 any other value fails validation on its line. A top-level `cleanup:` key is `remove`
 (the default) or `keep`, validated the same way; `keep` leaves a done ticket's worktree and
 branch in place (its work is still merged). With the default, workflow
@@ -403,6 +403,15 @@ With `workplace: none` there is no worktree, branch or merge: the ticket's jobs 
 the main root, and its panes are reused like any other role's. Edits they leave are
 uncommitted in the main checkout for a human to commit. On done, the ticket's output files
 are copied into its attachments (shown by `tagent task show`), as with the default.
+With `workplace: folder` there is no git: the ticket runs in its own directory
+`<context>/<repo scope>/folder/<ticket>` (under the tagent context directory, outside the repo),
+with no worktree or branch and no merge. Its panes run there and are reused. On done, every
+regular file in it, dot files and subdirectories included, is attached to the ticket under its
+base name (symlinks are skipped), whether or not a job declared it as an output, and then the
+directory is removed. `cleanup: keep` attaches the files and keeps the directory. If an attach
+or the removal fails, the directory and the panes are kept and a `cleanup: kept folder` note is
+recorded; done still happens. Tools run inside the folder, such as `tagent task move`, act on the
+repo's board. A harness may ask to trust each new folder on its first run; a human must answer that prompt.
 On done, the ticket's chat and role panes are closed after the worktree removal, never
 during it. A worktree kept for uncommitted changes keeps its panes, since its agents may still
 be working in it. Only the done step closes panes; the dispatcher does not.
@@ -416,7 +425,7 @@ orphan left by a moved repository) is deleted directly once its branch is merged
 `merged, unusable dir (untracked files not checked)`. It ignores
 `cleanup: keep`. Anything else is skipped with its reason (not merged, uncommitted changes,
 HEAD is not the ticket branch, ticket not done or running). Non-git
-workplaces are out of scope.
+workplaces are out of scope. Folders are not pruned: they are removed on done.
 Creation failures are reported before launch; retry requires a new status entry. Recipes are resolved
 live: editing affects existing tickets; missing or broken recipes report errors.
 

@@ -18,11 +18,14 @@ func TestExampleWorkflowsParse(t *testing.T) {
 			t.Fatal(err)
 		}
 		w, err := Parse(b)
-		if err != nil || (w.Workplace != "none" && w.Jobs[0].ID != "scout") {
+		if err != nil || (w.Workplace != "none" && w.Workplace != "folder" && w.Jobs[0].ID != "scout") {
 			t.Fatalf("%s: %v", f, err)
 		}
 		if name := filepath.Base(f); (name == "research.yml" || name == "docs.yml") && w.Workplace != "none" {
 			t.Fatalf("%s: want workplace none", f)
+		}
+		if name := filepath.Base(f); name == "notes.yml" && w.Workplace != "folder" {
+			t.Fatalf("%s: want workplace folder", f)
 		}
 	}
 }

@@ -1,6 +1,8 @@
 package tasks
 
 import (
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
@@ -54,18 +56,50 @@ func cleanupDone(scope, id, note string) {
 	}
 	panes := ticketPanes(scope, id) // before removal: Scope() of a removed worktree no longer resolves
 	wp := ticketWorkplace(scope, t)
-	keepOutputs(scope, id, wp.Output(r, id))
+	var keepErr error
+	if f, ok := wp.(workplace.Folder); ok {
+		keepErr = keepFolder(scope, id, f.Output(r, id))
+	} else {
+		keepOutputs(scope, id, wp.Output(r, id))
+	}
 	if note != "" {
 		Comment(scope, id, "tagent", note, nil)
+	}
+	if keepErr != nil { // not attached, so the folder stays; its agents may still be working in it
+		DispatchAudit(scope, id, "cleanup: kept folder "+wp.Output(r, id)+" ("+keepErr.Error()+")")
+		return
 	}
 	notes := wp.Cleanup(r, id)
 	for _, n := range notes {
 		DispatchAudit(scope, id, n)
-		if strings.HasPrefix(n, "cleanup: kept worktree") { // its agents may still be working in it
+		if strings.HasPrefix(n, "cleanup: kept worktree") || strings.HasPrefix(n, "cleanup: kept folder") { // its agents may still be working in it
 			return
 		}
 	}
 	killPanes(panes)
+}
+
+// keepFolder attaches every regular file in a folder workplace to the ticket, so
+// removing the folder loses nothing. Symlinks and other entries are skipped. A
+// missing folder has nothing to keep.
+func keepFolder(scope, id, dir string) error {
+	var files []string
+	err := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			if p == dir && errors.Is(err, fs.ErrNotExist) {
+				return nil
+			}
+			return err
+		}
+		if d.Type().IsRegular() {
+			files = append(files, p)
+		}
+		return nil
+	})
+	if err != nil || len(files) == 0 {
+		return err
+	}
+	return Comment(scope, id, "tagent", "cleanup: kept files of the folder", files)
 }
 
 // ticketWorkplace is the workplace the ticket ran in. A lookup error keeps the

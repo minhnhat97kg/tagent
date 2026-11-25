@@ -66,7 +66,45 @@ func Scope(dir string) string {
 	return s
 }
 
+// realpath resolves symlinks in p, also when p does not exist yet, by resolving
+// its deepest existing ancestor. Pane and agent paths are real paths.
+func realpath(p string) string {
+	if r, err := filepath.EvalSymlinks(p); err == nil {
+		return r
+	}
+	if parent := filepath.Dir(p); parent != p {
+		return filepath.Join(realpath(parent), filepath.Base(p))
+	}
+	return p
+}
+
+// ownerDir maps a folder workplace's directory, or a path inside it, back to the
+// repo it belongs to, so the ticket's scope and main root are that repo's. Any
+// other dir is returned unchanged.
+func ownerDir(dir string) string {
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		return dir
+	}
+	abs = realpath(abs)
+	root := realpath(filepath.Dir(sharedctx.Dir("global")))
+	rel, err := filepath.Rel(root, abs)
+	if err != nil || !filepath.IsLocal(rel) {
+		return dir
+	}
+	parts := strings.Split(rel, string(filepath.Separator))
+	if len(parts) < 3 || parts[1] != "folder" {
+		return dir
+	}
+	b, _ := os.ReadFile(filepath.Join(root, parts[0], "folder", ".repo"))
+	if repo := strings.TrimSpace(string(b)); repo != "" {
+		return repo
+	}
+	return dir
+}
+
 func computeScope(dir string) string {
+	dir = ownerDir(dir)
 	root := dir
 	label := filepath.Base(dir)
 	if out, err := exec.Command("git", "-C", dir, "rev-parse", "--path-format=absolute", "--git-common-dir").Output(); err == nil {

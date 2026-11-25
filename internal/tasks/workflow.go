@@ -2,9 +2,11 @@ package tasks
 
 import (
 	"fmt"
+	"path/filepath"
 	"slices"
 	"sort"
 	"strings"
+	"tagent/internal/sharedctx"
 	"tagent/internal/workflow"
 	"tagent/internal/workplace"
 )
@@ -24,8 +26,11 @@ func TicketWorkplace(scope string, t Task) (workplace.Workplace, error) {
 	if err != nil {
 		return nil, err
 	}
-	if w.Workplace == "none" {
+	switch w.Workplace {
+	case "none":
 		return workplace.None{}, nil
+	case "folder":
+		return workplace.Folder{Base: realpath(filepath.Join(sharedctx.Dir(scope), "folder")), Keep: w.Cleanup == "keep"}, nil
 	}
 	return workplace.Git{Keep: w.Cleanup == "keep"}, nil
 }

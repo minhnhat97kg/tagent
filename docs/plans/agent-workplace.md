@@ -11,7 +11,7 @@ Agent      named, long-lived instance of a role (harness, model, memory, skills)
  └─ Task   has a type (code | research | ops | chat | ...) → picks workflow + workplace type
      └─ Workplace?  0..1, typed:
           git-worktree  output: diff      gate: merge on done succeeds
-          folder        output: files     gate: human accepts files
+          folder        output: files     gate: always passes (implemented, ticket 93)
           remote        output: logs/files (ssh/docker)
           browser       output: captures/data
           none          output: comment/report, no gate
@@ -33,6 +33,7 @@ Local PR feature dropped (#79–#83, #87 closed); the `git-worktree` gate is jus
 - New package `internal/workplace`: interface Create / Cleanup / Output / Gate, impls
   `git-worktree` (wraps today's code; gate = merge succeeds) and `none` (exec dir = main root, gate always ready).
 - Phases: (0 dropped) 1 seam (no behaviour change) → 2 gate hook + no done on failed merge
-  → 3 `none` + `workplace:` key → 4 outputs per workplace. Persisted Agent entity, folder/remote/
-  browser types: later, only when a ticket needs them.
+  → 3 `none` + `workplace:` key → 4 outputs per workplace. Persisted Agent entity, remote/browser
+  types: later, only when a ticket needs them. The `folder` type is done (ticket 93): a plain directory
+  per ticket outside git; every file is attached on done, then the directory is removed.
 - Local PR feature dropped by the human (2026-11-25).

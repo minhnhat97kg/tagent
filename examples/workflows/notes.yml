@@ -1,0 +1,16 @@
+name: notes
+description: "Write notes as plain files in a folder outside git; done attaches every file to the ticket and removes the folder"
+workplace: folder
+inputs:
+  topic:
+    description: what to write notes about
+    required: true
+jobs:
+  write:
+    status: writing
+    agent: ba
+    prompt: |
+      Topic: ${{ inputs.topic }}
+      Write your notes as plain files in the current directory. It is a folder outside the repo, with no git.
+      Use short, descriptive file names. When the ticket is done, every file here is attached to ticket ${{ ticket.id }} and the folder is removed.
+      Do not edit the repo.

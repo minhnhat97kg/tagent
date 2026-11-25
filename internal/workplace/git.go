@@ -1,6 +1,7 @@
 // Package workplace owns where a ticket's or an agent's work lives on disk: a
-// git worktree under Dir, or the main root for `workplace: none`. It is a leaf
-// (stdlib only) so tasks, cmd and worktree can all use it.
+// git worktree under Dir, the main root for `workplace: none`, or a plain folder
+// for `workplace: folder`. It is a leaf (stdlib only) so tasks, cmd and worktree
+// can all use it.
 package workplace
 
 import (
@@ -40,10 +41,18 @@ func (None) Output(root, id string) string               { return root }
 func (None) Gate(root, id, title string) (string, error) { return "", nil }
 func (None) Cleanup(root, id string) []string            { return nil }
 
+// checkID rejects ids that cannot name a directory or a branch.
+func checkID(id string) error {
+	if id == "" || strings.ContainsAny(id, "/\\. \t\n") {
+		return fmt.Errorf("invalid workflow ticket ID %q", id)
+	}
+	return nil
+}
+
 // Create keeps all jobs for a ticket in one retained checkout and returns its path.
 func (Git) Create(root, id string) (string, error) {
-	if id == "" || strings.ContainsAny(id, "/\\. \t\n") {
-		return "", fmt.Errorf("invalid workflow ticket ID %q", id)
+	if err := checkID(id); err != nil {
+		return "", err
 	}
 	_, _, path, err := Add(root, "workflow-"+id)
 	return path, err

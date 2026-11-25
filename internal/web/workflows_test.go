@@ -60,7 +60,7 @@ func TestWorkflowValidateReturnsLine(t *testing.T) {
 
 func TestWorkflowValidateRejectsWorkplace(t *testing.T) {
 	s := &server{dir: t.TempDir()}
-	r := httptest.NewRequest("POST", "/api/workflows", strings.NewReader(`{"Op":"validate","YAML":"name: x\nworkplace: folder\njobs:\n  a: {run: x}\n"}`))
+	r := httptest.NewRequest("POST", "/api/workflows", strings.NewReader(`{"Op":"validate","YAML":"name: x\nworkplace: remote\njobs:\n  a: {run: x}\n"}`))
 	w := httptest.NewRecorder()
 	s.workflows(w, r)
 	if w.Code != 400 || !strings.Contains(w.Body.String(), `"line":2`) {

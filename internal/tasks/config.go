@@ -269,11 +269,12 @@ func MainRoot(dir string) string {
 	if root, ok := mainRoots.Load(dir); ok {
 		return root.(string)
 	}
-	root := dir
-	if abs, err := filepath.Abs(dir); err == nil {
+	src := ownerDir(dir)
+	root := src
+	if abs, err := filepath.Abs(src); err == nil {
 		root = abs
 	}
-	if out, err := exec.Command("git", "-C", dir, "rev-parse", "--path-format=absolute", "--git-common-dir").Output(); err == nil {
+	if out, err := exec.Command("git", "-C", src, "rev-parse", "--path-format=absolute", "--git-common-dir").Output(); err == nil {
 		root = filepath.Dir(strings.TrimSpace(string(out)))
 	}
 	mainRoots.Store(dir, root)
