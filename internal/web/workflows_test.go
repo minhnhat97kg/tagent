@@ -57,3 +57,13 @@ func TestWorkflowValidateReturnsLine(t *testing.T) {
 		t.Fatalf("%d %s", w.Code, w.Body.String())
 	}
 }
+
+func TestWorkflowValidateRejectsWorkplace(t *testing.T) {
+	s := &server{dir: t.TempDir()}
+	r := httptest.NewRequest("POST", "/api/workflows", strings.NewReader(`{"Op":"validate","YAML":"name: x\nworkplace: folder\njobs:\n  a: {run: x}\n"}`))
+	w := httptest.NewRecorder()
+	s.workflows(w, r)
+	if w.Code != 400 || !strings.Contains(w.Body.String(), `"line":2`) {
+		t.Fatalf("%d %s", w.Code, w.Body.String())
+	}
+}

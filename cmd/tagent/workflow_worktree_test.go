@@ -4,7 +4,15 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"tagent/internal/tasks"
+	"tagent/internal/workplace"
 )
+
+// workflowWorktree is the git-worktree workplace's Create, as the test helper it was.
+func workflowWorktree(dir, id string) (string, error) {
+	return workplace.Git{}.Create(tasks.MainRoot(dir), id)
+}
 
 func TestWorkflowWorktreeIsolation(t *testing.T) {
 	repo := t.TempDir()

@@ -80,6 +80,7 @@ type Workflow struct {
 	Name, File  string
 	Description string
 	Global      bool
+	Workplace   string // "" or "git-worktree" (default), or "none": run in the main root
 	Inputs      map[string]Input
 	Jobs        []Job
 	Err         error
@@ -89,6 +90,7 @@ func Parse(b []byte) (Workflow, error) {
 	var raw struct {
 		Name        string           `yaml:"name"`
 		Description string           `yaml:"description"`
+		Workplace   yaml.Node        `yaml:"workplace"`
 		Inputs      map[string]Input `yaml:"inputs"`
 		Jobs        yaml.Node        `yaml:"jobs"`
 	}
@@ -102,6 +104,14 @@ func Parse(b []byte) (Workflow, error) {
 		return Workflow{}, fmt.Errorf("expected one YAML document")
 	}
 	w := Workflow{Name: raw.Name, Description: raw.Description, Inputs: raw.Inputs}
+	if raw.Workplace.Kind != 0 {
+		switch raw.Workplace.Value {
+		case "git-worktree", "none":
+			w.Workplace = raw.Workplace.Value
+		default:
+			return w, errAt(raw.Workplace.Line, "unknown workplace %q (git-worktree or none)", raw.Workplace.Value)
+		}
+	}
 	if raw.Jobs.Kind != yaml.MappingNode || len(raw.Jobs.Content) == 0 {
 		return w, fmt.Errorf("no jobs")
 	}

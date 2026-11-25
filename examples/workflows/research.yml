@@ -1,0 +1,17 @@
+name: research
+description: "Investigate a question and write a report (no code changes)"
+workplace: none
+inputs:
+  topic:
+    description: what to research
+    required: true
+jobs:
+  research:
+    status: researching
+    agent: ba
+    prompt: |
+      Research: ${{ inputs.topic }}
+      Read the relevant code in this repo and, when useful, the web. Do not edit source.
+      Write findings to .tasks/research/${{ ticket.id }}.md: short answer first, then evidence
+      (file:line or URL for each claim), options with trade-offs, and a recommendation.
+    outputs: [report]

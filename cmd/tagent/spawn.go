@@ -364,11 +364,6 @@ func sendText(pane, text string) { tmux.TypeLine(pane, text) }
 
 func git(dir string, args ...string) (string, error) { return workplace.Run(dir, args...) }
 
-// workflowWorktree keeps all jobs for a ticket in one retained checkout.
-func workflowWorktree(dir, id string) (string, error) {
-	return workplace.Git{}.Create(tasks.MainRoot(dir), id)
-}
-
 // agentWorktree finds an agent's worktree from the current repo.
 func agentWorktree(name string) (repo, branch, path string, err error) {
 	wd, _ := os.Getwd()

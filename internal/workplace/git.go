@@ -1,6 +1,6 @@
 // Package workplace owns where a ticket's or an agent's work lives on disk: a
-// git worktree under Dir. It is a leaf (stdlib only) so tasks, cmd and worktree
-// can all use it.
+// git worktree under Dir, or the main root for `workplace: none`. It is a leaf
+// (stdlib only) so tasks, cmd and worktree can all use it.
 package workplace
 
 import (
@@ -26,6 +26,16 @@ type Workplace interface {
 type Git struct{}
 
 var _ Workplace = Git{}
+
+// None runs the ticket in the main root: no worktree, no branch, nothing to merge.
+type None struct{}
+
+var _ Workplace = None{}
+
+func (None) Create(root, id string) (string, error)      { return root, nil }
+func (None) Output(root, id string) string               { return root }
+func (None) Gate(root, id, title string) (string, error) { return "", nil }
+func (None) Cleanup(root, id string) []string            { return nil }
 
 // Create keeps all jobs for a ticket in one retained checkout and returns its path.
 func (Git) Create(root, id string) (string, error) {

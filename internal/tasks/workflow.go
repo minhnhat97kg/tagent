@@ -6,7 +6,29 @@ import (
 	"sort"
 	"strings"
 	"tagent/internal/workflow"
+	"tagent/internal/workplace"
 )
+
+// TicketWorkplace is where a ticket's workflow keeps its work, chosen at dispatch.
+// Lookup errors are returned: a missing recipe never falls back to a worktree.
+func TicketWorkplace(scope string, t Task) (workplace.Workplace, error) {
+	dir, ok := scopeRoots.Load(scope)
+	if !ok {
+		return nil, fmt.Errorf("unknown repository scope")
+	}
+	base, err := configForScope(scope)
+	if err != nil {
+		return nil, err
+	}
+	w, err := FindWorkflow(dir.(string), base, t.Workflow)
+	if err != nil {
+		return nil, err
+	}
+	if w.Workplace == "none" {
+		return workplace.None{}, nil
+	}
+	return workplace.Git{}, nil
+}
 
 // ConfigForTask is the single per-ticket configuration boundary.
 func ConfigForTask(dir string, base BoardConfig, t Task) (BoardConfig, error) {

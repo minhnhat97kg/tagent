@@ -133,7 +133,11 @@ func dispatchBoardAction(a board.Action) error {
 		}
 		priority = tasks.PriorityRank(ticket.Priority)
 		if ticket.Workflow != "" {
-			a.ExecDir, err = workflowWorktree(a.Dir, ticket.ID)
+			wp, err := tasks.TicketWorkplace(scope, ticket)
+			if err != nil {
+				return err
+			}
+			a.ExecDir, err = wp.Create(tasks.MainRoot(a.Dir), ticket.ID)
 			if err != nil {
 				return err
 			}

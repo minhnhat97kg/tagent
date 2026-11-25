@@ -1,0 +1,19 @@
+name: docs
+description: "Only documentation: README, docs, help text, skill (no code changes)"
+workplace: none
+inputs:
+  topic: {description: what to document or fix in the docs, required: true}
+jobs:
+  write:
+    status: writing
+    agent: dev
+    prompt: |
+      Docs task: ${{ inputs.topic }}. Update README.md, docs/*.md, help.go or internal/skill/SKILL.md as needed so they
+      match the code exactly (check every command and key you mention). Don't commit: your edits stay uncommitted in the main checkout for the human. Touch only documentation files and list them in your handoff.
+  review:
+    needs: write
+    status: reviewing
+    agent: qa
+    prompt: Check every documented command, flag and key against the code. Do not edit.
+    on-failure: write
+    max-loops: 2
