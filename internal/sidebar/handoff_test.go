@@ -82,7 +82,7 @@ func TestAgentKeyFHandoffClearsWebSizedRow(t *testing.T) {
 	if err := exec.Command("ln", "-s", "/bin/sleep", agent).Run(); err != nil {
 		t.Fatalf("symlink fake agent: %v", err)
 	}
-	out, err := exec.Command("tmux", "new-session", "-d", "-c", dir, "-P", "-F", "#{pane_id}", agent+" 600").Output()
+	out, err := exec.Command("tmux", "-f", "/dev/null", "new-session", "-d", "-c", dir, "-P", "-F", "#{pane_id}", agent+" 600").Output()
 	if err != nil {
 		t.Fatalf("tmux new-session: %v", err)
 	}

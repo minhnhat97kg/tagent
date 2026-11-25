@@ -40,7 +40,7 @@ func TestSharedSidebarRealTmux(t *testing.T) {
 		}
 		return out
 	}
-	must("new-session", "-d", "-s", "shared", "-x", "120", "-y", "40")
+	must("-f", "/dev/null", "new-session", "-d", "-s", "shared", "-x", "120", "-y", "40")
 	defer run("kill-server")
 	must("set-option", "-g", "@agent_avatar", "off")
 	must("set-option", "-g", "@agent_digest_llm", "off")

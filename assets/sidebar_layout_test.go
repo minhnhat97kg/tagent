@@ -29,7 +29,7 @@ func TestSidebarLayoutHook(t *testing.T) {
 		}
 		return strings.TrimSpace(string(out))
 	}
-	run("new-session", "-d", "-x", "200", "-y", "40")
+	run("-f", "/dev/null", "new-session", "-d", "-x", "200", "-y", "40")
 	defer exec.Command("tmux", "-L", socket, "kill-server").Run()
 	run("set", "-g", "@sidebar_auto_create", "off")
 	run("set", "-g", "@agent_sidebar_bin", "/usr/bin/true")

@@ -166,7 +166,7 @@ func TestGetOptionAndGetAllGlobalOptionsAgreeOnRealTmux(t *testing.T) {
 
 	defer SetRunner(execRunner{})()
 
-	if out, err := exec.Command("tmux", "new-session", "-d").CombinedOutput(); err != nil {
+	if out, err := exec.Command("tmux", "-f", "/dev/null", "new-session", "-d").CombinedOutput(); err != nil {
 		t.Fatalf("tmux new-session: %v\n%s", err, out)
 	}
 	t.Cleanup(func() {

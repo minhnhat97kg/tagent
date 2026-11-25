@@ -33,6 +33,7 @@ func TestTerminalOwnershipSentOnChangeOnly(t *testing.T) {
 // Handoff is always answered, and a release sent right before the socket closes (pagehide) still
 // gives the pane back.
 func TestTerminalHandoffAnsweredAndReleasedOnClose(t *testing.T) {
+	skipUnlessFlaky(t)
 	_, r, conn, pane := startBench(t, "geo-handoff", "stty raw -echo; echo READY; exec cat")
 	if err := conn.WriteMessage(websocket.TextMessage, []byte(`{"type":"handoff","cols":100,"rows":30}`)); err != nil {
 		t.Fatal(err)

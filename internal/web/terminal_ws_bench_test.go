@@ -181,7 +181,7 @@ func startBenchAddr(t *testing.T, name, command string) (*wireCounter, *wsReader
 	ts.Start()
 	t.Cleanup(ts.Close)
 
-	out, err := exec.Command("tmux", "new-session", "-d", "-s", name, "-x", "120", "-y", "40", "-P", "-F", "#{pane_id}", command).Output()
+	out, err := benchTmux("new-session", "-d", "-s", name, "-x", "120", "-y", "40", "-P", "-F", "#{pane_id}", command).Output()
 	if err != nil {
 		t.Fatalf("new-session: %v", err)
 	}
@@ -194,6 +194,12 @@ func startBenchAddr(t *testing.T, name, command string) (*wireCounter, *wsReader
 	proxy := delayedProxy(t, ts.Listener.Addr().String(), 50*time.Millisecond)
 	r, conn := dialViewer(t, proxy, pane, "benchviewer")
 	return counter, r, conn, pane, proxy
+}
+
+// benchTmux is the only way the bench starts its private tmux server. -f /dev/null: the server must
+// not load the user's ~/.tmux.conf (hooks, plugins, autosave loops).
+func benchTmux(args ...string) *exec.Cmd {
+	return exec.Command("tmux", append([]string{"-f", "/dev/null"}, args...)...)
 }
 
 // dialViewer attaches a WebSocket viewer to pane through addr and waits for its snapshot.
