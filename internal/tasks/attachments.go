@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"golang.org/x/sys/unix"
+
+	"tagent/internal/workplace"
 )
 
 // TicketAttachment is derived metadata; Ref is opaque and scoped to a ticket.
@@ -119,7 +121,7 @@ func AttachmentList(scope, project, id string) ([]TicketAttachment, error) {
 					continue
 				}
 				// A running ticket's files live in its worktree until it is merged and removed.
-				if wt := filepath.Join(project, ".worktrees", "workflow-"+id); !filepath.IsAbs(value) {
+				if wt := (workplace.Git{}).Output(project, id); !filepath.IsAbs(value) {
 					if _, e := os.Stat(filepath.Join(wt, path)); e == nil {
 						root = wt
 					}

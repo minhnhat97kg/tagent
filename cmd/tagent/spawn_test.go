@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"tagent/internal/tmux"
+	"tagent/internal/workplace"
 )
 
 func TestWorktreeDiffMergeDiscard(t *testing.T) {
@@ -32,7 +33,7 @@ func TestWorktreeDiffMergeDiscard(t *testing.T) {
 	t.Setenv("GIT_COMMITTER_EMAIL", "t@t")
 	t.Chdir(repo)
 
-	_, branch, path, err := addWorktree(repo, "t1")
+	_, branch, path, err := workplace.Add(repo, "t1")
 	if err != nil {
 		t.Fatal(err)
 	}

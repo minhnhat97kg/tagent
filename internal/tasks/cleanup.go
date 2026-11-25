@@ -2,11 +2,11 @@ package tasks
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"tagent/internal/tmux"
+	"tagent/internal/workplace"
 )
 
 // cleanupDone tidies a ticket that just reached done: its workflow work is merged
@@ -20,17 +20,20 @@ func cleanupDone(scope, id string) {
 		return
 	}
 	r := root.(string)
-	wt := filepath.Join(r, ".worktrees", "workflow-"+id)
+	var wp workplace.Workplace = workplace.Git{}
+	wt := wp.Output(r, id)
 	keepOutputs(scope, id, wt)
-	if _, err := os.Stat(wt); err == nil {
-		if err := mergeWorkflow(scope, id, r, wt); err != nil {
-			msg := "merge failed: " + err.Error() + "; worktree kept at " + wt
-			Comment(scope, id, "tagent", msg, nil)
-			Move(scope, id, "blocked", msg)
-			return
-		}
+	note, err := mergeTicket(wp, scope, id, r, wt)
+	if err != nil {
+		msg := "merge failed: " + err.Error() + "; worktree kept at " + wt
+		Comment(scope, id, "tagent", msg, nil)
+		Move(scope, id, "blocked", msg)
+		return
 	}
-	notes := RemoveWorkflowWorktree(r, "workflow-"+id)
+	if note != "" {
+		Comment(scope, id, "tagent", note, nil)
+	}
+	notes := wp.Cleanup(r, id)
 	for _, n := range notes {
 		DispatchAudit(scope, id, n)
 		if strings.HasPrefix(n, "cleanup: kept worktree") { // its agents may still be working in it
@@ -38,6 +41,21 @@ func cleanupDone(scope, id string) {
 		}
 	}
 	killTicketPanes(scope + "#" + id)
+}
+
+// mergeTicket gates the ticket's checkout into the main checkout. The ticket is
+// read first (its title names the commit); if that fails with a checkout present,
+// nothing is committed or merged.
+func mergeTicket(wp workplace.Workplace, scope, id, root, wt string) (string, error) {
+	title := ""
+	if _, statErr := os.Stat(wt); statErr == nil {
+		t, err := Get(scope, id)
+		if err != nil {
+			return "", err
+		}
+		title = t.Title
+	}
+	return wp.Gate(root, id, title)
 }
 
 // keepOutputs copies the ticket's output files that live in its worktree (often
@@ -67,54 +85,6 @@ func keepOutputs(scope, id, wt string) {
 	}
 }
 
-// mergeWorkflow commits the worktree's work on agent/workflow-<id>, rebases it
-// onto the main checkout's HEAD if needed, and fast-forwards the main checkout to
-// it. Nothing is forced or reset; any refusal is returned and leaves both
-// checkouts as they were.
-func mergeWorkflow(scope, id, root, wt string) error {
-	branch := "agent/workflow-" + id
-	dirty, err := gitOut(wt, "status", "--porcelain")
-	if err != nil {
-		return err
-	}
-	if dirty != "" {
-		t, err := Get(scope, id)
-		if err != nil {
-			return err
-		}
-		if _, err := gitOut(wt, "add", "-A"); err != nil {
-			return err
-		}
-		if _, err := gitOut(wt, "commit", "-qm", t.Title+" (#"+id+")"); err != nil {
-			return err
-		}
-	}
-	head, err := gitOut(root, "rev-parse", "HEAD")
-	if err != nil {
-		return err
-	}
-	ahead, err := gitOut(root, "rev-list", "--count", head+".."+branch)
-	if err != nil {
-		return err
-	}
-	if ahead == "0" {
-		return nil
-	}
-	if _, err := gitOut(root, "merge-base", "--is-ancestor", head, branch); err != nil {
-		if _, err := gitOut(wt, "rebase", head); err != nil {
-			gitOut(wt, "rebase", "--abort")
-			return err
-		}
-	}
-	if _, err := gitOut(root, "merge", "--ff-only", branch); err != nil {
-		return err
-	}
-	short, _ := gitOut(root, "rev-parse", "--short", "HEAD")
-	cur, _ := gitOut(root, "rev-parse", "--abbrev-ref", "HEAD")
-	Comment(scope, id, "tagent", "merged "+short+" into "+cur, nil)
-	return nil
-}
-
 func killTicketPanes(ticket string) {
 	panes, err := tmux.TicketPanes()
 	if err != nil {
@@ -134,43 +104,3 @@ func killTicketPanes(ticket string) {
 		}
 	}
 }
-
-// RemoveWorkflowWorktree removes .worktrees/<name> only if it has no uncommitted
-// changes, and its agent/<name> branch only if merged into the main checkout's
-// HEAD. It returns one note per thing it left in place.
-func RemoveWorkflowWorktree(root, name string) (notes []string) {
-	path := filepath.Join(root, ".worktrees", name)
-	branch := "agent/" + name
-	if _, err := os.Stat(path); err == nil {
-		out, serr := gitOut(path, "status", "--porcelain")
-		if serr != nil || out != "" {
-			return []string{"cleanup: kept worktree " + path + " (uncommitted changes)"}
-		}
-		if _, err := gitOut(root, "worktree", "remove", path); err != nil {
-			return []string{"cleanup: kept worktree " + path + " (" + err.Error() + ")"}
-		}
-	}
-	if _, err := gitOut(root, "rev-parse", "--verify", "-q", "refs/heads/"+branch); err != nil {
-		return nil
-	}
-	if _, err := gitOut(root, "merge-base", "--is-ancestor", branch, "HEAD"); err != nil {
-		return append(notes, "cleanup: kept branch "+branch+" (not merged)")
-	}
-	if _, err := gitOut(root, "branch", "-d", branch); err != nil {
-		notes = append(notes, "cleanup: kept branch "+branch+" ("+err.Error()+")")
-	}
-	return notes
-}
-
-func gitOut(dir string, args ...string) (string, error) {
-	out, err := exec.Command("git", append([]string{"-C", dir}, args...)...).CombinedOutput()
-	s := strings.TrimSpace(string(out))
-	if err != nil {
-		return s, &gitError{strings.Join(args, " "), s}
-	}
-	return s, nil
-}
-
-type gitError struct{ cmd, out string }
-
-func (e *gitError) Error() string { return "git " + e.cmd + ": " + e.out }

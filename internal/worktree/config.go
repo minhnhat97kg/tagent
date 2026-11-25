@@ -1,6 +1,10 @@
 package worktree
 
-import "strings"
+import (
+	"strings"
+
+	"tagent/internal/workplace"
+)
 
 // Default worktree configuration values — a CONTRACT with users running the
 // upstream (Rust) build. Changing a value here changes observable behavior,
@@ -12,7 +16,7 @@ const (
 	DefaultBranchPrefix = "agent/"
 	// DefaultWorktreeDir — directory (repo-relative) holding worktrees when
 	// the tmux option @agent-sidebar-worktree-dir is empty or unset.
-	DefaultWorktreeDir = ".worktrees"
+	DefaultWorktreeDir = workplace.Dir
 	// DefaultAgent — agent used for spawn when the tmux option
 	// @agent-sidebar-default-agent is empty or unset.
 	DefaultAgent = "claude"

@@ -9,6 +9,7 @@ import (
 
 	"tagent/internal/tasks"
 	"tagent/internal/tmux"
+	"tagent/internal/workplace"
 )
 
 // A ticket moved to done must remove its clean workflow worktree and branch.
@@ -83,7 +84,7 @@ func TestCleanupKeepsDirtyAndUnmerged(t *testing.T) {
 		t.Fatal(err)
 	}
 	os.WriteFile(filepath.Join(dirty, "wip"), []byte("x"), 0600)
-	if notes := tasks.RemoveWorkflowWorktree(repo, "workflow-7"); len(notes) == 0 {
+	if notes := (workplace.Git{}).Cleanup(repo, "7"); len(notes) == 0 {
 		t.Fatal("dirty worktree removed silently")
 	}
 	if _, err := os.Stat(dirty); err != nil {
@@ -97,7 +98,7 @@ func TestCleanupKeepsDirtyAndUnmerged(t *testing.T) {
 	if _, err := git(clean, "commit", "--allow-empty", "-qm", "work"); err != nil {
 		t.Fatal(err)
 	}
-	notes := tasks.RemoveWorkflowWorktree(repo, "workflow-8")
+	notes := workplace.Git{}.Cleanup(repo, "8")
 	if _, err := os.Stat(clean); !os.IsNotExist(err) {
 		t.Fatal("clean worktree kept")
 	}

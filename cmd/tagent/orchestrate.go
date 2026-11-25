@@ -12,6 +12,7 @@ import (
 
 	"tagent/internal/queue"
 	"tagent/internal/tmux"
+	"tagent/internal/workplace"
 )
 
 // ─── fanout / compare: best-of-N ─────────────────────────────────────────
@@ -74,12 +75,12 @@ func cmdCompare(args []string, stdout, stderr io.Writer) int {
 		return exitUsage
 	}
 	wd, _ := os.Getwd()
-	repo, _, _, err := worktreePaths(wd, "x")
+	repo, _, _, err := workplace.Paths(wd, "x")
 	if err != nil {
 		fmt.Fprintln(stderr, "compare:", err)
 		return exitFailure
 	}
-	dirs, _ := filepath.Glob(filepath.Join(repo, ".worktrees", args[0]+"-*"))
+	dirs, _ := filepath.Glob(filepath.Join(repo, workplace.Dir, args[0]+"-*"))
 	if len(dirs) == 0 {
 		fmt.Fprintf(stderr, "compare: no worktrees %s-* in %s\n", args[0], repo)
 		return exitFailure

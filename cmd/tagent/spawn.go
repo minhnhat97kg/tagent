@@ -8,7 +8,6 @@ import (
 	"gopkg.in/yaml.v3"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -22,6 +21,7 @@ import (
 	"tagent/internal/setup"
 	"tagent/internal/tasks"
 	"tagent/internal/tmux"
+	"tagent/internal/workplace"
 )
 
 // spawnOpts is everything `new` (and fanout/plan/restore, which build on
@@ -142,7 +142,7 @@ func spawnAgent(o spawnOpts) (pane, warn string, err error) {
 		if o.Name == "" {
 			return "", "", errors.New("--worktree needs --name (it names the branch)")
 		}
-		if repo, branch, o.Cwd, err = addWorktree(o.Cwd, o.Name); err != nil {
+		if repo, branch, o.Cwd, err = workplace.Add(o.Cwd, o.Name); err != nil {
 			return "", "", err
 		}
 	}
@@ -362,112 +362,17 @@ func sendText(pane, text string) { tmux.TypeLine(pane, text) }
 
 // ─── worktrees ───────────────────────────────────────────────────────────
 
-func git(dir string, args ...string) (string, error) {
-	out, err := exec.Command("git", append([]string{"-C", dir}, args...)...).CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("git %s: %s", strings.Join(args, " "), strings.TrimSpace(string(out)))
-	}
-	return strings.TrimSpace(string(out)), nil
-}
-
-// worktreePaths: repo root of dir, and the branch/path an agent's
-// worktree uses.
-func worktreePaths(dir, name string) (repo, branch, path string, err error) {
-	if repo, err = git(dir, "rev-parse", "--show-toplevel"); err != nil {
-		return "", "", "", fmt.Errorf("%s is not in a git repo", dir)
-	}
-	return repo, "agent/" + name, filepath.Join(repo, ".worktrees", name), nil
-}
-
-// addWorktree creates (or reuses) .worktrees/<name> on branch agent/<name>,
-// keeping .worktrees out of git status.
-func addWorktree(dir, name string) (repo, branch, path string, err error) {
-	if repo, branch, path, err = worktreePaths(dir, name); err != nil {
-		return
-	}
-	validate := func() error {
-		listing, e := git(repo, "worktree", "list", "--porcelain")
-		if e != nil {
-			return e
-		}
-		root, e := git(path, "rev-parse", "--show-toplevel")
-		if e != nil {
-			return e
-		}
-		common, e := git(path, "rev-parse", "--path-format=absolute", "--git-common-dir")
-		if e != nil {
-			return e
-		}
-		expected, e := git(repo, "rev-parse", "--path-format=absolute", "--git-common-dir")
-		if e != nil {
-			return e
-		}
-		common, e = filepath.EvalSymlinks(common)
-		if e != nil {
-			return e
-		}
-		expected, e = filepath.EvalSymlinks(expected)
-		if e != nil {
-			return e
-		}
-		if common != expected {
-			return fmt.Errorf("foreign repository at %s", path)
-		}
-		if _, e = git(path, "rev-parse", "--verify", "HEAD^{commit}"); e != nil {
-			return e
-		}
-		current, e := git(path, "symbolic-ref", "HEAD")
-		if e != nil {
-			return e
-		}
-		if root != path || current != "refs/heads/"+branch || !strings.Contains(listing, "worktree "+path+"\n") {
-			return fmt.Errorf("invalid worktree at %s", path)
-		}
-		return nil
-	}
-	if _, statErr := os.Lstat(path); statErr == nil {
-		err = validate()
-		return
-	} else if !os.IsNotExist(statErr) {
-		err = statErr
-		return
-	}
-	if _, err = git(repo, "worktree", "add", "-q", "-b", branch, path); err != nil {
-		if validate() == nil {
-			err = nil
-		}
-		return
-	}
-	excl, e := git(repo, "rev-parse", "--git-path", "info/exclude")
-	if e != nil {
-		err = e
-		return
-	}
-	if !filepath.IsAbs(excl) {
-		excl = filepath.Join(repo, excl)
-	}
-	if b, _ := os.ReadFile(excl); !strings.Contains(string(b), ".worktrees/") {
-		if f, ferr := os.OpenFile(excl, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644); ferr == nil {
-			fmt.Fprintln(f, ".worktrees/")
-			f.Close()
-		}
-	}
-	return
-}
+func git(dir string, args ...string) (string, error) { return workplace.Run(dir, args...) }
 
 // workflowWorktree keeps all jobs for a ticket in one retained checkout.
 func workflowWorktree(dir, id string) (string, error) {
-	if id == "" || strings.ContainsAny(id, "/\\. \t\n") {
-		return "", fmt.Errorf("invalid workflow ticket ID %q", id)
-	}
-	_, _, path, err := addWorktree(tasks.MainRoot(dir), "workflow-"+id)
-	return path, err
+	return workplace.Git{}.Create(tasks.MainRoot(dir), id)
 }
 
 // agentWorktree finds an agent's worktree from the current repo.
 func agentWorktree(name string) (repo, branch, path string, err error) {
 	wd, _ := os.Getwd()
-	if repo, branch, path, err = worktreePaths(wd, name); err != nil {
+	if repo, branch, path, err = workplace.Paths(wd, name); err != nil {
 		return
 	}
 	if _, statErr := os.Stat(path); statErr != nil {
