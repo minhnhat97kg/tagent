@@ -57,9 +57,10 @@ func cleanupDone(scope, id, note string) {
 	panes := ticketPanes(scope, id) // before removal: Scope() of a removed worktree no longer resolves
 	wp := ticketWorkplace(scope, t)
 	var keepErr error
-	if f, ok := wp.(workplace.Folder); ok {
-		keepErr = keepFolder(scope, id, f.Output(r, id))
-	} else {
+	switch wp.(type) {
+	case workplace.Folder, workplace.Browser: // Browser.Output is its captures dir, so the profile is never walked
+		keepErr = keepFolder(scope, id, wp.Output(r, id))
+	default:
 		keepOutputs(scope, id, wp.Output(r, id))
 	}
 	if note != "" {
@@ -79,9 +80,10 @@ func cleanupDone(scope, id, note string) {
 	killPanes(panes)
 }
 
-// keepFolder attaches every regular file in a folder workplace to the ticket, so
-// removing the folder loses nothing. Symlinks and other entries are skipped. A
-// missing folder has nothing to keep.
+// keepFolder attaches every regular file in a folder workplace's directory (or a
+// browser's captures dir) to the ticket, so removing the ticket's directory loses
+// nothing. Symlinks and other entries are skipped. A missing directory has nothing
+// to keep.
 func keepFolder(scope, id, dir string) error {
 	var files []string
 	err := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {

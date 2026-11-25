@@ -386,7 +386,7 @@ Discovery and configuration use the main worktree root. Native Claude/OpenCode
 role definitions are passed inline from that checkout, so main-only or edited
 roles do not fall back to stale definitions in the ticket tree. Reuse validates
 the worktree's repository identity, expected branch and committed HEAD.
-A recipe's top-level `workplace:` key is `git-worktree` (the default), `none` or `folder`;
+A recipe's top-level `workplace:` key is `git-worktree` (the default), `none`, `folder` or `browser`;
 any other value fails validation on its line. A top-level `cleanup:` key is `remove`
 (the default) or `keep`, validated the same way; `keep` leaves a done ticket's worktree and
 branch in place (its work is still merged). With the default, workflow
@@ -412,6 +412,14 @@ directory is removed. `cleanup: keep` attaches the files and keeps the directory
 or the removal fails, the directory and the panes are kept and a `cleanup: kept folder` note is
 recorded; done still happens. Tools run inside the folder, such as `tagent task move`, act on the
 repo's board. A harness may ask to trust each new folder on its first run; a human must answer that prompt.
+With `workplace: browser` there is no git either: the ticket runs in the main root (no worktree, branch or merge),
+and its dispatch prompt names two directories under `<context>/<repo scope>/browser/<ticket>`: `profile/`, a
+Chrome profile (mode 0700, outside the repo so cookies cannot be committed), and `captures/`, for screenshots and
+extracted text. On done, every regular file in `captures/` is attached under its base name, as with `folder`, and
+the whole `browser/<ticket>` directory is removed, profile included; nothing in `profile/` is attached.
+`cleanup: keep` attaches the captures and keeps both directories, since the profile holds sign-ins. A failed attach
+or removal keeps the directory and panes with a `cleanup: kept folder` note. tagent does not yet start a browser or
+point an MCP browser server at the profile (phase B2), so until then an agent must pass that path to its own browser tool.
 On done, the ticket's chat and role panes are closed after the worktree removal, never
 during it. A worktree kept for uncommitted changes keeps its panes, since its agents may still
 be working in it. Only the done step closes panes; the dispatcher does not.

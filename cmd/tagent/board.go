@@ -131,6 +131,7 @@ func dispatchBoardAction(a board.Action) error {
 		return nil
 	}
 	priority := 1
+	var note string
 	if a.Event.Task != "" {
 		ticket, err := tasks.Get(scope, a.Event.Task)
 		if err != nil {
@@ -145,6 +146,9 @@ func dispatchBoardAction(a board.Action) error {
 			a.ExecDir, err = wp.Create(tasks.MainRoot(a.Dir), ticket.ID)
 			if err != nil {
 				return err
+			}
+			if b, ok := wp.(workplace.Browser); ok {
+				note = "Browser workplace for this ticket: save captures (screenshots, extracted text) in " + b.Output(a.ExecDir, ticket.ID) + "; they are attached to the ticket on done. Chrome profile directory: " + b.Profile(ticket.ID) + "."
 			}
 		}
 	}
@@ -251,6 +255,9 @@ func dispatchBoardAction(a board.Action) error {
 	// Memory rides in every dispatch, so a reused standing pane gets the current file.
 	if mem := roles.Memory(tasks.MainRoot(a.Dir), a.Agent); mem != "" {
 		a.Prompt = withRoleMemory(a.Agent, mem, a.Prompt)
+	}
+	if note != "" { // every prompt, first or resumed, names the ticket's browser paths
+		a.Prompt += "\n\n" + note
 	}
 	// Record what was actually sent; the run view reads these fields. Best effort:
 	// the audit line below still records delivery.

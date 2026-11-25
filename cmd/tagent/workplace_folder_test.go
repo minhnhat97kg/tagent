@@ -13,9 +13,11 @@ import (
 	"tagent/internal/workplace"
 )
 
-// A `workplace: folder` ticket runs in its own directory outside the repo: no
-// worktree, no branch, one reused pane. Done attaches the files and removes it.
-func TestWorkplaceFolderRunsOutsideRepo(t *testing.T) {
+// startWorkplaceTicket starts a git repo with a tmux session and a fake claude
+// harness, a `notes` recipe with the given workplace line, and a ticket moved to
+// its job. It returns the repo dir, its scope and the ticket.
+func startWorkplaceTicket(t *testing.T, workplaceLine string) (dir, scope string, ticket tasks.Task) {
+	t.Helper()
 	if _, err := exec.LookPath("tmux"); err != nil {
 		t.Skip("tmux unavailable")
 	}
@@ -29,7 +31,7 @@ func TestWorkplaceFolderRunsOutsideRepo(t *testing.T) {
 	t.Setenv("GIT_AUTHOR_EMAIL", "test@test")
 	t.Setenv("GIT_COMMITTER_NAME", "test")
 	t.Setenv("GIT_COMMITTER_EMAIL", "test@test")
-	dir, _ := filepath.EvalSymlinks(t.TempDir())
+	dir, _ = filepath.EvalSymlinks(t.TempDir())
 	for _, args := range [][]string{{"init", "-q"}, {"commit", "--allow-empty", "-qm", "baseline"}} {
 		if _, err := git(dir, args...); err != nil {
 			t.Fatal(err)
@@ -49,9 +51,9 @@ func TestWorkplaceFolderRunsOutsideRepo(t *testing.T) {
 
 	wf := filepath.Join(dir, ".tasks", "workflows")
 	os.MkdirAll(wf, 0700)
-	os.WriteFile(filepath.Join(wf, "notes.yml"), []byte("name: notes\nworkplace: folder\njobs:\n  write:\n    agent: planner\n    prompt: Write\n"), 0600)
+	os.WriteFile(filepath.Join(wf, "notes.yml"), []byte("name: notes\n"+workplaceLine+"jobs:\n  write:\n    agent: planner\n    prompt: Write\n"), 0600)
 
-	scope := tasks.Scope(dir)
+	scope = tasks.Scope(dir)
 	ticket, err := tasks.Add(scope, "notes question", nil, tasks.MutationOptions{Workflow: "notes"})
 	if err != nil {
 		t.Fatal(err)
@@ -59,6 +61,13 @@ func TestWorkplaceFolderRunsOutsideRepo(t *testing.T) {
 	if err := tasks.Move(scope, ticket.ID, "write", ""); err != nil {
 		t.Fatal(err)
 	}
+	return dir, scope, ticket
+}
+
+// A `workplace: folder` ticket runs in its own directory outside the repo: no
+// worktree, no branch, one reused pane. Done attaches the files and removes it.
+func TestWorkplaceFolderRunsOutsideRepo(t *testing.T) {
+	dir, scope, ticket := startWorkplaceTicket(t, "workplace: folder\n")
 	wp, err := tasks.TicketWorkplace(scope, ticket)
 	if f, ok := wp.(workplace.Folder); !ok || err != nil || f.Keep {
 		t.Fatalf("folder workflow: %#v %v", wp, err)

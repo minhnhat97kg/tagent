@@ -59,7 +59,7 @@ func TestCleanupKey(t *testing.T) {
 
 func TestWorkplaceKey(t *testing.T) {
 	const job = "jobs:\n  a: {run: x}\n"
-	for src, want := range map[string]string{job: "", "workplace: git-worktree\n" + job: "git-worktree", "workplace: none\n" + job: "none", "workplace: folder\n" + job: "folder"} {
+	for src, want := range map[string]string{job: "", "workplace: git-worktree\n" + job: "git-worktree", "workplace: none\n" + job: "none", "workplace: folder\n" + job: "folder", "workplace: browser\n" + job: "browser"} {
 		if w, err := Parse([]byte(src)); err != nil || w.Workplace != want {
 			t.Fatalf("%q: %q %v", src, w.Workplace, err)
 		}

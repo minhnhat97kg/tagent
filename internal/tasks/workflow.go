@@ -31,6 +31,8 @@ func TicketWorkplace(scope string, t Task) (workplace.Workplace, error) {
 		return workplace.None{}, nil
 	case "folder":
 		return workplace.Folder{Base: realpath(filepath.Join(sharedctx.Dir(scope), "folder")), Keep: w.Cleanup == "keep"}, nil
+	case "browser":
+		return workplace.Browser{Base: realpath(filepath.Join(sharedctx.Dir(scope), "browser")), Keep: w.Cleanup == "keep"}, nil
 	}
 	return workplace.Git{Keep: w.Cleanup == "keep"}, nil
 }

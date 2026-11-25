@@ -80,8 +80,8 @@ type Workflow struct {
 	Name, File  string
 	Description string
 	Global      bool
-	Workplace   string // "" or "git-worktree" (default), "none": run in the main root, or "folder": a plain directory of files
-	Cleanup     string // "" or "remove" (default), or "keep": done keeps the worktree and its branch (or the folder)
+	Workplace   string // "" or "git-worktree" (default), "none": run in the main root, "folder": a plain directory of files, or "browser": a Chrome profile and captures
+	Cleanup     string // "" or "remove" (default), or "keep": done keeps the worktree and its branch (or the folder, or the browser profile)
 	Inputs      map[string]Input
 	Jobs        []Job
 	Err         error
@@ -108,10 +108,10 @@ func Parse(b []byte) (Workflow, error) {
 	w := Workflow{Name: raw.Name, Description: raw.Description, Inputs: raw.Inputs}
 	if raw.Workplace.Kind != 0 {
 		switch raw.Workplace.Value {
-		case "git-worktree", "none", "folder":
+		case "git-worktree", "none", "folder", "browser":
 			w.Workplace = raw.Workplace.Value
 		default:
-			return w, errAt(raw.Workplace.Line, "unknown workplace %q (git-worktree, none or folder)", raw.Workplace.Value)
+			return w, errAt(raw.Workplace.Line, "unknown workplace %q (git-worktree, none, folder or browser)", raw.Workplace.Value)
 		}
 	}
 	if raw.Cleanup.Kind != 0 {

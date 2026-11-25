@@ -1,7 +1,7 @@
 // Package workplace owns where a ticket's or an agent's work lives on disk: a
-// git worktree under Dir, the main root for `workplace: none`, or a plain folder
-// for `workplace: folder`. It is a leaf (stdlib only) so tasks, cmd and worktree
-// can all use it.
+// git worktree under Dir, the main root for `workplace: none`, a plain folder
+// for `workplace: folder`, or a Chrome profile and captures for `workplace:
+// browser`. It is a leaf (stdlib only) so tasks, cmd and worktree can all use it.
 package workplace
 
 import (
