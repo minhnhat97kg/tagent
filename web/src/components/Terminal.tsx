@@ -269,23 +269,27 @@ export function Terminal({ pane, onConnection, keyboardInputRef, onKeyboardChang
       const sendKeys = (data: string) => { if (data && ws.readyState === WebSocket.OPEN) void paneInput(pane, "input", data).catch(reportInputError) }
       // The diff assumes typing at the end. Between compositions, keep the caret there and start each
       // word fresh so stale text can't be retyped; never touch the selection mid-composition (breaks Telex).
+      // Some keyboards (Samsung) send input with isComposing=false while a word is still composing, so track composition ourselves.
+      let composing = false
+      box.addEventListener("compositionstart", () => { composing = true })
+      box.addEventListener("compositionend", () => { composing = false })
       box.addEventListener("input", e => {
         sendKeys(typedDiff(last, box!.value)); last = box!.value
-        if ((e as InputEvent).isComposing) return
+        if ((e as InputEvent).isComposing || composing) return
         if (/\s$/.test(last)) box!.value = last = ""
         const n = box!.value.length
         if (box!.selectionStart !== n) box!.setSelectionRange(n, n)
       })
       box.addEventListener("keydown", e => {
         if (e.isComposing) return
-        if (e.key === "Enter") { e.preventDefault(); sendKeys("\r"); box!.value = last = "" }
+        if (e.key === "Enter") { if (composing) return; e.preventDefault(); sendKeys("\r"); box!.value = last = "" }
         else if (e.key === "Backspace" && !box!.value) { e.preventDefault(); sendKeys("\x7f") }
       })
       // A genuine tap may type; native scrolls/drags must never open the keyboard.
       unbindTap = bindTerminalTap(wrap, () => box!.focus({ preventScroll: true }))
       if (keyboardInputRef) keyboardInputRef.current = box
       box.addEventListener("focus", () => onKeyboardChange?.(true))
-      box.addEventListener("blur", () => onKeyboardChange?.(false))
+      box.addEventListener("blur", () => { composing = false; onKeyboardChange?.(false) })
     }
 
     const ro = new ResizeObserver(fit)
