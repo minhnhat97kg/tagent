@@ -39,7 +39,7 @@ func ConfigForTask(dir string, base BoardConfig, t Task) (BoardConfig, error) {
 		if j.OnFailure != "" {
 			fail = target(j.OnFailure)
 		}
-		s := Status{Needs: []string(j.Needs), Failure: fail, ID: j.Status, Role: j.Agent, Model: j.Model, Prompt: j.Prompt, Job: j.ID, Outputs: j.Outputs, Run: j.Run, MaxLoops: j.MaxLoops, Next: []string{next}}
+		s := Status{Needs: []string(j.Needs), Failure: fail, ID: j.Status, Role: j.Agent, Model: j.Model, Prompt: j.Prompt, Job: j.ID, Uses: j.Uses, Outputs: j.Outputs, Run: j.Run, MaxLoops: j.MaxLoops, Next: []string{next}}
 		for _, x := range []string{"blocked", fail} {
 			found := false
 			for _, n := range s.Next {

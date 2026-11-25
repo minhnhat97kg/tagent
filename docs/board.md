@@ -457,6 +457,67 @@ Tasks panel and board share ticket controls: `s` workflow start picker,
 `enter` detail, `e` edit, `C` comment, `H`/`L` status, `x` delete with confirmation,
 `w` workflow, `?` help. Dashboard `Tab` changes focus; `b` opens the board.
 
+### Role context
+
+A role may limit what its agent loads, in `board.yaml` or on the Agents page
+(Context block). Unset keeps the harness default; `[]` means none.
+
+- `skills: []` (none) or `mcp: [names]`, `tools: [..]`, `allow: [..]`, `deny: [..]`.
+- Claude: `--disable-slash-commands`, `--strict-mcp-config --mcp-config=FILE`,
+  `--tools=`, `--allowedTools=`, `--disallowedTools=`. MCP names come from the
+  project's `.mcp.json`, then `~/.claude.json`; `tagent` is generated.
+- Pi: `--no-skills`, `--no-mcp`, `--tools=`, `--exclude-tools=`.
+- Codex, OpenCode, Gemini, Copilot and Amp have no mapping: setting any field is a
+  config error. Pi has no per-server or per-skill allowlist, so skill and MCP
+  lists and `allow` are rejected there; Claude has no per-skill flag, so a skill
+  list is rejected too.
+- Plugin-provided MCP servers cannot be selected. Context applies to new panes only.
+An unsupported entry is a board config error for the whole `board.yaml`, as an
+invalid role effort already is: every role's spawn fails until it is fixed.
+This is intended, so a bad restriction never starts an agent with less
+restriction than asked. The Agents page and API refuse such a save. Only a
+hand-edited file can reach the error. A save that carries no context keys leaves
+the role's context unchanged; the Agents page always sends all five.
+
+The scout job uses a fixed Claude preset: Read, Grep, Glob, no skills, only the
+`tagent` MCP server, and of its tools only `task_show`, `task_move` and
+`task_comment` (`task_add` is denied). Checked live on Claude 2.1.332 with
+stream-json init: `--tools` does not hide MCP tools, so the deny list is what
+removes `task_add`. Scout does not apply on pi.
+
+### Scout and skip rule
+
+`uses: scout` expands to a job with status `scouting`, role `ba`, output `scout`
+and the built-in prompt. It is skipped (advances without running) when the
+ticket's title, text or inputs name a source file (`*.go`, `*.ts`, ...) or a
+function (`name()`), or when the job already has a `scout` output (a CI or QA
+bounce reuses it). This is a regex heuristic: it can false-positive (e.g. "Node.js")
+or miss a name, costing one skipped or one extra cheap scout. A scout output over
+8000 characters is refused: shorten it and resubmit.
+
+### CI bounce and Haiku cap
+
+A CI failure sent back to a build status reuses the existing dev pane (no fresh
+pane) and gets the full log path (`Full CI log: ...`). A dead pane still starts
+fresh. Identical repeated CI failures are still blocked by `repeatedFailure`.
+A Claude pane whose model contains `haiku` starts with
+`CLAUDE_CODE_AUTO_COMPACT_WINDOW=100000` (the harness minimum) unless the
+environment already sets it. Compaction at that size was not measured live here.
+
+### Rollout (after merge)
+
+The change is inert until the binary is installed and the workflows are copied.
+1. Install the new binary; restart the board dispatcher and web.
+2. Copy `examples/workflows/*.yml` into `.tasks/workflows/` (merge local edits).
+3. Optionally set role context on the Agents page.
+4. Re-run one feature and one bugfix ticket; compare with `task show ID --all`:
+   fewer CI loops, lower lead tokens, no Haiku job above 100K cache write, and scout
+   skipped when files are named.
+
+Verified in development: claude 2.1.332 tool and MCP flags (stream-json init
+event). Not verified: the Haiku 100K compaction window with `/context`, and the
+token acceptance numbers, which need the rollout runs above.
+
 ### Role effort
 
 Optional `roles.<name>.effort` selects native reasoning effort for new launches:

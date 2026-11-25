@@ -28,8 +28,10 @@ type Action struct {
 	Job                                               string
 	Event                                             tasks.Event
 	Trigger                                           int
-	Close                                             bool // ticket reached done: close its role panes
-	Skip                                              bool // run job passes without running: a user asked to skip it
+	Close                                             bool   // ticket reached done: close its role panes
+	Skip                                              bool   // run job passes without running: a user asked to skip it
+	Preset                                            string // harness preset for the spawned agent, e.g. "scout"
+	Advance, Note                                     string // finish the entry into Advance without running it (skipped scout)
 }
 type Fire func(Action) error
 type state struct {
@@ -168,6 +170,15 @@ func Run(ctx context.Context, dir string, fire Fire) error {
 						}
 						if err = audit(a, outcome); err != nil {
 							return err
+						}
+						if err = save(); err != nil {
+							return err
+						}
+						continue
+					}
+					if a.Advance != "" {
+						if e = tasks.FinishEntry(scope, task.ID, a.Advance, a.Note, ev.Seq, false, tasks.MutationOptions{Actor: "board"}); e != nil {
+							s.LastError = e.Error()
 						}
 						if err = save(); err != nil {
 							return err
@@ -317,6 +328,13 @@ func Actions(dir string, cfg tasks.BoardConfig, ev tasks.Event, t tasks.Task) ([
 				continue
 			}
 			a := Action{Dir: dir, Event: ev, Trigger: -1, Agent: s.Role, Role: s.Role, Run: s.Run, Pass: s.Pass, Fail: s.Fail}
+			if s.Uses == "scout" {
+				if why := scoutSkip(t, s.Job); why != "" && len(s.Next) > 0 {
+					a.Advance, a.Note = s.Next[0], "Scout skipped: "+why
+					return []Action{a}, nil
+				}
+				a.Preset = "scout"
+			}
 			// A run failing with the same output as its last run would only send dev around again.
 			if s.Role != "" && repeatedFailure(t, comment) {
 				a.BlockReason = fmt.Sprintf("Status %s: the same CI failure as the previous run; not sending it back to dev", s.ID)
@@ -371,6 +389,14 @@ func Actions(dir string, cfg tasks.BoardConfig, ev tasks.Event, t tasks.Task) ([
 			a.Prompt = statusPrompt(t, s, ev, next, -1)
 			a.CommentCount = len(t.Comments)
 			a.ResumePrompt = func(since int) string { return statusPrompt(t, s, ev, next, since) }
+			if isCIFailure(comment) {
+				// A CI bounce goes back to the pane that wrote the code, with the full log.
+				a.FreshAfter = 0
+				note := ciLogNote(dir, t, comment)
+				a.Prompt += note
+				resume := a.ResumePrompt
+				a.ResumePrompt = func(since int) string { return resume(since) + note }
+			}
 			if s.Role != "" || s.Run != "" {
 				out = append(out, a)
 			}

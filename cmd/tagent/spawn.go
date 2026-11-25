@@ -35,6 +35,7 @@ type spawnOpts struct {
 	Terminal                              bool     // a plain login shell, no harness; kept from the idle sweep
 	Window                                string   // tmux window name (default: Name)
 	PromptHasRole                         bool     // the caller puts the role's instructions in its prompt (dispatch)
+	BoardRole, Preset                     string   // board.yaml role whose context applies; preset "scout" overrides it
 }
 
 // Pane options recording how an agent was started (restore, merge).
@@ -52,7 +53,9 @@ func spawnAgent(o spawnOpts) (pane, warn string, err error) {
 	if o.Terminal {
 		// A terminal has no harness, role or model, and never reports a status.
 		o.Agent, o.Model, o.Effort, o.Role, o.Args, o.Wait = "", "", "", "", nil, false
+		o.BoardRole, o.Preset = "", ""
 	}
+	contextRole := cmp.Or(o.BoardRole, o.Role) // before a board-only role clears o.Role
 
 	if o.ConfigDir == "" {
 		o.ConfigDir = o.Cwd
@@ -127,7 +130,11 @@ func spawnAgent(o spawnOpts) (pane, warn string, err error) {
 		}
 	}
 
-	args := append(append([]string(nil), o.Args...), effortArgs...)
+	contextArgs, err := roleArgs(o, contextRole)
+	if err != nil {
+		return "", "", err
+	}
+	args := append(append(append([]string(nil), o.Args...), effortArgs...), contextArgs...)
 	if isClaude(o.Agent) {
 		flags, _ := tmux.GetOption("@agent_claude_flags")
 		args = append(args, strings.Fields(flags)...)
@@ -171,6 +178,10 @@ func spawnAgent(o spawnOpts) (pane, warn string, err error) {
 		case "codex":
 			args = append(args, "-c", "developer_instructions="+strconv.Quote(text))
 		}
+	}
+	// Haiku bills 5x: a pane auto-compacts at 100K tokens instead of its default window.
+	if isClaude(o.Agent) && strings.Contains(o.Model, "haiku") && os.Getenv("CLAUDE_CODE_AUTO_COMPACT_WINDOW") == "" {
+		roleEnv = "env CLAUDE_CODE_AUTO_COMPACT_WINDOW=100000 " + strings.TrimPrefix(roleEnv, "env ")
 	}
 	command := roleEnv + setup.ShellQuote(o.Agent)
 	for _, a := range args {

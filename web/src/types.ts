@@ -35,6 +35,12 @@ export interface Role {
   running: number
   panes: { pane: string; status: string }[] | null
   usedBy: string[] | null
+  // Context: undefined keeps the harness default; [] means none (skills, mcp only).
+  skills?: string[]
+  mcp?: string[]
+  tools?: string[]
+  allow?: string[]
+  deny?: string[]
 }
 
 export interface State {

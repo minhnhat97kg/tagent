@@ -5,7 +5,7 @@ import { api, send } from "@/api"
 import { usePoll } from "@/hooks/usePoll"
 import { enc } from "@/hooks/useRoute"
 import { Button } from "@/components/ui/button"
-import { editableKey, effortLevels, modelsIn, readOnlySource, roleTemplate, usedBySummary } from "@/lib/roles"
+import { contextList, contextText, editableKey, effortLevels, modelsIn, readOnlySource, roleTemplate, usedBySummary, withContext } from "@/lib/roles"
 import { useAppState } from "@/state"
 import type { Role } from "@/types"
 
@@ -37,7 +37,7 @@ export function AgentsPage({ dir }: { dir: string }) {
     finally { setBusy(false) }
   }
   async function save(body: Role) {
-    if (await mutate("POST", body)) setDraft({ ...body })
+    if (await mutate("POST", withContext(body))) setDraft({ ...body })
   }
   function create() {
     const name = prompt("Agent name (letters, numbers, - or _)")
@@ -100,6 +100,13 @@ export function AgentsPage({ dir }: { dir: string }) {
               </select></label>
           </div>
           <p className="px-3 text-[11.5px] text-muted-foreground">Model and effort apply to new panes only. Used by: {usedBySummary(draft)}.</p>
+          <div className="grid gap-3 p-3 sm:grid-cols-3">
+            {([["Skills", "skills", true], ["MCP servers", "mcp", true], ["Allowed tools", "tools", false], ["Always allowed", "allow", false], ["Denied tools", "deny", false]] as const).map(([label, key, nullable]) =>
+              <label key={key} className="text-[12px] font-medium">{label}
+                <input aria-label={label} key={key + draft.source + draft.name} className={fieldClass} disabled={readOnly} placeholder={nullable ? "default, none or a list" : "comma-separated"}
+                  defaultValue={contextText(draft[key], nullable)} onChange={e => setDraft({ ...draft, [key]: contextList(e.target.value, nullable) })} /></label>)}
+            <p className="text-[11.5px] text-muted-foreground sm:col-span-3">Context applies to new panes only. Combinations a harness cannot express (a skill list, an MCP list on pi, allow on pi) are rejected on save.</p>
+          </div>
           <div className="px-3 pt-2 text-[12px]">
             <span className="font-medium">Live panes ({panes.length})</span>
             <ul className="mt-1 space-y-0.5">{panes.map(p => <li key={p.pane}><a className="underline" href={`#/agent/${enc(p.pane)}`}>{p.pane} · {p.status}</a></li>)}</ul>

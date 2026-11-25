@@ -1,6 +1,8 @@
 package web
 
 import (
+	"encoding/json"
+	"io"
 	"net/http"
 
 	"tagent/internal/agents"
@@ -23,11 +25,31 @@ func (s *server) roles(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		var a agents.Agent
-		if err = readBody(r, &a); err == nil {
+		var raw []byte
+		raw, err = io.ReadAll(io.LimitReader(r.Body, 1<<20))
+		if err == nil {
+			err = json.Unmarshal(raw, &a)
+		}
+		if err == nil {
+			a.ContextSet = contextSent(raw)
 			err = agents.Save(dir, harness, a)
 		}
 	}
 	if err != nil {
 		fail(w, err)
 	}
+}
+
+// contextSent reports whether a role save body carries any context key.
+func contextSent(raw []byte) bool {
+	var keys map[string]json.RawMessage
+	if json.Unmarshal(raw, &keys) != nil {
+		return false
+	}
+	for _, k := range []string{"skills", "mcp", "tools", "allow", "deny"} {
+		if _, ok := keys[k]; ok {
+			return true
+		}
+	}
+	return false
 }

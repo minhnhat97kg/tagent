@@ -54,12 +54,16 @@ type Job struct {
 	Model     string   `yaml:"model"`
 	Prompt    string   `yaml:"prompt"`
 	Run       string   `yaml:"run"`
+	Uses      string   `yaml:"uses"`
 	Needs     names    `yaml:"needs"`
 	Outputs   []string `yaml:"outputs"`
 	OnFailure string   `yaml:"on-failure"`
 	MaxLoops  int      `yaml:"max-loops"`
 }
 type names []string
+
+// ScoutPrompt is the built-in prompt of `uses: scout`, the read-only first step.
+const ScoutPrompt = "Scout ticket ${{ ticket.id }}: ${{ ticket.title }}. Read only, change nothing. Search first, read only the line ranges needed. Return one output `scout`, under 6000 characters: entry points (file:line), suspect code, related tests, open questions. No code dumps. Finish with the tagent MCP tool `task_move` (to = the forward status, outputs.scout); a shell may be unavailable."
 
 func (s *names) UnmarshalYAML(n *yaml.Node) error {
 	if n.Kind == yaml.ScalarNode {
@@ -122,6 +126,18 @@ func Parse(b []byte) (Workflow, error) {
 		}
 		if _, ok := ids[j.ID]; ok {
 			return w, errAt(key.Line, "duplicate job %s", j.ID)
+		}
+		if j.Uses != "" {
+			if j.Uses != "scout" || j.Run != "" || j.Agent != "" || j.Prompt != "" || j.Model != "" {
+				return w, errAt(key.Line, "job %s: uses scout takes no run, agent, prompt or model", j.ID)
+			}
+			j.Agent, j.Prompt = "ba", ScoutPrompt
+			if len(j.Outputs) == 0 {
+				j.Outputs = []string{"scout"}
+			}
+			if j.Status == "" {
+				j.Status = "scouting"
+			}
 		}
 		if j.Status == "" {
 			j.Status = j.ID

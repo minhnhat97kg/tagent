@@ -26,4 +26,16 @@ export const roleTemplate = (name: string) => `# ${name}\n\nDescribe how this ag
 export const readOnlySource = (source: string) => source === "legacy"
 
 // What the user edits: harness, model, effort and instructions. Live fields (running, usedBy) are left out.
-export const editableKey = (r: Role) => JSON.stringify([r.harness, r.model, r.effort, r.instructions])
+export const editableKey = (r: Role) => JSON.stringify([r.harness, r.model, r.effort, r.instructions, r.skills, r.mcp, r.tools, r.allow, r.deny])
+
+// Context text to list. Skills and MCP: empty is the harness default, "none" is no items.
+// Tools, allow and deny: empty is no items.
+export function contextList(text: string, nullable: boolean): string[] | undefined {
+  const t = text.trim()
+  if (!t) return nullable ? undefined : []
+  if (nullable && t === "none") return []
+  return t.split(",").map(s => s.trim()).filter(Boolean)
+}
+// Save always sends all five context keys: a cleared field is saved as default (null) or none ([]).
+export const withContext = (r: Role) => ({ ...r, skills: r.skills ?? null, mcp: r.mcp ?? null, tools: r.tools ?? [], allow: r.allow ?? [], deny: r.deny ?? [] })
+export const contextText = (v: string[] | undefined, nullable: boolean) => v === undefined ? "" : v.length || !nullable ? v.join(", ") : "none"

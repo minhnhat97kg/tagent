@@ -1,0 +1,34 @@
+name: refactor
+description: "Restructure or simplify code without changing behaviour: scout, plan, refactor, test, review"
+inputs:
+  target: {description: what to simplify or restructure, required: true}
+jobs:
+  scout: {uses: scout}
+  plan:
+    needs: scout
+    status: planning
+    agent: lead
+    prompt: |
+      Refactor target: ${{ inputs.target }}. Behaviour must not change.
+      Start from the scout output in Job outputs; open only the files it names unless it is wrong.
+      Write .tasks/plans/${{ ticket.id }}.md: what to delete/merge, the order of safe steps, which tests guard behaviour.
+      Keep it under 30 lines. If the work is large, split it into follow-up tickets, each small enough for one dev session.
+    outputs: [plan]
+  refactor:
+    needs: plan
+    status: refactoring
+    agent: dev
+    prompt: 'Work from ${{ jobs.plan.outputs.plan }}; do not re-explore the repo. Apply it step by step, tests green after each step, no behaviour change. Don''t commit.'
+    max-loops: 4
+  test:
+    needs: refactor
+    status: testing
+    run: ./scripts/check.sh
+    on-failure: refactor
+  review:
+    needs: test
+    status: reviewing
+    agent: qa
+    prompt: Confirm no behaviour change and that the code got smaller or simpler. Do not edit code.
+    on-failure: refactor
+    max-loops: 2
