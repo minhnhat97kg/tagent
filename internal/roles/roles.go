@@ -62,6 +62,25 @@ func LocalPath(dir, name string) string {
 	return filepath.Join(LocalDir(dir), name+".md")
 }
 
+// MemoryPath is the per-agent memory file. It sits beside .tasks/agents, not in
+// it, so ListLocal never lists it as a role.
+func MemoryPath(dir, name string) string {
+	return filepath.Join(Root(dir), ".tasks", "memory", name+".md")
+}
+
+// Memory is the trimmed memory of agent name, or "" when there is no file or the
+// name would leave the memory directory.
+func Memory(dir, name string) string {
+	if name == "" || strings.ContainsAny(name, `/\`) {
+		return ""
+	}
+	b, err := os.ReadFile(MemoryPath(dir, name))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(b))
+}
+
 // DirFor is a harness's own agents directory. It is read for legacy files and
 // used when handing a native definition to a harness; the app never writes here.
 func DirFor(dir, harness string) string {

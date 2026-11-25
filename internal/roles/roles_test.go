@@ -98,3 +98,29 @@ func TestGlobalDefinitions(t *testing.T) {
 		t.Fatalf("profile: %+v", got)
 	}
 }
+
+func TestMemoryIsNotARole(t *testing.T) {
+	repo := gitRepo(t)
+	if got := Memory(repo, "researcher"); got != "" {
+		t.Fatalf("missing file: %q", got)
+	}
+	write(t, LocalPath(repo, "researcher"), "Investigate.")
+	write(t, MemoryPath(repo, "researcher"), "\nPrefers small PRs.\n")
+	if got := Memory(repo, "researcher"); got != "Prefers small PRs." {
+		t.Fatalf("memory: %q", got)
+	}
+	if got := Memory(repo, "../researcher"); got != "" {
+		t.Fatalf("path escape read: %q", got)
+	}
+	if _, ok := find(ListLocal(repo), "researcher"); !ok {
+		t.Fatal("role missing")
+	}
+	for _, d := range ListLocal(repo) {
+		if strings.Contains(d.Path, "memory") || d.Name == "researcher/memory" {
+			t.Fatalf("memory listed as role: %+v", d)
+		}
+	}
+	if len(ListLocal(repo)) != 1 {
+		t.Fatalf("roles: %+v", ListLocal(repo))
+	}
+}

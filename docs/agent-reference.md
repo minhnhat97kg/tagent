@@ -42,6 +42,8 @@ harness directory); a model or effort change applies to panes started afterwards
 not to running ones. Instructions are plain markdown in `.tasks/agents/<role>.md`
 (or `~/.config/tagent/agents/<role>.md`) and are included in the dispatch prompt
 on every harness.
+An optional memory file, `.tasks/memory/<role>.md`, is prepended to every dispatch
+prompt; it is hand-edited and never listed as a role.
 The scraper dispatches (`@agent_scrape` on); `board run` runs in the foreground.
 Edit the board from the web Board header (Settings, `#/board/config`) or the TUI
 board: `B` shows the default workflow, roles and triggers, `E` opens `$EDITOR`. Saves are

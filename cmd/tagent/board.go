@@ -243,6 +243,10 @@ func dispatchBoardAction(a board.Action) error {
 		tmux.SetPaneOption(pane, tmux.BoardTarget, key)
 		tmux.SetPaneOption(pane, tmux.AgentRoute, a.Role+":"+a.Model)
 	}
+	// Memory rides in every dispatch, so a reused standing pane gets the current file.
+	if mem := roles.Memory(tasks.MainRoot(a.Dir), a.Agent); mem != "" {
+		a.Prompt = withRoleMemory(a.Agent, mem, a.Prompt)
+	}
 	// Record what was actually sent; the run view reads these fields. Best effort:
 	// the audit line below still records delivery.
 	if a.Event.Task != "" {
@@ -338,6 +342,10 @@ func roleInstructions(dir, role, harness string, nativeLoad bool) string {
 
 func withRoleInstructions(role, instructions, prompt string) string {
 	return "Your role is " + role + ". Follow these instructions:\n\n" + instructions + "\n\n" + prompt
+}
+
+func withRoleMemory(role, memory, prompt string) string {
+	return "Memory of " + role + " from earlier work:\n\n" + memory + "\n\n" + prompt
 }
 
 // Reuse the existing singleton scraper and its queue consumer.

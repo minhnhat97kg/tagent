@@ -372,6 +372,12 @@ When a role starts a pane, its instructions are included in the dispatch prompt 
 every harness. A legacy file in the running harness's own directory is the only
 case where the harness already loads the same file natively; it is not sent twice.
 
+A role's memory file, `.tasks/memory/<role>.md`, is optional and is prepended to the
+dispatch prompt on every dispatch, including a reused long-lived pane, so the role
+carries over what it learned. A missing file adds nothing. It is never listed as a
+role, and tagent never writes it: edit it by hand (`.tasks/*` is git-ignored, so it
+stays local).
+
 ## Workflows
 
 Local `.tasks/workflows/*.yml` recipes override names in

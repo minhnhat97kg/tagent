@@ -365,3 +365,21 @@ func TestRoleInstructionsPerHarness(t *testing.T) {
 		t.Fatalf("prompt: %q", prompt)
 	}
 }
+
+func TestRoleMemoryInDispatchPrompt(t *testing.T) {
+	dir := t.TempDir()
+	repo := filepath.Join(dir, "repo")
+	os.MkdirAll(repo, 0755)
+	exec.Command("git", "-C", repo, "init", "-q").Run()
+	if got := roles.Memory(repo, "shared"); got != "" {
+		t.Fatalf("missing memory: %q", got)
+	}
+	os.MkdirAll(filepath.Dir(roles.MemoryPath(repo, "shared")), 0755)
+	if err := os.WriteFile(roles.MemoryPath(repo, "shared"), []byte("Remember the scope."), 0644); err != nil {
+		t.Fatal(err)
+	}
+	prompt := withRoleMemory("shared", roles.Memory(repo, "shared"), "Ticket 2")
+	if !strings.Contains(prompt, "Remember the scope.") || !strings.HasSuffix(prompt, "Ticket 2") {
+		t.Fatalf("prompt: %q", prompt)
+	}
+}
