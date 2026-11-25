@@ -167,7 +167,7 @@
 .board-drawer .drawer-panel.drawer-chat > * { flex-shrink: 1; }
 /* Ticket drawer (has tabs): the drawer itself does not scroll; the active tab body does, so the header and tab strip stay put. Settings has no tabs and keeps its scroll. */
 .board-drawer:has(.drawer-tabs) { overflow: hidden; }
-.board-drawer:has(.drawer-tabs) > .drawer-panel:not(.drawer-chat) { flex: 1 1 0; overflow-y: auto; }
+.board-drawer:has(.drawer-tabs) > .drawer-panel { flex: 1 1 0; min-height: 0; overflow-y: auto; }
 /* A tall blocked reason or Edit form gives up height (and scrolls itself) before the tab strip is pushed off or the body drops to 0. */
 .board-drawer:has(.drawer-tabs) > .blocked-reason, .board-drawer:has(.drawer-tabs) > .drawer-edit { flex-shrink: 1; min-height: 0; overflow-y: auto; }
 

@@ -296,14 +296,26 @@ test("a long Run scrolls only the tab body; the header and tab strip stay put", 
   document.head.append(style)
   try {
     const entry = run.entries![0]
-    mocks.api.mockResolvedValue({ ...run, entries: Array.from({ length: 60 }, (_, i) => ({ ...entry, seq: i + 1, comment: `entry ${i + 1}` })) })
+    const longRun = { ...run, entries: Array.from({ length: 60 }, (_, i) => ({ ...entry, seq: i + 1, comment: `entry ${i + 1}` })) }
+    mocks.api.mockImplementation(async (p: string) => p.startsWith("/api/tickets/30/chat")
+      ? { key: "scope#30", pane: "%3", harness: "claude", available: true }
+      : longRun)
     // Board.tsx wraps the drawer in the Radix content that carries the board-drawer class.
     render(<DialogContent className="board-drawer translate-x-0 translate-y-0 sm:max-w-none"><BoardDrawer task={task} statuses={["todo", "build", "done"]} roles={["builder"]} role="builder" dir="/repo" reload={() => {}} workflows={[workflow]} /></DialogContent>)
+    const drawer = document.querySelector<HTMLElement>('[data-slot="dialog-content"]')!
+    const tabs = screen.getByRole("tablist")
     await userEvent.click(screen.getByRole("tab", { name: "Run" }))
     await screen.findByText("entry 60")
-    const drawer = document.querySelector<HTMLElement>('[data-slot="dialog-content"]')!
-    const panel = screen.getByRole("tabpanel")
-    const tabs = screen.getByRole("tablist")
+    let panel = screen.getByRole("tabpanel")
+    expect(getComputedStyle(drawer).overflowY).not.toBe("auto")
+    expect(getComputedStyle(panel).overflowY).toBe("auto")
+    expect(getComputedStyle(panel).flexShrink).not.toBe("0")
+    expect(getComputedStyle(tabs).flexShrink).toBe("0")
+    // Chat is the same kind of body: it fills the drawer and its transcript scrolls inside it.
+    await waitFor(() => expect(screen.getByRole("tab", { name: "Chat" }).hasAttribute("disabled")).toBe(false))
+    await userEvent.click(screen.getByRole("tab", { name: "Chat" }))
+    panel = screen.getByRole("tabpanel")
+    expect(panel.classList.contains("drawer-chat")).toBe(true)
     expect(getComputedStyle(drawer).overflowY).not.toBe("auto")
     expect(getComputedStyle(panel).overflowY).toBe("auto")
     expect(getComputedStyle(panel).flexShrink).not.toBe("0")
