@@ -449,11 +449,23 @@ func (s *server) project(w http.ResponseWriter, r *http.Request) {
 		statuses = append(statuses, map[string]string{"id": id, "role": role, "run": run})
 	}
 	add("todo", "", "")
+	// One request reads each workflow file once: ConfigForTask depends only on the workflow name.
+	flowCache := map[string]tasks.BoardConfig{}
+	flowFor := func(name string) (tasks.BoardConfig, error) {
+		if f, ok := flowCache[name]; ok {
+			return f, nil
+		}
+		f, err := tasks.ConfigForTask(dir, cfg, tasks.Task{Workflow: name})
+		if err == nil {
+			flowCache[name] = f
+		}
+		return f, err
+	}
 	addWorkflow := func(name string) {
 		if name == "" {
 			return
 		}
-		wcfg, err := tasks.ConfigForTask(dir, cfg, tasks.Task{Workflow: name})
+		wcfg, err := flowFor(name)
 		if err != nil {
 			return
 		}
@@ -476,7 +488,7 @@ func (s *server) project(w http.ResponseWriter, r *http.Request) {
 	reasons := map[string]string{}
 	panes := tmux.QuerySessions()
 	for _, ticket := range t {
-		flow, err := tasks.ConfigForTask(dir, cfg, ticket)
+		flow, err := flowFor(ticket.Workflow)
 		if err != nil {
 			fail(w, err)
 			return
