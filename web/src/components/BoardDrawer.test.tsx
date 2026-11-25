@@ -254,7 +254,7 @@ test("Details shows usage as one line that opens the per-job breakdown", async (
   expect(screen.queryByText("n/a")).toBeNull()
   await userEvent.click(summary)
   expect(summary.getAttribute("aria-expanded")).toBe("true")
-  expect(screen.getByText("gpt")).toBeTruthy()
+  expect(screen.getAllByText("gpt").length).toBeGreaterThan(1) // legend and the job line
   expect(screen.getByText("n/a")).toBeTruthy()
 })
 
