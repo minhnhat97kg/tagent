@@ -153,7 +153,7 @@
 @media (min-width: 768px) { .task-board.has-drawer { padding-right: 520px; } }
 
 /* Tabs: Details / Activity / Run. The strip sits under the ticket's own
-   controls and stays put while the body scrolls with the drawer. */
+   controls and stays put while the active tab body scrolls on its own. */
 .drawer-tabs { display: flex; gap: 2px; margin: 0 -26px; padding: 0 26px; border-bottom: 1px solid var(--line); }
 .drawer-tabs button { position: relative; height: 32px; padding: 0 10px; margin-bottom: -1px; border-bottom: 2px solid transparent; font-size: 12.5px; color: var(--muted-foreground); display: inline-flex; align-items: center; }
 .drawer-tabs button:hover { color: var(--foreground); }
@@ -168,6 +168,8 @@
 /* Ticket drawer (has tabs): the drawer itself does not scroll; the active tab body does, so the header and tab strip stay put. Settings has no tabs and keeps its scroll. */
 .board-drawer:has(.drawer-tabs) { overflow: hidden; }
 .board-drawer:has(.drawer-tabs) > .drawer-panel:not(.drawer-chat) { flex: 1 1 0; overflow-y: auto; }
+/* A tall blocked reason or Edit form gives up height (and scrolls itself) before the tab strip is pushed off or the body drops to 0. */
+.board-drawer:has(.drawer-tabs) > .blocked-reason, .board-drawer:has(.drawer-tabs) > .drawer-edit { flex-shrink: 1; min-height: 0; overflow-y: auto; }
 
 /* Usage in the ticket details: one summary line that opens the card (three stats, then one row per dispatch with a share bar). */
 .usage-summary b { color: var(--foreground); font-weight: 600; }
