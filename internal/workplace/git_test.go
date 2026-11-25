@@ -44,7 +44,7 @@ func TestCleanupAndPrune(t *testing.T) {
 			t.Fatal(err)
 		}
 		commitIn(t, wt, "work")
-		if _, err := (Git{}).Gate(repo, "1", "title"); err != nil {
+		if _, err := (Git{}).Gate(repo, "1", "title", nil); err != nil {
 			t.Fatal(err)
 		}
 		if notes := (Git{}).Cleanup(repo, "1"); len(notes) != 0 {
@@ -65,7 +65,7 @@ func TestCleanupAndPrune(t *testing.T) {
 			t.Fatal(err)
 		}
 		commitIn(t, wt, "detached")
-		if _, err := (Git{}).Gate(repo, "2", "title"); err != nil {
+		if _, err := (Git{}).Gate(repo, "2", "title", nil); err != nil {
 			t.Fatal(err)
 		}
 		if why := (Git{}).PruneBlocker(repo, "2"); why == "" {
@@ -83,7 +83,7 @@ func TestCleanupAndPrune(t *testing.T) {
 		repo := newRepo(t)
 		wt, _ := Git{Keep: true}.Create(repo, "3")
 		commitIn(t, wt, "work")
-		if _, err := (Git{Keep: true}).Gate(repo, "3", "title"); err != nil {
+		if _, err := (Git{Keep: true}).Gate(repo, "3", "title", nil); err != nil {
 			t.Fatal(err)
 		}
 		if notes := (Git{Keep: true}).Cleanup(repo, "3"); len(notes) != 0 {
@@ -136,7 +136,7 @@ func TestDoneCleanupLeavesNoHalfRemovedWorktree(t *testing.T) {
 		t.Fatal(err)
 	}
 	commitIn(t, wt, "work")
-	if _, err := (Git{}).Gate(repo, "10", "title"); err != nil {
+	if _, err := (Git{}).Gate(repo, "10", "title", nil); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Remove(filepath.Join(wt, "f.txt")); err != nil { // interrupted removal
@@ -159,7 +159,7 @@ func TestCleanupRemovesHalfRemovedCheckout(t *testing.T) {
 	repo := newRepo(t)
 	wt, _ := Git{}.Create(repo, "11")
 	commitIn(t, wt, "work")
-	if _, err := (Git{}).Gate(repo, "11", "title"); err != nil {
+	if _, err := (Git{}).Gate(repo, "11", "title", nil); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(wt, "left.txt"), []byte("left\n"), 0o644); err != nil {
@@ -194,7 +194,7 @@ func TestHalfRemovedUnmergedCheckoutIsKept(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(repo, "dirty.txt"), []byte("dirty\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := (Git{}).Gate(repo, "12", "title"); err == nil {
+	if _, err := (Git{}).Gate(repo, "12", "title", nil); err == nil {
 		t.Error("Gate accepted a checkout without its own .git")
 	}
 	if out, _ := Run(repo, "status", "--porcelain"); out != "?? dirty.txt" {
@@ -220,13 +220,13 @@ func TestGateAllowsMergedHalfRemovedCheckout(t *testing.T) {
 	repo := newRepo(t)
 	wt, _ := Git{}.Create(repo, "13")
 	commitIn(t, wt, "work")
-	if _, err := (Git{}).Gate(repo, "13", "title"); err != nil {
+	if _, err := (Git{}).Gate(repo, "13", "title", nil); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Remove(filepath.Join(wt, ".git")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := (Git{}).Gate(repo, "13", "title"); err != nil {
+	if _, err := (Git{}).Gate(repo, "13", "title", nil); err != nil {
 		t.Errorf("Gate refused a merged half-removed checkout: %v", err)
 	}
 	if notes := (Git{}).Cleanup(repo, "13"); len(notes) != 0 {

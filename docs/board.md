@@ -395,7 +395,7 @@ repository with a commit is required). All agent jobs, mentions, shell jobs and 
 ticket share this directory; relative files survive handoffs and dispatcher
 restarts. Different tickets are isolated. Moving a ticket to done commits any uncommitted work in its worktree on
 `agent/workflow-<ticket>`, rebases that branch onto the main checkout's HEAD if
-needed, and fast-forwards the main checkout to it (never forced or reset). Then the
+needed, and fast-forwards the main checkout to it (never forced or reset). When it rebased, the ticket's workflow run jobs (their `run:` commands, in workflow order) run again in the rebased worktree first, through `sh -c` with the output kept as the ticket's `merge failed` comment; a failing one blocks the ticket and leaves main unchanged. A rebase is needed only when main moved ahead, and a workflow with no `run:` job merges without a re-run. Then the
 worktree and merged branch are removed; one with untracked or modified files, or a detached HEAD, is kept (`cleanup: keep` skips this). If the merge fails, the ticket moves
 to blocked with a `merge failed` comment and the worktree and branch are kept. The merge runs before done is recorded, so a failed merge leaves the ticket blocked, the command exits with an error, no done notice is sent and dependents do not start. Uncommitted files, ignored dependencies,
 secrets and local-only scripts are not copied. Ordinary board execution is unchanged.

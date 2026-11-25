@@ -21,7 +21,7 @@ const Dir = ".worktrees"
 type Workplace interface {
 	Create(root, id string) (string, error)
 	Output(root, id string) string
-	Gate(root, id, title string) (note string, err error)
+	Gate(root, id, title string, checks func() ([]string, error)) (note string, err error)
 	Cleanup(root, id string) []string
 }
 
@@ -36,10 +36,12 @@ type None struct{}
 
 var _ Workplace = None{}
 
-func (None) Create(root, id string) (string, error)      { return root, nil }
-func (None) Output(root, id string) string               { return root }
-func (None) Gate(root, id, title string) (string, error) { return "", nil }
-func (None) Cleanup(root, id string) []string            { return nil }
+func (None) Create(root, id string) (string, error) { return root, nil }
+func (None) Output(root, id string) string          { return root }
+func (None) Gate(root, id, title string, checks func() ([]string, error)) (string, error) {
+	return "", nil
+}
+func (None) Cleanup(root, id string) []string { return nil }
 
 // checkID rejects ids that cannot name a directory or a branch.
 func checkID(id string) error {
@@ -65,10 +67,12 @@ func (Git) Output(root, id string) string {
 
 // Gate commits the ticket checkout's work on agent/workflow-<id>, rebases it onto
 // the main checkout's HEAD if needed, and fast-forwards the main checkout to it.
-// Nothing is forced or reset; any refusal is returned and leaves both checkouts
-// as they were. A missing checkout has nothing to merge. note is the merge
-// summary ("merged <sha> into <branch>"), or "" when there was nothing to merge.
-func (g Git) Gate(root, id, title string) (note string, err error) {
+// After a rebase, checks (called only then) gives the check commands, each run in
+// the rebased checkout in order; a failing one refuses the merge. Nothing is forced
+// or reset; any refusal is returned and leaves both checkouts as they were. A
+// missing checkout has nothing to merge. note is the merge summary ("merged <sha>
+// into <branch>"), or "" when there was nothing to merge.
+func (g Git) Gate(root, id, title string, checks func() ([]string, error)) (note string, err error) {
 	wt := g.Output(root, id)
 	if _, statErr := os.Stat(wt); statErr != nil {
 		return "", nil
@@ -104,9 +108,21 @@ func (g Git) Gate(root, id, title string) (note string, err error) {
 		return "", nil
 	}
 	if _, err := Run(root, "merge-base", "--is-ancestor", head, branch); err != nil {
+		var list []string
+		if checks != nil {
+			var cerr error
+			if list, cerr = checks(); cerr != nil {
+				return "", cerr
+			}
+		}
 		if _, err := Run(wt, "rebase", head); err != nil {
 			Run(wt, "rebase", "--abort")
 			return "", err
+		}
+		for _, c := range list {
+			if err := runCheck(wt, id, c); err != nil {
+				return "", err
+			}
 		}
 	}
 	if _, err := Run(root, "merge", "--ff-only", branch); err != nil {
@@ -115,6 +131,29 @@ func (g Git) Gate(root, id, title string) (note string, err error) {
 	short, _ := Run(root, "rev-parse", "--short", "HEAD")
 	cur, _ := Run(root, "rev-parse", "--abbrev-ref", "HEAD")
 	return "merged " + short + " into " + cur, nil
+}
+
+// runCheck runs one check command with sh -c in dir, as a workflow run job does,
+// and returns an error carrying the tail of its output when it fails.
+func runCheck(dir, id, command string) error {
+	output, err := os.CreateTemp("", "tagent-output-*")
+	if err != nil {
+		return err
+	}
+	output.Close()
+	defer os.Remove(output.Name()) // outputs are not recorded here; the file only has to exist
+	cmd := exec.Command("sh", "-c", command)
+	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), "TMUX_AGENT_TICKET="+id, "TMUX_AGENT_OUTPUT="+output.Name())
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		return nil
+	}
+	log := strings.TrimSpace(string(out))
+	if len(log) > 2000 {
+		log = log[len(log)-2000:]
+	}
+	return fmt.Errorf("check %q failed (%v):\n%s", command, err, log)
 }
 
 // Cleanup removes the ticket checkout when checkoutBlocker allows it, and its

@@ -150,6 +150,124 @@ func TestDoneRebasesAndMergesWhenMainMovedAhead(t *testing.T) {
 	}
 }
 
+// Bug: the done merge rebases a ticket onto a main that moved ahead and fast-forwards
+// without re-running checks, so a clean rebase that breaks the build reaches main.
+// Ticket 1 renames A to A2 on main; ticket 2 (rebases cleanly) still calls A.
+func TestDoneRerunsChecksAfterRebase(t *testing.T) {
+	repo, scope, _, _ := newMergeRepo(t)
+	dir := filepath.Join(repo, ".tasks", "workflows")
+	os.MkdirAll(dir, 0o700)
+	os.WriteFile(filepath.Join(dir, "build.yml"), []byte("name: build\njobs:\n  test: {status: testing, run: go build ./...}\n"), 0o600)
+	if err := SaveBoardConfig(repo, []byte("default_workflow: build\n")); err != nil {
+		t.Fatal(err)
+	}
+	ticket, err := Add(scope, "Fix the thing", nil, MutationOptions{Workflow: "build"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := ticket.ID
+	if err := Move(scope, id, "testing", ""); err != nil {
+		t.Fatal(err)
+	}
+	wt := filepath.Join(repo, ".worktrees", "workflow-"+id)
+	gitRun(t, repo, "worktree", "add", "-q", "-b", "agent/workflow-"+id, wt)
+	os.WriteFile(filepath.Join(wt, "b.go"), []byte("package m\n\nfunc B() int { return A() }\n"), 0o644)
+	gitRun(t, wt, "add", "-A")
+	gitRun(t, wt, "commit", "-qm", "ticket 2")
+	os.WriteFile(filepath.Join(repo, "go.mod"), []byte("module m\n\ngo 1.21\n"), 0o644)
+	os.WriteFile(filepath.Join(repo, "a.go"), []byte("package m\n\nfunc A2() int { return 1 }\n"), 0o644)
+	gitRun(t, repo, "add", "-A")
+	gitRun(t, repo, "commit", "-qm", "ticket 1: rename A to A2")
+	before := gitRun(t, repo, "rev-parse", "HEAD")
+	Move(scope, id, "done", "") // a refused merge is reported through the ticket, not this error
+	got, _ := Get(scope, id)
+	if got.Status != "blocked" {
+		t.Fatalf("status %q, want blocked: a rebased ticket that breaks `go build ./...` reached main", got.Status)
+	}
+	if n := len(got.Comments); n == 0 || !strings.Contains(got.Comments[n-1].Body, "undefined: A") {
+		t.Fatalf("no check log in the last comment: %+v", got.Comments)
+	}
+	if gitRun(t, repo, "rev-parse", "HEAD") != before {
+		t.Fatal("main HEAD moved")
+	}
+}
+
+// Without a rebase main has not moved, so no check runs: a failing run job does not
+// stop a done that fast-forwards main.
+func TestDoneWithoutRebaseSkipsChecks(t *testing.T) {
+	repo, scope, _, _ := newMergeRepo(t)
+	dir := filepath.Join(repo, ".tasks", "workflows")
+	os.MkdirAll(dir, 0o700)
+	os.WriteFile(filepath.Join(dir, "build.yml"), []byte("name: build\njobs:\n  test: {status: testing, run: 'false'}\n"), 0o600)
+	if err := SaveBoardConfig(repo, []byte("default_workflow: build\n")); err != nil {
+		t.Fatal(err)
+	}
+	ticket, err := Add(scope, "Fix the thing", nil, MutationOptions{Workflow: "build"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := ticket.ID
+	if err := Move(scope, id, "testing", ""); err != nil {
+		t.Fatal(err)
+	}
+	wt := filepath.Join(repo, ".worktrees", "workflow-"+id)
+	gitRun(t, repo, "worktree", "add", "-q", "-b", "agent/workflow-"+id, wt)
+	os.WriteFile(filepath.Join(wt, "fix.txt"), []byte("fix\n"), 0o644)
+	gitRun(t, wt, "add", "-A")
+	gitRun(t, wt, "commit", "-qm", "ticket fix")
+	if err := Move(scope, id, "done", ""); err != nil {
+		t.Fatalf("done refused: %v", err)
+	}
+	if got, _ := Get(scope, id); got.Status != "done" {
+		t.Fatalf("status %q, want done", got.Status)
+	}
+	if _, err := os.ReadFile(filepath.Join(repo, "fix.txt")); err != nil {
+		t.Fatalf("fix.txt missing on main: %v", err)
+	}
+}
+
+// A rebased done whose check passes still merges. The check writes TMUX_AGENT_OUTPUT,
+// as a collect run job does, so a re-run without that variable fails and blocks.
+func TestDoneRebasedCheckWritingOutputStillMerges(t *testing.T) {
+	repo, scope, _, _ := newMergeRepo(t)
+	dir := filepath.Join(repo, ".tasks", "workflows")
+	os.MkdirAll(dir, 0o700)
+	os.WriteFile(filepath.Join(dir, "collect.yml"), []byte(`name: collect
+jobs:
+  test: {status: testing, run: 'echo ok > "$TMUX_AGENT_OUTPUT"'}
+`), 0o600)
+	if err := SaveBoardConfig(repo, []byte("default_workflow: collect\n")); err != nil {
+		t.Fatal(err)
+	}
+	ticket, err := Add(scope, "Fix the thing", nil, MutationOptions{Workflow: "collect"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := ticket.ID
+	if err := Move(scope, id, "testing", ""); err != nil {
+		t.Fatal(err)
+	}
+	wt := filepath.Join(repo, ".worktrees", "workflow-"+id)
+	gitRun(t, repo, "worktree", "add", "-q", "-b", "agent/workflow-"+id, wt)
+	os.WriteFile(filepath.Join(wt, "fix.txt"), []byte("fix\n"), 0o644)
+	gitRun(t, wt, "add", "-A")
+	gitRun(t, wt, "commit", "-qm", "ticket fix")
+	os.WriteFile(filepath.Join(repo, "other.txt"), []byte("other\n"), 0o644)
+	gitRun(t, repo, "add", "-A")
+	gitRun(t, repo, "commit", "-qm", "main moves ahead")
+	if err := Move(scope, id, "done", ""); err != nil {
+		t.Fatalf("done refused: %v", err)
+	}
+	if got, _ := Get(scope, id); got.Status != "done" {
+		t.Fatalf("status %q, want done", got.Status)
+	}
+	for _, f := range []string{"fix.txt", "other.txt"} {
+		if _, err := os.ReadFile(filepath.Join(repo, f)); err != nil {
+			t.Fatalf("%s missing on main: %v", f, err)
+		}
+	}
+}
+
 func TestDoneConflictBlocksAndKeepsWorktree(t *testing.T) {
 	repo, scope, id, wt := newMergeRepo(t)
 	os.WriteFile(filepath.Join(wt, "base.txt"), []byte("worktree\n"), 0o644)

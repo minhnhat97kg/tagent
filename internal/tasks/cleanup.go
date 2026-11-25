@@ -26,7 +26,24 @@ func gateDone(scope string, t *Task) (note string, refused *TaskComment, err err
 	}
 	r := root.(string)
 	wp := ticketWorkplace(scope, *t)
-	note, gateErr := wp.Gate(r, t.ID, t.Title)
+	// the ticket's run jobs, in workflow order; loaded only if a rebase needs them re-run
+	checks := func() ([]string, error) {
+		cfg, err := configForScope(scope)
+		if err != nil {
+			return nil, err
+		}
+		if cfg, err = ConfigForTask(r, cfg, *t); err != nil {
+			return nil, err
+		}
+		var list []string
+		for _, s := range cfg.Statuses {
+			if s.Run != "" {
+				list = append(list, s.Run)
+			}
+		}
+		return list, nil
+	}
+	note, gateErr := wp.Gate(r, t.ID, t.Title, checks)
 	if gateErr == nil {
 		return note, nil, nil
 	}
