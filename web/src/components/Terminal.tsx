@@ -2,7 +2,7 @@ import "@xterm/xterm/css/xterm.css"
 import { Terminal as XTerm } from "@xterm/xterm"
 import { WebglAddon } from "@xterm/addon-webgl"
 import { useEffect, useRef, useState, type RefObject } from "react"
-import { paneInput, registerPaneSocket } from "@/lib/paneInput"
+import { paneChannel, paneInput, registerPaneSocket, reportInputError } from "@/lib/paneInput"
 import { toast } from "sonner"
 import { enc } from "@/hooks/useRoute"
 import { bindTerminalTap } from '@/lib/touchViewport'
@@ -184,12 +184,12 @@ export function Terminal({ pane, onConnection, keyboardInputRef, onKeyboardChang
     let stopped = false
     let retry = 250
     let timer: ReturnType<typeof setTimeout> | undefined
-    let pending: { resolve: () => void; reject: (e: Error) => void } | undefined
-    const unregister = registerPaneSocket(pane, data => new Promise<void>((resolve, reject) => {
-      if (ws?.readyState !== WebSocket.OPEN) { reject(new Error("Terminal disconnected")); return }
-      pending = { resolve, reject }
+    const channel = paneChannel(data => {
+      if (ws?.readyState !== WebSocket.OPEN) return false
       ws.send(new TextEncoder().encode(data))
-    }))
+      return true
+    })
+    const unregister = registerPaneSocket(pane, channel)
     const connect = () => {
       ws = new WebSocket(`${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}/api/pane/ws?pane=${enc(pane)}&viewer=${viewerId()}`)
       ws.binaryType = "arraybuffer"
@@ -206,12 +206,7 @@ export function Terminal({ pane, onConnection, keyboardInputRef, onKeyboardChang
           if (changed) fit()
           return
         }
-        if (f.type === "ack") {
-          if (f.ok) pending?.resolve()
-          else pending?.reject(new Error("Terminal input failed; delivery uncertain"))
-          pending = undefined
-          return
-        }
+        if (f.type === "ack") { channel.ack(!!f.ok); return }
         if (f.type === "gone") { stopped = true; setGone(true); ws.close(); return }
         const modeChanged = resizable !== !!f.resizable
         if (modeChanged) { resizable = !!f.resizable; clearTimeout(resizeTimer) }
@@ -235,7 +230,7 @@ export function Terminal({ pane, onConnection, keyboardInputRef, onKeyboardChang
       ws.onclose = () => {
         term.options.disableStdin = true
         onConnection?.(false)
-        pending?.reject(new Error("Terminal disconnected; delivery uncertain, not retried")); pending = undefined
+        channel.close()
         if (!stopped) { timer = setTimeout(connect, retry); retry = Math.min(retry * 2, 10000) }
       }
       ws.onerror = () => ws.close()
@@ -256,7 +251,7 @@ export function Terminal({ pane, onConnection, keyboardInputRef, onKeyboardChang
     // Queue immediately so a later approval cannot overtake buffered keystrokes.
     const disposeData = term.onData((data) => {
       if (ws.readyState !== WebSocket.OPEN) return
-      void paneInput(pane, "input", data).catch(e => toast.error(e.message))
+      void paneInput(pane, "input", data).catch(reportInputError)
     })
 
     // Touch: xterm's iOS IME handling drops Vietnamese marks, so typing goes through our own box and is diffed.
@@ -271,7 +266,7 @@ export function Terminal({ pane, onConnection, keyboardInputRef, onKeyboardChang
       Object.assign(box.style, { position: "absolute", left: "0", top: "0", width: "1px", height: "1px", fontSize: "16px", opacity: "0", border: "0", padding: "0", resize: "none", pointerEvents: "none" })
       wrap.parentElement!.appendChild(box)
       let last = ""
-      const sendKeys = (data: string) => { if (data && ws.readyState === WebSocket.OPEN) void paneInput(pane, "input", data).catch(e => toast.error(e.message)) }
+      const sendKeys = (data: string) => { if (data && ws.readyState === WebSocket.OPEN) void paneInput(pane, "input", data).catch(reportInputError) }
       // The diff assumes typing at the end. Between compositions, keep the caret there and start each
       // word fresh so stale text can't be retyped; never touch the selection mid-composition (breaks Telex).
       box.addEventListener("input", e => {
