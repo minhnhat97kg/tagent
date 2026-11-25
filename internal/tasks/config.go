@@ -77,10 +77,20 @@ type BoardConfig struct {
 	LaneStatuses    map[string][]string `yaml:"lanes,omitempty"`
 	Triggers        []Trigger           `yaml:"triggers"`
 	MaxFiresPerHour int                 `yaml:"max_fires_per_hour"`
+	// Pricing adds or overrides a model's API list price (USD per MTok) for the usage cost estimate.
+	Pricing map[string]ModelPrice `yaml:"pricing,omitempty"`
 
 	Legacy              bool     `yaml:"-"` // statuses were converted to the implicit workflow "board"
 	Warnings            []string `yaml:"-"`
 	defaultWorkflowLine int      `yaml:"-"`
+}
+
+// ModelPrice is USD per million tokens, the same four rates an API bill has.
+type ModelPrice struct {
+	Input      float64 `yaml:"input" json:"input"`
+	Output     float64 `yaml:"output" json:"output"`
+	CacheRead  float64 `yaml:"cache_read" json:"cache_read"`
+	CacheWrite float64 `yaml:"cache_write" json:"cache_write"`
 }
 
 // BoardRoleSummary and BoardTriggerSummary carry the same board config to the

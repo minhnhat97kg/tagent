@@ -24,6 +24,7 @@ type JobUsage struct {
 	Count   usage.Count   `json:"count"`
 	Has     bool          `json:"has"` // false: the harness reports nothing, show n/a
 	Live    bool          `json:"live"`
+	Cost    *Money        `json:"cost,omitempty"` // nil: no usage or unknown model
 }
 
 type ModelUsage struct {
@@ -34,12 +35,14 @@ type ModelUsage struct {
 }
 
 type TicketUsage struct {
-	Jobs    []JobUsage    `json:"jobs"`
-	Models  []ModelUsage  `json:"models"`
-	Total   usage.Count   `json:"total"`
-	Partial bool          `json:"partial"` // some job has no usage: total is a lower bound
-	Elapsed time.Duration `json:"elapsed"`
-	Loops   int           `json:"loops"`
+	Jobs     []JobUsage    `json:"jobs"`
+	Models   []ModelUsage  `json:"models"`
+	Total    usage.Count   `json:"total"`
+	Partial  bool          `json:"partial"` // some job has no usage: total is a lower bound
+	Elapsed  time.Duration `json:"elapsed"`
+	Loops    int           `json:"loops"`
+	Cost     *Money        `json:"cost,omitempty"`     // API-equivalent total of the priced jobs
+	Unpriced bool          `json:"unpriced,omitempty"` // some job has usage but no known model price
 }
 
 func addCount(a *usage.Count, b usage.Count) {
@@ -152,6 +155,24 @@ func TicketUsageOf(s State, t tasks.Task, cfg tasks.BoardConfig, events []tasks.
 			u.Partial = true
 		}
 	}
+	for i := range u.Jobs {
+		j := &u.Jobs[i]
+		if !j.Has {
+			continue
+		}
+		p, ok := priceOf(cfg, j.Model)
+		if !ok {
+			u.Unpriced = true
+			continue
+		}
+		c := costOf(j.Count, p)
+		j.Cost = &c
+		if u.Cost == nil {
+			u.Cost = &Money{}
+		}
+		u.Cost.Low += c.Low
+		u.Cost.High += c.High
+	}
 	sort.SliceStable(u.Models, func(a, b int) bool { return u.Models[a].Count.Total > u.Models[b].Count.Total })
 	return u
 }
@@ -175,9 +196,18 @@ func (u TicketUsage) Lines(compact func(int64) string) []string {
 	if u.Partial {
 		head += " (partial)"
 	}
+	if u.Cost != nil {
+		head += " · " + usd(*u.Cost) + " API-equivalent"
+	}
+	if u.Unpriced {
+		head += " (unknown model: tokens only)"
+	}
 	lines := []string{head + fmt.Sprintf(" · %d loops · %s", u.Loops, u.Elapsed.Round(time.Second))}
 	for _, j := range u.Jobs {
 		parts := []string{j.Role, strings.Trim(j.Harness+"/"+j.Model, "/"), j.Effort, tok(j.Count, j.Has)}
+		if j.Cost != nil {
+			parts = append(parts, "≈"+usd(*j.Cost))
+		}
 		if j.Loops > 1 {
 			parts = append(parts, fmt.Sprintf("×%d", j.Loops))
 		}

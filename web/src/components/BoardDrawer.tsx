@@ -10,7 +10,7 @@ import { TicketChat } from "./TicketChat"
 import { useTicketChat } from "@/hooks/useTicketChat"
 import { enc } from "@/hooks/useRoute"
 import { usePoll } from "@/hooks/usePoll"
-import type { Project, RunEntry, RunView as RunData, Task, TicketUsage, Workflow } from "@/types"
+import type { Money, Project, RunEntry, RunView as RunData, Task, TicketUsage, Workflow } from "@/types"
 
 // TABS splits the ticket panel: the facts, the ticket's chat, the conversation
 // on the ticket, and what actually ran. Chat is disabled with a reason when the
@@ -21,6 +21,8 @@ type TabID = (typeof TABS)[number]["id"]
 // dur formats a Go duration (nanoseconds).
 const dur = (ns: number) => { const s = Math.round(ns / 1e9); return s >= 3600 ? `${Math.floor(s / 3600)}h ${Math.round(s % 3600 / 60)}m` : s >= 60 ? `${Math.floor(s / 60)}m ${s % 60}s` : `${s}s` }
 const tok = (n: number) => n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : String(n)
+const usd1 = (v: number) => v > 0 && v < 0.01 ? "<$0.01" : `$${v.toFixed(2)}`
+const usd = (m?: Money) => !m ? "" : m.low === m.high ? usd1(m.low) : `${usd1(m.low)}–${usd1(m.high)}`
 
 // Status colours are reserved and always sit next to a text label.
 const COLORS: Record<string, string> = { todo: "#a1a1aa", plan: "#3b82f6", planning: "#3b82f6", researching: "#3b82f6", reproducing: "#3b82f6", build: "#6366f1", building: "#6366f1", refactoring: "#6366f1", fixing: "#6366f1", writing: "#6366f1", test: "#0ea5e9", testing: "#0ea5e9", review: "#f59e0b", reviewing: "#f59e0b", blocked: "#ef4444", done: "#10b981" }
@@ -286,6 +288,7 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
               <div><dd>{tok(usage.total.Total)}</dd><dt>tokens</dt></div>
               <div><dd>{usage.loops}</dd><dt>loops</dt></div>
               <div><dd>{dur(usage.elapsed)}</dd><dt>elapsed</dt></div>
+              {usage.cost && <div><dd>≈{usd(usage.cost)}</dd><dt title="Estimated at API list price, not a bill: subscription logins are priced the same way">API-equivalent{usage.unpriced && " · some models unpriced"}</dt></div>}
             </dl>
             <ul className="usage-rows">{usage.jobs.map((j, i) => <li key={i}>
               <div className="usage-who">
@@ -294,7 +297,7 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
                 <span className="usage-n">{j.has ? tok(j.count.Total) : "n/a"}</span>
               </div>
               <div className="usage-bar"><i style={{ width: j.has ? `${Math.max(2, Math.round(100 * j.count.Total / peak))}%` : 0 }} /></div>
-              <div className="usage-sub">{[j.loops > 1 && `×${j.loops} loops`, j.count.CacheRead + j.count.CacheWrite > 0 && `cache ${tok(j.count.CacheRead)} read · ${tok(j.count.CacheWrite)} write`, dur(j.elapsed)].filter(Boolean).join(" · ")}</div>
+              <div className="usage-sub">{[j.cost && `≈${usd(j.cost)} API-equivalent`, j.loops > 1 && `×${j.loops} loops`, j.count.CacheRead + j.count.CacheWrite > 0 && `cache ${tok(j.count.CacheRead)} read · ${tok(j.count.CacheWrite)} write`, dur(j.elapsed)].filter(Boolean).join(" · ")}</div>
             </li>)}</ul>
             {usage.models.length > 1 && <div className="usage-models">{usage.models.map((m, i) => <span key={i}>{(m.model || m.harness).split("/").pop()} <b>{m.has ? tok(m.count.Total) : "n/a"}</b></span>)}</div>}
           </div>

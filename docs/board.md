@@ -79,6 +79,25 @@ invalid or unreadable configuration prints `board:` errors to stderr and exits 1
 Bad flags or extra arguments exit 2. This checks parser acceptance, not agent
 availability or executable/trigger success.
 
+### Usage cost (`pricing:`)
+
+`task show ID --all`, `task ls --usage`, the TUI detail and the web drawer price
+each job's tokens at API list prices and sum them per ticket, labelled
+**API-equivalent**: an estimate, not a bill, also for subscription logins. Built-in
+prices cover the Claude 5.5 models (`claude-opus-5-5`, `claude-sonnet-5-5`,
+`claude-haiku-5-5`; the roles' `sonnet`/`haiku`/`opus` aliases map to them).
+Add or override a model with USD per million tokens:
+
+```yaml
+pricing:
+  claude-sonnet-5-5: {input: 2, output: 10, cache_read: 0.10, cache_write: 2.50}
+  my-model:          {input: 1, output: 4, cache_read: 0.1, cache_write: 1.25}
+```
+
+A job whose model has no price shows its tokens only. A job with no input/output
+split shows a range (all input .. all output). Haiku 5.5's long-context tier
+(prompts over 100K, 5x) is not applied.
+
 ## Workflows vs board.yaml
 
 Workflows are the only flow definition. `board.yaml` keeps `roles`, `triggers`,
