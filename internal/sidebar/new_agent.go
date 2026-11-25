@@ -338,6 +338,9 @@ func spawnNewAgent(args []string) tea.Cmd {
 // newAgentCwd is the repo the agent starts in: the pane's repo, else this
 // process's directory (standalone has no pane).
 func (m Model) newAgentCwd() string {
+	if m.standalone && m.launchDir != "" {
+		return m.launchDir
+	}
 	// The pane's repo, unless it has no agents and the Agents pane's repo does.
 	for _, d := range []string{m.repoDir, m.boardDir} {
 		if d != "" && len(agents.List(d, m.agentHarness(), nil)) > 0 {

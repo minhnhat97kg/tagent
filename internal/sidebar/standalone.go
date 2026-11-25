@@ -74,10 +74,19 @@ func openShell(cwd string) tea.Cmd {
 	}
 }
 
-func runStandalone() int {
+// newStandaloneModel is the dashboard for a standalone run, scoped to the repo
+// it was started in (not the cursor's pane, which may be in $HOME).
+func newStandaloneModel() Model {
 	left := NewModel("")
 	left.EnableDashboard()
 	left.standalone = true
+	cwd, _ := os.Getwd()
+	left.launchDir = tasks.MainRoot(cwd)
+	return left
+}
+
+func runStandalone() int {
+	left := newStandaloneModel()
 	m := standaloneModel{left: left}
 	p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion())
 	done := make(chan struct{})

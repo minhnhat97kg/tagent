@@ -32,6 +32,9 @@ func (m Model) openBoard() Model {
 func (m Model) boardContext() Model {
 	oldDir := m.boardDir
 	m.boardDir = m.repoDir
+	if m.standalone && m.launchDir != "" {
+		m.boardDir = m.launchDir
+	}
 	if m.boardDir == "" {
 		if id, ok := paneIDAt(m.rows, m.cursor); ok {
 			if p, found := paneInfoByID(m.sessions, id); found {
@@ -42,7 +45,7 @@ func (m Model) boardContext() Model {
 	if m.boardDir == "" {
 		m.boardDir, _ = os.Getwd()
 	}
-	if m.notesScope == "" || oldDir != "" && oldDir != m.boardDir {
+	if m.notesScope == "" || oldDir != "" && oldDir != m.boardDir || m.standalone && m.notesScope != tasks.Scope(m.boardDir) {
 		m.notesScope = tasks.Scope(m.boardDir)
 		m.notes = tasks.List(m.notesScope)
 		m.boardHistory, _ = tasks.ReadEvents(m.notesScope, 0)

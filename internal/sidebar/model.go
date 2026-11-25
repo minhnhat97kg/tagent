@@ -685,7 +685,10 @@ type Model struct {
 	// standalone: running outside tmux (standalone.go), with no window of
 	// its own; panels follow the selected agent instead.
 	standalone bool
-	repoDir    string
+	// launchDir: standalone only, the repo root tagent was started in. It is
+	// the board scope and new-agent dir for the whole session.
+	launchDir string
+	repoDir   string
 	// helpOpen shows the shortcut list (`?`); helpScroll is its first line.
 	helpAll    bool
 	helpOpen   bool
@@ -1127,6 +1130,9 @@ func (m *Model) detailRefreshCmd() tea.Cmd {
 // own window (so other sessions do not change it); outside tmux (standalone)
 // the selected agent's directory, else where tagent was started.
 func (m Model) focusDir(selected string) string {
+	if m.standalone && m.launchDir != "" {
+		return m.launchDir
+	}
 	for _, s := range m.sessions {
 		for _, w := range s.Windows {
 			for _, p := range w.Panes {
