@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -76,5 +77,16 @@ func TestShortSequentialIDs(t *testing.T) {
 	}
 	if c, _ := Add(scope, "three", nil); c.ID != "3" {
 		t.Fatalf("deleted id reused: %q", c.ID)
+	}
+}
+
+func TestTitleOfCapsLongFirstLine(t *testing.T) {
+	if got := TitleOf("Short title\n\nDetails"); got != "Short title" {
+		t.Fatalf("got %q", got)
+	}
+	long := "Token saver: install.sh/tagent install also installs rtk (output-compressing CLI proxy) and wires it into each harness"
+	got := TitleOf(long)
+	if n := len([]rune(got)); n > 80 || !strings.HasSuffix(got, "…") || !strings.HasPrefix(long, strings.TrimSuffix(got, "…")) {
+		t.Fatalf("got %q (%d runes)", got, n)
 	}
 }

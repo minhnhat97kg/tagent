@@ -199,11 +199,12 @@ func mcpTools() []mcpTool {
 		{
 			Name:        "task_add",
 			Description: "Create a new ticket in todo. Returns its id.",
-			InputSchema: schema([]string{"text"}, map[string]any{
-				"text":     str("Ticket title and description"),
-				"to":       str("Comma-separated role names to assign"),
-				"priority": map[string]any{"type": "string", "enum": []string{"high", "normal", "low"}, "description": "Default normal"},
-				"workflow": str("Workflow name to attach; omit for default_workflow"),
+			InputSchema: schema([]string{"title"}, map[string]any{
+				"title":       str("Short summary, under 80 characters"),
+				"description": str("Details: context, steps, acceptance"),
+				"to":          str("Comma-separated role names to assign"),
+				"priority":    map[string]any{"type": "string", "enum": []string{"high", "normal", "low"}, "description": "Default normal"},
+				"workflow":    str("Workflow name to attach; omit for default_workflow"),
 			}),
 			run: func(wd string, a map[string]any) (string, error) {
 				var names []string
@@ -211,7 +212,11 @@ func mcpTools() []mcpTool {
 					names = strings.Split(to, ",")
 				}
 				opt := tasks.MutationOptions{Actor: tasks.CallerActor(), Workflow: argStr(a, "workflow"), Priority: argStr(a, "priority")}
-				t, err := tasks.Add(tasks.Scope(wd), argStr(a, "text"), names, opt)
+				text := strings.TrimSpace(argStr(a, "title"))
+				if d := strings.TrimSpace(argStr(a, "description")); d != "" {
+					text += "\n\n" + d
+				}
+				t, err := tasks.Add(tasks.Scope(wd), text, names, opt)
 				if err != nil {
 					return "", err
 				}

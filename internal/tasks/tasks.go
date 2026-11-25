@@ -195,7 +195,7 @@ func Add(scope, text string, assignees []string, opts ...MutationOptions) (Task,
 		return Task{}, err
 	}
 	now := time.Now()
-	t := Task{Title: strings.SplitN(text, "\n", 2)[0], Comments: []TaskComment{}, Text: text, Status: "todo", Assignees: assignees, Created: now, Updated: now}
+	t := Task{Title: TitleOf(text), Comments: []TaskComment{}, Text: text, Status: "todo", Assignees: assignees, Created: now, Updated: now}
 	err := withLock(scope, func() error {
 		t.ID = nextID(scope)
 		if len(opts) > 0 {
@@ -460,4 +460,21 @@ func SetNote(scope, id, note string) error {
 		t.Updated = time.Now()
 		return write(scope, t)
 	})
+}
+
+// TitleOf derives a ticket title from its text: the first line, cut at a word
+// before 80 characters. The full text stays in the description, so a ticket
+// added as one long line still gets a readable title.
+func TitleOf(text string) string {
+	title, _, _ := strings.Cut(strings.TrimSpace(text), "\n")
+	title = strings.TrimSpace(title)
+	r := []rune(title)
+	if len(r) <= 80 {
+		return title
+	}
+	cut := string(r[:79])
+	if i := strings.LastIndexAny(cut, " "); i > 40 {
+		cut = cut[:i]
+	}
+	return strings.TrimRight(cut, " ,;:") + "…"
 }

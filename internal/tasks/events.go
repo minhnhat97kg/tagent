@@ -53,7 +53,7 @@ type Event struct {
 func BoardDir(scope string) string { return boardDir(scope) }
 func normalize(t *Task) {
 	if t.Title == "" {
-		t.Title = strings.SplitN(t.Text, "\n", 2)[0]
+		t.Title = TitleOf(t.Text)
 	}
 	if t.Comments == nil {
 		t.Comments = []TaskComment{}

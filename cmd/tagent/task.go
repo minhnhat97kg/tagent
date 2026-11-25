@@ -25,7 +25,7 @@ func cmdTask(args []string, stdout, stderr io.Writer) int {
 	}
 	if withUsage := len(args) == 2 && args[0] == "ls" && args[1] == "--usage"; len(args) == 0 || (len(args) == 1 && args[0] == "ls") || withUsage {
 		for _, t := range tasks.List(scope) {
-			fmt.Fprintf(stdout, "%s\t%s\t%s\t%s", t.ID, t.Status, strings.Join(t.Assignees, ","), lsTitle(t.Text))
+			fmt.Fprintf(stdout, "%s\t%s\t%s\t%s", t.ID, t.Status, strings.Join(t.Assignees, ","), tasks.TitleOf(t.Title))
 			if withUsage {
 				u := ticketUsage(wd, scope, t)
 				col := "—"
@@ -42,7 +42,7 @@ func cmdTask(args []string, stdout, stderr io.Writer) int {
 		return exitOK
 	}
 	usage := func() int {
-		fmt.Fprintln(stderr, "usage: tagent task [ls [--usage]] | add [--to name[,name]] [--needs id[,id]] [--priority high|normal|low] [--workflow name [--input k=v]...] <text> | done <id> [note] | move <id> <status> [comment] | retry <id> | start <id> [workflow|pane] | set <id> <configured-status> [note] | assign <id> <name[,name]|-> | needs <id> <id[,id]|-> | priority <id> <high|normal|low> | show <id> | attachments <id> | comment <id> [--attach path]... [--diff] <text> | due <id> <YYYY-MM-DD|-> | rm <id>")
+		fmt.Fprintln(stderr, "usage: tagent task [ls [--usage]] | add [--desc details] [--to name[,name]] [--needs id[,id]] [--priority high|normal|low] [--workflow name [--input k=v]...] <text> | done <id> [note] | move <id> <status> [comment] | retry <id> | start <id> [workflow|pane] | set <id> <configured-status> [note] | assign <id> <name[,name]|-> | needs <id> <id[,id]|-> | priority <id> <high|normal|low> | show <id> | attachments <id> | comment <id> [--attach path]... [--diff] <text> | due <id> <YYYY-MM-DD|-> | rm <id>")
 		return exitUsage
 	}
 	var err error
@@ -305,6 +305,7 @@ func cmdTask(args []string, stdout, stderr io.Writer) int {
 	case "add":
 		rest := args[1:]
 		var names []string
+		var desc string
 		opt := tasks.MutationOptions{Actor: tasks.CallerActor()}
 		for len(rest) > 0 && strings.HasPrefix(rest[0], "--") {
 			if len(rest) < 2 {
@@ -328,6 +329,8 @@ func cmdTask(args []string, stdout, stderr io.Writer) int {
 				opt.Needs = strings.Split(rest[1], ",")
 			case "--priority":
 				opt.Priority = rest[1]
+			case "--desc":
+				desc = rest[1]
 			default:
 				return usage()
 			}
@@ -337,7 +340,11 @@ func cmdTask(args []string, stdout, stderr io.Writer) int {
 			return usage()
 		}
 		var task tasks.Task
-		task, err = tasks.Add(scope, strings.Join(rest, " "), names, opt)
+		text := strings.Join(rest, " ")
+		if strings.TrimSpace(desc) != "" {
+			text += "\n\n" + strings.TrimSpace(desc)
+		}
+		task, err = tasks.Add(scope, text, names, opt)
 		if err == nil {
 			fmt.Fprintln(stdout, task.ID)
 		}
@@ -502,15 +509,4 @@ func ticketUsage(wd, scope string, t tasks.Task) metrics.TicketUsage {
 	}
 	events, _ := tasks.ReadEvents(scope, 0)
 	return metrics.TicketUsageOf(metrics.Read(scope), t, cfg, events, time.Now().UTC())
-}
-
-// lsTitle keeps `task ls` one line per ticket: the first line of the text,
-// capped, so a listing stays small enough for an agent to read whole.
-// `task show` has the full text.
-func lsTitle(text string) string {
-	title, _, _ := strings.Cut(strings.TrimSpace(text), "\n")
-	if r := []rune(title); len(r) > 120 {
-		title = string(r[:119]) + "…"
-	}
-	return title
 }

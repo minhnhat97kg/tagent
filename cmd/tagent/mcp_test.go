@@ -24,7 +24,7 @@ func TestMCPToolsRoundTrip(t *testing.T) {
 		`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}`,
 		`{"jsonrpc":"2.0","method":"notifications/initialized"}`,
 		`{"jsonrpc":"2.0","id":2,"method":"tools/list"}`,
-		`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"task_add","arguments":{"text":"Fix login\nDetails","priority":"high"}}}`,
+		`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"task_add","arguments":{"title":"Fix login","description":"Details","priority":"high"}}}`,
 		`{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"task_show","arguments":{"id":"1"}}}`,
 		`{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"task_move","arguments":{"id":"1","to":"blocked","comment":"Which path?","outputs":{"count":2}}}}`,
 		`{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"task_move","arguments":{"id":"1","to":"blocked","comment":"Which path?"}}}`,
