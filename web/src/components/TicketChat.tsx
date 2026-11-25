@@ -37,6 +37,6 @@ export function TicketChat({ info, error, starting, onStart, onReload, onSave, p
   </div>
   return <>
     {error && <p role="alert" className="px-3 pt-2 text-xs text-destructive">{error}</p>}
-    <AgentChat pane={info.pane} project={project} onOpenTerminal={() => nav("/agent/" + enc(info.pane))} onUnavailable={onReload} onSave={onSave} />
+    <AgentChat key={info.pane} pane={info.pane} project={project} onOpenTerminal={() => nav("/agent/" + enc(info.pane))} onUnavailable={onReload} onSave={onSave} />
   </>
 }

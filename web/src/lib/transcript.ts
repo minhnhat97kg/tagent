@@ -76,6 +76,14 @@ export function setMode(pane: string, mode: DisplayMode) {
   try { localStorage.setItem(key(pane), mode) } catch { /* not remembered */ }
 }
 
+// clock: "14:05" for a message written today, "Nov 24 14:05" for an older one; "" when the time is missing or invalid.
+export function clock(iso?: string, now = new Date()): string {
+  const d = iso ? new Date(iso) : undefined
+  if (!d || isNaN(d.getTime())) return ""
+  const hm = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+  return d.toDateString() === now.toDateString() ? hm : `${d.toLocaleDateString([], { month: "short", day: "numeric" })} ${hm}`
+}
+
 // The model that wrote the newest assistant item.
 export function currentModel(items: Item[]): string | undefined {
   for (let i = items.length - 1; i >= 0; i--) if (items[i]!.model) return items[i]!.model

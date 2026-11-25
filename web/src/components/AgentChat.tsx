@@ -3,9 +3,10 @@ import { ArrowRight, ArrowUp, Brain, Bot, ImageIcon, ListTodo, Paperclip, Save, 
 import { api, post } from "@/api"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Bubble, Composer, Fold, Markup, chatColumn, composerInput, sendButton } from "@/components/ChatParts"
+import { Bubble, Composer, Fold, Markup, Typing, chatColumn, chatIndent, composerInput, sendButton } from "@/components/ChatParts"
 import { paneInput } from "@/lib/paneInput"
-import { currentModel, runningTool, splitSystem, toRows, type Feed, type Item, type Row } from "@/lib/transcript"
+import { clock, currentModel, runningTool, splitSystem, toRows, type Feed, type Item, type Row } from "@/lib/transcript"
+import { cn } from "@/lib/utils"
 import { effortLevels } from "@/lib/roles"
 import { commandMatches } from "@/lib/harnessCommands"
 import { useAppState } from "@/state"
@@ -15,6 +16,7 @@ import { humanSize, splitAttachments, uploadFile, type Upload } from "@/lib/uplo
 
 const MAX_ITEMS = 1000
 const POLL_MS = 1500
+const LIVE_MS = 1000 // while the agent is running, so new output shows within about a second
 
 // AgentChat renders the agent's harness transcript. The agent keeps running in tmux; this only reads it and sends text.
 // onSave, when given, offers each message a "Save to ticket" button (a ticket's Chat tab only).
@@ -37,39 +39,52 @@ export function AgentChat({ pane, onOpenTerminal, onUnavailable, project, onSave
   const { state } = useAppState()
   const cursor = useRef("")
   const kick = useRef(() => {}) // poll again soon, e.g. right after a key was sent
+  const seen = useRef("") // the last feed view shown; cleared when the view is changed locally, so the next poll repaints
   const unavailable = useRef(onUnavailable)
   useEffect(() => { unavailable.current = onUnavailable })
   const scroller = useRef<HTMLDivElement>(null)
   const atBottom = useRef(true)
   const touch = typeof matchMedia === "function" && matchMedia("(pointer: coarse)").matches
 
-  // Poll while visible; a page that is not the last one is fetched again at once.
+  // Poll while visible: one timer chain, never two requests at once. A kick during a request only moves the next poll.
   useEffect(() => {
     let stopped = false
+    let inFlight = false
     let timer = 0
+    let kicked = false
+    const schedule = (ms: number) => { clearTimeout(timer); if (!stopped) timer = window.setTimeout(() => void tick(), ms) }
     const tick = async (): Promise<void> => {
-      let more = false
+      if (inFlight) return
+      let delay = POLL_MS
       if (document.visibilityState === "visible") {
+        inFlight = true
         try {
           const after = cursor.current ? `?after=${encodeURIComponent(cursor.current)}` : ""
           const f = await api<Feed>(`/api/agents/${encodeURIComponent(pane)}/transcript${after}`)
           if (stopped) return
-          setFeed(f)
           setError("")
           // Unreadable is not final: a new agent has no transcript until its first message.
           if (f.unsupported) unavailable.current()
           if (f.reset || f.cursor) cursor.current = f.cursor
           if (f.reset) setItems(f.items)
           else if (f.items.length) setItems(prev => [...prev, ...f.items].slice(-MAX_ITEMS))
-          more = f.more
+          // Skip the re-render when nothing changed, so an idle thread does not flicker.
+          const view: Feed = { ...f, items: [], cursor: "", reset: false, more: false }
+          const sig = JSON.stringify(view)
+          if (sig !== seen.current) { seen.current = sig; setFeed(view) }
+          delay = f.more ? 0 : f.status === "running" || f.status === "background" ? LIVE_MS : POLL_MS
         } catch (e) {
           if (!stopped) setError((e as Error).message)
+        } finally {
+          inFlight = false
         }
       }
-      if (!stopped) timer = window.setTimeout(() => void tick(), more ? 0 : POLL_MS)
+      // A kick that came during this request still gets its quick poll.
+      schedule(kicked ? 400 : delay)
+      kicked = false
     }
     void tick()
-    kick.current = () => { clearTimeout(timer); timer = window.setTimeout(() => void tick(), 400) }
+    kick.current = () => { if (inFlight) kicked = true; else schedule(400) }
     return () => { stopped = true; clearTimeout(timer); kick.current = () => {} }
   }, [pane])
 
@@ -77,7 +92,7 @@ export function AgentChat({ pane, onOpenTerminal, onUnavailable, project, onSave
   useLayoutEffect(() => {
     const el = scroller.current
     if (el && atBottom.current) el.scrollTop = el.scrollHeight
-  }, [items, feed?.status])
+  }, [items, feed])
 
   // The question is gone from the screen once it is answered: forget the choice so the next one is clickable.
   const askKey = feed?.ask ? feed.ask.question + "|" + feed.ask.options.map(o => o.label).join(",") : ""
@@ -97,7 +112,8 @@ export function AgentChat({ pane, onOpenTerminal, onUnavailable, project, onSave
       setDraft("")
       setFiles([])
       atBottom.current = true
-      if (r.queued) setFeed(f => f && { ...f, queued: [...f.queued, text] })
+      if (r.queued) { setFeed(f => f && { ...f, queued: [...f.queued, text] }); seen.current = "" }
+      kick.current()
     } catch (e) {
       setError((e as Error).message)
     } finally {
@@ -195,9 +211,10 @@ export function AgentChat({ pane, onOpenTerminal, onUnavailable, project, onSave
     try { await paneInput(pane, "send", `/effort ${level}`); setEffortSet({ pane, level }) } catch (e) { setError((e as Error).message) }
   }
   const status = statusLabel(feed?.status, tool)
-  const renderRow = (r: Row) => r.kind === "msg" ? <Message key={r.item.id} item={r.item} onSave={onSave} /> : (isQuestion(r)
-    ? <AskCard key={r.call.id} ask={toAsk(r)!} answer={r.output === undefined ? undefined : cleanAnswer(r.output)} actions={r.output === undefined ? actions : undefined} picked={r.output === undefined ? picked : undefined} />
-    : <ToolCard key={r.call.id} row={r} />)
+  const busy = feed?.status === "running" || feed?.status === "background"
+  // Work rows (tool calls, reasoning) fold into WorkGroup; a message or a question is rendered as it is.
+  const renderRow = (r: Row) => r.kind === "msg" ? <Message key={r.item.id} item={r.item} onSave={onSave} /> : <AskCard key={r.call.id} ask={toAsk(r)!} answer={r.output === undefined ? undefined : cleanAnswer(r.output)} actions={r.output === undefined ? actions : undefined} picked={r.output === undefined ? picked : undefined} />
+  const renderSeg = (seg: Row[]) => isWork(seg[0]!) ? <WorkGroup key={rowKey(seg[0]!)} rows={seg} /> : renderRow(seg[0]!)
   return <div className="flex min-h-0 flex-1 flex-col">
     <div className="flex shrink-0 items-center gap-2 border-b px-3 py-1">
       <p role="status" className="flex min-w-0 items-center gap-1.5 truncate text-xs text-muted-foreground">
@@ -215,7 +232,7 @@ export function AgentChat({ pane, onOpenTerminal, onUnavailable, project, onSave
       </DropdownMenu>}
       {model && <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button size="xs" variant="ghost" aria-label={`Model: ${model}`} className={`${effort.length ? "" : "ml-auto "}shrink-0 font-mono text-muted-foreground`}><Cpu />{model}<ChevronDown /></Button>
+          <Button size="xs" variant="ghost" aria-label={`Model: ${model}`} className={`${effort.length ? "" : "ml-auto "}min-w-0 shrink-0 font-mono text-muted-foreground max-sm:max-w-[40%]`}><Cpu /><span className="truncate">{model}</span><ChevronDown /></Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           {(state?.models?.[feed?.harness ?? ""] ?? []).map(m => <DropdownMenuItem key={m} onSelect={() => void chooseModel(m)}>{m}</DropdownMenuItem>)}
@@ -227,15 +244,16 @@ export function AgentChat({ pane, onOpenTerminal, onUnavailable, project, onSave
       onScroll={e => { const el = e.currentTarget; atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48 }}>
       <div className={`${chatColumn} space-y-2 px-3 py-3`}>
         {feed?.unsupported && <p className="text-sm text-muted-foreground">Chat is not available for this agent. Use Terminal.</p>}
-        {feed?.unreadable && <p className="text-sm text-muted-foreground">The transcript is not readable yet. Use Terminal.</p>}
+        {feed?.unreadable && !items.length && <p className="text-sm text-muted-foreground">The transcript is not readable yet. Use Terminal.</p>}
         {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
-        {segments(rows).map(seg => seg.length === 1 ? renderRow(seg[0]!) : <WorkGroup key={rowKey(seg[0]!)} rows={seg} />)}
+        {segments(rows).map(renderSeg)}
         {feed?.ask && !pendingRow && <AskCard key={feed.ask.question} ask={feed.ask} actions={actions} picked={picked} />}
-        {waiting && <div className="ml-8 rounded-xl border border-amber-500/40 bg-amber-500/5 p-3 text-xs">
+        {waiting && <div className={cn(chatIndent, "rounded-xl border border-amber-500/40 bg-amber-500/5 p-3 text-xs")}>
           <p className="mb-1.5 font-medium text-amber-700 dark:text-amber-400">Approval needed. Answer it in Terminal.</p>
           <pre className="max-h-48 overflow-auto rounded-md bg-background p-2 whitespace-pre-wrap">{feed?.screen}</pre>
           <Button size="sm" variant="outline" className="mt-2 max-md:min-h-11" onClick={onOpenTerminal}><ExternalLink />Open in Terminal</Button>
         </div>}
+        {busy && <Typing label={status} />}
       </div>
     </div>
     <Composer onSubmit={() => void send()} hint={touch ? undefined : "Enter to send · Shift+Enter for a new line · / for commands"}
@@ -320,7 +338,7 @@ function statusLabel(status: string | undefined, tool: string | undefined) {
 // comment: chat is ephemeral, the ticket's activity is not.
 function SaveToTicket({ text, onSave, align }: { text: string; onSave?: (text: string) => void; align: "start" | "end" }) {
   if (!onSave || !text.trim()) return null
-  return <div className={`mt-0.5 flex ${align === "end" ? "justify-end" : "ml-8 justify-start"}`}>
+  return <div className={`mt-0.5 flex ${align === "end" ? "justify-end" : `${chatIndent} justify-start`}`}>
     <button type="button" onClick={() => onSave(text)} title="Post this message as a comment on the ticket"
       className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-1 group-hover/msg:opacity-100 max-md:opacity-100">
       <Save className="size-3" />Save to ticket
@@ -328,12 +346,16 @@ function SaveToTicket({ text, onSave, align }: { text: string; onSave?: (text: s
   </div>
 }
 
+// Stamp: when a message was written. Tool rows have none.
+function Stamp({ iso, end }: { iso?: string; end?: boolean }) {
+  const t = clock(iso)
+  return t ? <time dateTime={iso} title={new Date(iso!).toLocaleString()} className={cn("mt-0.5 block text-[11px] text-muted-foreground", end ? "text-right" : "ml-[34px] max-sm:ml-0")}>{t}</time> : null
+}
+
 function Message({ item, onSave }: { item: Item; onSave?: (text: string) => void }) {
-  if (item.role === "thinking") return <Fold icon={<Brain className="size-3.5 shrink-0" />} title="Reasoning">
-    <p className="whitespace-pre-wrap text-muted-foreground">{item.text}</p>
-  </Fold>
   if (item.role !== "user") return <div className="group/msg">
     <Bubble who="assistant"><Markup text={item.text ?? ""} /></Bubble>
+    <Stamp iso={item.time} />
     <SaveToTicket text={item.text ?? ""} onSave={onSave} align="start" />
   </div>
   // The harness's compaction summary arrives as a user message: fold it instead of showing a wall of text.
@@ -351,6 +373,7 @@ function Message({ item, onSave }: { item: Item; onSave?: (text: string) => void
       : <a key={f.url} href={f.url} download={f.name} className="flex max-w-full items-center gap-2 rounded-lg border bg-background px-2.5 py-1.5 text-xs hover:bg-accent"><FileText className="size-4 shrink-0" /><span className="truncate font-medium">{f.name}</span></a>)}</span>}
     {text && <span className="whitespace-pre-wrap">{text}</span>}
   </Bubble>
+  <Stamp iso={item.time} end />
   <SaveToTicket text={text} onSave={onSave} align="end" />
   </div>
 }
@@ -385,7 +408,7 @@ function AskCard({ ask, answer, actions, picked }: { ask: AskView; answer?: stri
   const [typing, setTyping] = useState(false)
   // Once answered the card is one line: the question and what was chosen. Tap to see the options again.
   if (!open && !expanded) return <button type="button" onClick={() => setExpanded(true)} aria-expanded={false} aria-label={`Question: ${ask.question}`}
-    className="ml-8 flex w-[calc(100%-2rem)] items-center gap-2 rounded-xl border bg-card px-3 py-2 text-left text-[13px] hover:bg-accent/50 max-md:min-h-11">
+    className={`${chatIndent} flex w-[calc(100%-2rem)] items-center gap-2 rounded-xl border bg-card px-3 py-2 text-left text-[13px] hover:bg-accent/50 max-sm:w-full max-md:min-h-11`}>
     <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600"><Check className="size-3.5" /></span>
     <span className="min-w-0 flex-1 truncate"><span className="text-muted-foreground">{ask.question}</span> <span className="font-medium">{answer || "(no answer)"}</span></span>
     <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
@@ -397,7 +420,7 @@ function AskCard({ ask, answer, actions, picked }: { ask: AskView; answer?: stri
     setTyping(true)
     try { await actions.onType(ask.otherN, t); setText("") } finally { setTyping(false) }
   }
-  return <section aria-label={`Question: ${ask.question}`} className={`ml-8 overflow-hidden rounded-2xl border shadow-sm ${open ? "border-sky-500/50 bg-card ring-2 ring-sky-500/15" : "bg-card"}`}>
+  return <section aria-label={`Question: ${ask.question}`} className={`${chatIndent} overflow-hidden rounded-2xl border shadow-sm ${open ? "border-sky-500/50 bg-card ring-2 ring-sky-500/15" : "bg-card"}`}>
     <header className="flex items-start gap-2.5 px-3.5 pb-2 pt-3">
       <span className={`mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full ${open ? "bg-sky-500/15 text-sky-600" : "bg-muted text-muted-foreground"}`}><MessageCircleQuestion className="size-4" /></span>
       <div className="min-w-0">
@@ -435,17 +458,7 @@ function toAsk(row: ToolRow): AskView | undefined {
   return { header: q.header, question: q.question, multi: q.multiSelect, options: (q.options ?? []).map((o, i) => ({ n: i + 1, label: o.label, description: o.description })) }
 }
 
-// ToolCard: one line; tap to see the input and the output.
-function ToolCard({ row }: { row: ToolRow }) {
-  const tool = row.call.tool ?? {}
-  return <Fold icon={toolIcon(tool.name)} title={tool.label}
-    end={row.output === undefined ? <Loader2 className="size-3 animate-spin" aria-label="running" /> : <Check className="size-3 text-emerald-600" />}>
-    {tool.input && tool.input !== "{}" && <pre className="max-h-40">{tool.input}</pre>}
-    {row.output !== undefined && <pre className="border-t pt-1.5">{row.output || "(no output)"}</pre>}
-  </Fold>
-}
-
-// Work: tool calls and reasoning with no message between them fold into one line.
+// Work: tool calls and reasoning with no message between them fold into one card.
 const isWork = (r: Row) => r.kind === "tool" ? !isQuestion(r) : r.item.role === "thinking"
 const rowKey = (r: Row) => r.kind === "msg" ? r.item.id : r.call.id
 function segments(rows: Row[]): Row[][] {
@@ -458,15 +471,31 @@ function segments(rows: Row[]): Row[][] {
   return out
 }
 
-// WorkGroup: "Bash ×3 · Read ×2"; open it to see each call.
+const rowIcon = (r: Row): ReactNode => r.kind === "msg" ? <Brain className="size-3.5 shrink-0" /> : toolIcon(r.call.tool?.name)
+const rowTitle = (r: Row) => r.kind === "msg" ? "Reasoning" : r.call.tool?.label
+const rowEnd = (r: Row) => r.kind === "msg" ? undefined : r.output === undefined ? <Loader2 className="size-3 animate-spin" aria-label="running" /> : <Check className="size-3 text-emerald-600" />
+function RowBody({ row }: { row: Row }) {
+  if (row.kind === "msg") return <p className="whitespace-pre-wrap text-muted-foreground">{row.item.text}</p>
+  const input = row.call.tool?.input
+  return <>
+    {input && input !== "{}" && <pre className="max-h-40">{input}</pre>}
+    {row.output !== undefined && <pre className="border-t pt-1.5">{row.output || "(no output)"}</pre>}
+  </>
+}
+
+// WorkGroup: one row shows its own title and details; several show "Bash ×3 · Read ×2" with each row nested.
+// It is always the same Fold, so an open card stays open when a second row arrives.
 function WorkGroup({ rows }: { rows: Row[] }) {
+  const one = rows.length === 1 ? rows[0] : undefined
   const calls = rows.filter((r): r is ToolRow => r.kind === "tool")
   const counts = new Map<string, number>()
   for (const c of calls) { const n = c.call.tool?.name ?? "tool"; counts.set(n, (counts.get(n) ?? 0) + 1) }
   const running = calls.some(c => c.output === undefined)
-  const title = [...counts].map(([n, k]) => k > 1 ? `${n} ×${k}` : n).join(" · ") || "Reasoning"
-  return <Fold icon={<Wrench className="size-3.5 shrink-0" />} title={title}
-    end={running ? <Loader2 className="size-3 animate-spin" aria-label="running" /> : <Check className="size-3 text-emerald-600" />}>
-    <div className="-mx-1 space-y-1.5">{rows.map(r => r.kind === "msg" ? <Message key={r.item.id} item={r.item} /> : <ToolCard key={r.call.id} row={r} />)}</div>
+  const title = one ? rowTitle(one) : [...counts].map(([n, k]) => k > 1 ? `${n} ×${k}` : n).join(" · ") || "Reasoning"
+  const end = one ? rowEnd(one) : calls.length ? (running ? <Loader2 className="size-3 animate-spin" aria-label="running" /> : <Check className="size-3 text-emerald-600" />) : undefined
+  return <Fold icon={one ? rowIcon(one) : <Wrench className="size-3.5 shrink-0" />} title={title} end={end}>
+    {one ? <RowBody row={one} /> : <div className="-mx-1 space-y-1.5">
+      {rows.map(r => <Fold key={rowKey(r)} className="ml-0" icon={rowIcon(r)} title={rowTitle(r)} end={rowEnd(r)}><RowBody row={r} /></Fold>)}
+    </div>}
   </Fold>
 }

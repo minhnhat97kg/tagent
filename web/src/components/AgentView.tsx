@@ -58,7 +58,7 @@ export function AgentView({ agent, project }: { agent: Agent; project?: Project 
         <Terminal key={agent.pane} pane={agent.pane} label={label} controlRef={terminalControl} onOwnership={setOwnership} onConnection={setConnected} keyboardInputRef={keyboardInput} onKeyboardChange={setKeyboardOpen} />
         {touch && <KeyBar pane={agent.pane} disabled={!connected} keyboardOpen={keyboardOpen} onToggleKeyboard={toggleKeyboard} />}
       </div>
-      {chat && <AgentChat project={project} pane={agent.pane} onOpenTerminal={() => chooseMode("terminal")} onUnavailable={() => setChatOk(false)} />}
+      {chat && <AgentChat key={agent.pane} project={project} pane={agent.pane} onOpenTerminal={() => chooseMode("terminal")} onUnavailable={() => setChatOk(false)} />}
       {worktrees && <Worktrees onClose={() => setWorktrees(false)} />}
       {killOpen && <KillDialog pane={agent.pane} name={label} onOpenChange={setKillOpen} />}
       </div>

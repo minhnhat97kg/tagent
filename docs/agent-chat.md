@@ -15,7 +15,8 @@ The mode is remembered per agent in this browser. The default is Chat on phones 
 
 ## What Chat shows
 
-- User and assistant messages (Markdown), newest at the bottom. The feed follows new messages until you scroll up.
+- User messages (right) and assistant replies (left, Markdown with code blocks), newest at the bottom, each with the time it was written. The feed follows new messages until you scroll up.
+- A working indicator at the end of the thread while the agent runs; the status line in the header says whether it is working, waiting, idle or failed.
 - Each tool call as one line (`Edit Board.tsx`, `Bash go test ./...`); tap to see its input and output. Reasoning is collapsed.
 - A status line: working (with the current tool), waiting for approval, idle, or error.
 - A composer: Enter sends and Shift+Enter adds a newline on desktop; the send button works on touch. Messages go through the same queue as `tagent send`: while the agent is busy or waiting, they wait and are delivered when it is idle. Queued messages are listed.
@@ -27,7 +28,7 @@ Chat never answers an approval. When the agent is waiting, Chat shows the prompt
 ## Limits (v1)
 
 - Only the end of a long transcript is shown (the last 4 MB, at most 200 items per load). Older history stays in Terminal.
-- Text is updated per transcript block, not per token. Updates arrive about every 1.5 seconds while the page is visible.
+- Text is updated per transcript block, not per token: a Claude reply appears when its block is written, a pi reply when its message is complete. Updates arrive about every second while the agent is working and every 1.5 seconds otherwise, while the page is visible.
 - Output of large tool results is cut (8 KB). Message text is cut at 32 KB.
 - Not yet: approval buttons in Chat, codex and opencode transcripts, running agents through an SDK.
 

@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from "vitest"
-import { getMode, runningTool, setMode, splitSystem, toRows, type Item } from "./transcript"
+import { clock, getMode, runningTool, setMode, splitSystem, toRows, type Item } from "./transcript"
 
 afterEach(() => { vi.restoreAllMocks() })
 
@@ -46,4 +46,12 @@ test("slash command echoes become notes", () => {
   const t = "<command-name>/compact</command-name>\n<command-message>compact</command-message>\n<command-args></command-args>"
   expect(splitSystem(t)).toEqual({ text: "", notes: ["/compact"] })
   expect(splitSystem("<local-command-stdout>\x1b[2mCompacted\x1b[22m</local-command-stdout>").notes).toEqual(["Compacted"])
+})
+
+test("clock shows HH:MM today, with the date for older messages, and nothing when the time is bad", () => {
+  const now = new Date("2026-11-25T12:00:00")
+  expect(clock("2026-11-25T09:05:00", now)).toMatch(/^\d{2}:\d{2}$/)
+  expect(clock("2026-11-24T09:05:00", now)).toMatch(/^\D+ \d{1,2} \d{2}:\d{2}$/)
+  expect(clock(undefined, now)).toBe("")
+  expect(clock("not a time", now)).toBe("")
 })

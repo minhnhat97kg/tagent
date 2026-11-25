@@ -27,7 +27,59 @@ beforeEach(() => {
   mocks.post.mockReset().mockResolvedValue({ queued: false })
   Element.prototype.scrollTo = vi.fn()
 })
-afterEach(cleanup)
+afterEach(() => { cleanup(); vi.useRealTimers() })
+
+test("a running agent is polled once a second, from a single chain", async () => {
+  vi.useFakeTimers()
+  mount()
+  await vi.advanceTimersByTimeAsync(0)
+  expect(mocks.api).toHaveBeenCalledTimes(1)
+  await vi.advanceTimersByTimeAsync(999)
+  expect(mocks.api).toHaveBeenCalledTimes(1)
+  await vi.advanceTimersByTimeAsync(1)
+  expect(mocks.api).toHaveBeenCalledTimes(2)
+})
+
+test("a kick during an in-flight poll does not start a second chain", async () => {
+  vi.useFakeTimers()
+  let release = (_f: Feed) => {}
+  mocks.api.mockReset().mockImplementationOnce(() => new Promise<Feed>(r => { release = r }))
+  mocks.api.mockResolvedValue(feed({ status: "idle" }))
+  mocks.post.mockResolvedValue({ queued: true })
+  const input = mount()
+  await vi.advanceTimersByTimeAsync(0)
+  fireEvent.change(input, { target: { value: "later" } })
+  fireEvent.keyDown(input, { key: "Enter" })
+  await vi.advanceTimersByTimeAsync(5000)
+  expect(mocks.api).toHaveBeenCalledTimes(1)
+  release(feed({ status: "idle" }))
+  await vi.advanceTimersByTimeAsync(0)
+  await vi.advanceTimersByTimeAsync(399)
+  expect(mocks.api).toHaveBeenCalledTimes(1)
+  await vi.advanceTimersByTimeAsync(1)
+  expect(mocks.api).toHaveBeenCalledTimes(2)
+})
+
+test("a background agent is polled once a second too", async () => {
+  vi.useFakeTimers()
+  mocks.api.mockReset().mockResolvedValue(feed({ status: "background" }))
+  mount()
+  await vi.advanceTimersByTimeAsync(0)
+  await vi.advanceTimersByTimeAsync(999)
+  expect(mocks.api).toHaveBeenCalledTimes(1)
+  await vi.advanceTimersByTimeAsync(1)
+  expect(mocks.api).toHaveBeenCalledTimes(2)
+})
+
+test("a queued message that drains is not left as a stale chip when the status is unchanged", async () => {
+  mocks.api.mockReset().mockResolvedValue(feed({ status: "running", queued: [] }))
+  mocks.post.mockResolvedValue({ queued: true })
+  const input = mount()
+  await screen.findByRole("log")
+  await userEvent.type(input, "after this{Enter}")
+  expect(await screen.findByText("1 queued")).toBeTruthy()
+  await waitFor(() => expect(screen.queryByText("1 queued")).toBeNull(), { timeout: 3000 })
+})
 
 function mount(onOpenTerminal = vi.fn(), onUnavailable = vi.fn(), project?: Project) {
   render(<AgentChat pane="%1" project={project} onOpenTerminal={onOpenTerminal} onUnavailable={onUnavailable} />)
@@ -245,4 +297,30 @@ test("Save to ticket is offered only when the parent asks for it and posts that 
   mount()
   await screen.findByText("Done.")
   expect(screen.queryByRole("button", { name: "Save to ticket" })).toBeNull()
+})
+
+test("an opened tool card stays open when a second tool call arrives", async () => {
+  mocks.api.mockReset()
+    .mockResolvedValueOnce(feed({ status: "running", items: [{ id: "a.0", role: "tool", tool: { name: "Bash", label: "Bash ls", callId: "t1", input: "{}" } }], cursor: "a.0" }))
+    .mockResolvedValue(feed({ status: "running", items: [{ id: "a.1", role: "tool", tool: { name: "Read", label: "Read a.ts", callId: "t2", input: "{}" } }], cursor: "a.1" }))
+  mount()
+  const card = (await screen.findByText("Bash ls")).closest("details")!
+  card.open = true
+  await screen.findByText("Bash · Read", undefined, { timeout: 3000 })
+  expect(screen.getByText("Bash · Read").closest("details")).toBe(card)
+  expect(card.open).toBe(true)
+})
+
+test("the thread shows a working indicator only while the agent runs, and message times", async () => {
+  const items = [{ id: "a.0", role: "assistant" as const, text: "Hi", time: "2026-11-25T10:00:00Z" }]
+  mocks.api.mockReset().mockResolvedValue(feed({ status: "running", items, cursor: "a.0" }))
+  mount()
+  await screen.findByText("Hi")
+  expect(screen.getAllByText("Working")).toHaveLength(2)
+  expect(document.querySelector("time")?.getAttribute("datetime")).toBe("2026-11-25T10:00:00Z")
+  cleanup()
+  mocks.api.mockReset().mockResolvedValue(feed({ status: "idle", items, cursor: "a.0" }))
+  mount()
+  await screen.findByText("Hi")
+  expect(screen.queryByText("Working")).toBeNull()
 })
