@@ -4,7 +4,9 @@ import { AttachmentRows, AttachmentViewer, type Attachment } from "./Attachments
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react"
 import { DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { act, api, post } from "@/api"
-import { ArrowRight, Check, Paperclip, Pencil, Play, Reply, Trash2, TriangleAlert } from "lucide-react"
+import { ArrowRight, Check, ChevronDown, Paperclip, Pencil, Play, Plus, Reply, Trash2, TriangleAlert, X } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { RunView } from "./RunPage"
 import { TicketChat } from "./TicketChat"
 import { useTicketChat } from "@/hooks/useTicketChat"
@@ -117,7 +119,9 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
     }))
   }
   const [body, setBody] = useState(initialReply)
-  const [depQuery, setDepQuery] = useState("")
+  const [picking, setPicking] = useState(false)
+  const [depFilter, setDepFilter] = useState("")
+  const [usageOpen, setUsageOpen] = useState(false)
   const [sending, setSending] = useState(false)
   const [files, setFiles] = useState<File[]>([])
   const [attachments, setAttachments] = useState<Attachment[]>([])
@@ -200,11 +204,12 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
     setTab(TABS[next]!.id); tabRefs.current[next]?.focus()
   }
   const op = (body: Record<string, string>) => act(post("/api/tasks", { Dir: dir, ID: task.id, ...body }).then(reload))
-  // The Dependency row edits one list: add a ticket, or click a chip to drop it.
+  // Dependencies are picked from the board's tickets: the list hides this ticket and the ones already picked; done ones sort last.
   const needs = task.needs ?? []
   const all = project?.tasks ?? []
   const setNeeds = (ids: string[]) => act(post("/api/tasks", { Dir: dir, Op: "needs", ID: task.id, Needs: ids }).then(reload))
-  const candidates = all.filter(t => t.id !== task.id && !needs.includes(t.id))
+  const q = depFilter.trim().toLowerCase()
+  const pickable = all.filter(t => t.id !== task.id && !needs.includes(t.id) && `${t.id} ${title(t)}`.toLowerCase().includes(q)).sort((a, b) => Number(a.status === "done") - Number(b.status === "done"))
   const dependents = all.filter(t => t.needs?.includes(task.id))
   // Replying belongs to the conversation: the composer opens prefilled with the @mention.
   const replyTo = (who: string) => { setTab("activity"); setFilter("all"); setBody(`@${who} `); setComposerOpen(true) }
@@ -252,38 +257,61 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
     </div>
     {chatOff && <p role="status" className="-mt-3 flex items-start gap-1.5 rounded-md border border-amber-500/40 bg-amber-500/5 px-2 py-1.5 text-[11.5px] text-amber-700 dark:text-amber-400"><TriangleAlert className="mt-px size-3.5 shrink-0" /><span>Chat unavailable · {chat.info?.reason || "this ticket's chat cannot be read"}</span></p>}
     {tab === "details" && <div role="tabpanel" id="task-panel-details" aria-labelledby="task-tab-details" className="drawer-panel">
-      <dl className="board-fields">
-      <dt>Status</dt><dd><select aria-label="Task status" value={task.status} onChange={e => act(post("/api/tasks", { Dir: dir, Op: "set", ID: task.id, Status: e.target.value }).then(reload))}>{statuses.map(s => <option key={s}>{s}</option>)}</select><i className="status-dot" style={{ background: statusColor(task.status) }} /></dd>
-      <dt>Priority</dt><dd><select aria-label="Task priority" value={task.priority || "normal"} onChange={e => op({ Op: "priority", Priority: e.target.value })}>{["high", "normal", "low"].map(p => <option key={p}>{p}</option>)}</select></dd>
-      <dt>Dependencies</dt><dd className="dep-field">
-        {needs.map(id => <button type="button" key={id} className="dep-chip" title={`Remove #${id}`} onClick={() => setNeeds(needs.filter(x => x !== id))}>{shortId(id)} ×</button>)}
-        <input aria-label="Add dependency" list="dep-options" placeholder="ticket id" value={depQuery}
-          onChange={e => setDepQuery(e.target.value)}
-          onKeyDown={e => { if (e.key !== "Enter") return; e.preventDefault(); const q = depQuery.trim().toLowerCase(); const hit = candidates.find(t => t.id === depQuery.trim()) ?? candidates.find(t => `${t.id} ${title(t)}`.toLowerCase().includes(q)); if (q && hit) { setNeeds([...needs, hit.id]); setDepQuery("") } }} />
-        <datalist id="dep-options">{candidates.map(t => <option key={t.id} value={t.id}>{shortId(t.id)} {title(t)}</option>)}</datalist>
-      </dd>
-      {role && <><dt>Role</dt><dd><Avatar role={role} />{role}</dd></>}
-      <dt>Workflow</dt><dd className="flex-wrap">{task.status === "todo"
-        // The type is picked here while the ticket is in todo; Start then runs it.
-        ? <select aria-label="Task workflow" className="!normal-case" value={task.workflow || ""} onChange={e => op({ Op: "workflow", Workflow: e.target.value })}>
-            {!task.workflow && <option value="">Default ({project?.defaultWorkflow || "none"})</option>}
-            {workflows.map(w => <option key={w.name} value={w.name} disabled={!!w.error}>{w.name}{w.global ? " (global)" : ""}{w.error ? " — invalid" : ""}</option>)}
-          </select>
-        : <span>{task.workflow || "—"}</span>}
-      {task.workflow && <div className="flex w-full flex-wrap items-center gap-1">{(() => {
-        // Steps of the ticket's recipe: finished ones checked, the current one highlighted.
-        const jobs = workflows.find(w => w.name === task.workflow || w.file === task.workflow)?.jobs ?? []
-        const at = task.status === "done" ? jobs.length : jobs.findIndex(j => j.status === task.status)
-        return jobs.map((j, i) => <span key={j.id} title={j.agent || j.run || ""} className={`rounded px-1.5 py-px text-[11px] ${i === at ? "bg-foreground text-background" : i < at ? "text-emerald-600" : "text-muted-foreground"}`}>
-          {i > 0 && <span className="mr-1 text-muted-foreground">›</span>}{i < at && <Check className="mr-0.5 inline size-3" />}{j.status}</span>)
-      })()}<button type="button" onClick={() => setTab("run")} className="ml-1 inline-flex items-center gap-0.5 text-[11px] text-brand-ink underline-offset-2 hover:underline">View run<ArrowRight className="size-3" /></button></div>}</dd>
-      {!!task.assignees?.length && <><dt>Assignees</dt><dd>{task.assignees.join(", ")}</dd></>}
-      <dt>Updated</dt><dd title={task.updated}>{rel(task.updated) || "—"}</dd>
-      </dl>
+      <div className="meta-row">
+        <span className="meta-item"><select aria-label="Task status" value={task.status} onChange={e => act(post("/api/tasks", { Dir: dir, Op: "set", ID: task.id, Status: e.target.value }).then(reload))}>{statuses.map(s => <option key={s}>{s}</option>)}</select><i className="status-dot" style={{ background: statusColor(task.status) }} /></span>
+        <select aria-label="Task priority" value={task.priority || "normal"} onChange={e => op({ Op: "priority", Priority: e.target.value })}>{["high", "normal", "low"].map(p => <option key={p}>{p}</option>)}</select>
+        {role && <span className="meta-item"><Avatar role={role} />{role}</span>}
+        {!!task.assignees?.length && <span className="meta-item board-muted" title="Assignees">{task.assignees.join(", ")}</span>}
+        <span className="meta-item board-muted" title={task.updated}>updated {rel(task.updated) || "—"}</span>
+      </div>
+      <div className="workflow-row">
+        <span className="board-muted">Workflow</span>
+        {task.status === "todo"
+          // The type is picked here while the ticket is in todo; Start then runs it.
+          ? <select aria-label="Task workflow" className="!normal-case" value={task.workflow || ""} onChange={e => op({ Op: "workflow", Workflow: e.target.value })}>
+              {!task.workflow && <option value="">Default ({project?.defaultWorkflow || "none"})</option>}
+              {workflows.map(w => <option key={w.name} value={w.name} disabled={!!w.error}>{w.name}{w.global ? " (global)" : ""}{w.error ? " — invalid" : ""}</option>)}
+            </select>
+          : <span>{task.workflow || "—"}</span>}
+        {task.workflow && (() => {
+          // Steps of the ticket's recipe: finished ones checked, the current one highlighted.
+          const jobs = workflows.find(w => w.name === task.workflow || w.file === task.workflow)?.jobs ?? []
+          const at = task.status === "done" ? jobs.length : jobs.findIndex(j => j.status === task.status)
+          return <>{jobs.map((j, i) => <span key={j.id} title={j.agent || j.run || ""} className={`rounded px-1.5 py-px text-[11px] ${i === at ? "bg-foreground text-background" : i < at ? "text-emerald-600" : "text-muted-foreground"}`}>
+            {i > 0 && <span className="mr-1 text-muted-foreground">›</span>}{i < at && <Check className="mr-0.5 inline size-3" />}{j.status}</span>)}
+            <button type="button" onClick={() => setTab("run")} className="inline-flex items-center gap-0.5 text-[11px] text-brand-ink underline-offset-2 hover:underline">View run<ArrowRight className="size-3" /></button></>
+        })()}
+      </div>
+      {desc && <section><h3>Description</h3><Md text={desc} /></section>}
+      <section>
+        <div className="dep-head"><h3>Dependencies{!!needs.length && <span className="board-muted">{needs.length}</span>}</h3>
+          <Button type="button" variant="outline" size="xs" aria-expanded={picking} onClick={() => { setPicking(v => !v); setDepFilter("") }}><Plus />Add</Button></div>
+        {picking && <div className="dep-picker">
+          <Input aria-label="Filter tickets" placeholder="Filter by id or title" value={depFilter} onChange={e => setDepFilter(e.target.value)} />
+          <ul className="dep-options" aria-label="Tickets to depend on">{pickable.map(t => <li key={t.id}><button type="button" className={t.status === "done" ? "is-done" : undefined} onClick={() => { setNeeds([...needs, t.id]); setPicking(false) }}><span className="board-key">{shortId(t.id)}</span><span className="dep-title">{title(t)}</span><StatusBadge status={t.status} /></button></li>)}</ul>
+          {!pickable.length && <p className="board-muted">No ticket matches.</p>}
+        </div>}
+        {needs.length
+          ? <ul className="dep-list">{needs.map(id => {
+              const dep = all.find(t => t.id === id)
+              return <li key={id}>
+                <button type="button" className="dep-open" onClick={() => onOpen?.(id)}><span className="board-key">{shortId(id)}</span><span className="dep-title">{dep ? title(dep) : "missing"}</span>{dep && <StatusBadge status={dep.status} />}</button>
+                <button type="button" className="dep-remove" aria-label={`Remove dependency ${shortId(id)}`} title="Remove" onClick={() => setNeeds(needs.filter(x => x !== id))}><X /></button>
+              </li>
+            })}</ul>
+          : !picking && <p className="board-muted">No dependencies.</p>}
+      </section>
+      {!!dependents.length && <section><h3>Blocks <span className="board-muted">{dependents.length}</span></h3><ul className="dep-list">{dependents.map(t => <li key={t.id}><button type="button" className="dep-open" onClick={() => onOpen?.(t.id)}><span className="board-key">{shortId(t.id)}</span><span className="dep-title">{title(t)}</span><StatusBadge status={t.status} /></button></li>)}</ul></section>}
       {!!usage?.jobs?.length && (() => {
         const peak = Math.max(1, ...usage.jobs.map(j => j.count.Total))
-        return <section><h3>Usage{usage.partial && <span className="usage-partial" title="Some harnesses report no tokens">partial</span>}</h3>
-          <div className="usage-card">
+        return <section>
+          <button type="button" className="usage-summary" aria-expanded={usageOpen} onClick={() => setUsageOpen(v => !v)}>
+            <span className="usage-label">Usage</span>
+            <span><b>{tok(usage.total.Total)}</b> tokens · <b>{usage.loops}</b> loops · <b>{dur(usage.elapsed)}</b> elapsed</span>
+            {usage.partial && <span className="usage-partial" title="Some harnesses report no tokens">partial</span>}
+            <ChevronDown className="size-4 shrink-0" style={{ transform: usageOpen ? "rotate(180deg)" : undefined }} />
+          </button>
+          {usageOpen && <div className="usage-card">
             <dl className="usage-stats">
               <div><dd>{tok(usage.total.Total)}</dd><dt>tokens</dt></div>
               <div><dd>{usage.loops}</dd><dt>loops</dt></div>
@@ -300,15 +328,9 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
               <div className="usage-sub">{[j.cost && `≈${usd(j.cost)} API-equivalent`, j.loops > 1 && `×${j.loops} loops`, j.count.CacheRead + j.count.CacheWrite > 0 && `cache ${tok(j.count.CacheRead)} read · ${tok(j.count.CacheWrite)} write`, dur(j.elapsed)].filter(Boolean).join(" · ")}</div>
             </li>)}</ul>
             {usage.models.length > 1 && <div className="usage-models">{usage.models.map((m, i) => <span key={i}>{(m.model || m.harness).split("/").pop()} <b>{m.has ? tok(m.count.Total) : "n/a"}</b></span>)}</div>}
-          </div>
+          </div>}
         </section>
       })()}
-      {!!needs.length && <section><h3>Waits for <span className="board-muted">{needs.length}</span></h3><ul className="dep-list">{needs.map(id => {
-        const dep = all.find(t => t.id === id)
-        return <li key={id}><button type="button" onClick={() => onOpen?.(id)}><span className="board-key">{shortId(id)}</span> {dep ? title(dep) : "missing"}{dep && <StatusBadge status={dep.status} />}</button></li>
-      })}</ul></section>}
-      {!!dependents.length && <section><h3>Blocks <span className="board-muted">{dependents.length}</span></h3><ul className="dep-list">{dependents.map(t => <li key={t.id}><button type="button" onClick={() => onOpen?.(t.id)}><span className="board-key">{shortId(t.id)}</span> {title(t)}<StatusBadge status={t.status} /></button></li>)}</ul></section>}
-      {desc && <section><h3>Description</h3><Md text={desc} /></section>}
       {!!attachments.length && <section><h3>Attachments <span className="board-muted">{attachments.length}</span></h3><AttachmentRows items={attachments} open={setSelected} /></section>}
       {!desc && !attachments.length && <p className="board-muted">No description or attachments yet.</p>}
     </div>}

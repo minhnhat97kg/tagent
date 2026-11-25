@@ -39,12 +39,20 @@
 .card-prio { font-variant-numeric: tabular-nums; color: var(--foreground); }
 .card-meta .card-deps { color: var(--muted-foreground); }
 .card-meta .card-deps.is-ready { color: #059669; }
-.dep-field { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
-.dep-chip { border-radius: 4px; background: var(--muted); padding: 0 5px; font-size: 11.5px; }
-.dep-field input { width: 8rem; height: 28px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); padding: 0 8px; font: inherit; }
+.dep-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.dep-head h3 { margin-bottom: 0; }
+.dep-picker { display: flex; flex-direction: column; gap: 6px; border-radius: 12px; background: var(--muted); padding: 8px; box-shadow: inset 0 0 0 1px var(--border); }
+.dep-options { display: flex; flex-direction: column; gap: 2px; max-height: 14rem; overflow-y: auto; }
+.dep-options button { display: flex; align-items: center; gap: 6px; width: 100%; text-align: left; font-size: 12.5px; padding: 6px 8px; border-radius: 8px; }
+.dep-options button:hover, .dep-options button:focus-visible { background: var(--card); }
+.dep-options button.is-done { color: var(--muted-foreground); }
 .dep-list { display: flex; flex-direction: column; gap: 2px; }
-.dep-list button { display: flex; align-items: center; gap: 6px; width: 100%; text-align: left; font-size: 12.5px; }
-.dep-list button:hover { text-decoration: underline; }
+.dep-list li { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.dep-list .dep-open { display: flex; flex: 1; align-items: center; gap: 6px; min-width: 0; text-align: left; font-size: 12.5px; }
+.dep-list .dep-open:hover { text-decoration: underline; }
+.dep-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dep-remove { flex-shrink: 0; padding: 2px; color: var(--muted-foreground); }
+.dep-remove:hover { color: var(--foreground); }
 .blocked-reason { background: #fef2f2; color: #b91c1c; padding: 4px 6px; border-radius: 4px; font-size: 11.5px; white-space: pre-wrap; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 
 .board-key { font: 500 11px ui-monospace, "SF Mono", Menlo, monospace; color: var(--muted-foreground); }
@@ -60,11 +68,10 @@
 .board-drawer[data-slot=dialog-content] > * { flex-shrink: 0; }
 .board-drawer .drawer-title { font-size: 20px; line-height: 1.3; font-weight: 600; letter-spacing: -0.015em; margin-top: -10px; padding-right: 24px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; overflow-wrap: anywhere; }
 .board-drawer h3 { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted-foreground); margin-bottom: 10px; display: flex; gap: 6px; }
-.board-fields { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 0 12px; align-items: center; border-radius: 12px; background: var(--muted); padding: 4px 14px; box-shadow: inset 0 0 0 1px var(--border); }
-.board-fields > dt, .board-fields > dd { padding: 8px 0; }
-.board-fields dt { color: var(--muted-foreground); font-size: 12px; }
-.board-fields dd { display: flex; align-items: center; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
-.board-fields select { height: 28px; border: 1px solid var(--border); border-radius: 8px; padding: 0 6px; font: inherit; text-transform: capitalize; background: var(--card); }
+/* Details: one meta line (status, priority, role, updated) and one workflow line, both wrap only when narrow. */
+.meta-row, .workflow-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; font-size: 12px; }
+.meta-item { display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
+.meta-row select, .workflow-row select { height: 26px; border: 1px solid var(--border); border-radius: 8px; padding: 0 6px; font: inherit; text-transform: capitalize; background: var(--card); }
 .md { display: flex; flex-direction: column; gap: 8px; line-height: 1.55; overflow-wrap: anywhere; }
 .md h4 { font-weight: 600; font-size: 12.5px; margin-bottom: -4px; }
 .md p { white-space: pre-wrap; }
@@ -159,7 +166,11 @@
 .board-drawer .drawer-panel.drawer-chat { flex: 1 1 auto; gap: 0; }
 .board-drawer .drawer-panel.drawer-chat > * { flex-shrink: 1; }
 
-/* Usage block in the ticket details: three stats, then one row per dispatch with a share bar. */
+/* Usage in the ticket details: one summary line that opens the card (three stats, then one row per dispatch with a share bar). */
+.usage-summary { display: flex; align-items: center; gap: 8px; width: 100%; font-size: 12.5px; color: var(--muted-foreground); text-align: left; }
+.usage-summary b { color: var(--foreground); font-weight: 600; }
+.usage-summary svg { margin-left: auto; transition: transform 150ms; }
+.usage-label { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
 .usage-partial { margin-left: 8px; padding: 1px 8px; border-radius: 999px; background: var(--brand-soft); color: var(--brand-ink); font-size: 10.5px; letter-spacing: 0; text-transform: none; font-weight: 500; }
 .usage-card { border-radius: 12px; background: var(--muted); box-shadow: inset 0 0 0 1px var(--border); overflow: hidden; }
 .usage-stats { display: grid; grid-template-columns: repeat(3, 1fr); border-bottom: 1px solid var(--border); }

@@ -104,7 +104,7 @@ Workflows are the only flow definition. `board.yaml` keeps `roles`, `triggers`,
 `max_fires_per_hour` and `default_workflow`. Start a ticket with `s`, which runs its
 type; a ticket without one opens the picker. `task start ID [WORKFLOW]` does the
 same, and with no name it falls back to `default_workflow`. A todo ticket's type
-is the Type field in the web Details card, `T` in the TUI, or `task workflow ID
+is the Workflow line in the web Details tab, `T` in the TUI, or `task workflow ID
 NAME|-`. Editing a workflow changes existing tickets too
 (recipes resolve live), so there is one place to edit a flow.
 ## Board UI
@@ -269,7 +269,8 @@ done cannot leave todo — `start`, `move` and `set` refuse with
 `ready`, but nothing starts it: a human still starts the ticket. Cycles, itself
 and unknown ids are rejected when saved; a deleted dependency stops blocking.
 The Details tab lists dependencies and dependents with their status (clickable
-in the web).
+in the web). In the web, **+ Add** picks a dependency from the board's tickets
+(filter by id or title; done tickets sort last) and × removes one; no id is typed.
 
 Priority is `high`, `normal` (default) or `low` (`task add --priority`, `task
 priority ID ...`). Lanes sort by priority and then by the usual ticket order, and

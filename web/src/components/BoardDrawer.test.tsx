@@ -239,16 +239,48 @@ test("a reply notification opens on Activity with the draft ready", () => {
   expect((screen.getByRole("textbox", { name: "Comment" }) as HTMLTextAreaElement).value).toBe("@builder ")
 })
 
-test("Details shows per-job usage with n/a and partial", async () => {
+test("Details shows usage as one line that opens the per-job breakdown", async () => {
   const c = (n: number) => ({ Input: n, Output: 0, CacheRead: 0, CacheWrite: 0, Total: n })
   mocks.api.mockImplementation(async (path: string) => path.includes("/usage") ? { jobs: [
     { role: "dev", harness: "pi", model: "gpt", effort: "high", loops: 2, elapsed: 5e9, count: c(1500), has: true, live: false },
     { role: "doc", harness: "antigravity", model: "", effort: "", loops: 1, elapsed: 1e9, count: c(0), has: false, live: false },
   ], models: [], total: c(1500), partial: true, elapsed: 6e9, loops: 3 } : run)
   mount()
-  expect(await screen.findByText("partial")).toBeTruthy()
-  expect(screen.getAllByText("1.5k").length).toBeGreaterThan(0)
+  const summary = await screen.findByRole("button", { name: /Usage/ })
+  expect(summary.getAttribute("aria-expanded")).toBe("false")
+  expect(screen.getByText("partial")).toBeTruthy()
+  expect(screen.getByText("1.5k")).toBeTruthy()
+  expect(screen.queryByText("n/a")).toBeNull()
+  await userEvent.click(summary)
+  expect(summary.getAttribute("aria-expanded")).toBe("true")
   expect(screen.getByText("tokens")).toBeTruthy()
   expect(screen.getByText("n/a")).toBeTruthy()
   expect(screen.getByText(/×2 loops/)).toBeTruthy()
+})
+
+const others: Task[] = [
+  { id: "31", title: "API", text: "API", status: "build", assignees: [], comments: [], created: "2026-11-23T09:00:00Z", updated: "2026-11-23T09:00:00Z" },
+  { id: "32", title: "Docs", text: "Docs", status: "done", assignees: [], comments: [], created: "2026-11-23T09:00:00Z", updated: "2026-11-23T09:00:00Z" },
+  { id: "33", title: "Login page", text: "Login page", status: "todo", assignees: [], comments: [], created: "2026-11-23T09:00:00Z", updated: "2026-11-23T09:00:00Z" },
+]
+
+test("a dependency is picked from the ticket list, not typed, and removed with its button", async () => {
+  mocks.post.mockResolvedValue({})
+  const withDep = { ...task, needs: ["31"] }
+  render(<BoardDrawer task={withDep} statuses={["todo", "build", "done"]} roles={["builder"]} role="builder" dir="/repo" reload={() => {}} workflows={[workflow]}
+    project={{ dir: "/repo", tasks: [withDep, ...others], roles: [], statuses: [], running: {} }} />)
+  expect(screen.getByRole("button", { name: /API/ })).toBeTruthy()
+  await userEvent.click(screen.getByRole("button", { name: "Add" }))
+  const picker = screen.getByRole("list", { name: "Tickets to depend on" })
+  // This ticket and the picked one are hidden; the done ticket sorts last.
+  const names = within(picker).getAllByRole("button").map(b => b.textContent ?? "")
+  expect(names).toHaveLength(2)
+  expect(names[0]).toContain("Login page")
+  expect(names[1]).toContain("Docs")
+  await userEvent.type(screen.getByRole("textbox", { name: "Filter tickets" }), "login")
+  expect(within(picker).getAllByRole("button")).toHaveLength(1)
+  await userEvent.click(within(picker).getByRole("button", { name: /Login page/ }))
+  expect(mocks.post).toHaveBeenCalledWith("/api/tasks", { Dir: "/repo", Op: "needs", ID: "30", Needs: ["31", "33"] })
+  await userEvent.click(screen.getByRole("button", { name: "Remove dependency #31" }))
+  expect(mocks.post).toHaveBeenCalledWith("/api/tasks", { Dir: "/repo", Op: "needs", ID: "30", Needs: [] })
 })
