@@ -2,8 +2,8 @@ import { Gauge } from "lucide-react"
 import type { Overview } from "@/types"
 
 const compact = (n: number) => Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(n)
-// Reserved status colours, always next to the number: ok / getting close / at the limit.
-const level = (n: number | null) => (n === null ? "bg-muted-foreground/30" : n >= 90 ? "bg-red-500" : n >= 70 ? "bg-amber-500" : "bg-emerald-500")
+// A quota bar is neutral: a full bar is normal use, not an alert. Red is reserved for a real block (none is reported here).
+const level = (n: number | null) => (n === null ? "bg-muted-foreground/30" : "bg-foreground/60")
 
 function Meter({ label, value }: { label: string; value: number | null }) {
   const v = value === null ? 0 : Math.max(0, Math.min(100, value))

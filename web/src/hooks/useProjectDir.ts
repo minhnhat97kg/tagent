@@ -1,10 +1,10 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useAppState } from "@/state"
 
 const KEY = "ta.project"
 
 // useProjectDir is the project on screen: the selected agent's project if it has one,
-// else the remembered choice, else the first project.
+// else the remembered choice, else the first project. An agent's project becomes the remembered one.
 export function useProjectDir(agentPath?: string): [string, (dir: string) => void] {
   const { state } = useAppState()
   const projects = state?.projects ?? []
@@ -29,5 +29,9 @@ export function useProjectDir(agentPath?: string): [string, (dir: string) => voi
       // storage blocked: the choice lasts this page view only
     }
   }
+  // Opening an agent makes its project the remembered one, so leaving the agent keeps it.
+  useEffect(() => {
+    if (owner && owner !== sel) set(owner)
+  }, [owner])
   return [dir, set]
 }

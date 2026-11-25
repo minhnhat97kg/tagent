@@ -138,11 +138,12 @@ function WorkflowEditor({ dir, initial }: { dir: string; initial: string }) {
   function jobAt(line: number) { return Object.entries(jobRanges(yaml)).find(([, r]) => line >= r.from && line <= r.to)?.[0] ?? '' }
   function selectJob(id: string) { const r = jobRanges(yaml)[id]; setActiveJob(id); if (r) setGoto({ line: r.from, to: r.to }) }
 
+  function newFlow() { const name = prompt('Workflow filename (letters, numbers and hyphens)'); if (name) void mutate('POST', { Name: name, Op: 'new' }) }
   return <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg border bg-card">
     <header className="flex h-10 shrink-0 items-center gap-2 border-b px-3">
       {selected && <Button variant="ghost" size="icon-xs" className="md:hidden" aria-label="Back to workflows" onClick={() => open(undefined)}><ArrowLeft /></Button>}
       <WorkflowIcon className="size-4 text-teal-600" /><h2 className="text-[13px] font-semibold">Workflows</h2>
-      <Button size="xs" variant="outline" className="ml-auto" disabled={busy} onClick={() => { const name = prompt('Workflow filename (letters, numbers and hyphens)'); if (name) void mutate('POST', { Name: name, Op: 'new' }) }}><Plus />New</Button>
+      <Button size="xs" variant="outline" className="ml-auto" disabled={busy} onClick={newFlow}><Plus />New</Button>
     </header>
     <div className="flex min-h-0 flex-1">
       <nav aria-label="Workflow list" className={`min-h-0 w-full shrink-0 overflow-auto border-r md:w-60 ${selected ? 'hidden md:block' : ''}`}>
@@ -155,7 +156,7 @@ function WorkflowEditor({ dir, initial }: { dir: string; initial: string }) {
           {f.error && <p className="text-[11px] text-destructive">needs fixing</p>}
         </button>)}
       </nav>
-      {!selected ? <div className="hidden flex-1 items-center justify-center text-sm text-muted-foreground md:flex">Select a workflow to see its YAML and flow.</div> :
+      {!selected ? <div className="hidden flex-1 flex-col items-center justify-center gap-2 text-sm text-muted-foreground md:flex">Select a workflow to see its YAML and flow.<Button size="xs" variant="outline" disabled={busy} onClick={newFlow}><Plus />New workflow</Button></div> :
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           <div className="flex shrink-0 flex-wrap items-center gap-2 border-b px-3 py-1.5">
             <h3 className="mr-auto truncate text-[13px] font-semibold">{selected.name}{dirty && <span className="ml-1 text-amber-600">•</span>}<span className="ml-2 text-[11px] font-normal text-muted-foreground">{selected.total} tickets · {selected.running} in progress</span></h3>
