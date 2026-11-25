@@ -132,6 +132,7 @@ func dispatchBoardAction(a board.Action) error {
 	}
 	priority := 1
 	var note, browserProfile string
+	var remote workplace.Remote
 	if a.Event.Task != "" {
 		ticket, err := tasks.Get(scope, a.Event.Task)
 		if err != nil {
@@ -150,6 +151,10 @@ func dispatchBoardAction(a board.Action) error {
 			if b, ok := wp.(workplace.Browser); ok {
 				note = "Browser workplace for this ticket: save captures (screenshots, extracted text) in " + b.Output(a.ExecDir, ticket.ID) + "; they are attached to the ticket on done. Chrome profile directory: " + b.Profile(ticket.ID) + "."
 				browserProfile = b.Profile(ticket.ID)
+			}
+			if r, ok := wp.(workplace.Remote); ok {
+				remote, a.LongLived = r, false
+				note = "Remote workplace: you run on " + r.Host + " in " + r.Dir + ". The tagent CLI, MCP ticket tools and hooks are not available here; ignore instructions to run `tagent task ...`. Reply with your verdict and outputs; a human moves the ticket."
 			}
 		}
 	}
@@ -224,6 +229,12 @@ func dispatchBoardAction(a board.Action) error {
 		o.Effort = a.Effort
 		o.BoardRole, o.Preset = a.Agent, a.Preset
 		o.BrowserProfile = browserProfile
+		o.Remote = remote
+		if remote.Host != "" {
+			if err := ensureBoardScraper(); err != nil { // a remote pane's status comes only from the scraper
+				return err
+			}
+		}
 		if harnesses[target] {
 			o.Agent = target
 		} else {
@@ -238,7 +249,7 @@ func dispatchBoardAction(a board.Action) error {
 		}
 		// Only a role started as o.Role can have its file handed to the harness
 		// (--agent, developer_instructions); a board entry starts o.Agent directly.
-		if text := roleInstructions(mainRoot, a.Agent, harness, !harnesses[target]); text != "" {
+		if text := roleInstructions(mainRoot, a.Agent, harness, !harnesses[target] && remote.Host == ""); text != "" {
 			a.Prompt = withRoleInstructions(a.Agent, text, a.Prompt)
 			o.PromptHasRole = true
 		}

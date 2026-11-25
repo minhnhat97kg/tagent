@@ -44,6 +44,9 @@ func Collect(sessions []tmux.SessionInfo) []Agent {
 	for _, s := range sessions {
 		for _, w := range s.Windows {
 			for _, p := range w.Panes {
+				if tmux.GetPaneOptionValue(p.PaneID, tmux.PaneAgentSrc) == tmux.AgentSrcRemote {
+					continue // restore would start it locally
+				}
 				out = append(out, Agent{Name: p.Name, Agent: string(p.Agent), Cwd: p.Path, SessionID: p.SessionID,
 					Role: tmux.GetPaneOptionValue(p.PaneID, "@agent_role")})
 			}

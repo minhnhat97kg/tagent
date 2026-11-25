@@ -36,7 +36,9 @@ func (f Folder) Create(root, id string) (string, error) {
 func (f Folder) Output(root, id string) string { return filepath.Join(f.Base, id) }
 
 // Gate has nothing to merge.
-func (Folder) Gate(root, id, title string) (string, error) { return "", nil }
+func (Folder) Gate(root, id, title string, _ func() ([]string, error)) (string, error) {
+	return "", nil
+}
 
 // Cleanup removes the ticket's directory unless Keep. A failed removal is kept
 // and reported.

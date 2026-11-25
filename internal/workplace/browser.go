@@ -36,7 +36,9 @@ func (b Browser) Profile(id string) string { return filepath.Join(b.Base, id, "p
 func (b Browser) Output(root, id string) string { return filepath.Join(b.Base, id, "captures") }
 
 // Gate has nothing to merge.
-func (Browser) Gate(root, id, title string) (string, error) { return "", nil }
+func (Browser) Gate(root, id, title string, _ func() ([]string, error)) (string, error) {
+	return "", nil
+}
 
 // Cleanup removes the ticket's directory (profile and captures) unless Keep.
 func (b Browser) Cleanup(root, id string) []string { return Folder(b).Cleanup(root, id) }

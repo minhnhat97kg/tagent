@@ -31,13 +31,14 @@ type spawnOpts struct {
 	Ticket                                string // bind the pane to this ticket (per-ticket chat)
 	ConfigDir                             string
 	Worktree                              bool
-	Args                                  []string // extra agent arguments
-	Wait                                  bool     // wait until the agent reports a status
-	Terminal                              bool     // a plain login shell, no harness; kept from the idle sweep
-	Window                                string   // tmux window name (default: Name)
-	PromptHasRole                         bool     // the caller puts the role's instructions in its prompt (dispatch)
-	BoardRole, Preset                     string   // board.yaml role whose context applies; preset "scout" overrides it
-	BrowserProfile                        string   // a browser ticket's Chrome profile dir; set on the browser MCP server's args
+	Args                                  []string         // extra agent arguments
+	Wait                                  bool             // wait until the agent reports a status
+	Terminal                              bool             // a plain login shell, no harness; kept from the idle sweep
+	Window                                string           // tmux window name (default: Name)
+	PromptHasRole                         bool             // the caller puts the role's instructions in its prompt (dispatch)
+	BoardRole, Preset                     string           // board.yaml role whose context applies; preset "scout" overrides it
+	BrowserProfile                        string           // a browser ticket's Chrome profile dir; set on the browser MCP server's args
+	Remote                                workplace.Remote // a remote ticket's host and dir: the harness runs over ssh there (empty = local)
 }
 
 // Pane options recording how an agent was started (restore, merge).
@@ -159,7 +160,7 @@ func spawnAgent(o spawnOpts) (pane, warn string, err error) {
 	}
 	// Only a legacy file in the running harness's own agents directory is loaded by
 	// that harness natively. App-owned instructions arrive in the dispatch prompt.
-	native := o.Role != "" && role.Native && role.Harness == roles.Harness(o.Agent)
+	native := o.Remote.Host == "" && o.Role != "" && role.Native && role.Harness == roles.Harness(o.Agent) // the host has no local role file
 	roleEnv := ""
 	if native && o.ConfigDir != o.Cwd && (role.Harness == "claude" || role.Harness == "opencode") {
 		config, e := nativeRoleConfig(role)
@@ -204,6 +205,10 @@ func spawnAgent(o spawnOpts) (pane, warn string, err error) {
 	if o.Terminal {
 		command = setup.ShellQuote(cmp.Or(os.Getenv("SHELL"), "/bin/sh")) + " -l"
 	}
+	if o.Remote.Host != "" {
+		// Keepalives: a silent network drop ends ssh (and so the pane) after ~45 s.
+		command = "exec ssh -t -o BatchMode=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=3 " + setup.ShellQuote(o.Remote.Host) + " " + setup.ShellQuote("cd "+setup.ShellQuote(o.Remote.Dir)+" && exec "+command)
+	}
 	win := o.Window
 	if win == "" {
 		win = o.Name
@@ -222,6 +227,11 @@ func spawnAgent(o spawnOpts) (pane, warn string, err error) {
 	}
 	if o.Terminal {
 		tmux.SetPaneOption(pane, tmux.PaneKeep, "1")
+	}
+	if o.Remote.Host != "" {
+		// Src first: a scrape tick between the two writes must not see a hooked pane.
+		tmux.SetPaneOption(pane, tmux.PaneAgentSrc, tmux.AgentSrcRemote)
+		tmux.SetPaneOption(pane, tmux.PaneAgent, roles.Harness(o.Agent))
 	}
 	tagSession(pane, tasks.MainRoot(o.ConfigDir))
 	if o.Name != "" {

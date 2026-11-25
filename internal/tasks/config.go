@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"tagent/internal/apppath"
+	"tagent/internal/workplace"
 
 	"gopkg.in/yaml.v3"
 )
@@ -84,6 +85,8 @@ type BoardConfig struct {
 	MaxFiresPerHour int                 `yaml:"max_fires_per_hour"`
 	// Pricing adds or overrides a model's API list price (USD per MTok) for the usage cost estimate.
 	Pricing map[string]ModelPrice `yaml:"pricing,omitempty"`
+	// Remote is the host and dir of workplace: remote tickets.
+	Remote workplace.Remote `yaml:"remote,omitempty"`
 
 	Legacy              bool     `yaml:"-"` // statuses were converted to the implicit workflow "board"
 	Warnings            []string `yaml:"-"`
@@ -348,6 +351,11 @@ func ParseBoardConfigFor(dir string, b []byte) (BoardConfig, error) {
 	}
 	if c.MaxFiresPerHour < 1 {
 		return c, configErr(lines.top["max_fires_per_hour"], "max_fires_per_hour must be positive")
+	}
+	if c.Remote != (workplace.Remote{}) {
+		if err := c.Remote.Validate(); err != nil {
+			return c, configErr(lines.top["remote"], "%w", err)
+		}
 	}
 	for i, t := range c.Triggers {
 		line := 0

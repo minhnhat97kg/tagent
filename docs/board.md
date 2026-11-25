@@ -386,7 +386,7 @@ Discovery and configuration use the main worktree root. Native Claude/OpenCode
 role definitions are passed inline from that checkout, so main-only or edited
 roles do not fall back to stale definitions in the ticket tree. Reuse validates
 the worktree's repository identity, expected branch and committed HEAD.
-A recipe's top-level `workplace:` key is `git-worktree` (the default), `none`, `folder` or `browser`;
+A recipe's top-level `workplace:` key is `git-worktree` (the default), `none`, `folder`, `browser` or `remote`;
 any other value fails validation on its line. A top-level `cleanup:` key is `remove`
 (the default) or `keep`, validated the same way; `keep` leaves a done ticket's worktree and
 branch in place (its work is still merged). With the default, workflow
@@ -422,6 +422,16 @@ or removal keeps the directory and panes with a `cleanup: kept folder` note. tag
 passes the profile to the `playwright` MCP server as `--user-data-dir=<profile>`, but only when the ticket is a browser
 ticket and the role lists `playwright` in `mcp:` (the server must be in `.mcp.json` or `~/.claude.json`). Other servers
 are unchanged. The profile flag is set when a pane starts, so a reused pane keeps its earlier args.
+With `workplace: remote` the harness runs over ssh on another host, in the directory set by `remote:` in
+`board.yaml` (one host and dir for all remote tickets of the repo, e.g. `remote: {host: devbox, dir: /srv/project}`).
+The pane runs locally as `exec ssh -t -o BatchMode=yes <host> 'cd <dir> && exec <harness> …'`. `BatchMode=yes`
+means key or agent auth and a known host key are required: a password or host-key prompt fails the pane instead
+of receiving the prompt. The host needs the harness on its non-interactive PATH, a POSIX shell, and the repo at
+`dir`. ssh keepalives end the pane after about 45 s of silence. The first non-blank screen counts as up, so an ssh banner can show idle before the harness starts; the first prompt may then be typed early. Status comes only from the local screen scraper, so `@agent_scrape` must not be `off`. There are no tagent MCP/hooks on remote agents:
+their dispatch prompt says so, they cannot run `tagent task`, and a human moves the ticket. `run:` jobs are rejected in a remote recipe, and `long_lived` is ignored for remote tickets. Nothing is
+copied and no git runs; on done the panes are closed and the ticket records `cleanup: remote files stay in
+<host>:<dir>`, so files on the host are removed by hand. Remote tickets share `dir` and can overwrite each other.
+Docker and remote hooks/MCP are not supported yet.
 On done, the ticket's chat and role panes are closed after the worktree removal, never
 during it. A worktree kept for uncommitted changes keeps its panes, since its agents may still
 be working in it. Only the done step closes panes; the dispatcher does not.

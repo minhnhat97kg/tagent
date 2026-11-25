@@ -82,8 +82,11 @@ const (
 	PaneUnseen = "@pane_unseen"
 	// PaneAgentSrc — "scrape" when @pane_agent/@pane_status were written by
 	// the screen scraper (internal/scrape) rather than an agent hook. Hooks
-	// clear it, which hands the pane back to hook-driven state.
-	PaneAgentSrc = "@pane_agent_src"
+	// clear it, which hands the pane back to hook-driven state. "remote" marks
+	// a ticket pane whose agent runs on another host over ssh: only the
+	// scraper reports its status, and it never hands the pane to hooks.
+	PaneAgentSrc   = "@pane_agent_src"
+	AgentSrcRemote = "remote"
 	// PaneStuck — minutes a running agent has shown no activity, set by the
 	// watchdog (internal/scrape) past @agent_stuck_minutes; unset when it
 	// moves again.

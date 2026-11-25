@@ -14,6 +14,9 @@ func CheckpointKey(pane string) string { return "pane-" + pane }
 // checkpointTurn snapshots the pane's repo before a turn starts, for
 // `tagent undo`. Silent: no repo, or git failing, just means no undo.
 func checkpointTurn(pane, cwd string) {
+	if tmux.GetPaneOptionValue(pane, tmux.PaneAgentSrc) == tmux.AgentSrcRemote {
+		return // the agent edits another host's tree, not this checkout
+	}
 	if v, _ := tmux.GetOption(CheckpointsOption); v == "off" {
 		return
 	}

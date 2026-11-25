@@ -23,7 +23,7 @@ func TestFolderLifecycle(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(dir, "note.md")); err != nil {
 		t.Fatalf("re-create lost files: %v", err)
 	}
-	if note, err := f.Gate("/repo", "7", "t"); note != "" || err != nil {
+	if note, err := f.Gate("/repo", "7", "t", nil); note != "" || err != nil {
 		t.Fatalf("gate: %q %v", note, err)
 	}
 	if notes := (Folder{Base: base, Keep: true}).Cleanup("/repo", "7"); notes != nil {

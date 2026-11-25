@@ -75,6 +75,7 @@ func cleanupDone(scope, id, note string) {
 	wp := ticketWorkplace(scope, t)
 	var keepErr error
 	switch wp.(type) {
+	case workplace.Remote: // the files are on another host: nothing here to keep
 	case workplace.Folder, workplace.Browser: // Browser.Output is its captures dir, so the profile is never walked
 		keepErr = keepFolder(scope, id, wp.Output(r, id))
 	default:

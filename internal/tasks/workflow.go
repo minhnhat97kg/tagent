@@ -33,6 +33,11 @@ func TicketWorkplace(scope string, t Task) (workplace.Workplace, error) {
 		return workplace.Folder{Base: realpath(filepath.Join(sharedctx.Dir(scope), "folder")), Keep: w.Cleanup == "keep"}, nil
 	case "browser":
 		return workplace.Browser{Base: realpath(filepath.Join(sharedctx.Dir(scope), "browser")), Keep: w.Cleanup == "keep"}, nil
+	case "remote":
+		if base.Remote == (workplace.Remote{}) {
+			return nil, fmt.Errorf("workplace remote needs remote: {host, dir} in board.yaml")
+		}
+		return base.Remote, nil
 	}
 	return workplace.Git{Keep: w.Cleanup == "keep"}, nil
 }

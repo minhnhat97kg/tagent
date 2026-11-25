@@ -229,3 +229,18 @@ func TestSetDefaultWorkflow(t *testing.T) {
 		t.Fatalf("created:\n%s\n%v", b, err)
 	}
 }
+
+func TestRemoteBoardConfigValidated(t *testing.T) {
+	for _, src := range []string{
+		"remote: {host: \"-oProxyCommand=x\", dir: /srv/p}\n",
+		"remote: {host: devbox, dir: relative/p}\n",
+	} {
+		if _, err := ParseBoardConfigFor(t.TempDir(), []byte(src)); err == nil || BoardConfigErrorLine(err) != 1 {
+			t.Fatalf("%q accepted or wrong line: %v", src, err)
+		}
+	}
+	cfg, err := ParseBoardConfigFor(t.TempDir(), []byte("remote: {host: devbox, dir: /srv/p}\n"))
+	if err != nil || cfg.Remote.Host != "devbox" || cfg.Remote.Dir != "/srv/p" {
+		t.Fatalf("valid remote rejected: %+v %v", cfg.Remote, err)
+	}
+}

@@ -170,6 +170,10 @@ func tick(streak map[string]int, lastSig *string) bool {
 		}
 		p := pane{id: f[0], agent: f[3], src: f[4], status: f[5], waitReason: f[8]}
 		p.pid, _ = strconv.Atoi(f[1])
+		if p.src == tmux.AgentSrcRemote {
+			update(p, p.agent, streak) // no hooks, no DetectAgent: ssh exit closes the pane
+			continue
+		}
 		hooked := p.agent != "" && p.src != srcScrape
 		if hooked {
 			switch {
@@ -216,7 +220,12 @@ func update(p pane, agent string, streak map[string]int) {
 	if !ok {
 		return
 	}
-	if p.agent != agent || p.src != srcScrape {
+	if p.src == tmux.AgentSrcRemote {
+		// ponytail: first non-blank screen counts as up (ssh banner, then the harness).
+		if p.status == "" && strings.TrimSpace(screen) == "" {
+			return
+		}
+	} else if p.agent != agent || p.src != srcScrape {
 		tmux.SetPaneOption(p.id, tmux.PaneAgent, agent)
 		tmux.SetPaneOption(p.id, tmux.PaneAgentSrc, srcScrape)
 	}

@@ -118,7 +118,7 @@ It is skipped when the ticket already names files or functions. Examples are in
 `workplace: none` runs a recipe in the main root with no worktree or branch
 (`research` and `docs` are such examples); the default is `git-worktree`. A top-level
 `workplace: folder` runs it in a plain directory outside the repo, with no git (`notes` is such an
-example): every file left there is attached to the ticket on done, then the directory is removed. A top-level `workplace: browser` runs it in the main root with a per-ticket Chrome profile and captures directory; only the captures are attached on done (docs/board.md). A top-level
+example): every file left there is attached to the ticket on done, then the directory is removed. A top-level `workplace: browser` runs it in the main root with a per-ticket Chrome profile and captures directory; only the captures are attached on done (docs/board.md). A top-level `workplace: remote` runs the harness over ssh on the host set in `board.yaml`'s `remote:`; there are no tagent MCP/hooks on remote agents (docs/board.md). A top-level
 `cleanup: keep` leaves a done ticket's worktree and branch in place; `tagent workplace prune
 [--yes]` removes clean, merged ticket worktrees of done or deleted tickets (dry run by default).
 

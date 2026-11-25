@@ -35,6 +35,12 @@ func roleArgs(o spawnOpts, boardRole string) ([]string, error) {
 	if !rc.Set() {
 		return nil, nil
 	}
+	if o.Remote.Host != "" {
+		var err error
+		if rc, err = remoteRoleContext(rc); err != nil {
+			return nil, err
+		}
+	}
 	mcpFile := ""
 	if rc.MCP != nil && len(*rc.MCP) > 0 {
 		b, err := mcpConfig(o.ConfigDir, *rc.MCP, o.BrowserProfile)
@@ -57,6 +63,29 @@ func roleArgs(o spawnOpts, boardRole string) ([]string, error) {
 		}
 	}
 	return rc.Args(harness, mcpFile)
+}
+
+// remoteRoleContext drops what names the local MCP servers, which a remote host
+// cannot reach: no MCP config, and mcp__ tool names. A tool list that is left
+// empty would widen to the harness default, so that is an error instead.
+func remoteRoleContext(rc tasks.RoleContext) (tasks.RoleContext, error) {
+	keep := func(list []string) []string {
+		var out []string
+		for _, s := range list {
+			if !strings.HasPrefix(s, "mcp__") {
+				out = append(out, s)
+			}
+		}
+		return out
+	}
+	if len(rc.Tools) > 0 && len(keep(rc.Tools)) == 0 {
+		return rc, fmt.Errorf("remote role tools name only MCP tools, which a remote host does not have")
+	}
+	rc.Tools, rc.Allow = keep(rc.Tools), keep(rc.Allow)
+	if rc.MCP != nil {
+		rc.MCP = new([]string)
+	}
+	return rc, nil
 }
 
 // browserServer is the MCP server a browser ticket points at its Chrome profile.
