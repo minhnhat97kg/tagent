@@ -274,7 +274,9 @@ done cannot leave todo — `start`, `move` and `set` refuse with
 `waiting for #12, #15`, the dispatcher never fires it, and the card shows a dim
 `waits #12` badge. When the last dependency reaches done the card turns to
 `ready`. A ticket can be set to auto-start (`task add --auto-start`, or
-`task auto ID on|off`; default off). When its last dependency reaches done, an
+`task auto ID on|off`, the TUI key `U` in the ticket detail or lane, or the
+Auto-start checkbox in the web Details; default off). A card with auto-start on
+shows an `auto` badge. When its last dependency reaches done, an
 auto-start ticket that has a workflow starts itself: its first job fires and a
 comment names the dependency (`auto-started: #12 done`). A ticket waiting on
 several dependencies starts only when the last one is done. A ticket without a

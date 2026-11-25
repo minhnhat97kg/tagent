@@ -184,6 +184,11 @@ func (m Model) taskDetailSummary(t tasks.Task, w int) []string {
 		}
 		field("Workflow", value)
 	}
+	auto := dim.Render("off · U on")
+	if t.AutoStart {
+		auto = "on · U off"
+	}
+	field("Auto-start", auto)
 	runs := metrics.RunsOf(m.metricState, t.ID)
 	if len(runs) > 0 {
 		var total time.Duration

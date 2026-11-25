@@ -276,6 +276,7 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
         <select aria-label="Task priority" value={task.priority || "normal"} onChange={e => op({ Op: "priority", Priority: e.target.value })}>{["high", "normal", "low"].map(p => <option key={p}>{p}</option>)}</select>
         {role && <span className="meta-item"><Avatar role={role} />{role}</span>}
         {!!task.assignees?.length && <span className="meta-item board-muted" title="Assignees">{task.assignees.join(", ")}</span>}
+        <label className="meta-item" title="Start this ticket when its last dependency is done"><input type="checkbox" aria-label="Auto-start" checked={!!task.auto_start} onChange={e => act(post("/api/tasks", { Dir: dir, Op: "auto", ID: task.id, Auto: e.target.checked }).then(reload))} />Auto-start</label>
         <span className="meta-item board-muted" title={task.updated}>updated {rel(task.updated) || "—"}</span>
       </div>
       <div className="workflow-row">

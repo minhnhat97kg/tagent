@@ -106,6 +106,16 @@ func (m Model) ticketsKey(key string) (Model, tea.Cmd, bool) {
 			return m, func() tea.Msg { return actionResult("Priority "+next, tasks.SetPriority(scope, id, next)) }, true
 		}
 		return m, nil, true
+	case "U": // auto-start: start the ticket when its last dependency is done
+		if len(m.notes) > 0 {
+			scope, t := m.notesScope, m.notes[m.taskCursor]
+			on, msg := !t.AutoStart, "Auto-start off"
+			if on {
+				msg = "Auto-start on"
+			}
+			return m, func() tea.Msg { return actionResult(msg, tasks.SetAutoStart(scope, t.ID, on)) }, true
+		}
+		return m, nil, true
 	case "D": // dependencies: ticket picker, space toggles, Enter saves
 		if len(m.notes) > 0 {
 			m.taskForm, m.taskStep, m.taskInput = "needs", 0, strings.Join(m.notes[m.taskCursor].Needs, ",")
@@ -224,13 +234,14 @@ func ticketHints(nav hint) []hint {
 		{"B", "config", "B", "board config summary (default workflow, roles, triggers; E edits)"},
 		{"p", "priority", "p / D", "cycle priority / edit dependencies"},
 		{"D", "deps", "", ""},
-		{"e", "edit", "e", "edit in $EDITOR"},
+				{"e", "edit", "e", "edit in $EDITOR"},
 		{"C", "comment", "c C", "comment on ticket (blocked: prefills @role reply)"},
 		{"H/L", "status", "H L", "previous / next status (each card shows its status)"},
 		{"m", "move", "m", "move to a status (picker, enter saves)"},
 		{"@", "assign", "@", "assign to a role or agent (picker, enter saves)"},
 		{"a", "files", "a / A", "attachments: view or open (images, pdf) / attach file"},
 		{"x", "delete", "x", "delete (confirm)"},
+			{"U", "auto-start", "U", "toggle auto-start: start when the last dependency is done"},
 		{"w", "workflow", "w", "workflow view"},
 		{"", "", "t", "swap Workflows / Agents tab (and back)"},
 		{"", "", "E", "edit .tasks/board.yaml"},

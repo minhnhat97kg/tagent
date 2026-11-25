@@ -97,3 +97,32 @@ func TestTicketWorkflowAPI(t *testing.T) {
 	call(`{"Op":"set","ID":"`+ticket.ID+`","Status":"blocked"}`, 200)
 	call(`{"Op":"workflow","ID":"`+ticket.ID+`","Workflow":"single"}`, 400) // not todo
 }
+
+func TestTicketAutoStartAPI(t *testing.T) {
+	defer tmux.SetRunner(tmux.NewFake())()
+	t.Setenv("TMUX_AGENT_CONTEXT_DIR", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	dir := t.TempDir()
+	scope := tasks.Scope(dir)
+	ticket, err := tasks.Add(scope, "Auto", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := server{dir: dir}
+	call := func(body string) {
+		t.Helper()
+		w := httptest.NewRecorder()
+		s.taskOp(w, httptest.NewRequest("POST", "/api/tasks", strings.NewReader(body)))
+		if w.Code != 200 {
+			t.Fatalf("%s: %d %s", body, w.Code, w.Body.String())
+		}
+	}
+	call(`{"Op":"auto","ID":"` + ticket.ID + `","Auto":true}`)
+	if got, _ := tasks.Get(scope, ticket.ID); !got.AutoStart {
+		t.Fatalf("auto_start not set: %+v", got)
+	}
+	call(`{"Op":"auto","ID":"` + ticket.ID + `","Auto":false}`)
+	if got, _ := tasks.Get(scope, ticket.ID); got.AutoStart {
+		t.Fatalf("auto_start not cleared: %+v", got)
+	}
+}

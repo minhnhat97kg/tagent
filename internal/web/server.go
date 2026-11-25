@@ -555,6 +555,7 @@ func (s *server) project(w http.ResponseWriter, r *http.Request) {
 func (s *server) taskOp(w http.ResponseWriter, r *http.Request) {
 	var o struct {
 		Dir, Op, ID, Text, Status, Priority, Workflow string
+		Auto                                          bool
 		Assignees                                     []string
 		Needs                                         []string
 	}
@@ -577,6 +578,8 @@ func (s *server) taskOp(w http.ResponseWriter, r *http.Request) {
 		err = tasks.SetPriority(scope, o.ID, o.Priority)
 	case "workflow": // Workflow "" clears the type
 		err = tasks.SetWorkflow(scope, o.ID, o.Workflow)
+	case "auto":
+		err = tasks.SetAutoStart(scope, o.ID, o.Auto)
 	case "needs":
 		err = tasks.SetNeeds(scope, o.ID, o.Needs)
 	case "comment":

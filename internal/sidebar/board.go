@@ -390,6 +390,9 @@ func (m Model) boardCardLine(idx, width int) string {
 	if t.Workflow != "" {
 		badge += m.boardStyle(m.theme.TextMuted).Render(" " + t.Workflow)
 	}
+	if t.AutoStart {
+		badge += m.boardStyle(m.theme.TextMuted).Render(" auto")
+	}
 	return boardFit(style.Render(mark)+m.boardStyle(m.boardColor(t.Status)).Render(status)+m.boardStyle(m.theme.TextMuted).Render(" #"+t.ID)+badge+" "+style.Render(boardTitle(t)), width)
 }
 
@@ -426,6 +429,9 @@ func (m Model) boardCard(idx, width int) []string {
 	}
 	if t.Workflow != "" {
 		meta += muted.Render(" " + t.Workflow)
+	}
+	if t.AutoStart {
+		meta += muted.Render(" auto")
 	}
 	if worker := m.boardWorker(t); worker != "" {
 		meta += " " + worker

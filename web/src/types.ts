@@ -56,6 +56,7 @@ export interface Task {
  workflow?: string
  priority?: "high" | "normal" | "low"
  needs?: string[] | null
+ auto_start?: boolean
  comments: { id?: string; author: string; body: string; created?: string }[] | null
   id: string
   text: string

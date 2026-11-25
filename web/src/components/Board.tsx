@@ -76,6 +76,7 @@ export function Board({ dir, proj, reload }: { dir: string; proj?: Project; relo
             <span className="card-meta">
               <span className="board-key" title={t.id}>{shortId(t.id)}</span>
               {!!priorityMark(t.priority) && <span className="card-prio" title={`${t.priority} priority`} aria-label={`${t.priority} priority`}>{priorityMark(t.priority)}</span>}
+              {!!t.auto_start && <span className="card-label" title="Auto-start: starts when its last dependency is done">auto</span>}
               {!!state && <span className={`card-deps ${state === "ready" ? "is-ready" : ""}`}>{state}</span>}
               {lane === "in progress" && <span className="card-label" style={{ color: statusColor(t.status) }}>● {t.status}</span>}
               {t.workflow && <span className="card-label">{t.workflow}</span>}
