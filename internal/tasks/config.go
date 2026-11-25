@@ -259,20 +259,21 @@ func DefaultColumns() []string { return []string{"todo", "blocked", "done"} }
 // sidebar ask for it per ticket and per pane on every refresh (one git exec each, ~5ms).
 var mainRoots sync.Map
 
+// The non-repo answer is cached too: a pane at ~ is asked per ticket, and an uncached miss forks git every time.
+// ponytail: a dir that becomes a repo after first use keeps its non-repo answer until restart; add a TTL if that bites.
 func MainRoot(dir string) string {
 	if root, ok := mainRoots.Load(dir); ok {
 		return root.(string)
 	}
+	root := dir
+	if abs, err := filepath.Abs(dir); err == nil {
+		root = abs
+	}
 	if out, err := exec.Command("git", "-C", dir, "rev-parse", "--path-format=absolute", "--git-common-dir").Output(); err == nil {
-		root := filepath.Dir(strings.TrimSpace(string(out)))
-		mainRoots.Store(dir, root)
-		return root
+		root = filepath.Dir(strings.TrimSpace(string(out)))
 	}
-	abs, err := filepath.Abs(dir)
-	if err == nil {
-		return abs
-	}
-	return dir
+	mainRoots.Store(dir, root)
+	return root
 }
 func BoardConfigPath(dir string) string              { return filepath.Join(MainRoot(dir), ".tasks", "board.yaml") }
 func ParseBoardConfig(b []byte) (BoardConfig, error) { return ParseBoardConfigFor("", b) }
