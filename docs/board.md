@@ -385,7 +385,8 @@ to blocked with a `merge failed` comment and the worktree and branch are kept. T
 secrets and local-only scripts are not copied. Ordinary board execution is unchanged.
 With `workplace: none` there is no worktree, branch or merge: the ticket's jobs run in
 the main root, and its panes are reused like any other role's. Edits they leave are
-uncommitted in the main checkout for a human to commit.
+uncommitted in the main checkout for a human to commit. On done, the ticket's output files
+are copied into its attachments (shown by `tagent task show`), as with the default.
 Creation failures are reported before launch; retry requires a new status entry. Recipes are resolved
 live: editing affects existing tickets; missing or broken recipes report errors.
 

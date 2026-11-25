@@ -22,7 +22,7 @@ func gateDone(scope string, t *Task) (note string, refused *TaskComment, err err
 		return "", nil, nil
 	}
 	r := root.(string)
-	var wp workplace.Workplace = workplace.Git{}
+	wp := ticketWorkplace(scope, *t)
 	note, gateErr := wp.Gate(r, t.ID, t.Title)
 	if gateErr == nil {
 		return note, nil, nil
@@ -45,7 +45,11 @@ func cleanupDone(scope, id, note string) {
 		return
 	}
 	r := root.(string)
-	var wp workplace.Workplace = workplace.Git{}
+	t, err := Get(scope, id)
+	if err != nil {
+		return
+	}
+	wp := ticketWorkplace(scope, t)
 	keepOutputs(scope, id, wp.Output(r, id))
 	if note != "" {
 		Comment(scope, id, "tagent", note, nil)
@@ -58,6 +62,15 @@ func cleanupDone(scope, id, note string) {
 		}
 	}
 	killTicketPanes(scope + "#" + id)
+}
+
+// ticketWorkplace is the workplace the ticket ran in. A lookup error keeps the
+// default git worktree, which is a no-op when none exists.
+func ticketWorkplace(scope string, t Task) workplace.Workplace {
+	if wp, err := TicketWorkplace(scope, t); err == nil {
+		return wp
+	}
+	return workplace.Git{}
 }
 
 // keepOutputs copies the ticket's output files that live in its worktree (often

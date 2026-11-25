@@ -44,6 +44,39 @@ func TestCleanupKeepsOutputsAsAttachments(t *testing.T) {
 	}
 }
 
+// A `workplace: none` ticket writes its outputs in the main root, so cleanup keeps them from there.
+func TestNoneWorkplaceKeepsOutputsAsAttachments(t *testing.T) {
+	t.Setenv("TMUX_AGENT_CONTEXT_DIR", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	root := t.TempDir()
+	scope := Scope(root)
+	wf := filepath.Join(root, ".tasks", "workflows")
+	os.MkdirAll(wf, 0o755)
+	os.WriteFile(filepath.Join(wf, "research.yml"), []byte("name: research\nworkplace: none\njobs:\n  research:\n    agent: planner\n    prompt: Research\n"), 0o644)
+	task, err := Add(scope, "t", nil, MutationOptions{Workflow: "research"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	report := filepath.Join(".tasks", "reports", task.ID+".md")
+	os.MkdirAll(filepath.Join(root, ".tasks", "reports"), 0o755)
+	os.WriteFile(filepath.Join(root, report), []byte("report"), 0o644)
+	task.Outputs = map[string]map[string]string{"research": {"report": report}}
+	if err := write(scope, task); err != nil {
+		t.Fatal(err)
+	}
+	cleanupDone(scope, task.ID, "")
+	list, err := AttachmentList(scope, root, task.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, a := range list {
+		if a.Source == "comment" && a.Name == task.ID+".md" && a.Error == "" {
+			return
+		}
+	}
+	t.Fatalf("report not kept: %+v", list)
+}
+
 // gitRun runs git in dir for the merge tests; the repo is a real one in t.TempDir().
 func gitRun(t *testing.T, dir string, args ...string) string {
 	t.Helper()
