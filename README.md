@@ -280,7 +280,8 @@ counting since the last exit from blocked.
 Agent roles refresh their pane on entry 3 by default (entries 1–2 reuse, 3 replaces,
 4 reuses, 5 replaces). Set `fresh_after` on a role to override the default 3
 (deprecated board statuses may also set it). Explicit `0` disables refresh;
-negative values are invalid. Counts are per pane and ticket across all statuses
+negative values are invalid. A `long_lived: true` role keeps one standing pane across
+tickets and defaults to no refresh (see `docs/board.md`, Agents). Counts are per pane and ticket across all statuses
 using the same logical role, including workflow statuses matched by ID. Mentions
 and shell jobs do not count. Replacement loses agent context, comment cursor, and
 queued prompts, but keeps the worktree and artifacts. `fresh_after: 1` replaces

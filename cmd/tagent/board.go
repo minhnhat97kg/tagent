@@ -164,20 +164,15 @@ func dispatchBoardAction(a board.Action) error {
 	}
 	// A dedicated target option keeps suffixed names reusable across restarts.
 	// One pane per (role, task), refreshed at the destination entry threshold.
-	key := a.Agent + "#" + a.Event.Task
-	pane := ""
-	for _, s := range tmux.QuerySessions() {
-		for _, w := range s.Windows {
-			for _, p := range w.Panes {
-				if p.Agent == "" || tasks.Scope(p.Path) != scope || (a.ExecDir != "" && p.Path != a.ExecDir) {
-					continue
-				}
-				if p.BoardTarget == key && reusable(a, tmux.GetPaneOptionValue(p.PaneID, tmux.AgentRoute)) {
-					pane = p.PaneID
-					break
-				}
-			}
-		}
+	if a.LongLived {
+		// A standing pane belongs to no ticket, so it runs in the main checkout, not a ticket's worktree.
+		a.ExecDir = ""
+	}
+	key := boardPaneKey(a)
+	pane := findBoardPane(tmux.QuerySessions(), scope, a, key)
+	if a.LongLived {
+		// A standing pane carries no ticket: its comment cursor and entry count belong to another ticket, so each dispatch sends its full prompt.
+		a.ResumePrompt = nil
 	}
 	entries := 0
 	if pane != "" && a.ResumePrompt != nil {
@@ -201,11 +196,11 @@ func dispatchBoardAction(a board.Action) error {
 	}
 	if pane == "" {
 		name := a.Agent
-		if t := a.Event.Task; t != "" {
+		if t := a.Event.Task; t != "" && !a.LongLived {
 			name += "-" + t[max(0, len(t)-4):]
 		}
 		o := spawnOpts{Name: freeName(name), Cwd: a.Dir, ConfigDir: tasks.MainRoot(a.Dir), Wait: true}
-		if a.Role != "" && a.Event.Task != "" {
+		if a.Role != "" && a.Event.Task != "" && !a.LongLived {
 			o.Window = a.Role + "#" + a.Event.Task
 		}
 		if a.ExecDir != "" {
@@ -284,6 +279,32 @@ func dispatchBoardAction(a board.Action) error {
 // reusable: a tier pane is reused only on the harness and model it was spawned with.
 func reusable(a board.Action, paneRoute string) bool {
 	return a.Tier == "" || paneRoute == a.Role+":"+a.Model
+}
+
+// boardPaneKey is the BoardTarget a role's pane answers for: one pane per
+// (role, ticket), or one standing pane per role when the role is long_lived.
+func boardPaneKey(a board.Action) string {
+	if a.LongLived {
+		return a.Agent + "#"
+	}
+	return a.Agent + "#" + a.Event.Task
+}
+
+// findBoardPane is the live pane in scope that already answers for key, or "".
+func findBoardPane(sessions []tmux.SessionInfo, scope string, a board.Action, key string) string {
+	for _, s := range sessions {
+		for _, w := range s.Windows {
+			for _, p := range w.Panes {
+				if p.Agent == "" || tasks.Scope(p.Path) != scope || (a.ExecDir != "" && p.Path != a.ExecDir) {
+					continue
+				}
+				if p.BoardTarget == key && reusable(a, tmux.GetPaneOptionValue(p.PaneID, tmux.AgentRoute)) {
+					return p.PaneID
+				}
+			}
+		}
+	}
+	return ""
 }
 
 // roleHarness resolves the harness a role runs on, mirroring spawnAgent: the

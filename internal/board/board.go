@@ -35,6 +35,7 @@ type Action struct {
 	Preset                                            string // harness preset for the spawned agent, e.g. "scout"
 	Advance, Note                                     string // finish the entry into Advance without running it (skipped scout)
 	Tier, Route                                       string // tier role: the tier, and why this harness:model was picked
+	LongLived                                         bool   // role keeps one standing pane across tickets
 }
 
 // quotaGet is the provider quota a tier role routes by; tests replace it.
@@ -416,7 +417,10 @@ func Actions(dir string, cfg tasks.BoardConfig, ev tasks.Event, t tasks.Task) ([
 			if r, ok := cfg.Roles[s.Role]; ok {
 				if r.FreshAfter != nil {
 					a.FreshAfter = *r.FreshAfter
+				} else if r.LongLived {
+					a.FreshAfter = 0
 				}
+				a.LongLived = r.LongLived
 				a.Role = r.Agent
 				a.Model = r.Model
 				a.Effort = r.Effort
@@ -483,6 +487,7 @@ func Actions(dir string, cfg tasks.BoardConfig, ev tasks.Event, t tasks.Task) ([
 				a.Role = r.Agent
 				a.Model = r.Model
 				a.Effort = r.Effort
+				a.LongLived = r.LongLived
 				if r.Tier != "" {
 					route(&a, r, "")
 				}

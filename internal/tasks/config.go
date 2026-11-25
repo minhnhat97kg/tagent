@@ -45,11 +45,13 @@ type Trigger struct {
 	Prompt string `yaml:"prompt"`
 }
 type Role struct {
-	FreshAfter  *int   `yaml:"fresh_after,omitempty"`
-	Effort      string `yaml:"effort,omitempty"`
-	Agent       string `yaml:"agent,omitempty"`
-	Model       string `yaml:"model"`
-	Tier        string `yaml:"tier,omitempty"` // harness and model come from routing.yaml at dispatch
+	FreshAfter *int   `yaml:"fresh_after,omitempty"`
+	Effort     string `yaml:"effort,omitempty"`
+	Agent      string `yaml:"agent,omitempty"`
+	Model      string `yaml:"model"`
+	Tier       string `yaml:"tier,omitempty"` // harness and model come from routing.yaml at dispatch
+	// LongLived keeps one standing pane for the role across tickets (no ticket in its key), never refreshed by default.
+	LongLived   bool `yaml:"long_lived,omitempty"`
 	RoleContext `yaml:",inline"`
 }
 type Status struct {

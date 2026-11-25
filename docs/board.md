@@ -354,6 +354,14 @@ harness: every agent shows under claude, pi, codex and opencode. An agent with n
 - Web: harness, model, effort and instructions (with preview) save together. Global
   and legacy agents are read-only; **Copy to repo** makes an editable `.tasks/agents` copy.
 
+A role with `long_lived: true` in `roles:` keeps one standing pane for all tickets
+instead of one per ticket. Its pane is keyed `<role>#` with no ticket, so the next
+dispatch to the role reuses it, and a ticket reaching done kills only its own
+`<role>#<ticket>` panes, never the standing one. It is not refreshed by default
+(`fresh_after` still overrides), each dispatch sends its full prompt (no comment
+cursor carries over from another ticket), and it runs in the main checkout, not the
+ticket's worktree.
+
 Everything the TUI, web and CLI write goes to `board.yaml` and
 `.tasks/agents/<name>.md`; a new agent starts from a plain markdown template. A
 legacy `.claude/agents`, `.codex/agents` or `.opencode/agents` file is still read
