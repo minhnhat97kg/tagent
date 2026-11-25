@@ -368,6 +368,8 @@ func Update(scope, id, status string, assignees []string, opts ...MutationOption
 	}
 	var t Task
 	var notice *statusNotice
+	var note string
+	var refused *TaskComment
 	err := withLock(scope, func() error {
 		var err error
 		t, err = Get(scope, id)
@@ -394,9 +396,20 @@ func Update(scope, id, status string, assignees []string, opts ...MutationOption
 			}
 		}
 		from := t.Status
+		if status == "done" && t.Status != "done" {
+			if note, refused, err = gateDone(scope, &t); err != nil {
+				return err
+			}
+		}
 		events := assignmentEvents(t.Assignees, assignees)
+		var commentID string
+		if refused != nil {
+			commentID = refused.ID
+			status = "blocked"
+			events = append(events, Event{Kind: "comment", CommentID: commentID})
+		}
 		if status != "" && status != t.Status {
-			events = append(events, Event{Kind: "status", From: t.Status, To: status})
+			events = append(events, Event{Kind: "status", From: t.Status, To: status, CommentID: commentID})
 		}
 		if len(events) == 0 {
 			return nil
@@ -424,8 +437,11 @@ func Update(scope, id, status string, assignees []string, opts ...MutationOption
 	})
 	if err == nil {
 		notice.send()
+		if refused != nil {
+			return t, fmt.Errorf("ticket #%s is blocked, not done: %s", id, refused.Body)
+		}
 		if t.Status == "done" && notice != nil {
-			cleanupDone(scope, id)
+			cleanupDone(scope, id, note)
 		}
 	}
 	return t, err

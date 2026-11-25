@@ -3,33 +3,50 @@ package tasks
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"time"
 
 	"tagent/internal/tmux"
 	"tagent/internal/workplace"
 )
 
-// cleanupDone tidies a ticket that just reached done: its workflow work is merged
-// into the main checkout, then its panes are killed, and its worktree and branch
-// are removed when that loses nothing. A failed merge moves the ticket to blocked
-// and keeps everything. What was kept, and why, goes to the ticket history. Best
-// effort: it never fails Update.
-func cleanupDone(scope, id string) {
+// gateDone merges the ticket's checkout into the main checkout before done is
+// recorded. A refused merge comes back as a tagent comment for the caller to save
+// on a blocked ticket. It runs under the board lock, so it must not call Comment,
+// Move, Update or DispatchAudit, which take the lock again.
+// ponytail: git runs under the board lock; per-repo merge lock if it ever stalls board writes.
+func gateDone(scope string, t *Task) (note string, refused *TaskComment, err error) {
+	root, ok := scopeRoots.Load(scope)
+	if !ok {
+		return "", nil, nil
+	}
+	r := root.(string)
+	var wp workplace.Workplace = workplace.Git{}
+	note, gateErr := wp.Gate(r, t.ID, t.Title)
+	if gateErr == nil {
+		return note, nil, nil
+	}
+	c := TaskComment{ID: strconv.FormatInt(time.Now().UnixNano(), 36), Author: "tagent", Body: "merge failed: " + gateErr.Error() + "; worktree kept at " + wp.Output(r, t.ID), Created: time.Now().UTC(), Attachments: []Attachment{}}
+	if err := compactBody(scope, t.ID, &c); err != nil {
+		return "", nil, err
+	}
+	t.Comments = append(t.Comments, c)
+	return "", &c, nil
+}
+
+// cleanupDone tidies a ticket that has just reached done, after gateDone merged it:
+// its outputs are kept, the merge note (if any) goes to the history, then its
+// worktree and branch are removed when that loses nothing and its panes are
+// killed. What was kept, and why, goes to the ticket history. Best effort.
+func cleanupDone(scope, id, note string) {
 	root, ok := scopeRoots.Load(scope)
 	if !ok {
 		return
 	}
 	r := root.(string)
 	var wp workplace.Workplace = workplace.Git{}
-	wt := wp.Output(r, id)
-	keepOutputs(scope, id, wt)
-	note, err := mergeTicket(wp, scope, id, r, wt)
-	if err != nil {
-		msg := "merge failed: " + err.Error() + "; worktree kept at " + wt
-		Comment(scope, id, "tagent", msg, nil)
-		Move(scope, id, "blocked", msg)
-		return
-	}
+	keepOutputs(scope, id, wp.Output(r, id))
 	if note != "" {
 		Comment(scope, id, "tagent", note, nil)
 	}
@@ -41,21 +58,6 @@ func cleanupDone(scope, id string) {
 		}
 	}
 	killTicketPanes(scope + "#" + id)
-}
-
-// mergeTicket gates the ticket's checkout into the main checkout. The ticket is
-// read first (its title names the commit); if that fails with a checkout present,
-// nothing is committed or merged.
-func mergeTicket(wp workplace.Workplace, scope, id, root, wt string) (string, error) {
-	title := ""
-	if _, statErr := os.Stat(wt); statErr == nil {
-		t, err := Get(scope, id)
-		if err != nil {
-			return "", err
-		}
-		title = t.Title
-	}
-	return wp.Gate(root, id, title)
 }
 
 // keepOutputs copies the ticket's output files that live in its worktree (often

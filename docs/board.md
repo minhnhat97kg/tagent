@@ -380,7 +380,7 @@ restarts. Different tickets are isolated. Moving a ticket to done commits any un
 `agent/workflow-<ticket>`, rebases that branch onto the main checkout's HEAD if
 needed, and fast-forwards the main checkout to it (never forced or reset). Then the
 clean worktree and merged branch are removed. If the merge fails, the ticket moves
-to blocked with a `merge failed` comment and the worktree and branch are kept. Uncommitted files, ignored dependencies,
+to blocked with a `merge failed` comment and the worktree and branch are kept. The merge runs before done is recorded, so a failed merge leaves the ticket blocked, the command exits with an error, no done notice is sent and dependents do not start. Uncommitted files, ignored dependencies,
 secrets and local-only scripts are not copied. Ordinary board execution is unchanged.
 Creation failures are reported before launch; retry requires a new status entry. Recipes are resolved
 live: editing affects existing tickets; missing or broken recipes report errors.

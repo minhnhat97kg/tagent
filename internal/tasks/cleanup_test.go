@@ -1,11 +1,16 @@
 package tasks
 
 import (
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"tagent/internal/tmux"
 )
 
 func TestCleanupKeepsOutputsAsAttachments(t *testing.T) {
@@ -118,8 +123,8 @@ func TestDoneConflictBlocksAndKeepsWorktree(t *testing.T) {
 	os.WriteFile(filepath.Join(repo, "base.txt"), []byte("main\n"), 0o644)
 	gitRun(t, repo, "commit", "-qam", "main change")
 	head := gitRun(t, repo, "rev-parse", "HEAD")
-	if err := Move(scope, id, "done", ""); err != nil {
-		t.Fatal(err)
+	if err := Move(scope, id, "done", ""); err == nil || !strings.Contains(err.Error(), "merge failed") {
+		t.Fatalf("done on conflict: %v", err)
 	}
 	got, _ := Get(scope, id)
 	if got.Status != "blocked" {
@@ -171,5 +176,127 @@ func TestDoneWithoutWorktreeIsNoop(t *testing.T) {
 	got, _ := Get(scope, id)
 	if got.Status != "done" || len(got.Comments) != 0 {
 		t.Fatalf("status %q comments %+v", got.Status, got.Comments)
+	}
+}
+
+// #79 regression: a workflow's done has no next status, so the old done -> blocked
+// fallback was refused and the ticket stayed done with its notice already sent.
+func TestDoneConflictOnWorkflowTicketBlocks(t *testing.T) {
+	repo, scope, _, _ := newMergeRepo(t)
+	dir := filepath.Join(repo, ".tasks", "workflows")
+	os.MkdirAll(dir, 0o700)
+	os.WriteFile(filepath.Join(dir, "feature.yml"), []byte("name: feature\ninputs:\n  goal: {required: true}\njobs:\n  build: {status: building, agent: implementer}\n"), 0o600)
+	if err := SaveBoardConfig(repo, []byte("roles: {implementer: {agent: pi}}\ndefault_workflow: feature\n")); err != nil {
+		t.Fatal(err)
+	}
+	ticket, err := Add(scope, "Fix the thing", nil, MutationOptions{Workflow: "feature", Inputs: map[string]string{"goal": "fix"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Move(scope, ticket.ID, "building", ""); err != nil {
+		t.Fatal(err)
+	}
+	wt := filepath.Join(repo, ".worktrees", "workflow-"+ticket.ID)
+	gitRun(t, repo, "worktree", "add", "-q", "-b", "agent/workflow-"+ticket.ID, wt)
+	os.WriteFile(filepath.Join(wt, "base.txt"), []byte("worktree\n"), 0o644)
+	os.WriteFile(filepath.Join(repo, "base.txt"), []byte("main\n"), 0o644)
+	gitRun(t, repo, "commit", "-qam", "main change")
+
+	messages := captureNotices(t)
+	err = Move(scope, ticket.ID, "done", "")
+	if err == nil || !strings.Contains(err.Error(), "merge failed") {
+		t.Fatalf("done on conflict: %v", err)
+	}
+	got, _ := Get(scope, ticket.ID)
+	if got.Status != "blocked" || !got.CompletedAt.IsZero() {
+		t.Fatalf("status %q completed %v", got.Status, got.CompletedAt)
+	}
+	history, _ := ReadEvents(scope, 0)
+	for _, ev := range history {
+		if ev.Task == ticket.ID && ev.Kind == "status" && ev.To == "done" {
+			t.Fatal("done event recorded")
+		}
+	}
+	if n := *messages; len(n) != 1 || !strings.Contains(n[0], "blocked") || !strings.Contains(n[0], "merge failed") {
+		t.Fatalf("notices %q", n)
+	}
+}
+
+// captureNotices records the status notices sent while the test runs.
+func captureNotices(t *testing.T) *[]string {
+	t.Helper()
+	fake := tmux.NewFake()
+	t.Cleanup(tmux.SetRunner(fake))
+	var messages []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		messages = append(messages, string(b))
+	}))
+	t.Cleanup(srv.Close)
+	fake.Set(srv.URL, "show", "-gv", "@agent_notify_url")
+	return &messages
+}
+
+// makeConflict edits base.txt in the ticket's worktree and in main, so the merge conflicts.
+func makeConflict(t *testing.T, repo, wt string) {
+	t.Helper()
+	os.WriteFile(filepath.Join(wt, "base.txt"), []byte("worktree\n"), 0o644)
+	os.WriteFile(filepath.Join(repo, "base.txt"), []byte("main\n"), 0o644)
+	gitRun(t, repo, "commit", "-qam", "main change")
+}
+
+func TestDoneConflictThroughUpdateBlocks(t *testing.T) {
+	repo, scope, id, wt := newMergeRepo(t)
+	makeConflict(t, repo, wt)
+	got, err := Update(scope, id, "done", nil)
+	if err == nil || !strings.Contains(err.Error(), "merge failed") || got.Status != "blocked" {
+		t.Fatalf("update done on conflict: %v, status %q", err, got.Status)
+	}
+}
+
+func TestDoneWhileBlockedAddsOnlyCommentAndErrors(t *testing.T) {
+	repo, scope, id, wt := newMergeRepo(t)
+	makeConflict(t, repo, wt)
+	if err := Move(scope, id, "done", ""); err == nil {
+		t.Fatal("conflict accepted")
+	}
+	statusEvents := func() int {
+		history, _ := ReadEvents(scope, 0)
+		n := 0
+		for _, ev := range history {
+			if ev.Task == id && ev.Kind == "status" {
+				n++
+			}
+		}
+		return n
+	}
+	before := statusEvents()
+	if err := Move(scope, id, "done", ""); err == nil || !strings.Contains(err.Error(), "merge failed") {
+		t.Fatalf("done again: %v", err)
+	}
+	got, _ := Get(scope, id)
+	if got.Status != "blocked" || statusEvents() != before {
+		t.Fatalf("status %q, status events %d -> %d", got.Status, before, statusEvents())
+	}
+}
+
+func TestDoneAfterResolvingConflictNotesAgentSummary(t *testing.T) {
+	repo, scope, id, wt := newMergeRepo(t)
+	makeConflict(t, repo, wt)
+	if err := Move(scope, id, "done", ""); err == nil {
+		t.Fatal("conflict accepted")
+	}
+	// Resolve by making main take the worktree's change, which the failed merge already committed.
+	os.WriteFile(filepath.Join(repo, "base.txt"), []byte("worktree\n"), 0o644)
+	gitRun(t, repo, "commit", "-qam", "main takes the worktree change")
+	messages := captureNotices(t)
+	if err := Move(scope, id, "done", "agent summary"); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := Get(scope, id); got.Status != "done" {
+		t.Fatalf("status %q, want done", got.Status)
+	}
+	if n := *messages; len(n) != 1 || !strings.Contains(n[0], "agent summary") || strings.Contains(n[0], "merged ") {
+		t.Fatalf("notices %q", n)
 	}
 }

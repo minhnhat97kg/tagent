@@ -39,6 +39,8 @@ func FinishEntry(scope, id, to, body string, seq int64, safety bool, opts ...Mut
 }
 func move(scope, id, to, body string, seq int64, safety bool, opts ...MutationOptions) error {
 	var notice *statusNotice
+	var note string
+	var refused *TaskComment
 	err := withLock(scope, func() error {
 		t, err := Get(scope, id)
 		if err != nil {
@@ -123,9 +125,20 @@ func move(scope, id, to, body string, seq int64, safety bool, opts ...MutationOp
 				events = append(events, Event{Kind: "mention", CommentID: c.ID, Names: names})
 			}
 		}
+		if to == "done" && t.Status != "done" {
+			if note, refused, err = gateDone(scope, &t); err != nil {
+				return err
+			}
+			if refused != nil {
+				to = "blocked"
+				events = append(events, Event{Kind: "comment", CommentID: refused.ID})
+			}
+		}
 		if to != t.Status {
 			commentID := ""
-			if body != "" {
+			if refused != nil {
+				commentID = refused.ID
+			} else if body != "" {
 				commentID = t.Comments[len(t.Comments)-1].ID
 			}
 			events = append(events, Event{Kind: "status", From: t.Status, To: to, CommentID: commentID})
@@ -154,13 +167,17 @@ func move(scope, id, to, body string, seq int64, safety bool, opts ...MutationOp
 		}
 		return appendEvents(scope, id, who, events)
 	})
-	if err == nil {
-		notice.send()
-		if notice != nil && notice.to == "done" {
-			cleanupDone(scope, id)
-		}
+	if err != nil {
+		return err
 	}
-	return err
+	notice.send()
+	if refused != nil {
+		return fmt.Errorf("ticket #%s is blocked, not done: %s", id, refused.Body)
+	}
+	if notice != nil && notice.to == "done" {
+		cleanupDone(scope, id, note)
+	}
+	return nil
 }
 
 // scoutOutputMax caps the scout handoff (~2K tokens); the next steps read it in full.
