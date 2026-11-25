@@ -15,6 +15,8 @@
 #   TMUX_AGENT_BIN_DIR  where the `tagent` link goes (default: ~/.local/bin)
 #   TMUX_AGENT_NO_TMUX=1     don't touch tmux.conf or the running tmux
 #   TMUX_AGENT_NO_HARNESS=1  don't run `tagent install` (hooks/skills)
+#   TAGENT_NO_RTK=1          don't install or wire rtk (output-compressing token saver)
+#   RTK_INSTALL_DIR          where rtk goes (default: the tagent bin dir); RTK_EDITION=oss|default
 set -euo pipefail
 
 REPO="${TAGENT_REPO:-https://github.com/minhnhat97kg/tagent.git}"
@@ -103,7 +105,8 @@ fi
 
 # ── agent harnesses ──────────────────────────────────────────────────────
 if [ "${TMUX_AGENT_NO_HARNESS:-}" != 1 ]; then
-  say "Integrating agent harnesses (hooks / plugins / skills)"
+  say "Integrating agent harnesses (hooks / plugins / skills / rtk)"
+  export RTK_INSTALL_DIR="${RTK_INSTALL_DIR:-$BIN_DIR}"
   "$DIR/bin/tagent" install || warn "no supported harness found — later: tagent install <harness>"
 fi
 

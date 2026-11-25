@@ -68,7 +68,7 @@ UI and configuration
   toggle | toggle-all          Show or hide sidebar panes
   expand                       Expand or collapse sidebar
   config [list|get|set|reset|path]  View or change settings
-  install | uninstall          Manage harness hooks and skills
+  install | uninstall          Manage harness hooks, skills and rtk (token saver)
   setup [harness]              Print hook setup instructions
   reload                       Restart sidebars after an update
   explain <pane|name>          Why a pane has its status (hook/screen/CPU evidence)

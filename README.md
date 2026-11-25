@@ -64,7 +64,9 @@ Requirements: tmux ≥ 2.9, git, Go (the version in `go.mod`).
 Options (environment variables): `TMUX_AGENT_DIR` (clone location),
 `TMUX_AGENT_BIN_DIR` (where the binary is linked), `TMUX_AGENT_REF`
 (branch/tag), `TMUX_AGENT_NO_TMUX=1` (don't touch tmux.conf),
-`TMUX_AGENT_NO_HARNESS=1` (don't install hooks/skills).
+`TMUX_AGENT_NO_HARNESS=1` (don't install hooks/skills), `TAGENT_NO_RTK=1`
+(don't install rtk), `RTK_INSTALL_DIR` (rtk location, default the bin dir),
+`RTK_EDITION` (default `oss`, the Apache-2.0 build).
 
 <details>
 <summary>Manual install</summary>
@@ -95,6 +97,34 @@ tagent uninstall <harness>     # remove exactly what install wrote
 | pi | extension → `~/.pi/agent/extensions/tagent.ts` | skill |
 | opencode | plugin → `~/.config/opencode/plugins/tagent.js` | block in `AGENTS.md` |
 | gemini · copilot · amp | screen detection (scraper) | block in its instructions file |
+
+**Token saver (rtk).** `tagent install` also installs
+[rtk](https://github.com/rtk-ai/rtk), a CLI proxy that compresses command
+output, and wires it into each harness it finds:
+
+| Harness | rtk wiring |
+|---|---|
+| claude | `PreToolUse` hook (`rtk hook claude`) + `RTK.md` |
+| codex | `RTK.md` + `@` line in `AGENTS.md` (no command hook) |
+| pi | `~/.pi/agent/extensions/rtk.ts` |
+| opencode | `~/.config/opencode/plugins/rtk.ts` |
+| copilot | `~/.copilot/hooks/rtk-rewrite.json` |
+| gemini | **skipped**: `rtk init` overwrites `GEMINI.md`, and uninstall deletes it |
+| amp | **unsupported** by rtk |
+
+The binary is installed by rtk's script (checksum-verified) from the upstream
+`master` branch. A binary already on `PATH` is used as is. Wiring that existed
+before is left alone. `tagent uninstall` reverts only what tagent added,
+recorded in markers under `~/.config/tagent/` (`rtk-bin`, `rtk-<harness>`);
+it does not remove rtk's history or filter data.
+
+**Code Mode (claude).** `tagent install claude` sets
+`CLAUDE_CODE_EXPERIMENTAL_CODE_MODE=1` in the `env` of `~/.claude/settings.json`,
+so every claude session uses Code Mode. Claude asks for consent once; a person
+must answer it (tagent never answers it). A value you set yourself is kept:
+`CLAUDE_CODE_EXPERIMENTAL_CODE_MODE=0` opts out. `tagent uninstall claude`
+removes only the key tagent added. Code Mode is experimental and needs Claude
+Code 2.1.323 or newer.
 
 Hooks are **merged** into the config (nothing else is overwritten; the
 original is kept as `*.tagent.bak`); re-running doesn't duplicate them.

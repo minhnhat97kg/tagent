@@ -57,7 +57,8 @@ type mcpReg struct {
 
 var harnesses = []harness{
 	{name: "claude", detect: []string{".claude", "claude"}, hooks: ".claude/settings.json", skills: ".claude/skills",
-		mcp: mcpReg{cli: "claude", add: []string{"-s", "user"}}},
+		mcp:  mcpReg{cli: "claude", add: []string{"-s", "user"}},
+		note: "Code Mode is on globally (env in ~/.claude/settings.json). Claude asks for consent once: answer it yourself in the first claude session. Opt out: set CLAUDE_CODE_EXPERIMENTAL_CODE_MODE=0 in that env; tagent then leaves it alone."},
 	{name: "codex", detect: []string{".codex", "codex"}, hooks: ".codex/hooks.json", skills: ".codex/skills",
 		mcp:  mcpReg{cli: "codex"},
 		note: "Codex runs hooks only when its hooks feature is enabled in your version — if status stays 'unknown', the screen scraper still covers it."},
@@ -113,6 +114,7 @@ type env struct {
 	home, bin, hookScript string
 	dry                   bool
 	out                   io.Writer
+	rtk                   string                                  // rtk binary to wire ("" = none)
 	run                   func(name string, args ...string) error // runs a harness CLI (nil = exec)
 }
 
@@ -151,10 +153,15 @@ func Dispatch(uninstall bool, args []string, stdout, stderr io.Writer) int {
 				names = append(names, h.name)
 			}
 		}
-		if len(names) == 0 {
+		if len(names) == 0 && !uninstall {
 			fmt.Fprintf(stderr, "no supported harness found; name one: %s\n", strings.Join(Names(), ", "))
 			return 1
 		}
+	}
+	if uninstall {
+		e.rtk = e.rtkBinary()
+	} else {
+		e.rtk = e.ensureRTK()
 	}
 
 	code := 0
@@ -169,8 +176,10 @@ func Dispatch(uninstall bool, args []string, stdout, stderr io.Writer) int {
 		var err error
 		if uninstall {
 			err = e.uninstall(h)
+			e.rtkStep(h.name, true)
 		} else {
 			err = e.install(h)
+			e.rtkStep(h.name, false)
 			if err == nil && h.note != "" {
 				fmt.Fprintf(stdout, "  note  %s\n", h.note)
 			}
@@ -178,6 +187,11 @@ func Dispatch(uninstall bool, args []string, stdout, stderr io.Writer) int {
 		if err != nil {
 			fmt.Fprintf(stderr, "  %s: %v\n", h.name, err)
 			code = 1
+		}
+	}
+	if uninstall && !explicit {
+		if err := e.rtkCleanup(); err != nil {
+			e.warn("rtk: " + err.Error())
 		}
 	}
 	if e.dry {
@@ -249,6 +263,11 @@ func (e env) install(h harness) error {
 		}
 		e.say("docs", "~/"+h.instr+" (tagent block)")
 	}
+	if h.name == "claude" {
+		if err := e.codeMode(true); err != nil {
+			return err
+		}
+	}
 	return e.setMCP(h.mcp, true)
 }
 
@@ -279,6 +298,11 @@ func (e env) uninstall(h harness) error {
 			e.say("docs", "block removed from ~/"+h.instr)
 		}
 	}
+	if h.name == "claude" {
+		if err := e.codeMode(false); err != nil {
+			return err
+		}
+	}
 	return e.setMCP(h.mcp, false)
 }
 
@@ -293,10 +317,7 @@ func (e env) setMCP(m mcpReg, add bool) error {
 		if e.dry {
 			return nil
 		}
-		run := e.run
-		if run == nil {
-			run = func(name string, args ...string) error { return exec.Command(name, args...).Run() }
-		}
+		run := e.exec
 		rm := []string{"mcp", "remove"}
 		if len(m.add) > 0 {
 			rm = append(rm, m.add...)
@@ -619,4 +640,50 @@ func (e env) write(path, content string) error {
 		mode = st.Mode().Perm()
 	}
 	return os.WriteFile(path, []byte(content), mode)
+}
+
+// codeMode turns Code Mode on globally: CLAUDE_CODE_EXPERIMENTAL_CODE_MODE=1 in
+// ~/.claude/settings.json env. A value the user set (e.g. 0 to opt out) is left
+// alone. Only a key tagent added is recorded (marker) and removed on uninstall.
+const codeModeVar = "CLAUDE_CODE_EXPERIMENTAL_CODE_MODE"
+
+func (e env) codeMode(on bool) error {
+	mark := e.marker("claude-code-mode")
+	if !on {
+		if _, err := os.Stat(mark); err != nil {
+			return nil // not ours
+		}
+		if err := e.editJSON(e.path(".claude/settings.json"), func(cfg map[string]any) {
+			envs, _ := cfg["env"].(map[string]any)
+			delete(envs, codeModeVar)
+			if len(envs) == 0 {
+				delete(cfg, "env")
+			}
+		}); err != nil {
+			return err
+		}
+		e.say("mode", "Code Mode removed from ~/.claude/settings.json")
+		return e.remove(".config/tagent/claude-code-mode")
+	}
+	added := false
+	if err := e.editJSON(e.path(".claude/settings.json"), func(cfg map[string]any) {
+		envs, _ := cfg["env"].(map[string]any)
+		if envs == nil {
+			envs = map[string]any{}
+		}
+		if _, set := envs[codeModeVar]; !set {
+			envs[codeModeVar] = "1"
+			added = true
+		}
+		cfg["env"] = envs
+	}); err != nil {
+		return err
+	}
+	if _, err := os.Stat(mark); added || err == nil {
+		if added {
+			e.say("mode", "Code Mode on globally (~/.claude/settings.json env)")
+		}
+		return e.write(mark, "")
+	}
+	return nil
 }
