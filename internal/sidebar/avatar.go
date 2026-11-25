@@ -167,7 +167,7 @@ func Alerts(sessions []tmux.SessionInfo) []Alert {
 				case p.Conflict != "":
 					a.Kind = "conflict"
 					flagged = append(flagged, a)
-				case p.Stuck != "" && p.Status == tmux.StatusRunning:
+				case p.Stuck != "":
 					a.Kind = "stuck"
 					flagged = append(flagged, a)
 				case p.Status == tmux.StatusIdle && p.Unseen:

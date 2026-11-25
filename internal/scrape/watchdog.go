@@ -18,6 +18,7 @@ import (
 	"tagent/internal/process"
 	"tagent/internal/roster"
 	"tagent/internal/sharedctx"
+	"tagent/internal/tasks"
 	"tagent/internal/tmux"
 	"tagent/internal/usage"
 )
@@ -28,6 +29,9 @@ import (
 //
 //   - stuck: a running agent with no activity — no new tool call and no
 //     screen change — for @agent_stuck_minutes (default 10).
+//   - stalled: a board agent went idle while its ticket still waits on its
+//     status — it stopped without `task move` or a blocked question — for
+//     @agent_stuck_minutes (default 10).
 //   - conflict: two agents of the same project edited the same file within
 //     conflictWindow; a note goes on the project's shared context too.
 //
@@ -49,12 +53,16 @@ type watchdog struct {
 	lastSave   time.Time
 	screenHash map[string][20]byte
 	lastActive map[string]time.Time
-	reported   map[string]bool // conflict keys already announced
-	cpu        map[int]float64 // cpu seconds per pid at the previous watch
+	idleSince  map[string]time.Time // pane -> when it was first seen idle
+	reported   map[string]bool      // conflict keys already announced
+	cpu        map[int]float64      // cpu seconds per pid at the previous watch
 }
 
+// notifyStalled is a seam so tests can capture the stalled notice.
+var notifyStalled = hook.Notify
+
 func newWatchdog() *watchdog {
-	return &watchdog{screenHash: map[string][20]byte{}, lastActive: map[string]time.Time{}, reported: map[string]bool{}, cpu: map[int]float64{}}
+	return &watchdog{screenHash: map[string][20]byte{}, lastActive: map[string]time.Time{}, idleSince: map[string]time.Time{}, reported: map[string]bool{}, cpu: map[int]float64{}}
 }
 
 func (w *watchdog) maybeRun(now time.Time) {
@@ -113,6 +121,11 @@ func (w *watchdog) checkStuck(sessions []tmux.SessionInfo, now time.Time) {
 		}
 	}()
 	for _, p := range allPanes(sessions) {
+		if p.Status == tmux.StatusIdle {
+			w.checkIdle(p, now)
+			continue
+		}
+		delete(w.idleSince, p.PaneID)
 		if p.Status != tmux.StatusRunning {
 			delete(w.lastActive, p.PaneID)
 			if p.Stuck != "" {
@@ -155,7 +168,7 @@ func (w *watchdog) checkStuck(sessions []tmux.SessionInfo, now time.Time) {
 		case idle >= patience:
 			mins := strconv.Itoa(int(idle.Minutes()))
 			if p.Stuck == "" {
-				hook.Notify(nameOf(p), fmt.Sprintf("may be stuck — no activity for %sm", mins))
+				notifyStalled(nameOf(p), fmt.Sprintf("may be stuck — no activity for %sm", mins))
 			}
 			if p.Stuck != mins {
 				tmux.SetPaneOption(p.PaneID, tmux.PaneStuck, mins)
@@ -163,6 +176,40 @@ func (w *watchdog) checkStuck(sessions []tmux.SessionInfo, now time.Time) {
 		case p.Stuck != "":
 			tmux.UnsetPaneOption(p.PaneID, tmux.PaneStuck)
 		}
+	}
+}
+
+// checkIdle flags a board pane that went idle while its ticket still waits on
+// that role: the agent stopped without `task move` or a blocked question. The
+// flag is set once per stall (notice once), and cleared when the ticket moves
+// on or the pane resumes.
+func (w *watchdog) checkIdle(p tmux.PaneInfo, now time.Time) {
+	since, ok := w.idleSince[p.PaneID]
+	if !ok {
+		since = now
+		w.idleSince[p.PaneID] = now
+	}
+	unflag := func() {
+		if p.Stuck != "" {
+			tmux.UnsetPaneOption(p.PaneID, tmux.PaneStuck)
+		}
+	}
+	m := ticketSuffix.FindStringSubmatch(p.Name)
+	if m == nil || now.Sub(since) < stuckAfter() {
+		unflag()
+		return
+	}
+	role := strings.TrimSuffix(p.Name, m[0]) // board panes are named <role>-<ticket>
+	if _, owned := ownedTicket(tasks.MainRoot(p.Path), m[1], role); !owned {
+		unflag()
+		return
+	}
+	mins := strconv.Itoa(int(now.Sub(since).Minutes()))
+	if p.Stuck == "" {
+		notifyStalled(nameOf(p), fmt.Sprintf("stopped without moving ticket %s — no activity for %sm", m[1], mins))
+	}
+	if p.Stuck != mins {
+		tmux.SetPaneOption(p.PaneID, tmux.PaneStuck, mins)
 	}
 }
 

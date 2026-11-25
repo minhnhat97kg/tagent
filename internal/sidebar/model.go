@@ -229,7 +229,7 @@ func ActionLine(p tmux.PaneInfo) string {
 		switch {
 		case p.Conflict != "":
 			return "editing " + p.Conflict
-		case p.Stuck != "" && p.Status == tmux.StatusRunning:
+		case p.Stuck != "":
 			return "stuck? no activity for " + p.Stuck + "m"
 		}
 		return ""

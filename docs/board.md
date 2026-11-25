@@ -40,6 +40,13 @@ prefill cancels. Resumed agents receive only the reply, not old comment history.
 `max_loops` counts rejections (hand-backs to the on-failure status) since the last exit from blocked; the step that hit the cap still runs once more, and its next rejection blocks. Agents must include
 exactly one concrete question in their blocking move comment.
 
+A comment alone does not reach the human. An agent that needs an answer moves
+its ticket to `blocked` with the question. If a board agent goes idle while its
+ticket still waits on its own status (no move, no blocked question), the watchdog
+flags the pane as stalled after `@agent_stuck_minutes` (default 10): the pane
+shows `stuck?` in the sidebar and one notification fires. The flag clears when
+the ticket moves on or the pane resumes. Nothing moves the ticket.
+
 A ticket is the work state. Status entry dispatches work; comments carry handoffs.
 Flows are defined only by workflows (`.tasks/workflows/*.yml`, see [Workflows](#workflows)).
 `board.yaml` holds agents and triggers. Run `tagent board init` to exclusively

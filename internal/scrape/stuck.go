@@ -50,34 +50,43 @@ func nudgeStuck() {
 		if time.Since(idleSince[id]) < unmovedAfter {
 			continue
 		}
-		dir := tasks.MainRoot(path)
-		t, err := tasks.Get(tasks.Scope(dir), m[1])
-		if err != nil || t.Workflow == "" || t.Status == "todo" || t.Status == "blocked" || t.Status == "done" {
+		t, ok := ownedTicket(tasks.MainRoot(path), m[1], role)
+		if !ok {
 			continue
 		}
 		key := id + "|" + t.Status + "|" + t.Updated.String()
 		if nudged[key] || t.Updated.After(idleSince[id]) {
 			continue
 		}
-		cfg, err := tasks.LoadBoardConfig(dir)
-		if err != nil {
-			continue
-		}
-		w, err := tasks.FindWorkflow(dir, cfg, t.Workflow)
-		if err != nil {
-			continue
-		}
-		for _, j := range w.Jobs {
-			if j.Status == t.Status && j.Agent == role {
-				nudged[key] = true
-				tmux.TypeLine(id, "You stopped without moving ticket "+m[1]+" (still "+t.Status+"). Run `tagent task move "+m[1]+" NEXT \"verdict/handoff\"` now, or `task move "+m[1]+" blocked \"one question\"`. Idle does not mean done.")
-				break
-			}
-		}
+		nudged[key] = true
+		tmux.TypeLine(id, "You stopped without moving ticket "+m[1]+" (still "+t.Status+"). Run `tagent task move "+m[1]+" NEXT \"verdict/handoff\"` now, or `task move "+m[1]+" blocked \"one question\"`. Idle does not mean done.")
 	}
 	for id := range idleSince {
 		if !seen[id] {
 			delete(idleSince, id)
 		}
 	}
+}
+
+// ownedTicket returns the ticket when its current status belongs to role's job,
+// i.e. the agent that stopped is the one expected to move it next.
+func ownedTicket(dir, id, role string) (tasks.Task, bool) {
+	t, err := tasks.Get(tasks.Scope(dir), id)
+	if err != nil || t.Workflow == "" || t.Status == "todo" || t.Status == "blocked" || t.Status == "done" {
+		return t, false
+	}
+	cfg, err := tasks.LoadBoardConfig(dir)
+	if err != nil {
+		return t, false
+	}
+	w, err := tasks.FindWorkflow(dir, cfg, t.Workflow)
+	if err != nil {
+		return t, false
+	}
+	for _, j := range w.Jobs {
+		if j.Status == t.Status && j.Agent == role {
+			return t, true
+		}
+	}
+	return t, false
 }
