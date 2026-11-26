@@ -64,11 +64,10 @@ func setupRig(t *testing.T, token string, ups ...update) *rig {
 	}))
 	t.Cleanup(srv.Close)
 
-	oldAPI, oldRun, oldList, oldBg, oldDetach := telegramAPI, runTagent, listAgents, background, detachAlert
+	oldAPI, oldRun, oldList, oldBg := telegramAPI, runTagent, listAgents, background
 	telegramAPI = srv.URL
-	detachAlert = func(pane, title, body string) { SendTelegramAlert(pane, title, body) }
 	t.Cleanup(func() {
-		telegramAPI, runTagent, listAgents, background, detachAlert = oldAPI, oldRun, oldList, oldBg, oldDetach
+		telegramAPI, runTagent, listAgents, background = oldAPI, oldRun, oldList, oldBg
 	})
 	runTagent = func(_ context.Context, args ...string) (string, string, int) {
 		r.mu.Lock()
@@ -215,19 +214,11 @@ func TestTelegramGateway(t *testing.T) {
 		}
 	})
 
-	t.Run("send and alert reach allowlisted chats only", func(t *testing.T) {
+	t.Run("notifications never reach telegram", func(t *testing.T) {
 		r := setupRig(t, "tok-secret")
 		Send("ping", "body")
-		if !r.sentTo("sendMessage", "100", "ping") || !r.sentTo("sendMessage", "-200", "ping") || r.sentTo("sendMessage", "999", "") {
-			t.Error("Send did not reach exactly the allowlisted chats")
-		}
-	})
-
-	t.Run("empty token is off", func(t *testing.T) {
-		r := setupRig(t, "")
-		Send("ping", "body", "%3")
 		if len(r.http) != 0 || len(r.agents) != 0 {
-			t.Errorf("empty token made calls: http %d, agent %d", len(r.http), len(r.agents))
+			t.Errorf("Send reached telegram: http %d, agent %d", len(r.http), len(r.agents))
 		}
 	})
 

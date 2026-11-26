@@ -1,10 +1,10 @@
 package notify
 
-// Telegram is a two-way gateway. Outbound: Send posts alerts (with answer
-// buttons for waiting agents) to every allowlisted chat. Inbound: the scraper
-// long-polls getUpdates and routes messages to agents. Agents are driven by
-// re-running this binary (tagent send/new/answer), so this package stays a
-// leaf: no import of cmd/tagent, scrape or tasks.
+// Telegram is a chat channel: the scraper long-polls getUpdates, routes messages
+// to agents and replies with their answers (or the dialog they stopped at). It
+// never sends anything on its own. Agents are driven by re-running this binary
+// (tagent send/new/answer), so this package stays a leaf: no import of
+// cmd/tagent, scrape or tasks.
 //
 // Settings live in <config dir>/telegram.env (kept 0600); a tmux option is the
 // per-key fallback:
@@ -63,7 +63,6 @@ var (
 	httpClient  = &http.Client{}             // every call is bounded by its context
 	runTagent   = execTagent                 // seam: tests fake the agent CLI
 	listAgents  = listAgentPanes             // seam: tests fake the pane list
-	detachAlert = spawnAlert                 // seam: tests run the alert inline
 	envPath     = defaultEnvPath             // seam: tests point at a temp file
 	polling     atomic.Bool
 	commandsFor atomic.Value // the token whose command menu is registered
@@ -86,7 +85,7 @@ type tgConfig struct {
 }
 
 // defaultEnvPath is empty in test binaries: a test must never message a real
-// chat, and spawnAlert would re-run the test binary.
+// chat.
 func defaultEnvPath() string {
 	if testing.Testing() {
 		return ""
@@ -217,8 +216,8 @@ func findMessage(chat, msg int64) (msgRef, bool) {
 }
 
 // claimAlert reserves the alert for chat/pane/hash; false when the same dialog
-// was already sent within alertDedupe (the hook push and the gateway's own
-// waiting reply must not both arrive).
+// was already sent within alertDedupe (a message queued behind a dialog must
+// not show the same card twice).
 func claimAlert(chat int64, pane, hash string) bool {
 	claimed := false
 	key := strconv.FormatInt(chat, 10) + "|" + pane
@@ -335,69 +334,19 @@ func sayAbout(cfg tgConfig, chat int64, a agentPane, text string) {
 	_ = sendMsg(ctx, cfg.token, chat, firstPiece(text), nil, a)
 }
 
-// ── outbound: Send and alerts ─────────────────────────────────────────────
+// ── dialog cards ──────────────────────────────────────────────────────────
 
-// notifyTelegram is the Telegram branch of Send (see remote.go). With a token
-// set, the alert goes to a detached child so a hook never waits on Telegram.
-func notifyTelegram(title, body, pane string) {
-	if setting(fileConfig(), "token", tokenOption) == "" {
-		return // feature off: no exec, no other option reads
-	}
-	detachAlert(pane, title, body)
-}
-
-// spawnAlert starts `tagent telegram-alert` detached and returns without waiting.
-func spawnAlert(pane, title, body string) {
-	exe, err := os.Executable()
-	if err != nil {
-		return
-	}
-	cmd := exec.Command(exe, "telegram-alert", pane, title, body)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
-	_ = cmd.Start() // stdio is /dev/null: a hook has nowhere to report it
-}
-
-// SendTelegramAlert is the body of the hidden `telegram-alert` child: it posts
-// the alert to every allowlisted chat, with answer buttons when pane is waiting.
-func SendTelegramAlert(pane, title, body string) {
-	cfg := loadConfig()
-	a := agentPane{ID: pane}
-	if found, ok := matchAgent(pane); ok && pane != "" {
-		a = found
-	}
-	for chat := range cfg.allowed {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		alert(ctx, cfg.token, chat, title, body, a)
-		cancel()
-	}
-}
-
-// alert sends title and body to chat as a card. For a pane with an open dialog
-// it adds one button per option; a tap answers through the same `tagent answer`
-// path.
-func alert(ctx context.Context, token string, chat int64, title, body string, a agentPane) {
-	if a.ID == "" {
-		text, markup := noticeCard(title, body)
-		_ = sendMsg(ctx, token, chat, text, markup, agentPane{})
-		return
-	}
-	permission := isPermission(body)
+// alert answers a chat whose agent stopped at a dialog: a card saying note,
+// with one button per option; a tap answers through the same `tagent answer`
+// path. It is only sent in reply to the chat's own message or tap.
+func alert(ctx context.Context, token string, chat int64, note string, a agentPane) {
 	question, opts := readDialog(ctx, a.ID)
-	// A hook can fire before the dialog is drawn: retry briefly.
-	for i := 0; len(opts) == 0 && i < 3 && (permission || isWaiting(a.ID)); i++ {
+	// The dialog may not be drawn yet: retry briefly.
+	for i := 0; len(opts) == 0 && i < 3 && isWaiting(a.ID); i++ {
 		time.Sleep(300 * time.Millisecond)
 		question, opts = readDialog(ctx, a.ID)
 	}
-	// Auto mode reports permission checks that never ask anyone: no dialog and
-	// not waiting means there is nothing for the user to do.
-	if permission && len(opts) == 0 && !isWaiting(a.ID) {
-		return
-	}
-	hash := dialogHash(a.ID, opts)
-	if len(opts) == 0 && permission {
-		hash = "waiting" // an unparsed screen keeps changing; still one card
-	}
-	if !claimAlert(chat, a.ID, hash) {
+	if !claimAlert(chat, a.ID, dialogHash(a.ID, opts)) {
 		return
 	}
 	var rows [][]button
@@ -413,7 +362,7 @@ func alert(ctx context.Context, token string, chat int64, title, body string, a 
 	if len(opts) == 0 {
 		question = ""
 	}
-	text := alertCard(a, paneContext(ctx, a.ID), title, body, question, screen)
+	text := alertCard(a, paneContext(ctx, a.ID), note, question, screen)
 	if sendMsg(ctx, token, chat, text, keyboard(rows...), a) != nil {
 		releaseAlert(chat, a.ID)
 	}
@@ -857,7 +806,7 @@ func sendTo(cfg tgConfig, chat int64, a agentPane, text string) {
 	unlock := lockTarget("p:" + a.ID)
 	defer unlock()
 	if a.Status == tmux.StatusWaiting {
-		alert(ctx, cfg.token, chat, a.label(), "is waiting for your answer; your message is queued", a)
+		alert(ctx, cfg.token, chat, "is waiting for your answer; your message is queued", a)
 	}
 	out, errOut, code := runTagent(ctx, "send", a.ID, "--timeout", "10m", text)
 	switch {
@@ -870,7 +819,7 @@ func sendTo(cfg tgConfig, chat int64, a agentPane, text string) {
 	}
 	lines := strings.Split(strings.TrimSpace(out), "\n")
 	if lines[len(lines)-1] == string(tmux.StatusWaiting) {
-		alert(ctx, cfg.token, chat, a.label(), "needs your answer", a)
+		alert(ctx, cfg.token, chat, "needs your answer", a)
 		return
 	}
 	reply(ctx, cfg.token, chat, a)
@@ -1012,7 +961,7 @@ func handleCallback(cfg tgConfig, cb callback, dirs func() []string) {
 			outcome("⌛ Dialog closed")
 			releaseAlert(chat, pane)
 			if ok && a.Status == tmux.StatusWaiting {
-				alert(ctx, cfg.token, chat, a.label(), "is still waiting", a)
+				alert(ctx, cfg.token, chat, "is still waiting", a)
 			}
 			return
 		}

@@ -18,7 +18,7 @@ func TestBlockedAlertsOncePerSpell(t *testing.T) {
 	defer tmux.SetRunner(tmux.NewFake())()
 	var sent []string
 	old := sendBlocked
-	sendBlocked = func(title, body string, _ ...string) { sent = append(sent, body) }
+	sendBlocked = func(title, body string) { sent = append(sent, body) }
 	defer func() { sendBlocked = old }()
 
 	dir := t.TempDir()

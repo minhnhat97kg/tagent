@@ -574,16 +574,16 @@ Set options with `set -g …` before loading the plugin, or use `tagent config`.
 | `@agent_blocked_hours` | `24` | notify once when a ticket stays `blocked` (waiting on a human) this long |
 | `@sidebar_notifications` | `on` | desktop notifications |
 | `@agent_notify_url` | — | phone alerts and task-status transitions (ntfy or plain-text POST webhook); empty disables delivery |
-| `@agent_telegram_token` | — | Telegram bot token; empty disables the gateway. Alerts go to every allowlisted chat (waiting agents get answer buttons); the scraper long-polls for replies, `@name text`, `/use <name>`, `/agents` |
+| `@agent_telegram_token` | — | Telegram bot token; empty disables the gateway. A chat channel only, never notifications: the scraper long-polls for messages, `@name text`, `/use <name>`, `/agents`, and replies with the agent's answer |
 | `@agent_telegram_chats` | — | comma-separated allowlisted chat IDs (groups are negative). Other chats are ignored and never answered. Anyone in an allowed chat can drive agents |
 | `@agent_telegram_agent` | `receptionist` | offered in the agent list; a chosen target that is gone falls back here. Until `/use` picks a target, plain text is answered with help (also `/start`, `/help`) |
 | `@agent_theme` | `light` | `dark` / `light`; `@agent_color_<token>`, `@agent_icon_<token>` override single colors/icons |
 
-Messages are cards: who (agent, pane), where (ticket, project, branch) and what is asked,
-with one button per dialog option plus **Screen** and **Chat**. A tapped dialog shows its
+Telegram only answers you; notifications go to the desktop and `@agent_notify_url`. If the
+agent you are chatting with stops at a dialog, the reply is a card: who (agent, pane), where
+(ticket, project, branch) and what is asked, with one button per dialog option plus **Screen** and **Chat**. A tapped dialog shows its
 outcome in place of the buttons. `/start` (overview), `/agents` and `/tickets` open a menu
-that updates in place, and the same commands appear in the bot's command menu. Permission
-checks that open no dialog (auto mode) are not sent.
+that updates in place, and the same commands appear in the bot's command menu.
 
 Put the settings in `~/.config/tagent/telegram.env` (tagent keeps it `0600`):
 

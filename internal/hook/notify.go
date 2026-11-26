@@ -301,7 +301,7 @@ func notifyIfAllowed(paneID string, kind NotificationKind, fingerprint, title, b
 	}
 
 	if kind == NotifyPermissionRequired { // phone push (@agent_notify_url) only when a person must act; tickets report their own final status
-		notify.Send(title, body, paneID)
+		notify.Send(title, body)
 	}
 	if err := SendDesktopNotification(title, body); err != nil {
 		return false

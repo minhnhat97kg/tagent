@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -65,7 +64,7 @@ func field(icon, label, value string) string {
 	return icon + " " + label + ": <b>" + esc(value, 200) + "</b>"
 }
 
-// ── agent alerts ──────────────────────────────────────────────────────────
+// ── dialog cards ──────────────────────────────────────────────────────────
 
 type paneInfo struct{ Project, Branch, Ticket string }
 
@@ -108,28 +107,10 @@ func tagentIn(ctx context.Context, dir string, args ...string) (string, error) {
 	return string(out), err
 }
 
-func isPermission(body string) bool {
-	return body == "Permission required" || strings.HasPrefix(body, "permission")
-}
-
-// alertCard is the message for something a pane's agent reports. question and
-// screen describe an open dialog; both are empty without one.
-func alertCard(a agentPane, info paneInfo, title, body, question, screen string) string {
-	icon, head := "🔔", title
-	switch {
-	case isPermission(body):
-		icon, head = "🔐", "Permission required"
-	case question != "":
-		icon, head = "❓", "Needs your answer"
-	case strings.HasPrefix(body, "Task failed"):
-		icon, head = "❌", "Task failed"
-	case body == "Task completed" || strings.HasPrefix(body, "Task completed:"):
-		icon, head = "✅", "Task completed"
-	}
+// alertCard is the message for an agent stopped at a dialog. question and
+// screen describe it; both are empty when it could not be read, and note says so.
+func alertCard(a agentPane, info paneInfo, note, question, screen string) string {
 	who := a.label()
-	if who == "" {
-		who = title
-	}
 	if a.Agent != "" && a.Agent != who {
 		who += " · " + a.Agent
 	}
@@ -151,11 +132,10 @@ func alertCard(a agentPane, info paneInfo, title, body, question, screen string)
 	if screen != "" {
 		text = append(text, "<pre>"+esc(screen, bodyUnits-600)+"</pre>")
 	}
-	// A permission body is a raw hook reason ("permission_prompt"): never shown.
-	if question == "" && screen == "" && !isPermission(body) && body != head {
-		text = append(text, esc(body, bodyUnits))
+	if question == "" && screen == "" {
+		text = append(text, esc(note, bodyUnits))
 	}
-	return card(icon, head, fields, strings.Join(text, "\n"))
+	return card("❓", "Needs your answer", fields, strings.Join(text, "\n"))
 }
 
 var boxChars = " \t│┃╭╮╰╯─━╌┄|"
@@ -184,31 +164,6 @@ func dialogContext(screen, question string, opts []dialogOpt) string {
 	}
 	slices.Reverse(out)
 	return strings.Join(out, "\n")
-}
-
-// ── ticket and plain notices ──────────────────────────────────────────────
-
-// ticketHead matches the first line tasks.statusNotice writes.
-var ticketHead = regexp.MustCompile(`^(?:✅|⛔) (.+) · #(\S+) (done|blocked)(?: (?:in|at) (.+))?$`)
-
-// noticeCard is a notification that belongs to no pane.
-func noticeCard(title, body string) (string, any) {
-	lines := strings.Split(body, "\n")
-	m := ticketHead.FindStringSubmatch(lines[0])
-	if m == nil || len(lines) < 2 {
-		return card("🔔", title, nil, esc(body, bodyUnits)), nil
-	}
-	icon, extra := "✅", field("⏱", "Duration", m[4])
-	if m[3] == "blocked" {
-		icon, extra = "⛔", field("📍", "Blocked at", m[4])
-	}
-	fields := []string{field("🎫", "Ticket", lines[1]), field("📁", "Project", m[1])}
-	if m[4] != "" {
-		fields = append(fields, extra)
-	}
-	rest := strings.TrimSpace(strings.Join(lines[2:], "\n"))
-	return card(icon, "Ticket #"+m[2]+" "+m[3], fields, esc(rest, bodyUnits)),
-		keyboard([]button{btn("🎫 Tickets", "n|tickets"), btn("🤖 Agents", "n|agents")})
 }
 
 // ── menu views ────────────────────────────────────────────────────────────
