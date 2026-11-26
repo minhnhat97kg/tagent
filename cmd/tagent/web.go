@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"net"
 	"os"
+	"syscall"
 	"time"
 
 	"tagent/internal/board"
@@ -89,7 +91,7 @@ func runBackground() {
 // shows that server and retries every second.
 func serveBackground(addr, token string) {
 	dir, _ := os.UserHomeDir()
-	for {
+	for busy := 0; ; {
 		lock, running, err := web.Claim()
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "web:", err)
@@ -104,6 +106,13 @@ func serveBackground(addr, token string) {
 		}
 		showWeb(addr, token)
 		if err := lock.Serve(addr, token, dir, dispatchBoardAction); err != nil {
+			// A server that predates web.lock (or a dying one) can still hold the
+			// port for a few seconds after a reload: retry instead of giving up.
+			if errors.Is(err, syscall.EADDRINUSE) && busy < 15 {
+				busy++
+				time.Sleep(time.Second)
+				continue
+			}
 			fmt.Fprintln(os.Stderr, "web:", err)
 			_, port, _ := net.SplitHostPort(addr)
 			tmux.SetOption("@agent_web_status", "⊗ :"+port)
