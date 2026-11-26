@@ -142,7 +142,7 @@ export function AgentChat({ pane, onOpenTerminal, onUnavailable, project, onSave
     requestAnimationFrame(() => { box.current?.focus(); box.current?.setSelectionRange(next.caret, next.caret) })
   }
 
-  // Enter sends on desktop; Shift+Enter and IME composition keep their normal meaning.
+  // Enter sends, on touch keyboards too; Shift+Enter and IME composition keep their normal meaning.
   const commands = commandMatches(feed?.harness, draft)
   function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
     if (mentions.length && !e.nativeEvent.isComposing) {
@@ -162,7 +162,7 @@ export function AgentChat({ pane, onOpenTerminal, onUnavailable, project, onSave
       }
       if (e.key === "Tab" || (e.key === "Enter" && !e.shiftKey)) { e.preventDefault(); setDraft(commands[pick % commands.length]![0]); return }
     }
-    if (!touch && e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault()
       void send()
     }
@@ -304,6 +304,7 @@ export function AgentChat({ pane, onOpenTerminal, onUnavailable, project, onSave
         onPaste={e => { const picked = Array.from(e.clipboardData.files); if (picked.length) { e.preventDefault(); void attach(picked) } }}
         onDrop={e => { const picked = Array.from(e.dataTransfer.files); if (picked.length) { e.preventDefault(); void attach(picked) } }}
         onDragOver={e => { if (e.dataTransfer.types.includes("Files")) e.preventDefault() }}
+        enterKeyHint="send"
         aria-autocomplete="list" aria-controls={mentions.length ? "agent-mentions" : "agent-commands"}
         onChange={e => { setDraft(e.target.value); setCaret(e.target.selectionStart); setPick(0); setMentionPick(0); setMentionOff(false) }} onKeyDown={onKeyDown} className={composerInput} />
       <Button type="submit" size="icon" aria-label="Send" className={sendButton} disabled={(!draft.trim() && !files.length) || sending || uploading > 0}><ArrowUp /></Button>

@@ -116,6 +116,15 @@ test("Enter sends, Shift+Enter keeps a newline, and IME composition does not sen
   await waitFor(() => expect(input.value).toBe(""))
 })
 
+test("touch devices send on Enter too", async () => {
+  vi.stubGlobal("matchMedia", () => ({ matches: true }))
+  const input = mount()
+  await screen.findByText("Done.")
+  await userEvent.type(input, "hello{Enter}")
+  expect(mocks.post).toHaveBeenCalledWith("/api/pane/send", { pane: "%1", data: "hello" })
+  vi.unstubAllGlobals()
+})
+
 test("a busy agent queues the message and the queue is shown", async () => {
   mocks.post.mockResolvedValue({ queued: true })
   const input = mount()
