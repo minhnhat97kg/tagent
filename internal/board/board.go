@@ -56,7 +56,7 @@ func route(a *Action, r tasks.Role, stepModel string) {
 		c, err = cfg.Select(r.Tier, quotaGet())
 		a.Route = "tier " + r.Tier
 		if c.Reason != "" {
-			a.Route += " (" + c.Reason + ")"
+			a.Route += ": " + c.Reason + " -> " + c.Harness + ":" + c.Model
 		}
 	}
 	if err != nil {

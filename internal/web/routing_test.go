@@ -59,7 +59,7 @@ func TestRoutingAPI(t *testing.T) {
 	// Quota moves the selection to the second candidate; the page only reads it back.
 	snap = quota.Snapshot{Claude: quota.Provider{Five: routingWindowAt(93)}}
 	v = view(request(s, "GET", url, "", true))
-	if v.Tiers[0].Selected != "pi:openai-codex/gpt-6-luna" || !strings.Contains(v.Tiers[0].Reason, "Claude 5h 93%") || v.Tiers[0].Candidates[0].State != "exhausted" {
+	if v.Tiers[0].Selected != "pi:openai-codex/gpt-6-luna" || !strings.Contains(v.Tiers[0].Reason, "claude:haiku 5h 93% >= 80") || v.Tiers[0].Candidates[0].State != "exhausted" {
 		t.Fatalf("tier: %+v", v.Tiers[0])
 	}
 
@@ -90,5 +90,50 @@ func TestRoutingAPI(t *testing.T) {
 	}
 	if after, _ := os.ReadFile(routing.Path()); !strings.Contains(string(after), "my.tier") {
 		t.Fatal("invalid file replaced")
+	}
+}
+
+func TestRoutingAPIPerCandidateThreshold(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	dir := t.TempDir()
+	os.MkdirAll(filepath.Dir(tasks.BoardConfigPath(dir)), 0700)
+	os.WriteFile(tasks.BoardConfigPath(dir), []byte("roles: {dev: {tier: fast}}\n"), 0600)
+	snap := quota.Snapshot{Claude: quota.Provider{Five: routingWindowAt(72)}}
+	s := &server{token: "secret", dir: dir, deps: apiDeps{quota: func() quota.Snapshot { return snap }}}
+	url := "/api/routing?dir=" + dir
+	view := func(w *httptest.ResponseRecorder) routingView {
+		t.Helper()
+		var v routingView
+		if e := json.Unmarshal(w.Body.Bytes(), &v); e != nil {
+			t.Fatal(w.Body.String(), e)
+		}
+		return v
+	}
+
+	w := request(s, "PUT", url, `{"tiers":{"fast":["claude:haiku@70","pi:openai-codex/gpt-6-luna"]}}`, true)
+	v := view(w)
+	if w.Code != 200 || len(v.Tiers) != 1 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	if b, _ := os.ReadFile(routing.Path()); !strings.Contains(string(b), "claude:haiku@70") {
+		t.Fatal("file lost the threshold:", string(b))
+	}
+	c := v.Tiers[0].Candidates
+	if c[0].Until == nil || *c[0].Until != 70 || c[0].Threshold == nil || *c[0].Threshold != 70 || !c[0].Spilled || c[0].Used == nil || *c[0].Used != 72 {
+		t.Fatalf("first candidate: %+v", c[0])
+	}
+	if c[1].Until != nil || c[1].Threshold == nil || *c[1].Threshold != 90 || !c[1].Selected || c[1].Spilled {
+		t.Fatalf("second candidate: %+v", c[1])
+	}
+	if v.Tiers[0].Selected != "pi:openai-codex/gpt-6-luna" || c[0].Selected {
+		t.Fatalf("tier: %+v", v.Tiers[0])
+	}
+
+	before, _ := os.ReadFile(routing.Path())
+	if w = request(s, "PUT", url, `{"tiers":{"fast":["claude:haiku@101"]}}`, true); w.Code != 400 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	if after, _ := os.ReadFile(routing.Path()); string(after) != string(before) {
+		t.Fatal("rejected PUT changed the file")
 	}
 }

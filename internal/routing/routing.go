@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -21,7 +22,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Config maps each tier to its candidates, tried in order as "harness:model".
+// Config maps each tier to its candidates, tried in order as "harness:model" or
+// "harness:model@N": N is the percent at which that candidate is skipped (default: its provider's limit).
 type Config struct {
 	Limits        map[string]float64  `yaml:"limits,omitempty" json:"limits,omitempty"` // percent used that counts as exhausted, per provider
 	WhenExhausted string              `yaml:"when_exhausted,omitempty" json:"when_exhausted,omitempty"`
@@ -31,14 +33,18 @@ type Config struct {
 // Candidate is one harness:model of a tier with what the quota says about it.
 // State is available, exhausted or unknown; unknown counts as available.
 type Candidate struct {
+	Ref            string // as written in the config, with @N
 	Harness, Model string
+	Until          float64  // own threshold; 0 when the candidate has none
+	Threshold      float64  // percent that counts as exhausted; 0 when the provider is unknown
+	Used           *float64 // highest counted window; nil when none is known
 	State, Why     string
 	Reset          time.Time // when the exhausted windows free up; zero if unknown
 }
 
 // Choice is the candidate a dispatch runs. Reason names the candidates skipped for quota.
 type Choice struct {
-	Harness, Model, Reason string
+	Ref, Harness, Model, Reason string
 }
 
 const defaultLimit = 90
@@ -104,7 +110,7 @@ func (c Config) Validate() error {
 			return fmt.Errorf("tier %s: no candidates", tier)
 		}
 		for _, s := range list {
-			if _, _, err := parse(s); err != nil {
+			if _, _, _, err := parse(s); err != nil {
 				return fmt.Errorf("tier %s: %w", tier, err)
 			}
 		}
@@ -112,12 +118,25 @@ func (c Config) Validate() error {
 	return nil
 }
 
-func parse(s string) (harness, model string, err error) {
+// parse splits harness:model[@N]. A trailing @N is a threshold only if it is a short
+// number; otherwise the @ belongs to the model id (e.g. vertex ids). until is 0 when absent.
+func parse(s string) (harness, model string, until float64, err error) {
 	harness, model, ok := strings.Cut(s, ":")
-	if !ok || model == "" || !slices.Contains(harnesses, harness) {
-		return "", "", fmt.Errorf("candidate %q: want claude:MODEL, pi:MODEL or codex:MODEL", s)
+	if !ok || !slices.Contains(harnesses, harness) {
+		return "", "", 0, fmt.Errorf("candidate %q: want claude:MODEL[@1-100], pi:MODEL or codex:MODEL", s)
 	}
-	return harness, model, nil
+	if i := strings.LastIndex(model, "@"); i >= 0 && len(model)-i <= 8 {
+		if v, perr := strconv.ParseFloat(model[i+1:], 64); perr == nil {
+			if !(v >= 1 && v <= 100) {
+				return "", "", 0, fmt.Errorf("candidate %q: threshold must be 1 to 100", s)
+			}
+			until, model = v, model[:i]
+		}
+	}
+	if model == "" {
+		return "", "", 0, fmt.Errorf("candidate %q: want claude:MODEL[@1-100], pi:MODEL or codex:MODEL", s)
+	}
+	return harness, model, until, nil
 }
 
 // provider names the quota a candidate draws on; "" means unknown.
@@ -131,7 +150,7 @@ func provider(harness, model string) string {
 	return ""
 }
 
-// Limit is the percent used that counts as exhausted for provider.
+// Limit is the percent used that counts as exhausted for provider when a candidate has no @N.
 func (c Config) Limit(provider string) float64 {
 	if v, ok := c.Limits[provider]; ok {
 		return v
@@ -149,16 +168,20 @@ func (c Config) Candidates(tier string, snap quota.Snapshot) ([]Candidate, error
 	var out []Candidate
 	now := time.Now()
 	for _, s := range list {
-		h, m, err := parse(s)
+		h, m, until, err := parse(s)
 		if err != nil {
 			return nil, err
 		}
-		cd := Candidate{Harness: h, Model: m, State: "unknown"}
+		cd := Candidate{Ref: s, Harness: h, Model: m, Until: until, State: "unknown"}
 		name := provider(h, m)
 		if name != "" {
-			p, label := snap.Claude, "Claude"
+			cd.Threshold = until
+			if cd.Threshold == 0 {
+				cd.Threshold = c.Limit(name)
+			}
+			p := snap.Claude
 			if name == "codex" {
-				p, label = snap.Codex, "Codex"
+				p = snap.Codex
 			}
 			var parts []string
 			counted := false
@@ -174,8 +197,12 @@ func (c Config) Candidates(tier string, snap quota.Snapshot) ([]Candidate, error
 					continue
 				}
 				counted = true
-				if *w.win.Used >= c.Limit(name) {
-					parts = append(parts, fmt.Sprintf("%s %s %.0f%%", label, w.name, *w.win.Used))
+				if cd.Used == nil || *w.win.Used > *cd.Used {
+					used := *w.win.Used
+					cd.Used = &used
+				}
+				if *w.win.Used >= cd.Threshold {
+					parts = append(parts, fmt.Sprintf("%s %.0f%% >= %g", w.name, *w.win.Used, cd.Threshold))
 					if at.After(cd.Reset) {
 						cd.Reset = at
 					}
@@ -210,12 +237,13 @@ func (c Config) Select(tier string, snap quota.Snapshot) (Choice, error) {
 	var skipped []string
 	for _, cd := range cands {
 		if cd.State != "exhausted" {
-			return Choice{Harness: cd.Harness, Model: cd.Model, Reason: strings.Join(skipped, "; ")}, nil
+			return Choice{Ref: cd.Ref, Harness: cd.Harness, Model: cd.Model, Reason: strings.Join(skipped, "; ")}, nil
 		}
-		skipped = append(skipped, cd.Why)
+		skipped = append(skipped, cd.Harness+":"+cd.Model+" "+cd.Why)
 	}
 	if c.WhenExhausted == "first" {
-		return Choice{Harness: cands[0].Harness, Model: cands[0].Model, Reason: strings.Join(skipped, "; ")}, nil
+		skipped = append(skipped, "all exhausted, running first")
+		return Choice{Ref: cands[0].Ref, Harness: cands[0].Harness, Model: cands[0].Model, Reason: strings.Join(skipped, "; ")}, nil
 	}
 	var earliest time.Time
 	for _, cd := range cands {

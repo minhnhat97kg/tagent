@@ -45,7 +45,7 @@ type Event struct {
 	Model    string            `json:"model,omitempty"`
 	Effort   string            `json:"effort,omitempty"`
 	Tier     string            `json:"tier,omitempty"`
-	Route    string            `json:"route,omitempty"` // why this harness and model: "tier fast (Claude 5h 93%)"
+	Route    string            `json:"route,omitempty"` // why this harness and model: "tier fast: claude:haiku 5h 93% >= 90 -> pi:openai-codex/gpt-6-luna"
 	Pane     string            `json:"pane,omitempty"`
 	PaneName string            `json:"pane_name,omitempty"`
 	Prompt   string            `json:"prompt,omitempty"` // CapText'd

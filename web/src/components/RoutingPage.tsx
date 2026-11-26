@@ -94,7 +94,18 @@ export function RoutingPage({ dir }: { dir: string }) {
                 {t.candidates.map((c, i) => <li key={`${i}-${c.ref}`} className="flex flex-wrap items-center gap-2 text-[12.5px]">
                   <span className="font-mono">{c.ref}</span>
                   <span className="text-muted-foreground">{c.state}{c.why ? ` · ${c.why}` : ""}</span>
-                  {c.ref === t.selected && <span className="rounded bg-emerald-100 px-1.5 text-[11px] text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">selected</span>}
+                  {c.threshold !== null && <label className="flex items-center gap-1 text-muted-foreground">Until %
+                    <input type="number" min={1} max={100} aria-label={`${c.ref} threshold`} placeholder={String(c.threshold)} defaultValue={c.until ?? ""} key={c.ref} disabled={busy}
+                      className="w-14 rounded border bg-background p-1 text-right text-[12px] tabular-nums disabled:opacity-60"
+                      onBlur={e => {
+                        const text = e.currentTarget.value.trim()
+                        if (text === (c.until === null ? "" : String(c.until))) return
+                        const base = c.until === null ? c.ref : c.ref.slice(0, c.ref.lastIndexOf("@"))
+                        void setTier(t.name, refs.map((r, j) => j === i ? (text === "" ? base : `${base}@${text}`) : r))
+                      }}
+                      onKeyDown={e => { if (e.key === "Enter") e.currentTarget.blur() }} />
+                  </label>}
+                  {c.selected && <span className="rounded bg-emerald-100 px-1.5 text-[11px] text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">selected</span>}
                   <span className="ml-auto flex gap-0.5">
                     <Button size="icon-xs" variant="ghost" aria-label={`Move ${c.ref} up`} disabled={busy || i === 0} onClick={() => { const r = [...refs]; [r[i - 1], r[i]] = [r[i], r[i - 1]]; void setTier(t.name, r) }}><ArrowUp /></Button>
                     <Button size="icon-xs" variant="ghost" aria-label={`Move ${c.ref} down`} disabled={busy || i === refs.length - 1} onClick={() => { const r = [...refs]; [r[i + 1], r[i]] = [r[i], r[i + 1]]; void setTier(t.name, r) }}><ArrowDown /></Button>
@@ -141,7 +152,7 @@ function CandidateForm({ label, withName, disabled, models, onSubmit }: {
         {harnesses.map(h => <option key={h} value={h}>{h}</option>)}
       </select></label>
     <label className="font-medium">Model
-      <input aria-label={`${label} model`} list={listId} className={`${fieldClass} ml-1 w-56`} disabled={disabled} value={model} placeholder="model id" onChange={e => setModel(e.target.value)} />
+      <input aria-label={`${label} model`} list={listId} className={`${fieldClass} ml-1 w-56`} disabled={disabled} value={model} placeholder="model id[@until]" onChange={e => setModel(e.target.value)} />
       <datalist id={listId}>{list.map(m => <option key={m} value={m} />)}</datalist></label>
     <Button type="submit" size="xs" variant="outline" disabled={disabled || !model.trim() || (!!withName && !name.trim())}><Plus />{label}</Button>
   </form>

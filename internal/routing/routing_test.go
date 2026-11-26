@@ -32,7 +32,7 @@ func TestSelectByQuota(t *testing.T) {
 		wantReasonIn string
 	}{
 		{"under limit takes first", snap(10, 0), "claude", "haiku", ""},
-		{"claude over limit falls to codex", snap(93, 10), "pi", "openai-codex/gpt-6-luna", "Claude 5h 93%"},
+		{"claude over limit falls to codex", snap(93, 10), "pi", "openai-codex/gpt-6-luna", "claude:haiku 5h 93% >= 90"},
 		{"unknown counts as available", quota.Snapshot{}, "claude", "haiku", ""},
 	}
 	for _, tt := range tests {
@@ -72,7 +72,7 @@ func TestCodexMappingFromPi(t *testing.T) {
 
 func TestBlockWhenAllExhausted(t *testing.T) {
 	_, err := fast.Select("fast", snap(95, 95))
-	if err == nil || !strings.Contains(err.Error(), "Claude 5h 95%") || !strings.Contains(err.Error(), "earliest reset") {
+	if err == nil || !strings.Contains(err.Error(), "claude:haiku 5h 95% >= 90") || !strings.Contains(err.Error(), "earliest reset") {
 		t.Fatalf("err %v", err)
 	}
 }
@@ -142,5 +142,90 @@ func TestSaveRoundTripAndRejects(t *testing.T) {
 	}
 	if after, _ := os.ReadFile(Path()); string(after) != string(before) {
 		t.Fatal("rejected save changed the file")
+	}
+}
+
+func TestParseThreshold(t *testing.T) {
+	for _, s := range []string{"claude:opus", "claude:opus@70", "claude:opus@1", "claude:opus@100", "pi:vertex/x@20250514", "pi:vertex/x@20250514@70"} {
+		if _, _, _, err := parse(s); err != nil {
+			t.Errorf("%s: %v", s, err)
+		}
+	}
+	for _, s := range []string{"claude:opus@0", "claude:opus@0.5", "claude:opus@101", "claude:opus@-1", "claude:opus@NaN", "claude:@70", "claude:"} {
+		if _, _, _, err := parse(s); err == nil {
+			t.Errorf("%s: want error", s)
+		}
+	}
+	if h, m, u, _ := parse("pi:vertex/x@20250514@70"); h != "pi" || m != "vertex/x@20250514" || u != 70 {
+		t.Fatalf("got %s %s %v", h, m, u)
+	}
+}
+
+func TestThresholdSpill(t *testing.T) {
+	smart := Config{Limits: map[string]float64{"claude": 80}, Tiers: map[string][]string{"smart": {"claude:opus@70", "pi:openai-codex/gpt-6.1-sol"}}}
+	weekOnly := quota.Snapshot{Claude: quota.Provider{Five: window(10), Week: window(75)}}
+	for _, tt := range []struct {
+		name string
+		snap quota.Snapshot
+		want string
+	}{
+		{"under threshold stays", snap(69, 0), "claude:opus@70"},
+		{"at threshold spills", snap(70, 0), "pi:openai-codex/gpt-6.1-sol"},
+		{"7d alone spills", weekOnly, "pi:openai-codex/gpt-6.1-sol"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			c, err := smart.Select("smart", tt.snap)
+			if err != nil || c.Ref != tt.want {
+				t.Fatalf("got %+v %v", c, err)
+			}
+		})
+	}
+	if c, _ := smart.Select("smart", snap(70, 0)); c.Reason != "claude:opus 5h 70% >= 70" {
+		t.Fatalf("got %+v", c)
+	}
+	cands, _ := smart.Candidates("smart", snap(85, 0))
+	if cands[0].Threshold != 70 || cands[0].Used == nil || *cands[0].Used != 85 || cands[1].Threshold != 90 {
+		t.Fatalf("candidates %+v", cands)
+	}
+	// own threshold beats the provider limit: 93 stays on @95 although limits say 80
+	high := Config{Limits: map[string]float64{"claude": 80}, Tiers: map[string][]string{"x": {"claude:haiku@95"}}}
+	if c, err := high.Select("x", snap(93, 0)); err != nil || c.Ref != "claude:haiku@95" || c.Model != "haiku" {
+		t.Fatalf("got %+v %v", c, err)
+	}
+	// no threshold: 85 is past limits 80, so it spills
+	plain := Config{Limits: map[string]float64{"claude": 80}, Tiers: map[string][]string{"x": {"claude:opus", "pi:openai-codex/gpt-6.1-sol"}}}
+	if c, _ := plain.Select("x", snap(85, 0)); c.Ref != "pi:openai-codex/gpt-6.1-sol" {
+		t.Fatalf("limit fallback: got %+v", c)
+	}
+}
+
+func TestFirstFallbackReason(t *testing.T) {
+	cfg := Config{WhenExhausted: "first", Tiers: map[string][]string{"fast": {"claude:haiku", "pi:openai-codex/gpt-6-luna"}}}
+	c, err := cfg.Select("fast", snap(95, 95))
+	if err != nil || c.Ref != "claude:haiku" || c.Reason != "claude:haiku 5h 95% >= 90; pi:openai-codex/gpt-6-luna 5h 95% >= 90; all exhausted, running first" {
+		t.Fatalf("got %+v %v", c, err)
+	}
+}
+
+func TestThresholdRoundTripKeepsOldFiles(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	path := filepath.Join(dir, "tagent", "routing.yaml")
+	os.MkdirAll(filepath.Dir(path), 0700)
+	os.WriteFile(path, []byte("tiers:\n  fast:\n    - claude:haiku\n    - pi:openai-codex/gpt-6-luna\n"), 0600)
+	c, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.Tiers["fast"][0] = "claude:haiku@70"
+	if err := Save(c); err != nil {
+		t.Fatal(err)
+	}
+	c, err = Load()
+	if err != nil || c.Tiers["fast"][0] != "claude:haiku@70" || c.Tiers["fast"][1] != "pi:openai-codex/gpt-6-luna" {
+		t.Fatalf("got %+v %v", c, err)
+	}
+	if err := Save(Config{Tiers: map[string][]string{"fast": {"claude:haiku@101"}}}); err == nil {
+		t.Fatal("want error for @101")
 	}
 }

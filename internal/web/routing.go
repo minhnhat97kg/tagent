@@ -24,9 +24,14 @@ type routingProvider struct {
 }
 
 type routingCandidate struct {
-	Ref   string `json:"ref"`
-	State string `json:"state"`
-	Why   string `json:"why"`
+	Ref       string   `json:"ref"`
+	State     string   `json:"state"`
+	Why       string   `json:"why"`
+	Until     *float64 `json:"until"`     // own threshold from @N; null = inherits the provider limit
+	Threshold *float64 `json:"threshold"` // percent that spills; null = provider unknown
+	Used      *float64 `json:"used"`      // highest counted window; null = no reading
+	Selected  bool     `json:"selected"`
+	Spilled   bool     `json:"spilled"`
 }
 
 type routingTier struct {
@@ -105,12 +110,25 @@ func (s *server) routingState(dir string) routingView {
 		}
 		cands, _ := cfg.Candidates(name, snap)
 		for _, c := range cands {
-			t.Candidates = append(t.Candidates, routingCandidate{Ref: c.Harness + ":" + c.Model, State: c.State, Why: c.Why})
+			rc := routingCandidate{Ref: c.Ref, State: c.State, Why: c.Why, Used: c.Used, Spilled: c.State == "exhausted"}
+			if c.Until != 0 {
+				rc.Until = &c.Until
+			}
+			if c.Threshold != 0 {
+				rc.Threshold = &c.Threshold
+			}
+			t.Candidates = append(t.Candidates, rc)
 		}
 		if choice, err := cfg.Select(name, snap); err != nil {
 			t.Reason = err.Error()
 		} else {
-			t.Selected, t.Reason = choice.Harness+":"+choice.Model, choice.Reason
+			t.Selected, t.Reason = choice.Ref, choice.Reason
+			for i := range t.Candidates {
+				if t.Candidates[i].Ref == choice.Ref {
+					t.Candidates[i].Selected = true
+					break
+				}
+			}
 		}
 		v.Tiers = append(v.Tiers, t)
 	}

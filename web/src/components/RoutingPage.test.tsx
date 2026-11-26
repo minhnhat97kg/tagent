@@ -20,8 +20,8 @@ const base: RoutingView = {
   tiers: [{
     name: "fast", usedBy: ["dev"], selected: "claude:haiku", reason: "",
     candidates: [
-      { ref: "claude:haiku", state: "available", why: "" },
-      { ref: "pi:openai-codex/gpt-6-luna", state: "unknown", why: "" },
+      { ref: "claude:haiku", state: "available", why: "", until: null, threshold: 90, used: 10, selected: true, spilled: false },
+      { ref: "pi:openai-codex/gpt-6-luna", state: "unknown", why: "", until: null, threshold: 90, used: null, selected: false, spilled: false },
     ],
   }],
 }
@@ -92,6 +92,25 @@ test("saves a changed threshold and when_exhausted", async () => {
   expect(lastPut().when_exhausted).toBe("first")
 })
 
+test("sets a candidate's own threshold", async () => {
+  render(<RoutingPage dir="/repo" />)
+  const until = await screen.findByLabelText("claude:haiku threshold")
+  fireEvent.change(until, { target: { value: "70" } })
+  fireEvent.blur(until)
+  await waitFor(() => expect(mocks.send).toHaveBeenCalledTimes(1))
+  expect(lastPut().tiers.fast).toEqual(["claude:haiku@70", "pi:openai-codex/gpt-6-luna"])
+})
+
+test("clears a candidate's own threshold back to the provider limit", async () => {
+  current.tiers[0].candidates[0] = { ...current.tiers[0].candidates[0], ref: "claude:haiku@70", until: 70, threshold: 70 }
+  render(<RoutingPage dir="/repo" />)
+  const until = await screen.findByLabelText("claude:haiku@70 threshold")
+  fireEvent.change(until, { target: { value: "" } })
+  fireEvent.blur(until)
+  await waitFor(() => expect(mocks.send).toHaveBeenCalledTimes(1))
+  expect(lastPut().tiers.fast).toEqual(["claude:haiku", "pi:openai-codex/gpt-6-luna"])
+})
+
 test("an empty threshold is not saved as 0", async () => {
   render(<RoutingPage dir="/repo" />)
   const limit = await screen.findByLabelText("Claude limit") as HTMLInputElement
@@ -105,8 +124,10 @@ test("the selected marker follows the quota poll", async () => {
   render(<RoutingPage dir="/repo" />)
   await screen.findByText("selected")
   current.tiers[0].selected = "pi:openai-codex/gpt-6-luna"
-  current.tiers[0].reason = "Claude 5h 93%"
-  await waitFor(() => expect(screen.getByText("Skipped for quota: Claude 5h 93%")).toBeTruthy(), { timeout: 4500 })
+  current.tiers[0].candidates[0].selected = false
+  current.tiers[0].candidates[1].selected = true
+  current.tiers[0].reason = "claude:haiku 5h 93% >= 90"
+  await waitFor(() => expect(screen.getByText("Skipped for quota: claude:haiku 5h 93% >= 90")).toBeTruthy(), { timeout: 4500 })
   expect(screen.getAllByText("selected")).toHaveLength(1)
 })
 

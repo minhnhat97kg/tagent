@@ -53,8 +53,19 @@ func TestTierRoleFollowsQuota(t *testing.T) {
 	if a.Role != "pi" || a.Model != "openai-codex/gpt-6-luna" || a.Tier != "fast" {
 		t.Fatalf("%+v", a)
 	}
-	if !strings.Contains(a.Route, "tier fast (Claude 5h 93%)") || a.Effort != "minimal" {
+	if !strings.Contains(a.Route, "tier fast: claude:haiku 5h 93% >= 90 -> pi:openai-codex/gpt-6-luna") || a.Effort != "minimal" {
 		t.Fatalf("route %q effort %q", a.Route, a.Effort)
+	}
+}
+
+func TestTierOwnThresholdRoute(t *testing.T) {
+	routeCase(t, "tiers:\n  smart: [claude:opus@70, pi:openai-codex/gpt-6.1-sol]\n", claudeFull(72))
+	a := tierAction(t, "roles: {implementer: {tier: smart}}")
+	if a.Role != "pi" || a.Model != "openai-codex/gpt-6.1-sol" {
+		t.Fatalf("%+v", a)
+	}
+	if want := "tier smart: claude:opus 5h 72% >= 70 -> pi:openai-codex/gpt-6.1-sol"; a.Route != want {
+		t.Fatalf("route %q, want %q", a.Route, want)
 	}
 }
 
@@ -81,7 +92,7 @@ func TestTierBlocksWhenAllExhausted(t *testing.T) {
 	snap.Codex = quota.Provider{Five: quota.Window{Used: snap.Claude.Five.Used}}
 	routeCase(t, tierRouting, snap)
 	a := tierAction(t, "roles: {implementer: {tier: fast}}")
-	if !strings.Contains(a.BlockReason, "Claude 5h 95%") || a.Trigger != -1 {
+	if !strings.Contains(a.BlockReason, "claude:haiku 5h 95% >= 90") || a.Trigger != -1 {
 		t.Fatalf("%+v", a)
 	}
 }

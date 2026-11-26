@@ -86,7 +86,11 @@ export interface Project {
 
 // RoutingView is /api/routing: the account's routing.yaml with quota and selection computed by the server.
 export interface RoutingWindow { usedPercent: number | null; resetsAt: string | null }
-export interface RoutingCandidate { ref: string; state: string; why: string }
+export interface RoutingCandidate {
+  ref: string; state: string; why: string
+  until: number | null; threshold: number | null; used: number | null
+  selected: boolean; spilled: boolean
+}
 export interface RoutingTier { name: string; usedBy: string[]; candidates: RoutingCandidate[]; selected: string; reason: string }
 export interface RoutingView {
   path: string
