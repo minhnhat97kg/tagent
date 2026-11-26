@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"tagent/internal/queue"
+	"tagent/internal/roles"
 	"tagent/internal/tasks"
 	"tagent/internal/tmux"
 )
@@ -104,7 +105,8 @@ func cmdChat(args []string, stdout, stderr io.Writer) int {
 }
 
 func chatHarness(agent string) bool {
-	return agent == "" || agent == "claude" || agent == "pi"
+	h := roles.Harness(agent)
+	return h == "claude" || h == "pi"
 }
 
 // sendTicketContext types into an idle pane; a busy or waiting pane gets the

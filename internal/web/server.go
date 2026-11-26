@@ -27,6 +27,7 @@ import (
 
 	"tagent/internal/agents"
 	"tagent/internal/board"
+	"tagent/internal/roles"
 	"tagent/internal/scrape"
 	"tagent/internal/tasks"
 	"tagent/internal/tmux"
@@ -247,7 +248,7 @@ func (s *server) state(w http.ResponseWriter, r *http.Request) {
 	projects := board.Workspaces(paths...)
 	host, _ := os.Hostname()
 	compact, _ := tmux.GetOption("@agent_compact")
-	writeJSON(w, map[string]any{"agents": list, "projects": projects, "host": host, "compact": compact == "on", "harnesses": []string{"claude", "codex", "opencode", "gemini", "pi", "copilot", "amp"}, "models": agents.Models()})
+	writeJSON(w, map[string]any{"agents": list, "projects": projects, "host": host, "compact": compact == "on", "harnesses": roles.HarnessNames(), "models": agents.Models()})
 }
 
 var paneRe = regexp.MustCompile(`^%\d+$`)

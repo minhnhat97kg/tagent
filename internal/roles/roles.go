@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -29,7 +30,18 @@ type Definition struct {
 // legacyHarnesses are the directories read for compatibility, in priority order.
 var legacyHarnesses = []string{"claude", "codex", "opencode"}
 
+// Harness is the kind of agent command runs ("claude", "pi", …); a name from
+// harnesses.yml counts as the command it runs.
 func Harness(command string) string {
+	// ponytail: reads harnesses.yml per non-built-in lookup; cache if it shows in a profile.
+	if command != "" && !slices.Contains(builtinHarnesses, command) {
+		list, _ := LoadHarnesses()
+		for _, h := range list {
+			if h.Name == command && h.Command != "" {
+				command = h.Command
+			}
+		}
+	}
 	fields := strings.Fields(command)
 	if len(fields) == 0 {
 		return "claude"

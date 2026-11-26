@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"tagent/internal/roles"
 	"tagent/internal/settings"
 
 	"tagent/internal/tmux"
@@ -61,7 +62,7 @@ var Settings = []Setting{
 	{Key: "@agent_notice_seconds", Group: "Sidebar", Label: "Notice shown for (seconds)", TUIOnly: true, Kind: Int, Default: "10", Min: 1, Max: 600, Help: "how long a result or error line stays at the bottom of the board"},
 	{Key: "@sidebar_auto_create", Group: "Sidebar", Label: "Auto-create in new windows", TUIOnly: true, Kind: Bool, Default: "on"},
 	{Key: "@agent-sidebar-default-agent", Group: "Agents", Label: "Default agent for `new`", Kind: Preset, Default: "claude",
-		Choices: []string{"claude", "codex", "pi", "opencode", "gemini", "copilot", "amp"}},
+		Choices: roles.HarnessNames()},
 	{Key: "@agent_model", Group: "Agents", Label: "Model for `new`", Kind: Text, Help: "passed as --model to the selected harness; empty uses harness default"},
 	{Key: "@agent_claude_flags", Group: "Agents", Label: "Extra flags for claude agents", Kind: Text, Help: "appended to every claude launch, e.g. --strict-mcp-config (no MCP servers); empty = none"},
 	{Key: "@agent_stuck_minutes", Group: "Agents", Label: "Stuck after (minutes)", Kind: Int, Default: "10", Min: 1, Max: 240},

@@ -190,6 +190,21 @@ job flow beside its list.
 
 Run `tagent help` to see the commands and the agents defined in the current repo.
 
+The harness list in **New agent** comes from `~/.config/tagent/harnesses.yml`; without
+the file it is the built-in list. An entry runs `command` (default: its `name`) with its
+`args` and `env`. Shell aliases do not work as `command`; spell them out. Restart the web server after editing it.
+
+```yaml
+harnesses:
+  - name: claude                          # the binary to run
+    args: [--permission-mode, auto]
+  - name: Claude API                      # a second setup of the same binary
+    command: claude
+    env:
+      CLAUDE_CONFIG_DIR: ~/.claude-api
+  - name: pi
+```
+
 | Command | Does |
 |---|---|
 | `tagent new --repo-agent <name> [--name <pane-name>] [--agent claude\|codex\|opencode] [--model model] [--worktree] [--ticket id]` | Start a repo agent defined in the selected harness's native format; harness/model are chosen by tagent config or flags. `--ticket` binds the pane to a ticket, as `tagent chat` does |

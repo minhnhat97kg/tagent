@@ -3,12 +3,15 @@ package agents
 import (
 	"context"
 	"encoding/json"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
+
+	"tagent/internal/roles"
 )
 
 // Models is what each harness reports as its own model list; the web and the TUI
@@ -24,7 +27,14 @@ func Models() map[string][]string {
 		modelBusy = true
 		go refreshModels()
 	}
-	return modelCache
+	out := maps.Clone(modelCache)
+	harnesses, _ := roles.LoadHarnesses()
+	for _, h := range harnesses {
+		if list := modelCache[roles.Harness(h.Name)]; h.Command != "" && len(list) > 0 {
+			out[h.Name] = list
+		}
+	}
+	return out
 }
 
 const modelTTL = 10 * time.Minute

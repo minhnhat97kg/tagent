@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"tagent/internal/agents"
+	"tagent/internal/roles"
 )
 
 // The N form in the Agents pane: the same fields the web's New agent composer
@@ -358,6 +359,7 @@ func (m Model) newAgentCwd() string {
 
 // defaultNewAgentHarness is the configured harness's row, else the first one.
 func (m Model) defaultNewAgentHarness() int {
+	newAgentChoices = roles.HarnessNames() // pick up edits to harnesses.yml
 	for i, h := range newAgentChoices {
 		if h == m.agentHarness() {
 			return i

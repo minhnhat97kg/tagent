@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 
+	"tagent/internal/roles"
 	"tagent/internal/tasks"
 	"tagent/internal/tmux"
 )
@@ -97,7 +98,8 @@ func (s *server) lockTicketChat(key string) func() {
 }
 
 func ticketChatHarness(agent string) bool {
-	return agent == "" || agent == "claude" || agent == "pi"
+	h := roles.Harness(agent) // "" is claude
+	return h == "claude" || h == "pi"
 }
 
 func findTicketPane(panes []tmux.TicketPane, key string) (tmux.TicketPane, bool) {

@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+
+	"tagent/internal/roles"
 )
 
 const discoveryEntries = 4096
@@ -81,6 +83,15 @@ func Find(ctx context.Context, harness, sessionID string) string {
 		return ""
 	}
 	path, _ := Locate(ctx, root, suffix)
+	if path == "" && harness == "claude" {
+		// A harnesses.yml entry may point claude at another config directory.
+		list, _ := roles.LoadHarnesses()
+		for _, h := range list {
+			if dir := h.Env["CLAUDE_CONFIG_DIR"]; dir != "" && path == "" {
+				path, _ = Locate(ctx, filepath.Join(dir, "projects"), suffix)
+			}
+		}
+	}
 	return path
 }
 

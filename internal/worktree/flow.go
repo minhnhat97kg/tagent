@@ -7,6 +7,8 @@ import (
 	"os/exec"
 	"strings"
 
+	"tagent/internal/roles"
+	"tagent/internal/setup"
 	"tagent/internal/tmux"
 )
 
@@ -40,6 +42,10 @@ func Spawn(req *SpawnRequest) (string, error) {
 // would leave an orphaned branch that collides with the next spawn.
 func spawnWith(env SpawnEnv, req *SpawnRequest) (string, error) {
 	repo := req.RepoRoot
+	spec, err := roles.ResolveHarness(req.Agent)
+	if err != nil {
+		return "", err
+	}
 	unique, branch, worktreePath, err := prepareWorktree(env, repo, req.TaskName)
 	if err != nil {
 		return "", err
@@ -67,7 +73,18 @@ func spawnWith(env SpawnEnv, req *SpawnRequest) (string, error) {
 		}
 	}
 
-	if err := env.SendCommand(paneID, AgentCommand(req.Agent, req.Mode, claudeFlags())); err != nil {
+	command := AgentCommand(spec.Command, req.Mode, claudeFlags())
+	for _, a := range spec.Args {
+		command += " " + setup.ShellQuote(a)
+	}
+	if words := spec.EnvAssignments(); len(words) > 0 {
+		prefix := "env"
+		for _, w := range words {
+			prefix += " " + setup.ShellQuote(w)
+		}
+		command = prefix + " " + command
+	}
+	if err := env.SendCommand(paneID, command); err != nil {
 		rb := rollbackSpawn(env, repo, worktreePath, branch, windowID)
 		return "", composeSpawnError(fmt.Errorf("tmux: %w", err), rb)
 	}

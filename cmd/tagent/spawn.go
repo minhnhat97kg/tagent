@@ -115,6 +115,11 @@ func spawnAgent(o spawnOpts) (pane, warn string, err error) {
 			o.Agent = "claude"
 		}
 	}
+	spec, err := roles.ResolveHarness(o.Agent)
+	if err != nil {
+		return "", "", err
+	}
+	o.Agent = spec.Command
 	effortArgs, err := nativeEffortArgs(roles.Harness(o.Agent), o.Effort)
 	if err != nil {
 		return "", "", err
@@ -154,7 +159,7 @@ func spawnAgent(o spawnOpts) (pane, warn string, err error) {
 	if err != nil {
 		return "", "", err
 	}
-	args := append(append(append([]string(nil), o.Args...), effortArgs...), contextArgs...)
+	args := append(append(append(append([]string(nil), spec.Args...), o.Args...), effortArgs...), contextArgs...)
 	if isClaude(o.Agent) {
 		flags, _ := tmux.GetOption("@agent_claude_flags")
 		args = append(args, strings.Fields(flags)...)
@@ -199,7 +204,7 @@ func spawnAgent(o spawnOpts) (pane, warn string, err error) {
 			args = append(args, "-c", "developer_instructions="+strconv.Quote(text))
 		}
 	}
-	command := roleEnv + setup.ShellQuote(o.Agent)
+	command := envPrefix(spec) + roleEnv + setup.ShellQuote(o.Agent)
 	for _, a := range args {
 		command += " " + setup.ShellQuote(a)
 	}
@@ -261,6 +266,19 @@ func spawnAgent(o spawnOpts) (pane, warn string, err error) {
 		return "", "", errors.New(warn)
 	}
 	return pane, warn, nil
+}
+
+// envPrefix sets the harness's configured environment on its command line.
+func envPrefix(spec roles.HarnessSpec) string {
+	words := spec.EnvAssignments()
+	if len(words) == 0 {
+		return ""
+	}
+	prefix := "env "
+	for _, w := range words {
+		prefix += setup.ShellQuote(w) + " "
+	}
+	return prefix
 }
 
 // nativeEffortArgs preserves the requested level; model support is checked by the harness.

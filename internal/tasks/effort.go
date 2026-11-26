@@ -3,6 +3,8 @@ package tasks
 import (
 	"fmt"
 	"slices"
+
+	"tagent/internal/roles"
 )
 
 // ValidateEffort checks known spellings and builtin harness compatibility.
@@ -10,6 +12,9 @@ import (
 func ValidateEffort(harness, effort string) error {
 	if effort == "" {
 		return nil
+	}
+	if harness != "" {
+		harness = roles.Harness(harness)
 	}
 	levels := []string{"off", "none", "minimal", "low", "medium", "high", "xhigh", "max"}
 	switch harness {

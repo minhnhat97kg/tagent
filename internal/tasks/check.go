@@ -8,9 +8,6 @@ import (
 	"tagent/internal/workflow"
 )
 
-// harnesses are the agents tagent can run in a pane.
-var harnesses = map[string]bool{"claude": true, "codex": true, "pi": true, "opencode": true, "gemini": true, "copilot": true, "amp": true}
-
 // CheckBoard lists what is wrong with the board and its workflows, one plain
 // line each: a role on an unsupported agent, a workflow that does not parse,
 // a job whose agent is unknown, a job status that sits in the todo, blocked or
@@ -19,7 +16,7 @@ var harnesses = map[string]bool{"claude": true, "codex": true, "pi": true, "open
 func CheckBoard(dir string, cfg BoardConfig) []string {
 	var out []string
 	for name, r := range cfg.Roles {
-		if r.Tier == "" && !harnesses[r.Agent] {
+		if r.Tier == "" && !roles.KnownHarness(r.Agent) {
 			out = append(out, fmt.Sprintf("role %s: unsupported agent %q", name, r.Agent))
 		}
 	}

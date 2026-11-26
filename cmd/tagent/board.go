@@ -107,8 +107,6 @@ func ensureStarterWorkflow(dir string) error {
 	return os.WriteFile(path, []byte(workflow.Template("feature")), 0600)
 }
 
-var harnesses = map[string]bool{"claude": true, "codex": true, "pi": true, "opencode": true, "gemini": true, "copilot": true, "amp": true}
-
 func dispatchBoardAction(a board.Action) error {
 	scope := tasks.Scope(a.Dir)
 	if a.Close {
@@ -240,7 +238,7 @@ func dispatchBoardAction(a board.Action) error {
 				return err
 			}
 		}
-		if harnesses[target] {
+		if roles.KnownHarness(target) {
 			o.Agent = target
 		} else {
 			o.Role = target
@@ -249,12 +247,12 @@ func dispatchBoardAction(a board.Action) error {
 		// the harness itself; every other role gets them in this prompt.
 		mainRoot := tasks.MainRoot(a.Dir)
 		harness := target
-		if !harnesses[harness] {
+		if !roles.KnownHarness(harness) {
 			harness = roleHarness(mainRoot, target)
 		}
 		// Only a role started as o.Role can have its file handed to the harness
 		// (--agent, developer_instructions); a board entry starts o.Agent directly.
-		if text := roleInstructions(mainRoot, a.Agent, harness, !harnesses[target] && remote.Host == ""); text != "" {
+		if text := roleInstructions(mainRoot, a.Agent, harness, !roles.KnownHarness(target) && remote.Host == ""); text != "" {
 			a.Prompt = withRoleInstructions(a.Agent, text, a.Prompt)
 			o.PromptHasRole = true
 		}
@@ -281,7 +279,7 @@ func dispatchBoardAction(a board.Action) error {
 	// the audit line below still records delivery.
 	if a.Event.Task != "" {
 		harness := tmux.GetPaneOptionValue(pane, tmux.PaneAgent)
-		if harness == "" && harnesses[a.Role] {
+		if harness == "" && roles.KnownHarness(a.Role) {
 			harness = a.Role
 		}
 		_ = tasks.RecordDispatch(scope, a.Event.Task, tasks.Event{To: a.Event.To, Role: a.Agent, Harness: harness, Model: a.Model, Effort: a.Effort, Tier: a.Tier, Route: a.Route, Pane: pane, PaneName: tmux.GetPaneOptionValue(pane, tmux.PaneName), Prompt: tasks.CapText(a.Prompt, 8000)})

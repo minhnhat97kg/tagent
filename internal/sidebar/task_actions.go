@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"strings"
 	"tagent/internal/board"
+	"tagent/internal/roles"
 	"tagent/internal/tasks"
 	"tagent/internal/tmux"
 	"time"
@@ -15,9 +16,10 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-// newAgentChoices mirrors the harness list the web serves in /api/state, in
-// the same order (the form's harness row cycles through it).
-var newAgentChoices = []string{"claude", "codex", "opencode", "gemini", "pi", "copilot", "amp"}
+// newAgentChoices is the harness list the web serves in /api/state, in the same
+// order (the form's harness row cycles through it).
+// It is re-read each time the form opens.
+var newAgentChoices = roles.HarnessNames()
 
 type taskActionMsg struct{ Text string }
 

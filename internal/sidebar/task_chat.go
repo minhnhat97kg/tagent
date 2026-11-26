@@ -12,6 +12,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
 
+	"tagent/internal/roles"
 	"tagent/internal/tasks"
 	"tagent/internal/tmux"
 	"tagent/internal/transcript"
@@ -133,7 +134,10 @@ func ticketChatPane(panes []tmux.TicketPane, key string) (tmux.TicketPane, bool)
 	return found, ok
 }
 
-func chatHarness(agent string) bool { return agent == "claude" || agent == "pi" }
+func chatHarness(agent string) bool {
+	h := roles.Harness(agent)
+	return agent != "" && (h == "claude" || h == "pi")
+}
 
 // startTicketChat spawns the ticket's chat through `tagent chat`, which owns the
 // @pane_ticket binding, the reused pane and the first-message context.
