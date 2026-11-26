@@ -1,5 +1,5 @@
 #!/bin/sh
-# ship: verify, commit, build and reload.
+# ship: verify, commit, merge into main, build and reload.
 #   scripts/ship.sh "commit message"   (no message needed when there is nothing to commit)
 # It commits every change in the checkout, so check `git status` first when others share it.
 set -eu
@@ -18,6 +18,12 @@ if [ -n "$(git status --porcelain)" ]; then
   git add -A
   git diff --cached --stat
   git commit -q -m "$msg"
+fi
+
+if [ "$(git branch --show-current)" != main ]; then
+  echo "== merge into main"
+  # Fast-forward only, without leaving this branch. Does not push.
+  git fetch -q . HEAD:main || echo "ship: WARNING: main not merged (not a fast-forward, or checked out elsewhere)"
 fi
 
 echo "== build"
