@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest"
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { TasksPane } from "./TasksPane"
+import { TaskDrawer } from "@/components/Board"
 import type { Project } from "@/types"
 
 // The real board and drawer run here.
@@ -69,4 +70,17 @@ test("Escape in the chat pane leaves the drawer open; Escape elsewhere closes it
   expect(screen.getByRole("dialog")).toBeTruthy()
   fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" })
   expect(screen.queryByRole("dialog")).toBeNull()
+})
+
+test("opening a ticket in another drawer closes the pane's, so two never stack", () => {
+  width = 600
+  const other = (id?: string) => <>
+    <TasksPane proj={proj} dir="/p" reload={() => {}} />
+    <TaskDrawer proj={proj} dir="/p" reload={() => {}} id={id} onClose={() => {}} origin={{ current: null }} />
+  </>
+  const { rerender } = render(other())
+  openFromList()
+  expect(screen.getAllByRole("dialog")).toHaveLength(1)
+  rerender(other("1"))
+  expect(screen.getAllByRole("dialog")).toHaveLength(1)
 })

@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { KanbanSquare, MessageSquare, Search, Settings } from "lucide-react"
 import { toast } from "sonner"
 import { Avatar, BoardDrawer, needState, priorityMark, priorityRank, shortId, statusColor, title } from "./BoardDrawer"
@@ -21,11 +21,21 @@ export function TaskDetail({ proj, dir, reload, id, onOpen, initialReply = '' }:
   return <BoardDrawer key={selected.id + initialReply} initialReply={initialReply} project={proj} workflows={proj?.workflows ?? []} task={selected} statuses={statuses.map(s => s.id)} roles={roles} role={role(selected)} reason={proj?.blockedReasons?.[selected.id]} dir={dir} reload={reload} onOpen={onOpen} />
 }
 
-// TaskDrawer is the Jira-like right panel shared by the board and the tasks list.
+// TaskDrawer is the Jira-like right panel shared by the board and the tasks list. Only one is open:
+// opening a ticket in one drawer closes every other (the Tasks pane and the app each own one).
 export function TaskDrawer({ proj, dir, reload, id, onClose, onOpen, origin, initialReply = '' }: { initialReply?: string; onOpen?: (id: string) => void; proj?: Project; dir: string; reload: () => void; id?: string; onClose: () => void; origin: React.RefObject<HTMLElement | null> }) {
   const selected = proj?.tasks?.find(t => t.id === id)
   // Desktop: docked beside the board, non-modal (no overlay, the board stays clickable). Phones keep the full-screen modal.
   const docked = useMedia("(min-width: 768px)")
+  const self = useRef<object>({})
+  const close = useRef(onClose)
+  useEffect(() => { close.current = onClose })
+  useEffect(() => {
+    const yieldTo = (e: Event) => { if ((e as CustomEvent).detail !== self.current) close.current() }
+    window.addEventListener("tagent:drawer", yieldTo)
+    return () => window.removeEventListener("tagent:drawer", yieldTo)
+  }, [])
+  useEffect(() => { if (id) window.dispatchEvent(new CustomEvent("tagent:drawer", { detail: self.current })) }, [id])
   return <Dialog modal={!docked} open={!!selected} onOpenChange={open => { if (!open) onClose() }}>
     {/* Radix dismisses on Escape even when non-modal: Escape typed to the agent in the chat pane must leave the ticket open. */}
     <DialogContent className="board-drawer translate-x-0 translate-y-0 sm:max-w-none" onEscapeKeyDown={e => { if ((e.target as Element | null)?.closest?.('[data-pane="chat"], [data-max="chat"]')) e.preventDefault() }} onInteractOutside={e => { if (docked) e.preventDefault() }} onOpenAutoFocus={e => { e.preventDefault(); (e.currentTarget as HTMLElement).focus() }} onCloseAutoFocus={e => { e.preventDefault(); if (origin.current?.isConnected) origin.current.focus() }}>
