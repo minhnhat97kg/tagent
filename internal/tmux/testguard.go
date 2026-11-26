@@ -2,6 +2,7 @@ package tmux
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -20,4 +21,8 @@ func init() {
 	os.Setenv("TMUX", "")
 	os.Setenv("TMUX_PANE", "")
 	os.Setenv("TMUX_TMPDIR", dir)
+	// Nor the user's settings and state: with their Telegram token, a hook run by
+	// a test starts a detached sender.
+	os.Setenv("XDG_CONFIG_HOME", filepath.Join(dir, "config"))
+	os.Setenv("XDG_STATE_HOME", filepath.Join(dir, "state"))
 }

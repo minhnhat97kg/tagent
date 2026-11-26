@@ -8,7 +8,11 @@ package tmux
 import (
 	"errors"
 	"fmt"
+	"io/fs"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -21,6 +25,10 @@ type Runner interface {
 type execRunner struct{}
 
 func (execRunner) Run(args ...string) (string, error) {
+	args, err := pinSocket(args)
+	if err != nil {
+		return "", err
+	}
 	cmd := exec.Command("tmux", args...)
 	var stderr strings.Builder
 	cmd.Stderr = &stderr
@@ -33,6 +41,22 @@ func (execRunner) Run(args ...string) (string, error) {
 		return "", err
 	}
 	return string(out), nil
+}
+
+// pinSocket names the socket when TMUX_TMPDIR picks the server (no $TMUX).
+// Left to itself tmux uses /tmp once that directory is gone, so a process left
+// over from an isolated server (a test's detached child) would act on the
+// user's own panes. With -S it just fails.
+func pinSocket(args []string) ([]string, error) {
+	dir := os.Getenv("TMUX_TMPDIR")
+	if os.Getenv("TMUX") != "" || dir == "" || len(args) > 0 && (strings.HasPrefix(args[0], "-L") || strings.HasPrefix(args[0], "-S")) {
+		return args, nil
+	}
+	sockets := filepath.Join(dir, "tmux-"+strconv.Itoa(os.Getuid()))
+	if err := os.Mkdir(sockets, 0o700); err != nil && !errors.Is(err, fs.ErrExist) {
+		return nil, fmt.Errorf("TMUX_TMPDIR %s is unusable, not falling back to the default tmux server: %w", dir, err)
+	}
+	return append([]string{"-S", filepath.Join(sockets, "default")}, args...), nil
 }
 
 var current Runner = execRunner{}
