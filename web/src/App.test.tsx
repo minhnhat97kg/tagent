@@ -6,7 +6,7 @@ import { api } from "@/api"
 vi.mock("@/api", () => ({ api: vi.fn().mockResolvedValue(undefined), act: vi.fn(), post: vi.fn() }))
 const st = vi.hoisted(() => ({ state: { host: "box", projects: ["/p"], agents: [] as Record<string, unknown>[], statuses: {} } }))
 vi.mock("@/state", () => ({ useAppState: () => ({ state: st.state, error: undefined }) }))
-vi.mock("@/components/Board", () => ({ Board: () => <div data-testid="board" />, TaskDrawer: () => null }))
+vi.mock("@/components/Board", () => ({ Board: () => <div data-testid="board" />, TaskDrawer: () => null, TaskDetail: () => null }))
 vi.mock("@/components/AgentView", () => ({ AgentView: () => null }))
 
 // Some modules (the terminal) read matchMedia at import time; jsdom has none. Tests default to a phone width.
@@ -42,6 +42,35 @@ test("home shows the usage, agents and tasks panes", () => {
   expect(screen.getAllByRole("heading", { name: "Usage" })).toHaveLength(1)
   expect(screen.getByRole("heading", { name: "Agents" })).toBeTruthy()
   expect(screen.getByRole("heading", { name: "Tasks" })).toBeTruthy()
+})
+
+test("desktop home has four panes, and the header has no Agents or Workflows buttons", () => {
+  desktop()
+  render(<App />)
+  expect(Array.from(document.querySelectorAll("[data-pane]"), p => p.getAttribute("data-pane"))).toEqual(["usage", "agents", "workflows", "tasks"])
+  expect(screen.queryByRole("button", { name: "Agents" })).toBeNull()
+  expect(screen.queryByRole("button", { name: "Workflows" })).toBeNull()
+})
+
+test("an old link opens its pane maximized, and a new #/pane link does too", () => {
+  for (const [hash, pane] of [["#/pane/usage", "usage"], ["#/pane/tasks", "tasks"], ["#/pane/agents", "agents"], ["#/agents", "agents"], ["#/agent/%251", "agents"], ["#/pane/workflows", "workflows"], ["#/workflows", "workflows"], ["#/board/config", "workflows"]] as const) {
+    cleanup()
+    location.hash = hash
+    render(<App />)
+    expect(document.querySelector(`[data-max="${pane}"]`), hash).toBeTruthy()
+    expect(document.querySelector("[data-pane]"), hash).toBeNull()
+  }
+})
+
+test("the More menu reaches Agents and Workflows at every width below the desktop pane grid", () => {
+  render(<App />)
+  expect(document.querySelector('button[aria-label="More"]')!.className).toContain("md:hidden")
+})
+
+test("#/routing is a page of its own, with no pane", () => {
+  location.hash = "#/routing"
+  render(<App />)
+  expect(document.querySelector("[data-max]")).toBeNull()
 })
 
 test("the rail and the Board page are gone; #/board lands on home", () => {

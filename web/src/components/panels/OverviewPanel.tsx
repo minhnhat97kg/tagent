@@ -1,4 +1,6 @@
 import { Gauge } from "lucide-react"
+import { useMedia } from "@/hooks/useMedia"
+import { useSize } from "@/hooks/useSize"
 import type { Overview } from "@/types"
 
 const compact = (n: number) => Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(n)
@@ -24,9 +26,13 @@ function Bars({ days }: { days: { date: string; tokens: number }[] }) {
 }
 
 // OverviewPanel is the usage card: provider limits (5h and weekly windows) and token spend.
+// Under 200px of height (desktop only) the token spend goes; the quota meters stay.
 export function OverviewPanel({ overview, className, days = 7, onDays }: { overview?: Overview; className?: string; days?: number; onDays?: (days: number) => void }) {
   const total = overview?.tokens.days.reduce((s, d) => s + d.tokens, 0) ?? 0
-  return <section className={`rounded-lg border bg-card ${className ?? ""}`} aria-label="Usage">
+  const [ref, { h }] = useSize<HTMLElement>()
+  const desktop = useMedia("(min-width: 768px)")
+  const short = desktop && h > 0 && h < 200
+  return <section ref={ref} className={`rounded-lg border bg-card ${className ?? ""}`} aria-label="Usage">
     <header data-pane-head className="flex h-8 items-center gap-1.5 border-b px-2.5">
       <span className="flex size-5 items-center justify-center rounded-md bg-muted"><Gauge className="size-3.5 text-brand" /></span>
       <h2 className="mr-auto text-[12.5px] font-semibold">Usage</h2>
@@ -41,14 +47,14 @@ export function OverviewPanel({ overview, className, days = 7, onDays }: { overv
         <div className="flex items-center gap-1.5 text-[12px] font-medium">{p.name}{p.stale && <span className="text-[10.5px] font-normal text-muted-foreground">· stale</span>}</div>
         <div className="flex gap-3"><Meter label="5h" value={p.usedPercent} /><Meter label="7d" value={p.weeklyPercent} /></div>
       </div>)}
-      <div className="flex items-end gap-3 border-t pt-2.5">
+      {!short && <div className="flex items-end gap-3 border-t pt-2.5">
         <div className="shrink-0">
           <div className="text-[10.5px] text-muted-foreground">Tokens today</div>
           <div className="text-[15px] font-semibold leading-tight tabular-nums">{compact(overview.tokens.today)}</div>
           <div className="text-[10.5px] text-muted-foreground tabular-nums">{compact(total)} in {days}d</div>
         </div>
         <div className="min-w-0 flex-1"><Bars days={overview.tokens.days} /></div>
-      </div>
+      </div>}
     </div>}
   </section>
 }

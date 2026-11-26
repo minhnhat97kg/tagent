@@ -11,17 +11,24 @@ import "./board.css"
 
 type PurgeItem = { id: string; title: string; removed: boolean; warning?: string; kept?: string }
 
-// TaskDrawer is the Jira-like right panel shared by the board and the tasks list.
-export function TaskDrawer({ proj, dir, reload, id, onClose, onOpen, origin, initialReply = '' }: { initialReply?: string; onOpen?: (id: string) => void; proj?: Project; dir: string; reload: () => void; id?: string; onClose: () => void; origin: React.RefObject<HTMLElement | null> }) {
+// TaskDetail is the ticket's panel (BoardDrawer) for the task with id; nothing when no such task.
+export function TaskDetail({ proj, dir, reload, id, onOpen, initialReply = '' }: { initialReply?: string; onOpen?: (id: string) => void; proj?: Project; dir: string; reload: () => void; id?: string }) {
   const statuses = proj?.statuses ?? []
   const selected = proj?.tasks?.find(t => t.id === id)
   const role = (t: Task) => proj?.workers?.[t.id]?.role || statuses.find(s => s.id === t.status)?.role || t.assignees?.[0] || ""
   const roles = Array.from(new Set([...(proj?.roles ?? []), ...(proj?.tasks ?? []).map(role)])).filter(Boolean)
+  if (!selected) return null
+  return <BoardDrawer key={selected.id + initialReply} initialReply={initialReply} project={proj} workflows={proj?.workflows ?? []} task={selected} statuses={statuses.map(s => s.id)} roles={roles} role={role(selected)} reason={proj?.blockedReasons?.[selected.id]} dir={dir} reload={reload} onOpen={onOpen} />
+}
+
+// TaskDrawer is the Jira-like right panel shared by the board and the tasks list.
+export function TaskDrawer({ proj, dir, reload, id, onClose, onOpen, origin, initialReply = '' }: { initialReply?: string; onOpen?: (id: string) => void; proj?: Project; dir: string; reload: () => void; id?: string; onClose: () => void; origin: React.RefObject<HTMLElement | null> }) {
+  const selected = proj?.tasks?.find(t => t.id === id)
   // Desktop: docked beside the board, non-modal (no overlay, the board stays clickable). Phones keep the full-screen modal.
   const docked = useMedia("(min-width: 768px)")
   return <Dialog modal={!docked} open={!!selected} onOpenChange={open => { if (!open) onClose() }}>
     <DialogContent className="board-drawer translate-x-0 translate-y-0 sm:max-w-none" onInteractOutside={e => { if (docked) e.preventDefault() }} onOpenAutoFocus={e => { e.preventDefault(); (e.currentTarget as HTMLElement).focus() }} onCloseAutoFocus={e => { e.preventDefault(); if (origin.current?.isConnected) origin.current.focus() }}>
-      {selected && <BoardDrawer key={selected.id + initialReply} initialReply={initialReply} project={proj} workflows={proj?.workflows ?? []} task={selected} statuses={statuses.map(s => s.id)} roles={roles} role={role(selected)} reason={proj?.blockedReasons?.[selected.id]} dir={dir} reload={reload} onOpen={onOpen} />}
+      <TaskDetail proj={proj} dir={dir} reload={reload} id={id} onOpen={onOpen} initialReply={initialReply} />
     </DialogContent>
   </Dialog>
 }

@@ -4,7 +4,9 @@ import { Button } from "@/components/ui/button"
 import { Panel } from "@/components/Panel"
 import { StatusDot } from "@/components/StatusDot"
 import { enc, nav } from "@/hooks/useRoute"
-import { ago, agentLabel, baseName, shortPrompt, taskOf } from "@/lib/status"
+import { useMedia } from "@/hooks/useMedia"
+import { useSize } from "@/hooks/useSize"
+import { ago, agentLabel, baseName, isActive, shortPrompt, taskOf } from "@/lib/status"
 import { cn } from "@/lib/utils"
 import { useState, Fragment } from "react"
 import type { Agent } from "@/types"
@@ -12,18 +14,26 @@ import type { Agent } from "@/types"
 const projOf = (a: Agent) => a.project || baseName(a.path)
 
 // AgentsPanel lists agents in the order useKeys walks them (grouped by project).
+// Under 120px of height (five rows) it shows only the counts; the height tier is desktop only.
 export function AgentsPanel({ ordered, byTask, onToggleTask, selPane, className }: { ordered: Agent[]; byTask: boolean; onToggleTask: () => void; selPane?: string; className?: string }) {
   const [open, setOpen] = useState<string | null>(null)
   const multi = new Set(ordered.map(projOf)).size > 1
+  const [ref, { h }] = useSize()
+  const desktop = useMedia("(min-width: 768px)")
+  const short = desktop && h > 0 && h < 120
+  const waiting = ordered.filter(a => a.status === "waiting").length
+  const working = ordered.filter(a => isActive(a.status)).length
 
   return (
+    <div ref={ref} className={cn("flex min-h-0 flex-col", className)}>
     <Panel
-      className={className}
+      className="min-h-0 flex-1"
       icon={<Bot className="text-brand" />}
       title="Agents"
-      right={<Button size="xs" variant={byTask ? "secondary" : "ghost"} aria-pressed={byTask} title="Group agents by task" onClick={onToggleTask}>By task</Button>}
+      right={<><a href="#/agents" className="underline">Definitions</a><Button size="xs" variant={byTask ? "secondary" : "ghost"} aria-pressed={byTask} title="Group agents by task" onClick={onToggleTask}>By task</Button></>}
       bodyClass="py-1"
     >
+      {short ? <p className="px-2.5 py-2 text-xs text-muted-foreground">{ordered.length ? `${ordered.length} agents, ${waiting} waiting, ${working} working` : "No agents. Press + New agent."}</p> : <>
       {!ordered.length && <p className="px-2.5 py-2 text-xs text-muted-foreground">No agents. Press + New agent.</p>}
       {ordered.map((a, i) => {
         const waitingDialog = a.status === "waiting" && !!a.dialog
@@ -91,6 +101,8 @@ export function AgentsPanel({ ordered, byTask, onToggleTask, selPane, className 
           </Fragment>
         )
       })}
+      </>}
     </Panel>
+    </div>
   )
 }

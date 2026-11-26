@@ -262,11 +262,17 @@ to the ticket as a comment, so what the conversation settled stays on the board.
 The tab is disabled with the reason when its pane runs a harness Chat cannot
 read.
 
-The web dashboard opens on a pane grid: usage, agents and tasks. Drag a pane by
-its header, or its corner to resize, or use the handles with the arrow keys; the
-layout is saved per device (`tagent.panes` in local storage). Settings > Reset
-layout restores the default. Tasks show as a list, or as the board from 900px of
-pane width. Phones stack the panes without editing and show the list only.
+The web dashboard opens on a pane grid: usage, agents, workflows and tasks. Drag a
+pane by its header, or its corner to resize, or use the handles with the arrow
+keys; the layout is saved per device (`tagent.panes` in local storage). Settings >
+Reset layout restores the default. The corner link at the bottom left maximizes a
+pane (`#/pane/usage`, `#/pane/agents`, `#/pane/tasks`, `#/pane/workflows`); the old
+links (`#/agent/<pane>`, `#/workflows`, `#/board/config`) still work. Sizes
+change what a pane shows: Tasks lists tickets under 480px, lists them with the
+open ticket beside them from 480px, and shows the board from 900px. Workflows
+lists them under 900px and edits them from 900px. Agents show only counts under
+120px of height, and usage hides its token spend under 200px. Phones stack usage,
+agents and tasks without editing and show the list only.
 
 Press `?` in the sidebar or dashboard for contextual help.
 

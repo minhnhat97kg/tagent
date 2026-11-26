@@ -360,7 +360,7 @@
     ]
   },
   {
-    "name": "missing default id is appended below the lowest box",
+    "name": "missing default id takes the first free row above the lowest box",
     "minH": 3,
     "saved": [
       {
@@ -399,7 +399,7 @@
       {
         "id": "b",
         "x": 6,
-        "y": 4,
+        "y": 0,
         "w": 6,
         "h": 4
       }

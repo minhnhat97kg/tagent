@@ -1,28 +1,22 @@
-import { useLayoutEffect, useRef, useState } from "react"
 import { Board } from "@/components/Board"
 import { TasksPanel } from "@/components/panels/TasksPanel"
+import { useMedia } from "@/hooks/useMedia"
+import { useSize } from "@/hooks/useSize"
 import type { Project } from "@/types"
 
-// The board needs about 900px of pane width; a narrower pane lists the tasks.
+// Widths of the Tasks pane: a list, a list with the ticket beside it, or the board.
+const SPLIT_MIN_WIDTH = 480
 const BOARD_MIN_WIDTH = 900
 
-// TasksPane is the Tasks pane: the board when the pane is wide enough, else the list. It follows its own width, not the window's.
+// TasksPane is the Tasks pane. It follows its own width, not the window's. The split tier
+// needs a desktop window (a phone keeps the list).
 export function TasksPane({ proj, dir, reload }: { proj?: Project; dir: string; reload: () => void }) {
-  const ref = useRef<HTMLDivElement>(null)
-  const [wide, setWide] = useState(false)
-  // Layout effect: the width is read before the first paint, so the list never flashes before the board.
-  useLayoutEffect(() => {
-    const el = ref.current
-    if (!el) return
-    const measure = () => setWide(el.clientWidth >= BOARD_MIN_WIDTH)
-    const ro = new ResizeObserver(measure)
-    ro.observe(el)
-    measure()
-    return () => ro.disconnect()
-  }, [])
+  const [ref, { w }] = useSize()
+  const desktop = useMedia("(min-width: 768px)")
+  const tier = w >= BOARD_MIN_WIDTH ? "board" : w >= SPLIT_MIN_WIDTH && desktop ? "split" : "list"
   return <div ref={ref} className="tasks-pane flex min-h-0 flex-1 flex-col">
-    {wide
+    {tier === "board"
       ? <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border bg-card"><Board dir={dir} proj={proj} reload={reload} /></section>
-      : <TasksPanel proj={proj} dir={dir} reload={reload} className="min-h-0 flex-1" />}
+      : <TasksPanel proj={proj} dir={dir} reload={reload} className="min-h-0 flex-1" split={tier === "split"} />}
   </div>
 }

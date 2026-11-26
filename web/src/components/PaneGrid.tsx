@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react"
 import { useMedia } from "@/hooks/useMedia"
+import { Maximize2 } from "lucide-react"
 import { defaultPanes, mergeBoxes, type PaneBox, type PaneId } from "@/lib/paneLayout"
 import { cn } from "@/lib/utils"
 
 const ROW = 24
 const UNITS = 12
 const MIN_H = 4
-const IDS: PaneId[] = ["usage", "agents", "tasks"]
+const IDS: PaneId[] = ["usage", "agents", "workflows", "tasks"]
 const isPane = (id: string): id is PaneId => (IDS as string[]).includes(id)
 const STEP: Record<string, [number, number]> = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }
-const PHONE: Record<PaneId, string> = { usage: "max-h-[30%] overflow-y-auto", agents: "max-h-[30%]", tasks: "min-h-24 flex-1" }
+// A phone stacks these three; the workflows pane is desktop only.
+const PHONE: Record<Exclude<PaneId, "workflows">, string> = { usage: "max-h-[30%] overflow-y-auto", agents: "max-h-[30%]", tasks: "min-h-24 flex-1" }
 const same = (a: PaneBox[], b: PaneBox[]) => a.length === b.length && a.every((x, i) => x.id === b[i]!.id && x.x === b[i]!.x && x.y === b[i]!.y && x.w === b[i]!.w && x.h === b[i]!.h)
 
 // PaneGrid is the home view: usage, agents and tasks as boxes on a 12-column grid. On desktop a pane
@@ -33,7 +35,7 @@ export function PaneGrid({ saved, onChange, panes }: { saved?: PaneBox[]; onChan
   useEffect(() => () => stop.current?.(), [])
 
   if (!desktop) return <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
-    {IDS.map(id => <div key={id} className={cn("flex min-h-0 flex-col", PHONE[id])}>{panes[id]}</div>)}
+    {(Object.keys(PHONE) as (keyof typeof PHONE)[]).map(id => <div key={id} className={cn("flex min-h-0 flex-col", PHONE[id])}>{panes[id]}</div>)}
   </div>
 
   const defaults = defaultPanes(rows)
@@ -102,6 +104,10 @@ export function PaneGrid({ saved, onChange, panes }: { saved?: PaneBox[]; onChan
       <button type="button" data-pane-handle aria-label={`Resize ${b.id} pane`} title="Drag to resize; arrow keys nudge"
         onPointerDown={e => begin(b.id, "resize", e)} onKeyDown={e => nudge(b.id, "resize", e)}
         className="absolute bottom-0 right-0 z-10 size-4 cursor-nwse-resize touch-none rounded-br-md border-b-2 border-r-2 border-muted-foreground/60 opacity-0 group-hover/pane:opacity-100 focus-visible:opacity-100" />
+      <a href={`#/pane/${b.id}`} data-pane-handle aria-label={`Maximize ${b.id} pane`} title="Maximize"
+        className="absolute bottom-0 left-0 z-10 flex size-4 items-center justify-center rounded-tr-md text-muted-foreground hover:text-foreground">
+        <Maximize2 className="size-3" />
+      </a>
     </div>)}
   </div>
 }

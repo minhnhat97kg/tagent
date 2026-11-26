@@ -11,11 +11,12 @@ const WorkflowYamlEditor = lazy(() => import('@/components/WorkflowYamlEditor'))
 
 type Job = { ID: string; Status: string; Agent: string; Model: string; Prompt: string; Run: string; Outputs: string[]; OnFailure: string; MaxLoops: number }
 type Input = { Description: string; Default: string; Required: boolean }
-type Flow = { key: string; name: string; global: boolean; yaml: string; description: string; error: string; errorLine: number; jobs: Job[]; inputs: Record<string, Input>; total: number; running: number; lastUsed: string }
+export type Flow = { key: string; name: string; global: boolean; yaml: string; description: string; error: string; errorLine: number; jobs: Job[]; inputs: Record<string, Input>; total: number; running: number; lastUsed: string }
 type Preview = { Name: string; Description: string; Jobs: Job[] }
 
-export function WorkflowsPage({ dir, initial = '' }: { dir: string; initial?: string }) {
-  return <WorkflowEditor key={dir} dir={dir} initial={initial} />
+// onDirty reports unsaved YAML, so a pane never resizes away a draft.
+export function WorkflowsPage({ dir, initial = '', onDirty }: { dir: string; initial?: string; onDirty?: (dirty: boolean) => void }) {
+  return <WorkflowEditor key={dir} dir={dir} initial={initial} onDirty={onDirty} />
 }
 
 type Box = { top: number; bottom: number }
@@ -88,7 +89,7 @@ function parseError(text: string): { error: string; line: number } {
   return { error: text, line: 0 }
 }
 
-function WorkflowEditor({ dir, initial }: { dir: string; initial: string }) {
+function WorkflowEditor({ dir, initial, onDirty }: { dir: string; initial: string; onDirty?: (dirty: boolean) => void }) {
   const path = '/api/workflows?dir=' + enc(dir)
   const poll = usePoll(() => api<Flow[]>(path), 2000, dir)
   const [selected, select] = useState<Flow>()
@@ -124,6 +125,7 @@ function WorkflowEditor({ dir, initial }: { dir: string; initial: string }) {
     finally { setBusy(false) }
   }
   const dirty = !!selected && yaml !== selected.yaml
+  useEffect(() => { onDirty?.(dirty); return () => onDirty?.(false) }, [dirty, onDirty])
   function open(f?: Flow) {
     if (dirty && !confirm('Discard unsaved workflow changes?')) return
     select(f); setYAML(f?.yaml ?? ''); setPreview(f && { Name: f.name, Description: f.description, Jobs: f.jobs }); setError(''); setValidation(f?.error ?? ''); setValidationLine(f?.errorLine ?? 0); setActiveJob(''); setGoto(undefined)
@@ -139,8 +141,8 @@ function WorkflowEditor({ dir, initial }: { dir: string; initial: string }) {
   function selectJob(id: string) { const r = jobRanges(yaml)[id]; setActiveJob(id); if (r) setGoto({ line: r.from, to: r.to }) }
 
   function newFlow() { const name = prompt('Workflow filename (letters, numbers and hyphens)'); if (name) void mutate('POST', { Name: name, Op: 'new' }) }
-  return <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg border bg-card">
-    <header className="flex h-10 shrink-0 items-center gap-2 border-b px-3">
+  return <section className="flex h-full min-h-0 select-text flex-col overflow-hidden rounded-lg border bg-card">
+    <header data-pane-head className="flex h-10 shrink-0 items-center gap-2 border-b px-3">
       {selected && <Button variant="ghost" size="icon-xs" className="md:hidden" aria-label="Back to workflows" onClick={() => open(undefined)}><ArrowLeft /></Button>}
       <WorkflowIcon className="size-4 text-teal-600" /><h2 className="text-[13px] font-semibold">Workflows</h2>
       <Button size="xs" variant="outline" className="ml-auto" disabled={busy} onClick={newFlow}><Plus />New</Button>

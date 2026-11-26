@@ -11,6 +11,13 @@ test.each(cases)("fixture: $name", c => {
   expect(mergeBoxes(c.saved, c.defaults, c.minH, c.moved)).toEqual(c.want)
 })
 
+test("a saved three-box layout gains workflows in the visible rows, and the saved boxes do not move", () => {
+  const saved = defaultPanes(24).filter(b => b.id !== "workflows")
+  const out = mergeBoxes(saved, defaultPanes(24), 4, "")
+  expect(out.filter(b => b.id !== "workflows")).toEqual(saved)
+  expect(out.find(b => b.id === "workflows")).toMatchObject({ x: 0, y: 16, w: 3, h: 8 })
+})
+
 test("placeBoxes does not change its input", () => {
   const boxes = [{ id: "a", x: 0, y: 0, w: 6, h: 4 }, { id: "b", x: 3, y: 0, w: 6, h: 4 }]
   const copy = structuredClone(boxes)

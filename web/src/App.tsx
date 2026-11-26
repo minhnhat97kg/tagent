@@ -1,6 +1,6 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { bindVisualViewport } from '@/lib/touchViewport'
-import { ArrowLeft, Bot, Maximize2, Minimize2, Monitor, Moon, MoreHorizontal, Plus, Settings, SquareTerminal, Sun, Workflow } from "lucide-react"
+import { ArrowLeft, Maximize2, Minimize2, Monitor, Moon, MoreHorizontal, Plus, Settings, SquareTerminal, Sun } from "lucide-react"
 import { nextTheme, useWebTheme } from "@/lib/theme"
 import { SettingsDialog } from "@/components/SettingsDialog"
 import { api } from "@/api"
@@ -19,6 +19,7 @@ import { AgentsPage } from "@/components/AgentsPage"
 import { RoutingPage } from "@/components/RoutingPage"
 import { OverviewPanel } from "@/components/panels/OverviewPanel"
 import { TasksPane } from "@/components/panels/TasksPane"
+import { WorkflowsPane } from "@/components/panels/WorkflowsPane"
 import { PaneGrid } from "@/components/PaneGrid"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -27,18 +28,18 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 import { useKeys } from "@/hooks/useKeys"
 import { usePoll } from "@/hooks/usePoll"
 import { useProjectDir } from "@/hooks/useProjectDir"
-import { enc, nav, parseSel, useRoute } from "@/hooks/useRoute"
+import { enc, nav, parseRoute, useRoute } from "@/hooks/useRoute"
 import { baseName, byTaskOrder } from "@/lib/status"
 import { loadPanes, savePanes, type PaneBox } from "@/lib/paneLayout"
 import { useAppState } from "@/state"
 import type { Agent, Overview, Project } from "@/types"
 
 // App is a fixed shell: a top bar and one main view. Home is the pane grid (usage,
-// agents, tasks); /agent/<pane> shows that agent's terminal.
+// agents, workflows, tasks); a maximized pane (#/pane/<id>, or an old link such as /agent/<pane>) fills the view.
 export default function App() {
   useLayoutEffect(() => bindVisualViewport(document.documentElement), [])
-  const route = useRoute()
-  const sel = parseSel(route)
+  const rawRoute = useRoute()
+  const route = parseRoute(rawRoute)
   const { state, error } = useAppState()
   const [newOpen, setNewOpen] = useState(false)
   const [settings, setSettings] = useState(false)
@@ -72,7 +73,7 @@ export default function App() {
     return lists.flat().sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned))
   }, [agents, byTask])
 
-  const agent = sel?.kind === "agent" ? state?.agents.find((a) => a.pane === sel.pane) : undefined
+  const agent = route.page === "agents" && route.agent ? state?.agents.find((a) => a.pane === route.agent) : undefined
   const [dir, setDir] = useProjectDir(agent?.path)
   // The agents list shows only this workspace's agents; project is the main repo's name, so worktree agents count too.
   // An agent belongs to the deepest workspace holding its path, so a home-folder workspace doesn't swallow every project.
@@ -83,9 +84,8 @@ export default function App() {
     return ordered.filter(a => { const o = owner(a.path); return o ? o === dir : a.project === baseName(dir) })
   }, [ordered, dir, state?.projects])
   // #/runs/<ticket>?dir=<project> names its project, so a shared link opens that project's run; without it the run uses the ambient dir.
-  const runMatch = /^\/runs\/([^/?]+)(?:\?(.*))?$/.exec(route)
   // State loads async: a cold link counts its project only once the project list has it.
-  const runParam = runMatch ? new URLSearchParams(runMatch[2] ?? "").get("dir") : null
+  const runParam = route.page === "run" ? route.dir : null
   const runDir = runParam && state?.projects?.includes(runParam) ? runParam : undefined
   useEffect(() => { if (runDir) setDir(runDir) }, [runDir])
   const projPoll = usePoll<Project | undefined>(() => (dir ? api<Project>(`/api/project?dir=${enc(dir)}`) : Promise.resolve(undefined)), 2000, dir)
@@ -124,34 +124,37 @@ export default function App() {
     if (next) openNotice(next)
   })
   // The Board is the Tasks pane now: an old #/board link lands on home.
-  useEffect(() => { if (route === "/board") location.replace("#/") }, [route])
+  useEffect(() => { if (rawRoute === "/board") location.replace("#/") }, [rawRoute])
 
   if (error?.message.startsWith("unauthorized")) {
     return <div className="app-viewport flex items-center justify-center p-6 text-center"><p>tagent: open the link printed by <code>tagent web</code> (it carries the access token).</p></div>
   }
 
   const proj = projPoll.data
-  const boardConfigRoute = route === '/board/config'
-  const flowRoute = /^\/workflows(?:\/([^/]+))?$/.exec(route)
-  // Old ticket links (/workflows/<wf>/<ticket>) open the run page, not the editor.
-  const runRoute = runMatch ?? /^\/workflows\/[^/]+\/([^/]+)$/.exec(route)
-  const agentsRoute = route === "/agents"
-  const routingRoute = route === "/routing"
-  const home = !sel && !boardConfigRoute && !flowRoute && !runRoute && !agentsRoute && !routingRoute
+  const home = route.page === "home"
+  // A maximized pane fills the view. The Agents pane keeps the agent list beside its content.
+  const maxed = (pane: string, node: ReactNode) => <div data-max={pane} className="flex min-h-0 min-w-0 flex-1 flex-col">{node}</div>
+  const withAgents = (content: ReactNode) => <div data-max="agents" className="flex min-h-0 min-w-0 flex-1 gap-2">
+    <AgentsPanel className="w-64 shrink-0 max-lg:hidden" ordered={dirAgents} byTask={byTask} onToggleTask={toggleByTask} selPane={agent?.pane} />
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">{content}</div>
+  </div>
+  const usagePane = <OverviewPanel className="min-h-0 flex-1" days={usageDays} onDays={setUsageDays} overview={overview} />
+  const agentsPane = <AgentsPanel className="min-h-0 flex-1" ordered={dirAgents} byTask={byTask} onToggleTask={toggleByTask} selPane={agent?.pane} />
+  const tasksPane = <TasksPane proj={proj} dir={dir} reload={projPoll.reload} />
 
   let main
-  if (boardConfigRoute) main = <BoardConfigPage key={dir} dir={dir} />
-  else if (runRoute) main = <RunPage key={(runDir ?? dir) + runRoute[1]} dir={runDir ?? dir} id={decodeURIComponent(runRoute[1]!)} />
-  else if (flowRoute) main = <WorkflowsPage key={dir + route} dir={dir} initial={decodeURIComponent(flowRoute[1] ?? '')} />
-  else if (agentsRoute) main = <AgentsPage key={dir} dir={dir} />
-  else if (routingRoute) main = <RoutingPage key={dir} dir={dir} />
-  else if (agent) main = <AgentView key={agent.pane} agent={agent} project={proj} />
-  else if (sel) main = state ? <div className="p-6 text-muted-foreground">Agent not found. <a href="#/" className="text-foreground underline">Home</a></div> : null
-  else main = <PaneGrid saved={panes} onChange={changePanes} panes={{
-    usage: <OverviewPanel className="min-h-0 flex-1" days={usageDays} onDays={setUsageDays} overview={overview} />,
-    agents: <AgentsPanel className="min-h-0 flex-1" ordered={dirAgents} byTask={byTask} onToggleTask={toggleByTask} />,
-    tasks: <TasksPane proj={proj} dir={dir} reload={projPoll.reload} />,
+  if (route.page === "home") main = <PaneGrid saved={panes} onChange={changePanes} panes={{
+    usage: usagePane, agents: agentsPane, workflows: <WorkflowsPane dir={dir} />, tasks: tasksPane,
   }} />
+  else if (route.page === "pane") main = maxed(route.pane, route.pane === "usage" ? usagePane : tasksPane)
+  else if (route.page === "agents") main = withAgents(route.agent
+    ? agent ? <AgentView key={agent.pane} agent={agent} project={proj} /> : state ? <div className="p-6 text-muted-foreground">Agent not found. <a href="#/" className="text-foreground underline">Home</a></div> : null
+    : <AgentsPage key={dir} dir={dir} />)
+  else if (route.page === "flows") main = maxed("workflows", <WorkflowsPage key={dir + rawRoute} dir={dir} initial={route.name} />)
+  else if (route.page === "run") main = maxed("workflows", <RunPage key={(runDir ?? dir) + route.ticket} dir={runDir ?? dir} id={route.ticket} />)
+  else if (route.page === "boardConfig") main = maxed("workflows", <BoardConfigPage key={dir} dir={dir} />)
+  else if (route.page === "routing") main = <RoutingPage key={dir} dir={dir} />
+  else main = null
 
   return (
     <TooltipProvider>
@@ -161,16 +164,14 @@ export default function App() {
           <a href="#/" className="flex shrink-0 items-center gap-1.5 text-[13px] font-semibold"><span className="flex size-6 items-center justify-center rounded-md bg-primary text-primary-foreground"><SquareTerminal className="size-3.5" /></span><span className="hidden sm:inline">tagent</span><span className="hidden font-normal text-muted-foreground lg:inline"> · {state?.host ?? ""}</span></a>
           <div className="min-w-0 flex-1 overflow-hidden [&_button]:max-w-full"><ProjectSelect value={dir} projects={state?.projects ?? []} onChange={(d) => { setDir(d); nav("/") }} /></div>
           <div className="ml-auto flex items-center gap-1">
-            <Button variant="ghost" size="icon-xs" className="max-sm:hidden" aria-label="Agents" title="Agents" onClick={() => nav('/agents')}><Bot /></Button>
-            <Button variant="ghost" size="icon-xs" className="max-sm:hidden" aria-label="Workflows" title="Workflows" onClick={() => nav('/workflows')}><Workflow /></Button>
             <Notifications items={notices} dir={dir ?? ''} onOpen={openNotice} />
             <Button size="sm" className="max-sm:size-9" onClick={() => setNewOpen(true)}><Plus /> <span className="hidden sm:inline">New agent</span></Button>
             {canFull && <Button className="hidden sm:inline-flex" variant="ghost" size="icon-xs" aria-label={full ? "Exit full screen" : "Full screen"} title={full ? "Exit full screen" : "Full screen"} onClick={() => void toggleFull()}>{full ? <Minimize2 /> : <Maximize2 />}</Button>}
             <Button variant="ghost" size="icon-xs" className="max-sm:hidden" aria-label={`Web theme: ${webTheme}`} title={`Web theme: ${webTheme} (this browser only)`} onClick={() => setWebTheme(nextTheme[webTheme])}>{webTheme === "dark" ? <Moon /> : webTheme === "light" ? <Sun /> : <Monitor />}</Button>
             <Button variant="ghost" size="icon-xs" className="max-sm:hidden" aria-label="Settings" title="Settings" onClick={() => setSettings(true)}><Settings /></Button>
-            {/* Phone: the header keeps back, project, new agent and notifications; the rest lives here. */}
+            {/* Below 768px (where the Workflows pane is not shown) the header keeps back, project, new agent and notifications; the rest lives here. */}
             <DropdownMenu>
-              <DropdownMenuTrigger asChild><Button variant="ghost" size="icon-xs" className="max-sm:size-9 sm:hidden" aria-label="More" title="More"><MoreHorizontal /></Button></DropdownMenuTrigger>
+              <DropdownMenuTrigger asChild><Button variant="ghost" size="icon-xs" className="max-sm:size-9 md:hidden" aria-label="More" title="More"><MoreHorizontal /></Button></DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onSelect={() => nav('/agents')}>Agents</DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => nav('/workflows')}>Workflows</DropdownMenuItem>

@@ -8,6 +8,7 @@ const ptr = (type: string, x = 0, y = 0) => Object.assign(new Event(type, { bubb
 const panes = () => ({
   usage: <header data-pane-head>Usage</header>,
   agents: <header data-pane-head>Agents</header>,
+  workflows: <header data-pane-head>Workflows</header>,
   tasks: <header data-pane-head><button>Add</button></header>,
 })
 const cell = (id: string) => document.querySelector<HTMLElement>(`[data-pane="${id}"]`)!
@@ -26,9 +27,17 @@ test("the default placement: usage and agents on the left, tasks beside them", (
   render(<PaneGrid onChange={vi.fn()} panes={panes()} />)
   expect(cell("usage").style.gridColumn).toBe("1 / span 3")
   expect(cell("usage").style.gridRow).toBe("1 / span 10")
-  expect(cell("agents").style.gridRow).toBe("11 / span 14")
+  expect(cell("agents").style.gridRow).toBe("11 / span 6")
+  expect(cell("workflows").style.gridColumn).toBe("1 / span 3")
+  expect(cell("workflows").style.gridRow).toBe("17 / span 8")
   expect(cell("tasks").style.gridColumn).toBe("4 / span 9")
   expect(cell("tasks").style.gridRow).toBe("1 / span 24")
+})
+
+test("each desktop pane has a maximize link to its own route", () => {
+  render(<PaneGrid onChange={vi.fn()} panes={panes()} />)
+  expect(screen.getByRole("link", { name: "Maximize workflows pane" }).getAttribute("href")).toBe("#/pane/workflows")
+  expect(screen.getByRole("link", { name: "Maximize tasks pane" }).getAttribute("href")).toBe("#/pane/tasks")
 })
 
 test("dragging a header moves the pane and pushes the one it lands on down", () => {
@@ -88,6 +97,7 @@ test("a phone stacks the panes with no handles, and a header press does nothing"
   render(<PaneGrid onChange={onChange} panes={panes()} />)
   expect(screen.queryAllByRole("button", { name: /pane$/ })).toHaveLength(0)
   expect(document.querySelector("[data-pane]")).toBeNull()
+  expect(screen.queryByText("Workflows")).toBeNull()
   fireEvent(screen.getByText("Usage"), ptr("pointerdown", 0, 0))
   fireEvent(window, ptr("pointermove", 300, 0))
   fireEvent(window, ptr("pointerup", 300, 0))

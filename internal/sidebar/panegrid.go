@@ -76,9 +76,21 @@ func placeBoxes(boxes []paneBox, moved string) []paneBox {
 	return out
 }
 
+// freeRow is the first row, above low, where b overlaps none of placed; low when
+// there is none.
+func freeRow(placed []paneBox, b paneBox, low int) int {
+	for y := range low {
+		b.Y = y
+		if !slices.ContainsFunc(placed, b.overlaps) {
+			return y
+		}
+	}
+	return low
+}
+
 // mergeBoxes is a saved layout over the defaults: saved boxes keep their place
-// (clamped), a repeated id keeps its first box, missing defaults go below the
-// lowest box, then placeBoxes runs with moved. The defaults are the built-in
+// (clamped), a repeated id keeps its first box, missing defaults take the first
+// free row above the lowest box, then placeBoxes runs with moved. The defaults are the built-in
 // ids; any other saved id (custom ext:* panes, unknown ones) is appended
 // unchanged, so it is kept in storage and never pushes a drawn pane down.
 func mergeBoxes(saved, defaults []paneBox, minH int, moved string) []paneBox {
@@ -108,7 +120,7 @@ func mergeBoxes(saved, defaults []paneBox, minH int, moved string) []paneBox {
 	}
 	for _, d := range defaults {
 		if !seen[d.ID] {
-			d.Y = low
+			d.Y = freeRow(out, d, low)
 			add(d)
 		}
 	}

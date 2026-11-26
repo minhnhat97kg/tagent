@@ -2,7 +2,7 @@
 // x and w are twelfths of the grid width (w and x may run past 12, up to 24); y and h are 24px rows.
 
 export type PaneBox = { id: string; x: number; y: number; w: number; h: number }
-export type PaneId = "usage" | "agents" | "tasks"
+export type PaneId = "usage" | "agents" | "tasks" | "workflows"
 
 const MAX_UNIT = 24
 const MAX_ROW = 500
@@ -31,8 +31,14 @@ export function placeBoxes(boxes: PaneBox[], moved: string): PaneBox[] {
   return out
 }
 
+// freeRow is the first row, above low, where b overlaps none of placed; low when there is none.
+const freeRow = (placed: PaneBox[], b: PaneBox, low: number) => {
+  for (let y = 0; y < low; y++) if (!placed.some(p => overlaps({ ...b, y }, p))) return y
+  return low
+}
+
 // mergeBoxes is a saved layout over the defaults: saved boxes keep their place (clamped), a repeated id
-// keeps its first box, missing defaults go below the lowest box, then placeBoxes runs with moved.
+// keeps its first box, missing defaults take the first free row above the lowest box, then placeBoxes runs with moved.
 // Ids that are not defaults are appended unchanged and never push a drawn pane down.
 export function mergeBoxes(saved: PaneBox[], defaults: PaneBox[], minH: number, moved: string): PaneBox[] {
   const known = new Set(defaults.map(d => d.id))
@@ -47,15 +53,16 @@ export function mergeBoxes(saved: PaneBox[], defaults: PaneBox[], minH: number, 
   }
   saved.forEach(add)
   const low = out.reduce((m, b) => Math.max(m, b.y + b.h), 0)
-  for (const d of defaults) if (!seen.has(d.id)) add({ ...d, y: low })
+  for (const d of defaults) if (!seen.has(d.id)) add({ ...d, y: freeRow(out, d, low) })
   return [...placeBoxes(out, moved), ...unknown]
 }
 
-// defaultPanes fills a grid of rows rows: usage and agents stacked on the left, tasks beside them.
+// defaultPanes fills a grid of rows rows: usage, agents and workflows stacked on the left, tasks beside them.
 export function defaultPanes(rows: number): PaneBox[] {
   return [
     { id: "usage", x: 0, y: 0, w: 3, h: 10 },
-    { id: "agents", x: 0, y: 10, w: 3, h: rows - 10 },
+    { id: "agents", x: 0, y: 10, w: 3, h: rows - 18 },
+    { id: "workflows", x: 0, y: rows - 8, w: 3, h: 8 },
     { id: "tasks", x: 3, y: 0, w: 9, h: rows },
   ]
 }
