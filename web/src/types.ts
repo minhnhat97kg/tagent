@@ -50,6 +50,7 @@ export interface State {
   models: Record<string, string[]> | null
   host: string
   projects: string[] | null
+  compact?: boolean
 }
 
 export interface Task {

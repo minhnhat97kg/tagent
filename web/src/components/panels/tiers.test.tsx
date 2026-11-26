@@ -48,3 +48,22 @@ test("usage: under 200px the quota meters stay and the token spend goes", () => 
   render(<OverviewPanel overview={overview} />)
   expect(screen.getByText("Tokens today")).toBeTruthy()
 })
+
+// Compact mode: the home Tasks and Workflows panes are the list, however wide they are.
+test("compact: a wide Tasks pane stays the list, and a wide Workflows pane stays the list", async () => {
+  vi.spyOn(Element.prototype, "clientWidth", "get").mockReturnValue(1200)
+  const { TasksPane } = await import("./TasksPane")
+  const { WorkflowsPane } = await import("./WorkflowsPane")
+  const { unmount } = render(<TasksPane dir="/p" reload={() => {}} />)
+  expect(document.querySelector("section.task-board")).toBeTruthy() // the board tier
+  unmount()
+  render(<TasksPane dir="/p" reload={() => {}} compact />)
+  expect(document.querySelector("section.task-board")).toBeNull()
+  cleanup()
+  render(<WorkflowsPane dir="/p" />)
+  expect(screen.getByRole("navigation", { name: "Workflow list" })).toBeTruthy() // the editor
+  cleanup()
+  render(<WorkflowsPane dir="/p" compact />)
+  expect(screen.queryByRole("navigation", { name: "Workflow list" })).toBeNull()
+  expect(screen.getByText("Workflows")).toBeTruthy()
+})

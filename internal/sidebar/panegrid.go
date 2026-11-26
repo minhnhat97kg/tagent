@@ -76,6 +76,46 @@ func placeBoxes(boxes []paneBox, moved string) []paneBox {
 	return out
 }
 
+// compactRows is the most rows a built-in pane keeps in compact mode (borders
+// included); a pane not listed keeps its height.
+var compactRows = map[string]int{"agents": 4, "usage": 4, "tasks": 5, "workflows": 5}
+
+// packBoxes is compact mode: each box is cut to its compact height (when that is
+// smaller), then, in (y, x) order, moves up to the bottom of the lowest placed
+// box it overlaps horizontally, else to row 0. x and w do not change. Output keeps
+// the input order; the input is not changed.
+func packBoxes(boxes []paneBox, heights map[string]int) []paneBox {
+	out := slices.Clone(boxes)
+	for i := range out {
+		if h, ok := heights[out[i].ID]; ok {
+			out[i].H = min(out[i].H, h)
+		}
+	}
+	order := make([]int, len(boxes))
+	for i := range order {
+		order[i] = i
+	}
+	slices.SortStableFunc(order, func(a, c int) int {
+		if d := boxes[a].Y - boxes[c].Y; d != 0 {
+			return d
+		}
+		return boxes[a].X - boxes[c].X
+	})
+	var placed []paneBox
+	for _, i := range order {
+		b := out[i]
+		b.Y = 0
+		for _, p := range placed {
+			if p.X < b.X+b.W && b.X < p.X+p.W {
+				b.Y = max(b.Y, p.Y+p.H)
+			}
+		}
+		out[i] = b
+		placed = append(placed, b)
+	}
+	return out
+}
+
 // freeRow is the first row, above low, where b overlaps none of placed; low when
 // there is none.
 func freeRow(placed []paneBox, b paneBox, low int) int {

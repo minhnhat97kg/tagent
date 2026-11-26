@@ -581,5 +581,214 @@
         "h": 4
       }
     ]
+  },
+  {
+    "name": "pack: stacked boxes collapse and the lower one moves up under the upper",
+    "saved": [
+      {
+        "id": "agents",
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 10
+      },
+      {
+        "id": "usage",
+        "x": 0,
+        "y": 10,
+        "w": 6,
+        "h": 10
+      }
+    ],
+    "pack": {
+      "agents": 4,
+      "usage": 4
+    },
+    "want": [
+      {
+        "id": "agents",
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      {
+        "id": "usage",
+        "x": 0,
+        "y": 4,
+        "w": 6,
+        "h": 4
+      }
+    ]
+  },
+  {
+    "name": "pack: a box below a different column rises to row 0",
+    "saved": [
+      {
+        "id": "agents",
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 10
+      },
+      {
+        "id": "tasks",
+        "x": 6,
+        "y": 12,
+        "w": 6,
+        "h": 10
+      }
+    ],
+    "pack": {
+      "agents": 4,
+      "tasks": 5
+    },
+    "want": [
+      {
+        "id": "agents",
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      {
+        "id": "tasks",
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      }
+    ]
+  },
+  {
+    "name": "pack: a wide box waits for the tallest column under it",
+    "saved": [
+      {
+        "id": "agents",
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 10
+      },
+      {
+        "id": "tasks",
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 20
+      },
+      {
+        "id": "workflows",
+        "x": 0,
+        "y": 20,
+        "w": 12,
+        "h": 8
+      }
+    ],
+    "pack": {
+      "agents": 4,
+      "tasks": 5,
+      "workflows": 5
+    },
+    "want": [
+      {
+        "id": "agents",
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      {
+        "id": "tasks",
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      },
+      {
+        "id": "workflows",
+        "x": 0,
+        "y": 5,
+        "w": 12,
+        "h": 5
+      }
+    ]
+  },
+  {
+    "name": "pack: a stored height under the table is kept",
+    "saved": [
+      {
+        "id": "agents",
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 3
+      },
+      {
+        "id": "usage",
+        "x": 0,
+        "y": 3,
+        "w": 6,
+        "h": 10
+      }
+    ],
+    "pack": {
+      "agents": 4,
+      "usage": 4
+    },
+    "want": [
+      {
+        "id": "agents",
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 3
+      },
+      {
+        "id": "usage",
+        "x": 0,
+        "y": 3,
+        "w": 6,
+        "h": 4
+      }
+    ]
+  },
+  {
+    "name": "pack: an id with no table entry keeps its height",
+    "saved": [
+      {
+        "id": "agents",
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 10
+      },
+      {
+        "id": "comp",
+        "x": 0,
+        "y": 10,
+        "w": 12,
+        "h": 8
+      }
+    ],
+    "pack": {
+      "agents": 4
+    },
+    "want": [
+      {
+        "id": "agents",
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      {
+        "id": "comp",
+        "x": 0,
+        "y": 4,
+        "w": 12,
+        "h": 8
+      }
+    ]
   }
 ]

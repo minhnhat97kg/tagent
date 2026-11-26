@@ -143,8 +143,9 @@ export default function App() {
   const tasksPane = <TasksPane proj={proj} dir={dir} reload={projPoll.reload} />
 
   let main
-  if (route.page === "home") main = <PaneGrid saved={panes} onChange={changePanes} panes={{
-    usage: usagePane, agents: agentsPane, workflows: <WorkflowsPane dir={dir} />, tasks: tasksPane,
+  if (route.page === "home") main = <PaneGrid saved={panes} onChange={changePanes} compact={state?.compact} panes={{
+    usage: usagePane, agents: agentsPane, workflows: <WorkflowsPane dir={dir} compact={state?.compact} />,
+    tasks: <TasksPane proj={proj} dir={dir} reload={projPoll.reload} compact={state?.compact} />,
   }} />
   else if (route.page === "pane") main = maxed(route.pane, route.pane === "usage" ? usagePane : tasksPane)
   else if (route.page === "agents") main = withAgents(route.agent

@@ -103,3 +103,37 @@ test("a phone stacks the panes with no handles, and a header press does nothing"
   fireEvent(window, ptr("pointerup", 300, 0))
   expect(onChange).not.toHaveBeenCalled()
 })
+
+test("compact: the panes collapse to their small rows, packed up, with no handles; the maximize link stays", () => {
+  render(<PaneGrid onChange={vi.fn()} panes={panes()} compact />)
+  expect(cell("usage").style.gridRow).toBe("1 / span 7")
+  expect(cell("tasks").style.gridRow).toBe("1 / span 8")
+  expect(cell("tasks").style.gridColumn).toBe("4 / span 9")
+  expect(cell("agents").style.gridRow).toBe("8 / span 4")
+  expect(cell("workflows").style.gridRow).toBe("12 / span 6")
+  expect(screen.queryByRole("button", { name: "Move usage pane" })).toBeNull()
+  expect(screen.queryByRole("button", { name: "Resize usage pane" })).toBeNull()
+  expect(screen.getByRole("link", { name: "Maximize usage pane" })).toBeTruthy()
+})
+
+test("compact: a header drag saves nothing", () => {
+  const onChange = vi.fn()
+  render(<PaneGrid onChange={onChange} panes={panes()} compact />)
+  fireEvent(screen.getByText("Usage"), ptr("pointerdown", 0, 0))
+  fireEvent(window, ptr("pointermove", 300, 0))
+  fireEvent(window, ptr("pointerup", 300, 0))
+  expect(onChange).not.toHaveBeenCalled()
+})
+
+test("compact turning on mid-drag ends the drag and saves nothing; turning it off restores the saved spans", () => {
+  const onChange = vi.fn()
+  const { rerender } = render(<PaneGrid onChange={onChange} panes={panes()} />)
+  fireEvent(screen.getByText("Usage"), ptr("pointerdown", 0, 0))
+  fireEvent(window, ptr("pointermove", 300, 0))
+  rerender(<PaneGrid onChange={onChange} panes={panes()} compact />)
+  fireEvent(window, ptr("pointerup", 300, 0))
+  expect(onChange).not.toHaveBeenCalled()
+  rerender(<PaneGrid onChange={onChange} panes={panes()} />)
+  expect(cell("usage").style.gridRow).toBe("1 / span 10")
+  expect(cell("usage").style.gridColumn).toBe("1 / span 3")
+})

@@ -519,6 +519,15 @@ func (m Model) dashGeometry() dashGeom {
 		g.usageLines = m.usageLines(g.usage.w-4, g.usage.h-2)
 		return g
 	}
+	if m.compact { // the stored layout (or the default) packed up: only the shown built-in panes
+		var shown []paneBox
+		for _, b := range m.editBoxes() {
+			if slices.Contains(m.layoutShown(), b.ID) {
+				shown = append(shown, b)
+			}
+		}
+		return m.geometryFrom(packBoxes(shown, compactRows), def)
+	}
 	if boxes, ok := m.customBoxes(def); ok {
 		return m.geometryFrom(boxes, def)
 	}

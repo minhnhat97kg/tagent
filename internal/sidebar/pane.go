@@ -115,7 +115,7 @@ var globalHints = []hint{
 	{"", "", "Tab S-Tab", "next / previous card: Agents, Usage, Tasks, Workflows"}, {"", "", "[ ]", "chart range (1 / 7 / 30 days)"},
 	{"", "", "o", "expand / collapse (prefix + A)"},
 	{"", "", "Z", "maximize the focused card (esc or q restores)"},
-	{"", "", "M", "move and resize the panes (saved per width); or drag a pane's title row to move it, its bottom-right corner to resize"},
+	{"", "", "M", "move and resize the panes (saved per width); or drag a pane's title row to move it, its bottom-right corner to resize; off in compact mode"},
 }
 
 // subView is a view that takes the whole body whatever maximized is: the ticket
@@ -170,8 +170,8 @@ func (m Model) globalKey(key string) (Model, tea.Cmd, bool) {
 	case "Z": // maximize the focused card (dashGeometry)
 		m.maximized = !m.maximized
 		return m.followPane(cardIDs[m.focus]), nil, true
-	case "M": // move and resize the panes (pane_layout.go); not while maximized
-		if m.maximized {
+	case "M": // move and resize the panes (pane_layout.go); not while maximized or compact
+		if m.maximized || m.compact {
 			return m, nil, false
 		}
 		return m.startLayoutEdit(), nil, true

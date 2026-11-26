@@ -1,14 +1,16 @@
 import { readFileSync } from "node:fs"
 import path from "node:path"
 import { beforeEach, expect, test, vi } from "vitest"
-import { defaultPanes, loadPanes, mergeBoxes, placeBoxes, savePanes, type PaneBox } from "./paneLayout"
+import { defaultPanes, loadPanes, mergeBoxes, packBoxes, placeBoxes, savePanes, type PaneBox } from "./paneLayout"
 
 // The same cases run in internal/sidebar/panegrid_test.go.
-const cases: { name: string; minH: number; saved: PaneBox[]; defaults: PaneBox[]; moved: string; want: PaneBox[] }[] =
-  JSON.parse(readFileSync(path.resolve(import.meta.dirname, "../../../testdata/pane-layout.json"), "utf8"))
+const cases: {
+  name: string; minH?: number; saved: PaneBox[]; defaults?: PaneBox[]; moved?: string; pack?: Record<string, number>; want: PaneBox[]
+}[] = JSON.parse(readFileSync(path.resolve(import.meta.dirname, "../../../testdata/pane-layout.json"), "utf8"))
 
 test.each(cases)("fixture: $name", c => {
-  expect(mergeBoxes(c.saved, c.defaults, c.minH, c.moved)).toEqual(c.want)
+  const got = c.pack ? packBoxes(c.saved, c.pack) : mergeBoxes(c.saved, c.defaults!, c.minH!, c.moved!)
+  expect(got).toEqual(c.want)
 })
 
 test("a saved three-box layout gains workflows in the visible rows, and the saved boxes do not move", () => {

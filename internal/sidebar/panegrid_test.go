@@ -15,18 +15,23 @@ func TestPaneLayoutFixture(t *testing.T) {
 		t.Fatal(err)
 	}
 	var cases []struct {
-		Name     string    `json:"name"`
-		MinH     int       `json:"minH"`
-		Saved    []paneBox `json:"saved"`
-		Defaults []paneBox `json:"defaults"`
-		Moved    string    `json:"moved"`
-		Want     []paneBox `json:"want"`
+		Name     string         `json:"name"`
+		MinH     int            `json:"minH"`
+		Saved    []paneBox      `json:"saved"`
+		Defaults []paneBox      `json:"defaults"`
+		Moved    string         `json:"moved"`
+		Pack     map[string]int `json:"pack"`
+		Want     []paneBox      `json:"want"`
 	}
 	if err := json.Unmarshal(data, &cases); err != nil {
 		t.Fatal(err)
 	}
 	for _, c := range cases {
-		if got := mergeBoxes(c.Saved, c.Defaults, c.MinH, c.Moved); !slices.Equal(got, c.Want) {
+		got := mergeBoxes(c.Saved, c.Defaults, c.MinH, c.Moved)
+		if c.Pack != nil {
+			got = packBoxes(c.Saved, c.Pack)
+		}
+		if !slices.Equal(got, c.Want) {
 			t.Errorf("%s:\n got %+v\nwant %+v", c.Name, got, c.Want)
 		}
 	}

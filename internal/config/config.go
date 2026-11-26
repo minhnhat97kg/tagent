@@ -52,6 +52,8 @@ var Settings = []Setting{
 	{Key: "@agent_avatar", Group: "Look", Label: "Character", TUIOnly: true, Kind: Choice, Default: "off",
 		Choices: []string{"slime", "cat", "sprout", "ghost", "robot", "off"}, Help: "the sidebar avatar; off hides it"},
 	{Key: "@agent_avatar_lang", Group: "Look", Label: "Language", TUIOnly: true, Kind: Choice, Default: "en", Choices: []string{"vi", "en"}},
+	{Key: "@agent_compact", Group: "Look", Label: "Compact panes", Kind: Bool, Default: "off",
+		Help: "collapse the dashboard panes; the saved layout is kept and editing is off"},
 	{Key: "@sidebar_position", Group: "Sidebar", Label: "Position", TUIOnly: true, Kind: Choice, Default: "left", Choices: []string{"left", "right"}},
 	{Key: "@sidebar_width", Group: "Sidebar", Label: "Initial width", TUIOnly: true, Kind: Text, Default: "15%", Help: "starting size only; resize freely with tmux"},
 	{Key: "@agent_notice_seconds", Group: "Sidebar", Label: "Notice shown for (seconds)", TUIOnly: true, Kind: Int, Default: "10", Min: 1, Max: 600, Help: "how long a result or error line stays at the bottom of the board"},

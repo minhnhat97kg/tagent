@@ -11,11 +11,11 @@ import { useSize } from "@/hooks/useSize"
 const EDITOR_MIN_WIDTH = 900
 
 // WorkflowsPane is the Workflows pane on home. A dirty editor stays up, so a resize never drops a draft.
-export function WorkflowsPane({ dir }: { dir: string }) {
+export function WorkflowsPane({ dir, compact }: { dir: string; compact?: boolean }) {
   const [ref, { w }] = useSize()
   const [dirty, setDirty] = useState(false)
   return <div ref={ref} className="flex min-h-0 flex-1 flex-col">
-    {w >= EDITOR_MIN_WIDTH || dirty ? <WorkflowsPage dir={dir} onDirty={setDirty} /> : <WorkflowList dir={dir} />}
+    {(w >= EDITOR_MIN_WIDTH && !compact) || dirty ?  <WorkflowsPage dir={dir} onDirty={setDirty} /> : <WorkflowList dir={dir} />}
   </div>
 }
 

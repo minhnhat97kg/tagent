@@ -31,6 +31,25 @@ export function placeBoxes(boxes: PaneBox[], moved: string): PaneBox[] {
   return out
 }
 
+// compactRows is the most 24px rows a pane keeps in compact mode; a pane not listed keeps its height.
+export const compactRows: Record<string, number> = { agents: 4, usage: 7, tasks: 8, workflows: 6 }
+
+// packBoxes is compact mode: each box is cut to its compact height (when smaller), then, in (y, x) order,
+// moves up to the bottom of the lowest placed box it overlaps horizontally, else to row 0. x and w do not change.
+// The input is not changed; the output keeps the input order.
+export function packBoxes(boxes: PaneBox[], heights: Record<string, number>): PaneBox[] {
+  const out = boxes.map(b => ({ ...b, h: Math.min(b.h, heights[b.id] ?? b.h) }))
+  const order = out.map((_, i) => i).sort((a, c) => boxes[a]!.y - boxes[c]!.y || boxes[a]!.x - boxes[c]!.x)
+  const placed: PaneBox[] = []
+  for (const i of order) {
+    const b = out[i]!
+    b.y = 0
+    for (const p of placed) if (p.x < b.x + b.w && b.x < p.x + p.w) b.y = Math.max(b.y, p.y + p.h)
+    placed.push(b)
+  }
+  return out
+}
+
 // freeRow is the first row, above low, where b overlaps none of placed; low when there is none.
 const freeRow = (placed: PaneBox[], b: PaneBox, low: number) => {
   for (let y = 0; y < low; y++) if (!placed.some(p => overlaps({ ...b, y }, p))) return y

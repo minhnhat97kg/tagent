@@ -914,7 +914,7 @@ func (m Model) boardPanel(title, pos string, lines []string, width, height int, 
 // from width 80 with a workflow to draw; flowW 0 means the list alone.
 func (m Model) workflowCols(width int) (listW, flowW int) {
 	inner := width - 4
-	if width < 80 || len(m.boardWorkflows) == 0 {
+	if width < 80 || len(m.boardWorkflows) == 0 || m.compact && !m.maximized {
 		return inner, 0
 	}
 	sep := ansi.StringWidth(paneColSep)

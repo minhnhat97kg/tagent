@@ -171,6 +171,12 @@ terminal (the dashboard scrolls to the selected pane) or leave gaps. The layout
 is saved in `layout.json` next to `config.conf`, one for narrow (under 90
 columns) and one for wide, and survives restarts.
 
+The `Compact panes` setting (`@agent_compact`, in the settings screen and the
+web Settings dialog) collapses the panes to small rows and packs them upward,
+in the TUI and on the web home. The saved layout is kept. While it is on, `M`,
+mouse drag and the web move and resize handles do nothing, and nothing is saved.
+Turn it off to get the saved layout back.
+
 Each pane picks what to show from its own size, so a pane that is shrunk
 changes too, whatever the terminal width. Tasks: under 6 rows, lane counts;
 narrower than 64 columns, the active lane's cards; 100 columns and 12 rows,

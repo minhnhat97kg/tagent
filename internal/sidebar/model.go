@@ -610,6 +610,7 @@ type RefreshMsg struct {
 	Theme      Theme
 	Icons      Icons
 	Avatar     AvatarConfig
+	Compact    bool // @agent_compact: the panes are collapsed (packBoxes)
 	// Dialogs: the prompt on screen of each waiting agent (approval inbox).
 	Dialogs map[string]scrape.Dialog
 }
@@ -745,6 +746,7 @@ type Model struct {
 	layoutSel   string
 	layoutDraft []paneBox
 	layoutDirty bool      // enter saves only after a change, so an untouched layout stays auto-sized
+	compact     bool      // @agent_compact: the stored layout is drawn packed and cannot be edited
 	drag        *paneDrag // a mouse drag in progress (pane_layout.go)
 	scrollX     int
 	scrollY     int
@@ -962,6 +964,7 @@ func refreshCmd() tea.Cmd {
 			Theme:      ThemeFromOptions(opts),
 			Icons:      IconsFromOptions(opts),
 			Avatar:     avatarConfigFromOptions(opts),
+			Compact:    opts["@agent_compact"] == "on",
 			Dialogs:    readDialogs(sessions),
 			SizeOwners: readSizeOwners(sessions),
 			Web:        opts["@agent_web_status"],
@@ -1339,6 +1342,10 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case RefreshMsg:
+		m.compact = msg.Compact
+		if m.compact { // an edit cannot survive compact mode: discard it, do not save
+			m.layoutEdit, m.layoutDraft, m.layoutDirty, m.drag = false, nil, false, nil
+		}
 		if !m.layoutEdit { // a save from another sidebar shows up here
 			m.layouts = loadLayouts()
 		}
@@ -1656,7 +1663,7 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		if m.layoutEdit { // clicks do nothing while a layout is being edited
 			return m, nil
 		}
-		if inBody && !m.taskDelete && msg.Button == tea.MouseButtonLeft && msg.Action == tea.MouseActionPress {
+		if inBody && !m.compact && !m.taskDelete && msg.Button == tea.MouseButtonLeft && msg.Action == tea.MouseActionPress {
 			m = m.startDrag(g, msg.X, msg.Y) // the click below still runs; the boxes are taken before it changes focus
 		}
 	}

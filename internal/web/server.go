@@ -264,7 +264,8 @@ func (s *server) state(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	host, _ := os.Hostname()
-	writeJSON(w, map[string]any{"agents": list, "projects": projects, "host": host, "harnesses": []string{"claude", "codex", "opencode", "gemini", "pi", "copilot", "amp"}, "models": agents.Models()})
+	compact, _ := tmux.GetOption("@agent_compact")
+	writeJSON(w, map[string]any{"agents": list, "projects": projects, "host": host, "compact": compact == "on", "harnesses": []string{"claude", "codex", "opencode", "gemini", "pi", "copilot", "amp"}, "models": agents.Models()})
 }
 
 var paneRe = regexp.MustCompile(`^%\d+$`)
