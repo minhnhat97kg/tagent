@@ -530,10 +530,18 @@ Set options with `set -g …` before loading the plugin, or use `tagent config`.
 | `@agent_notify_url` | — | phone alerts and task-status transitions (ntfy or plain-text POST webhook); empty disables delivery |
 | `@agent_telegram_token` | — | Telegram bot token; empty disables the gateway. Alerts go to every allowlisted chat (waiting agents get answer buttons); the scraper long-polls for replies, `@name text`, `/use <name>`, `/agents` |
 | `@agent_telegram_chats` | — | comma-separated allowlisted chat IDs (groups are negative). Other chats are ignored and never answered. Anyone in an allowed chat can drive agents |
-| `@agent_telegram_agent` | `receptionist` | default chat target when none is set with `/use`; falls back here when the target is gone |
+| `@agent_telegram_agent` | `receptionist` | offered in the agent list; a chosen target that is gone falls back here. Until `/use` picks a target, plain text is answered with help (also `/start`, `/help`) |
 | `@agent_theme` | `light` | `dark` / `light`; `@agent_color_<token>`, `@agent_icon_<token>` override single colors/icons |
 
-The bot token is stored as a tmux option, so anyone who can run `tmux show -g` can read it; keep the tmux server private. Chat state (update offset, per-chat target, reply routing) is kept in `~/.config/tagent/telegram.json`.
+Put the settings in `~/.config/tagent/telegram.env` (tagent keeps it `0600`):
+
+```
+token=<bot token>
+chats=<chat id>,<chat id>
+agent=receptionist
+```
+
+A key missing from the file falls back to the tmux option. Prefer the file for the token: anyone who can run `tmux show -g` can read an option (agents running as your user can still read the file). The file applies to every tmux server, and only one of them polls at a time. Chat state (update offset, per-chat target, reply routing) is kept in `~/.config/tagent/telegram.json`.
 
 ## Development
 

@@ -6,9 +6,12 @@ package notify
 // re-running this binary (tagent send/new/answer), so this package stays a
 // leaf: no import of cmd/tagent, scrape or tasks.
 //
-// set -g @agent_telegram_token <bot token>      # empty = off
-// set -g @agent_telegram_chats "<id>,<id>"     # allowlist; others are ignored
-// set -g @agent_telegram_agent receptionist    # default chat target
+// Settings live in <config dir>/telegram.env (kept 0600); a tmux option is the
+// per-key fallback:
+//
+//	token=<bot token>    @agent_telegram_token   empty = off
+//	chats=<id>,<id>      @agent_telegram_chats   allowlist; others are ignored
+//	agent=receptionist   @agent_telegram_agent   default chat target
 
 import (
 	"bytes"
@@ -30,6 +33,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"syscall"
+	"testing"
 	"time"
 	"unicode"
 
@@ -60,6 +64,7 @@ var (
 	runTagent   = execTagent                 // seam: tests fake the agent CLI
 	listAgents  = listAgentPanes             // seam: tests fake the pane list
 	detachAlert = spawnAlert                 // seam: tests run the alert inline
+	envPath     = defaultEnvPath             // seam: tests point at a temp file
 	polling     atomic.Bool
 
 	nameRe = regexp.MustCompile(`^%?[\w.\-/]+$`)
@@ -79,18 +84,50 @@ type tgConfig struct {
 	allowed             map[int64]bool
 }
 
+// defaultEnvPath is empty in test binaries: a test must never message a real
+// chat, and spawnAlert would re-run the test binary.
+func defaultEnvPath() string {
+	if testing.Testing() {
+		return ""
+	}
+	return filepath.Join(apppath.ConfigDir(), "telegram.env")
+}
+
+// fileConfig reads the key=value lines of telegram.env and keeps it private.
+func fileConfig() map[string]string {
+	m := map[string]string{}
+	path := envPath()
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return m
+	}
+	_ = os.Chmod(path, 0o600)
+	for _, line := range strings.Split(string(b), "\n") {
+		if k, v, ok := strings.Cut(strings.TrimSpace(line), "="); ok {
+			m[strings.TrimSpace(k)] = strings.Trim(strings.TrimSpace(v), `"'`)
+		}
+	}
+	return m
+}
+
+// setting is the file value of key, else the tmux option.
+func setting(file map[string]string, key, option string) string {
+	if v := file[key]; v != "" {
+		return v
+	}
+	v, _ := tmux.GetOption(option)
+	return strings.TrimSpace(v)
+}
+
 func loadConfig() tgConfig {
-	c := tgConfig{allowed: map[int64]bool{}}
-	c.token, _ = tmux.GetOption(tokenOption)
-	c.token = strings.TrimSpace(c.token)
-	raw, _ := tmux.GetOption(chatsOption)
-	for _, f := range strings.Split(raw, ",") {
+	file := fileConfig()
+	c := tgConfig{token: setting(file, "token", tokenOption), allowed: map[int64]bool{}}
+	for _, f := range strings.Split(setting(file, "chats", chatsOption), ",") {
 		if id, err := strconv.ParseInt(strings.TrimSpace(f), 10, 64); err == nil {
 			c.allowed[id] = true
 		}
 	}
-	c.defaultAgent, _ = tmux.GetOption(agentOption)
-	if c.defaultAgent = strings.TrimSpace(c.defaultAgent); c.defaultAgent == "" {
+	if c.defaultAgent = setting(file, "agent", agentOption); c.defaultAgent == "" {
 		c.defaultAgent = defaultTarget
 	}
 	return c
@@ -295,7 +332,7 @@ func sayAbout(cfg tgConfig, chat int64, a agentPane, text string) {
 // notifyTelegram is the Telegram branch of Send (see remote.go). With a token
 // set, the alert goes to a detached child so a hook never waits on Telegram.
 func notifyTelegram(title, body, pane string) {
-	if token, _ := tmux.GetOption(tokenOption); strings.TrimSpace(token) == "" {
+	if setting(fileConfig(), "token", tokenOption) == "" {
 		return // feature off: no exec, no other option reads
 	}
 	detachAlert(pane, title, body)
@@ -532,10 +569,35 @@ func PollTelegram(dirs func() []string) {
 			time.Sleep(10 * time.Second)
 			return
 		}
+		// The file is shared by every tmux server, and Telegram allows one poller
+		// per token. ponytail: replies reach the agents of whichever server wins.
+		unlock, ok := lockPoll()
+		if !ok {
+			time.Sleep(10 * time.Second)
+			return
+		}
+		defer unlock()
 		if err := pollOnce(cfg, dirs); err != nil {
 			time.Sleep(5 * time.Second)
 		}
 	}()
+}
+
+// lockPoll takes the cross-process poll lock without waiting.
+func lockPoll() (func(), bool) {
+	dir := apppath.ConfigDir()
+	if os.MkdirAll(dir, 0o700) != nil {
+		return nil, false
+	}
+	f, err := os.OpenFile(filepath.Join(dir, "telegram.poll.lock"), os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		return nil, false
+	}
+	if syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB) != nil {
+		f.Close()
+		return nil, false
+	}
+	return func() { f.Close() }, true // closing releases the lock
 }
 
 func pollOnce(cfg tgConfig, dirs func() []string) error {
@@ -650,7 +712,10 @@ func handleMessage(cfg tgConfig, m message, dirs func() []string) {
 		say(cfg, chat, "target: "+arg)
 		return
 	case "/agents":
-		sendAgents(cfg, chat)
+		sendAgents(cfg, chat, "")
+		return
+	case "/start", "/help":
+		sendAgents(cfg, chat, helpText)
 		return
 	}
 	if !forwardable(text) {
@@ -658,13 +723,21 @@ func handleMessage(cfg tgConfig, m message, dirs func() []string) {
 		return
 	}
 	target, _ := loadState().Targets[strconv.FormatInt(chat, 10)]
-	if target == "" {
-		target = cfg.defaultAgent
+	if target == "" { // nothing chosen yet: explain instead of guessing
+		sendAgents(cfg, chat, helpText)
+		return
 	}
 	background(func() { deliver(cfg, dirs, chat, target, text, true) })
 }
 
 const forwardHint = "text starting with / or ! is not forwarded to agents"
+
+const helpText = `Pick an agent first, then send plain text to it.
+/use <agent>  choose the agent (or tap a button below)
+@name text    one message to another agent
+/agents       list agents
+/help         this message
+Reply to a bot message to answer that agent.`
 
 // forwardable: "/" would run harness commands (/clear, /exit) and "!" is a
 // shell escape that skips permission prompts.
@@ -672,9 +745,13 @@ func forwardable(text string) bool {
 	return !strings.HasPrefix(text, "/") && !strings.HasPrefix(text, "!")
 }
 
-// sendAgents lists agent panes with status, one button per agent to /use it.
-func sendAgents(cfg tgConfig, chat int64) {
+// sendAgents lists agent panes with status under header, one button per agent
+// to /use it.
+func sendAgents(cfg tgConfig, chat int64, header string) {
 	var b strings.Builder
+	if header != "" {
+		b.WriteString(header + "\n\n")
+	}
 	var rows [][]map[string]string
 	button := func(name string) {
 		if nameRe.MatchString(name) && len("u|"+name) <= 64 { // Telegram callback_data cap

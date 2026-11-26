@@ -7,7 +7,9 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -234,4 +236,49 @@ func TestTelegramGateway(t *testing.T) {
 			t.Errorf("expected an error without the token, got %v", err)
 		}
 	})
+}
+
+func TestFileConfigOverridesTmux(t *testing.T) {
+	setupRig(t, "tmux-token")
+	if envPath() != "" {
+		t.Fatal("a test binary must not read the real telegram.env")
+	}
+	file := filepath.Join(t.TempDir(), "telegram.env")
+	if err := os.WriteFile(file, []byte("# bot\ntoken = 'file-token'\nagent=pm\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	old := envPath
+	envPath = func() string { return file }
+	t.Cleanup(func() { envPath = old })
+
+	c := loadConfig()
+	if c.token != "file-token" || c.defaultAgent != "pm" || !c.allowed[100] || !c.allowed[-200] {
+		t.Fatalf("file keys override, missing keys fall back to tmux: %+v", c)
+	}
+	if st, err := os.Stat(file); err != nil || st.Mode().Perm() != 0o600 {
+		t.Fatalf("file must be made private: %v %v", st.Mode(), err)
+	}
+	unlock, ok := lockPoll()
+	if !ok {
+		t.Fatal("first poll lock")
+	}
+	if _, again := lockPoll(); again {
+		t.Fatal("a second poller must be refused")
+	}
+	unlock()
+}
+
+func TestHelpUntilTargetChosen(t *testing.T) {
+	for _, text := range []string{"hello", "/start", "/help"} {
+		r := setupRig(t, "tok", msg(1, 100, text, 0))
+		if err := pollOnce(loadConfig(), nil); err != nil {
+			t.Fatal(err)
+		}
+		if !r.sentTo("sendMessage", "100", "/use") || !r.sentTo("sendMessage", "100", "callback_data") {
+			t.Errorf("%q: want help with agent buttons", text)
+		}
+		if len(r.agents) != 0 {
+			t.Errorf("%q: nothing may reach an agent: %v", text, r.agents)
+		}
+	}
 }
