@@ -13,9 +13,9 @@ tagent · tagent
 │ Tokens today 0              │
 ╰─────────────────────────────╯
 ╭─ ☷ Tasks  ○2  [doing 2]  !…╮
-│ ▌ Ticket number 3 with a l… │
-│   ● doing #3 builder 1     │
-╰──────────────────── 1 of 2 ─╯
+│ ○ todo 2  ▶ doing 2         │
+│ ! blocked 1  ✓ done 1       │
+╰─────────────────────────────╯
 ╭─ [Workflows]  Agents ───────╮
 │ No workflows · tagent work… │
 │                             │
@@ -24,21 +24,21 @@ Tab/S-Tab panel  ↑↓ select  en…
 === dash 32x22 focus 3
 tagent · tagent
 ╭─ Agents ────────────────────╮
-│ ▌ claude-main     main   │
-│   codex-fix              ▲  │
+│ 3 agents · 1 running · 1    │
+│ waiting · 1 other           │
 ╰──────────────────── 1 of 3 ─╯
 ┏━ ▥ Usage  1d  [7d]  30d ━━━━┓
 ┃ Now                         ┃
+┃         5h      7d          ┃
+┃ Claude  ○  –  ○  –          ┃
+┃ Codex   ○  –  ○  –          ┃
 ┃ Tokens today 0              ┃
 ┃  ·······                    ┃
-┃                             ┃
-┃                             ┃
-┃                             ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 ╭─ ☷ Tasks  ○2  [doing 2]  !…╮
-│ ▌ Ticket number 3 with a l… │
-│   ● doing #3 builder 1     │
-╰──────────────────── 1 of 2 ─╯
+│ ○ todo 2  ▶ doing 2         │
+│ ! blocked 1  ✓ done 1       │
+╰─────────────────────────────╯
 ╭─ [Workflows]  Agents ───────╮
 │ No workflows · tagent work… │
 │                             │
@@ -47,8 +47,8 @@ h/l or [ ] range  Tab/S-Tab pa…
 === dash 32x22 focus 2
 tagent · tagent
 ╭─ Agents ────────────────────╮
-│ claude-main     main     │
-│ codex-fix              ▲    │
+│ 3 agents · 1 running · 1    │
+│ waiting · 1 other           │
 ╰──────────────────── 1 of 3 ─╯
 ╭─ ▥ Usage  1d  [7d]  30d ────╮
 │ Now                         │
@@ -70,17 +70,17 @@ h/l lane  j/k card  n new  s s…
 === dash 32x22 focus 4
 tagent · tagent
 ╭─ Agents ────────────────────╮
-│ ▌ claude-main     main   │
-│   codex-fix              ▲  │
+│ 3 agents · 1 running · 1    │
+│ waiting · 1 other           │
 ╰──────────────────── 1 of 3 ─╯
 ╭─ ▥ Usage  1d  [7d]  30d ────╮
 │ Now                         │
 │ Tokens today 0              │
 ╰─────────────────────────────╯
 ╭─ ☷ Tasks  ○2  [doing 2]  !…╮
-│ ▌ Ticket number 3 with a l… │
-│   ● doing #3 builder 1     │
-╰──────────────────── 1 of 2 ─╯
+│ ○ todo 2  ▶ doing 2         │
+│ ! blocked 1  ✓ done 1       │
+╰─────────────────────────────╯
 ┏━ [Workflows]  Agents ━━━━━━━┓
 ┃ No workflows · tagent work… ┃
 ┃                             ┃
@@ -721,39 +721,39 @@ enter view  a add  e edit  x delete  t agents  B config  Tab
 === dash 130x45 focus 0
 tagent · tagent                                                                                               ? help · , settings
 ┏━ Agents ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭─ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1  closed 0 ────────────────────────╮
-┃ ▌ claude-main                  main   ┃│ ▌ Ticket number 3 with a longer title                                             │
-┃   codex-fix                           ▲  ┃│   ● doing #3 builder 1                                                           │
-┃   plain                                  ┃│   Ticket number 4 with a longer title                                             │
-┃                                          ┃│   ● review #4 builder                                                             │
-┃                                          ┃│                                                                                   │
-┃                                          ┃│                                                                                   │
-┃                                          ┃│                                                                                   │
-┃                                          ┃│                                                                                   │
-┃                                          ┃│                                                                                   │
-┃                                          ┃│                                                                                   │
-┃                                          ┃│                                                                                   │
-┃                                          ┃│                                                                                   │
-┃                                          ┃│                                                                                   │
-┃                                          ┃│                                                                                   │
-┃                                          ┃│                                                                                   │
-┃                                          ┃│                                                                                   │
-┃                                          ┃│                                                                                   │
-┃                                          ┃│                                                                                   │
-┃                                          ┃│                                                                                   │
-┃                                          ┃│                                                                                   │
-┃                                          ┃│                                                                                   │
-┃                                          ┃│                                                                                   │
-┃                                          ┃│                                                                                   │
-┃                                          ┃│                                                                                   │
-┃                                          ┃│                                                                                   │
-┃                                          ┃│                                                                                   │
-┃                                          ┃│                                                                                   │
-┃                                          ┃│                                                                                   │
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1 of 3 ━┛│                                                                                   │
-╭─ ▥ Usage  1d  [7d]  30d ─────────────────╮│                                                                                   │
-│ Now                                      ││                                                                                   │
-│         5h      7d                       ││                                                                                   │
-│ Claude  ○  –  ○  –                       ││                                                                                   │
+┃ ▌ claude-main                  main   ┃│ ▌ Ticket number 3 with a longer title   │ ╭─ #3  ◐ doing  type none · in progr…─╮ │
+┃   codex-fix                           ▲  ┃│   ● doing #3 builder 1                 │ │ Ticket number 3 with a longer title │ │
+┃   plain                                  ┃│   Ticket number 4 with a longer title   │ │ Assignee   builder · @ assign       │ │
+┃                                          ┃│   ● review #4 builder                   │ │ Auto-start off · U on               │ │
+┃                                          ┃│                                         │ │ Created    — · updated —            │ │
+┃                                          ┃│                                         │ ╰─────────────────────────────────────╯ │
+┃                                          ┃│                                         │                                         │
+┃                                          ┃│                                         │ ╭─ Description · e edit ──────────────╮ │
+┃                                          ┃│                                         │ │ No description                      │ │
+┃                                          ┃│                                         │ ╰─────────────────────────────────────╯ │
+┃                                          ┃│                                         │ ╭─ Attachments 0 · a view · A attach ─╮ │
+┃                                          ┃│                                         │ │ None                                │ │
+┃                                          ┃│                                         │ ╰─────────────────────────────────────╯ │
+┃                                          ┃│                                         │ ╭─ Dependencies 0 · D edit ───────────╮ │
+┃                                          ┃│                                         │ │ None                                │ │
+┃                                          ┃│                                         │ ╰─────────────────────────────────────╯ │
+┃                                          ┃│                                         │                                         │
+┃                                          ┃│                                         │                                         │
+┃                                          ┃│                                         │                                         │
+┃                                          ┃│                                         │                                         │
+┃                                          ┃│                                         │                                         │
+┃                                          ┃│                                         │                                         │
+┃                                          ┃│                                         │                                         │
+┃                                          ┃│                                         │                                         │
+┃                                          ┃│                                         │                                         │
+┃                                          ┃│                                         │                                         │
+┃                                          ┃│                                         │                                         │
+┃                                          ┃│                                         │                                         │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1 of 3 ━┛│                                         │                                         │
+╭─ ▥ Usage  1d  [7d]  30d ─────────────────╮│                                         │                                         │
+│ Now                                      ││                                         │                                         │
+│         5h      7d                       ││                                         │                                         │
+│ Claude  ○  –  ○  –                       ││                                         │                                         │
 │ Codex   ○  –  ○  –                       │╰────────────────────────────────────────────────────────────────────────── 1 of 2 ─╯
 │ Tokens today 0                           │╭─ [Workflows]  Agents ─────────────────────────────────────────────────────────────╮
 │  ·······  0 in 7d                        ││ No workflows · tagent workflow new <name>                                         │
@@ -767,39 +767,39 @@ Tab/S-Tab panel  ↑↓ select  enter open  N new agent  l log  i prompt  f hand
 === dash 130x45 focus 3
 tagent · tagent                                                                                               ? help · , settings
 ╭─ Agents ─────────────────────────────────╮╭─ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1  closed 0 ────────────────────────╮
-│ ▌ claude-main                  main   ││ ▌ Ticket number 3 with a longer title                                             │
-│   codex-fix                           ▲  ││   ● doing #3 builder 1                                                           │
-│   plain                                  ││   Ticket number 4 with a longer title                                             │
-│                                          ││   ● review #4 builder                                                             │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-╰───────────────────────────────── 1 of 3 ─╯│                                                                                   │
-┏━ ▥ Usage  1d  [7d]  30d ━━━━━━━━━━━━━━━━━┓│                                                                                   │
-┃ Now                                      ┃│                                                                                   │
-┃         5h      7d                       ┃│                                                                                   │
-┃ Claude  ○  –  ○  –                       ┃│                                                                                   │
+│ ▌ claude-main                  main   ││ ▌ Ticket number 3 with a longer title   │ ╭─ #3  ◐ doing  type none · in progr…─╮ │
+│   codex-fix                           ▲  ││   ● doing #3 builder 1                 │ │ Ticket number 3 with a longer title │ │
+│   plain                                  ││   Ticket number 4 with a longer title   │ │ Assignee   builder · @ assign       │ │
+│                                          ││   ● review #4 builder                   │ │ Auto-start off · U on               │ │
+│                                          ││                                         │ │ Created    — · updated —            │ │
+│                                          ││                                         │ ╰─────────────────────────────────────╯ │
+│                                          ││                                         │                                         │
+│                                          ││                                         │ ╭─ Description · e edit ──────────────╮ │
+│                                          ││                                         │ │ No description                      │ │
+│                                          ││                                         │ ╰─────────────────────────────────────╯ │
+│                                          ││                                         │ ╭─ Attachments 0 · a view · A attach ─╮ │
+│                                          ││                                         │ │ None                                │ │
+│                                          ││                                         │ ╰─────────────────────────────────────╯ │
+│                                          ││                                         │ ╭─ Dependencies 0 · D edit ───────────╮ │
+│                                          ││                                         │ │ None                                │ │
+│                                          ││                                         │ ╰─────────────────────────────────────╯ │
+│                                          ││                                         │                                         │
+│                                          ││                                         │                                         │
+│                                          ││                                         │                                         │
+│                                          ││                                         │                                         │
+│                                          ││                                         │                                         │
+│                                          ││                                         │                                         │
+│                                          ││                                         │                                         │
+│                                          ││                                         │                                         │
+│                                          ││                                         │                                         │
+│                                          ││                                         │                                         │
+│                                          ││                                         │                                         │
+│                                          ││                                         │                                         │
+╰───────────────────────────────── 1 of 3 ─╯│                                         │                                         │
+┏━ ▥ Usage  1d  [7d]  30d ━━━━━━━━━━━━━━━━━┓│                                         │                                         │
+┃ Now                                      ┃│                                         │                                         │
+┃         5h      7d                       ┃│                                         │                                         │
+┃ Claude  ○  –  ○  –                       ┃│                                         │                                         │
 ┃ Codex   ○  –  ○  –                       ┃╰────────────────────────────────────────────────────────────────────────── 1 of 2 ─╯
 ┃ Tokens today 0                           ┃╭─ [Workflows]  Agents ─────────────────────────────────────────────────────────────╮
 ┃  ·······  0 in 7d                        ┃│ No workflows · tagent workflow new <name>                                         │
@@ -813,39 +813,39 @@ h/l or [ ] range  Tab/S-Tab panel  ? help                                       
 === dash 130x45 focus 2
 tagent · tagent                                                                                               ? help · , settings
 ╭─ Agents ─────────────────────────────────╮┏━ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1  closed 0 ━━━━━━━━━━━━━━━━━━━━━━━━┓
-│ claude-main                  main     │┃ ▌ Ticket number 3 with a longer title                                             ┃
-│ codex-fix                           ▲    │┃   ● doing #3 builder 1                                                           ┃
-│ plain                                    │┃   Ticket number 4 with a longer title                                             ┃
-│                                          │┃   ● review #4 builder                                                             ┃
-│                                          │┃                                                                                   ┃
-│                                          │┃                                                                                   ┃
-│                                          │┃                                                                                   ┃
-│                                          │┃                                                                                   ┃
-│                                          │┃                                                                                   ┃
-│                                          │┃                                                                                   ┃
-│                                          │┃                                                                                   ┃
-│                                          │┃                                                                                   ┃
-│                                          │┃                                                                                   ┃
-│                                          │┃                                                                                   ┃
-│                                          │┃                                                                                   ┃
-│                                          │┃                                                                                   ┃
-│                                          │┃                                                                                   ┃
-│                                          │┃                                                                                   ┃
-│                                          │┃                                                                                   ┃
-│                                          │┃                                                                                   ┃
-│                                          │┃                                                                                   ┃
-│                                          │┃                                                                                   ┃
-│                                          │┃                                                                                   ┃
-│                                          │┃                                                                                   ┃
-│                                          │┃                                                                                   ┃
-│                                          │┃                                                                                   ┃
-│                                          │┃                                                                                   ┃
-│                                          │┃                                                                                   ┃
-╰───────────────────────────────── 1 of 3 ─╯┃                                                                                   ┃
-╭─ ▥ Usage  1d  [7d]  30d ─────────────────╮┃                                                                                   ┃
-│ Now                                      │┃                                                                                   ┃
-│         5h      7d                       │┃                                                                                   ┃
-│ Claude  ○  –  ○  –                       │┃                                                                                   ┃
+│ claude-main                  main     │┃ ▌ Ticket number 3 with a longer title   │ ╭─ #3  ◐ doing  type none · in progr…─╮ ┃
+│ codex-fix                           ▲    │┃   ● doing #3 builder 1                 │ │ Ticket number 3 with a longer title │ ┃
+│ plain                                    │┃   Ticket number 4 with a longer title   │ │ Assignee   builder · @ assign       │ ┃
+│                                          │┃   ● review #4 builder                   │ │ Auto-start off · U on               │ ┃
+│                                          │┃                                         │ │ Created    — · updated —            │ ┃
+│                                          │┃                                         │ ╰─────────────────────────────────────╯ ┃
+│                                          │┃                                         │                                         ┃
+│                                          │┃                                         │ ╭─ Description · e edit ──────────────╮ ┃
+│                                          │┃                                         │ │ No description                      │ ┃
+│                                          │┃                                         │ ╰─────────────────────────────────────╯ ┃
+│                                          │┃                                         │ ╭─ Attachments 0 · a view · A attach ─╮ ┃
+│                                          │┃                                         │ │ None                                │ ┃
+│                                          │┃                                         │ ╰─────────────────────────────────────╯ ┃
+│                                          │┃                                         │ ╭─ Dependencies 0 · D edit ───────────╮ ┃
+│                                          │┃                                         │ │ None                                │ ┃
+│                                          │┃                                         │ ╰─────────────────────────────────────╯ ┃
+│                                          │┃                                         │                                         ┃
+│                                          │┃                                         │                                         ┃
+│                                          │┃                                         │                                         ┃
+│                                          │┃                                         │                                         ┃
+│                                          │┃                                         │                                         ┃
+│                                          │┃                                         │                                         ┃
+│                                          │┃                                         │                                         ┃
+│                                          │┃                                         │                                         ┃
+│                                          │┃                                         │                                         ┃
+│                                          │┃                                         │                                         ┃
+│                                          │┃                                         │                                         ┃
+│                                          │┃                                         │                                         ┃
+╰───────────────────────────────── 1 of 3 ─╯┃                                         │                                         ┃
+╭─ ▥ Usage  1d  [7d]  30d ─────────────────╮┃                                         │                                         ┃
+│ Now                                      │┃                                         │                                         ┃
+│         5h      7d                       │┃                                         │                                         ┃
+│ Claude  ○  –  ○  –                       │┃                                         │                                         ┃
 │ Codex   ○  –  ○  –                       │┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1 of 2 ━┛
 │ Tokens today 0                           │╭─ [Workflows]  Agents ─────────────────────────────────────────────────────────────╮
 │  ·······  0 in 7d                        ││ No workflows · tagent workflow new <name>                                         │
@@ -859,39 +859,39 @@ h/l lane  j/k card  n new  s start  T type  enter detail  B config  p priority  
 === dash 130x45 focus 4
 tagent · tagent                                                                                               ? help · , settings
 ╭─ Agents ─────────────────────────────────╮╭─ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1  closed 0 ────────────────────────╮
-│ ▌ claude-main                  main   ││ ▌ Ticket number 3 with a longer title                                             │
-│   codex-fix                           ▲  ││   ● doing #3 builder 1                                                           │
-│   plain                                  ││   Ticket number 4 with a longer title                                             │
-│                                          ││   ● review #4 builder                                                             │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-│                                          ││                                                                                   │
-╰───────────────────────────────── 1 of 3 ─╯│                                                                                   │
-╭─ ▥ Usage  1d  [7d]  30d ─────────────────╮│                                                                                   │
-│ Now                                      ││                                                                                   │
-│         5h      7d                       ││                                                                                   │
-│ Claude  ○  –  ○  –                       ││                                                                                   │
+│ ▌ claude-main                  main   ││ ▌ Ticket number 3 with a longer title   │ ╭─ #3  ◐ doing  type none · in progr…─╮ │
+│   codex-fix                           ▲  ││   ● doing #3 builder 1                 │ │ Ticket number 3 with a longer title │ │
+│   plain                                  ││   Ticket number 4 with a longer title   │ │ Assignee   builder · @ assign       │ │
+│                                          ││   ● review #4 builder                   │ │ Auto-start off · U on               │ │
+│                                          ││                                         │ │ Created    — · updated —            │ │
+│                                          ││                                         │ ╰─────────────────────────────────────╯ │
+│                                          ││                                         │                                         │
+│                                          ││                                         │ ╭─ Description · e edit ──────────────╮ │
+│                                          ││                                         │ │ No description                      │ │
+│                                          ││                                         │ ╰─────────────────────────────────────╯ │
+│                                          ││                                         │ ╭─ Attachments 0 · a view · A attach ─╮ │
+│                                          ││                                         │ │ None                                │ │
+│                                          ││                                         │ ╰─────────────────────────────────────╯ │
+│                                          ││                                         │ ╭─ Dependencies 0 · D edit ───────────╮ │
+│                                          ││                                         │ │ None                                │ │
+│                                          ││                                         │ ╰─────────────────────────────────────╯ │
+│                                          ││                                         │                                         │
+│                                          ││                                         │                                         │
+│                                          ││                                         │                                         │
+│                                          ││                                         │                                         │
+│                                          ││                                         │                                         │
+│                                          ││                                         │                                         │
+│                                          ││                                         │                                         │
+│                                          ││                                         │                                         │
+│                                          ││                                         │                                         │
+│                                          ││                                         │                                         │
+│                                          ││                                         │                                         │
+│                                          ││                                         │                                         │
+╰───────────────────────────────── 1 of 3 ─╯│                                         │                                         │
+╭─ ▥ Usage  1d  [7d]  30d ─────────────────╮│                                         │                                         │
+│ Now                                      ││                                         │                                         │
+│         5h      7d                       ││                                         │                                         │
+│ Claude  ○  –  ○  –                       ││                                         │                                         │
 │ Codex   ○  –  ○  –                       │╰────────────────────────────────────────────────────────────────────────── 1 of 2 ─╯
 │ Tokens today 0                           │┏━ [Workflows]  Agents ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 │  ·······  0 in 7d                        │┃ No workflows · tagent workflow new <name>                                         ┃
@@ -905,9 +905,9 @@ h/l agents  enter view  a add  B board config  Tab focus  ? help                
 === board 130x45 wf false
 Board · kanban                                                                                                                    
 ┏━ ☷ Tasks  [todo 2]  doing 0  blocked 0  done 1  closed 0 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ ▌ ● #1 First card                                                                                                              ┃
+┃ [todo 2]                       doing 0                        blocked 0                      done 1                            ┃
+┃ ▌ ● #1 First card                                                                              ● #3 Third card                 ┃
 ┃   ● #2 Second card                                                                                                             ┃
-┃                                                                                                                                ┃
 ┃                                                                                                                                ┃
 ┃                                                                                                                                ┃
 ┃                                                                                                                                ┃
@@ -951,9 +951,9 @@ h/l lane  j/k card  n new  s start  T type  enter detail  B config  p priority  
 === board 130x45 wf true
 Board · kanban                                                                                                                    
 ╭─ ☷ Tasks  [todo 2]  doing 0  blocked 0  done 1  closed 0 ─────────────────────────────────────────────────────────────────────╮
-│ ▌ ● #1 First card                                                                                                              │
+│ [todo 2]                       doing 0                        blocked 0                      done 1                            │
+│ ▌ ● #1 First card                                                                              ● #3 Third card                 │
 │   ● #2 Second card                                                                                                             │
-│                                                                                                                                │
 │                                                                                                                                │
 │                                                                                                                                │
 │                                                                                                                                │

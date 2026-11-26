@@ -1715,7 +1715,8 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 						}
 					}
 				}
-			} else if cursor := &m.workflowCursor; wasFocused && msg.Y < g.wf.y+g.wf.h-1 {
+			} else if listW, flowW := m.workflowCols(g.wf.w); wasFocused && msg.Y < g.wf.y+g.wf.h-1 && (flowW == 0 || msg.X-g.wf.x < 2+listW) {
+				cursor := &m.workflowCursor
 				if m.agentsOpen {
 					cursor = &m.agentCursor
 				}

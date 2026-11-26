@@ -457,9 +457,110 @@ func (m Model) boardCard(idx, width int) []string {
 	return lines
 }
 
-// laneLayout is the active lane's cards as lines, with the card index owning each line.
-func (m Model) laneLayout(width int) (lines []string, owner []int) {
-	for _, idx := range m.laneCards(m.activeLane()) {
+// tasksSize is a Tasks card's tier, picked from its own rect (tasksSizeFor).
+type tasksSize int
+
+const (
+	sizeCounts tasksSize = iota // the five lane counts
+	sizeList                    // the active lane's cards
+	sizeDetail                  // the lane list beside the selected ticket
+	sizeBoard                   // four lanes side by side
+)
+
+// tasksSizeFor picks the Tasks tier from the card's width and height, borders included.
+func tasksSizeFor(w, h int) tasksSize {
+	switch {
+	case h < 6:
+		return sizeCounts
+	case w < 64:
+		return sizeList
+	case w >= 100 && h >= 12:
+		return sizeBoard
+	}
+	return sizeDetail
+}
+
+// tasksCols are a Tasks card body's column widths and the separator between them.
+func tasksCols(size tasksSize, width int) ([]int, string) {
+	inner := width - 4
+	switch size {
+	case sizeDetail:
+		lw := (inner - 3) / 2
+		return []int{lw, inner - lw - 3}, paneColSep
+	case sizeBoard:
+		cw := (inner - 3) / 4
+		return []int{cw, cw, cw, inner - 3*cw - 3}, " "
+	}
+	return []int{inner}, ""
+}
+
+// tasksColAt is the column under card x (the border and padding come first), -1 in a gap.
+func tasksColAt(size tasksSize, width, x int) int {
+	widths, sep := tasksCols(size, width)
+	start := 2
+	for i, w := range widths {
+		if x >= start && x < start+w {
+			return i
+		}
+		start += w + ansi.StringWidth(sep)
+	}
+	return -1
+}
+
+// joinCols puts columns side by side, each cut or padded to its width, for rows lines.
+func joinCols(cols [][]string, widths []int, sep string, rows int) []string {
+	out := make([]string, rows)
+	for r := range out {
+		parts := make([]string, len(cols))
+		for c, col := range cols {
+			line := ""
+			if r < len(col) {
+				line = col[r]
+			}
+			parts[c] = boardFit(line, widths[c])
+		}
+		out[r] = strings.Join(parts, sep)
+	}
+	return out
+}
+
+// tasksBoardLanes are the four lanes of the board tier: closed takes done's column while a closed ticket is selected.
+func (m Model) tasksBoardLanes() []string {
+	lanes := slices.Clone(boardLanes[:4])
+	if m.activeLane() == "closed" {
+		lanes[3] = "closed"
+	}
+	return lanes
+}
+
+// laneCountLines is the counts tier: every lane with its count, the active lane bold, wrapped to width.
+func (m Model) laneCountLines(width int) []string {
+	active := m.activeLane()
+	var lines []string
+	cur := ""
+	for _, l := range boardLanes {
+		item := fmt.Sprintf("%s %s %d", laneGlyph(l), laneShort(l), len(m.laneCards(l)))
+		style := m.boardStyle(m.theme.TextMuted)
+		if l == active {
+			style = m.boardStyle(m.theme.TextPrimary).Bold(true)
+		}
+		if cur != "" && ansi.StringWidth(cur)+2+ansi.StringWidth(item) > width {
+			lines, cur = append(lines, cur), ""
+		}
+		if cur != "" {
+			cur += "  "
+		}
+		cur += style.Render(item)
+	}
+	if cur != "" {
+		lines = append(lines, cur)
+	}
+	return lines
+}
+
+// laneLayout is a lane's cards as lines, with the card index owning each line.
+func (m Model) laneLayout(lane string, width int) (lines []string, owner []int) {
+	for _, idx := range m.laneCards(lane) {
 		for _, l := range m.boardCard(idx, width) {
 			lines, owner = append(lines, l), append(owner, idx)
 		}
@@ -476,24 +577,48 @@ func (m Model) laneWindow(owner []int, rows int) int {
 	return max(0, last+1-rows)
 }
 
-// laneLines is the Tasks card body: the active lane's cards, or just the
-// selected one when the card is collapsed to a single row.
-func (m Model) laneLines(width, rows int) []string {
-	if rows <= 1 {
-		if m.taskCursor < len(m.notes) {
-			return []string{m.boardCardLine(m.taskCursor, width)}
-		}
-		return nil
-	}
-	lines, owner := m.laneLayout(width)
+// laneLines is a lane's card lines from the window that keeps the selected card in view.
+func (m Model) laneLines(lane string, width, rows int) []string {
+	lines, owner := m.laneLayout(lane, width)
 	return lines[min(m.laneWindow(owner, rows), len(lines)):]
 }
 
-// tasksCard is the lane card: tabs in the title, "3 of 32" on the bottom border.
+// tasksCard is the Tasks card at the size its rect allows (tasksSizeFor): tabs in the title.
 func (m Model) tasksCard(width, height, num int, focused bool) string {
+	return m.tasksCardAt(tasksSizeFor(width, height), width, height, num, focused)
+}
+
+// tasksCardAt draws the Tasks card at a size; the title (tabs) is the same at every size.
+// "3 of 32" sits on the bottom border of the list tiers only.
+func (m Model) tasksCardAt(size tasksSize, width, height, num int, focused bool) string {
 	title, _ := m.tasksTitle(num, width)
-	cards := m.laneCards(m.activeLane())
-	return m.boardPanel(title, position(slices.Index(cards, m.taskCursor), len(cards)), m.laneLines(width-4, height-2), width, height, focused)
+	active := m.activeLane()
+	cards := m.laneCards(active)
+	pos := position(slices.Index(cards, m.taskCursor), len(cards))
+	widths, sep := tasksCols(size, width)
+	var body []string
+	switch size {
+	case sizeCounts:
+		body, pos = m.laneCountLines(width-4), ""
+	case sizeList:
+		body = m.laneLines(active, widths[0], height-2)
+	case sizeDetail: // the preview is read-only: Details tab, top of the body, no composer
+		d := m
+		d.detailTab, d.detailScroll, d.commentBox = detailTabDetails, 0, false
+		body = joinCols([][]string{m.laneLines(active, widths[0], height-2), d.boardDetail(widths[1], height-2)}, widths, sep, height-2)
+	case sizeBoard:
+		cols := make([][]string, len(widths))
+		for c, lane := range m.tasksBoardLanes() {
+			head := fmt.Sprintf("%s %d", laneShort(lane), len(m.laneCards(lane)))
+			style := m.boardStyle(m.theme.TextMuted)
+			if lane == active {
+				head, style = "["+head+"]", m.boardStyle(m.theme.TextPrimary).Bold(true)
+			}
+			cols[c] = append([]string{style.Render(head)}, m.laneLines(lane, widths[c], height-3)...)
+		}
+		body = joinCols(cols, widths, sep, height-2)
+	}
+	return m.boardPanel(title, pos, body, width, height, focused)
 }
 
 // tasksCardClick handles a click at (x, y) inside a Tasks card of this size
@@ -508,11 +633,27 @@ func (m Model) tasksCardClick(x, y, width, height, num int) (next Model, card bo
 		}
 		return m, false
 	}
-	if y >= height-1 || height < 4 {
+	size := tasksSizeFor(width, height)
+	if y >= height-1 || size == sizeCounts {
 		return m, false
 	}
-	lines, owner := m.laneLayout(width - 4)
-	if i := m.laneWindow(owner, height-2) + y - 1; i < len(lines) {
+	widths, _ := tasksCols(size, width)
+	col := 0
+	if size != sizeList { // the list ignores x, as it always has
+		col = tasksColAt(size, width, x)
+	}
+	lane, rows, row := m.activeLane(), height-2, y-1 // row: the body row under the pointer
+	switch {
+	case col < 0, size == sizeDetail && col > 0:
+		return m, false
+	case size == sizeBoard:
+		lane, rows, row = m.tasksBoardLanes()[col], height-3, y-2
+		if y == 1 { // the lane header
+			return m.selectLane(lane), false
+		}
+	}
+	lines, owner := m.laneLayout(lane, widths[col])
+	if i := m.laneWindow(owner, rows) + row; i < len(lines) {
 		m.taskCursor = owner[i]
 		m.detailScroll = 0
 		return m, true
@@ -555,6 +696,9 @@ func (m Model) workflowLines(width int) []string {
 	}
 	return lines
 }
+
+// paneColSep separates the columns of a split card (Tasks detail, Workflows flow).
+const paneColSep = " │ "
 
 // flowLines draws the workflow two lines per status, like ticket rows:
 // icon, status, who acts there and how many tickets sit in it; then where it can go.
@@ -783,10 +927,58 @@ func (m Model) boardSplit(h int) (tasksH, wfH int) {
 	return hs[0], hs[1]
 }
 
+// workflowCols are the Workflows card's list and job-flow widths. The flow shows
+// from width 80 with a workflow to draw; flowW 0 means the list alone.
+func (m Model) workflowCols(width int) (listW, flowW int) {
+	inner := width - 4
+	if m.agentsOpen || width < 80 || len(m.boardWorkflows) == 0 {
+		return inner, 0
+	}
+	sep := ansi.StringWidth(paneColSep)
+	listW = (inner - sep) / 2
+	return listW, inner - listW - sep
+}
+
+// jobFlowLines is the selected workflow's jobs, one line each: id, status, who
+// runs it, what it needs. Rows past rows end in "↓ N more". It reads only what
+// the workflow already holds.
+func (m Model) jobFlowLines(width, rows int) []string {
+	if len(m.boardWorkflows) == 0 {
+		return nil
+	}
+	w := m.boardWorkflows[min(m.workflowCursor, len(m.boardWorkflows)-1)]
+	dim := m.boardStyle(m.theme.TextMuted)
+	var lines []string
+	if w.Err != nil {
+		lines = append(lines, boardFit(m.boardStyle(m.theme.StatusError).Render("error: "+w.Err.Error()), width))
+	}
+	for _, j := range w.Jobs {
+		who := j.Agent
+		switch {
+		case j.Run != "":
+			who = "run: " + strings.SplitN(j.Run, "\n", 2)[0]
+		case j.Uses != "":
+			who = "uses " + j.Uses
+		}
+		line := m.boardStyle(m.theme.TextPrimary).Bold(true).Render(j.ID) + dim.Render("  "+j.Status+"  "+who)
+		if len(j.Needs) > 0 {
+			line += dim.Render(" · needs " + strings.Join(j.Needs, ", "))
+		}
+		lines = append(lines, boardFit(line, width))
+	}
+	if len(lines) > rows {
+		hidden := len(lines) - max(0, rows-1)
+		lines = append(lines[:max(0, rows-1)], boardFit(dim.Render(fmt.Sprintf("↓ %d more", hidden)), width))
+	}
+	return lines
+}
+
 // workflowCard is the Workflows / Agents card (lazygit-style tabs, "t" swaps),
-// windowed around its cursor. num is the Tab-order number (0: none).
+// windowed around its cursor, with the selected workflow's job flow beside the
+// list when there is room (workflowCols). num is the Tab-order number (0: none).
 func (m Model) workflowCard(width, height, num int) string {
-	lines, cursor, n := m.stripPanel(width - 4)
+	listW, flowW := m.workflowCols(width)
+	lines, cursor, n := m.stripPanel(listW)
 	name, w := m.cardName(num, "")
 	tabs, _ := m.tabStrip([]string{"Workflows", "Agents"}, b2i(m.agentsOpen), 3+w)
 	if m.agentsOpen && m.agentDetail { // the detail fills the card and scrolls
@@ -799,7 +991,11 @@ func (m Model) workflowCard(width, height, num int) string {
 		return m.boardPanel(name+tabs, "", view, width, height, m.focus == cardWorkflows)
 	}
 	start := max(0, cursor-max(1, height-2)+1)
-	return m.boardPanel(name+tabs, position(cursor, n), lines[min(start, len(lines)):], width, height, m.focus == cardWorkflows)
+	body := lines[min(start, len(lines)):]
+	if flowW > 0 {
+		body = joinCols([][]string{body, m.jobFlowLines(flowW, max(0, height-2))}, []int{listW, flowW}, paneColSep, max(0, height-2))
+	}
+	return m.boardPanel(name+tabs, position(cursor, n), body, width, height, m.focus == cardWorkflows)
 }
 
 func (m Model) boardHeader() string {
@@ -854,7 +1050,7 @@ func (m Model) boardView() string {
 	} else if m.boardDrawer && m.width >= 100 {
 		// Wide panes: the ticket panel is a right pane beside the tickets.
 		dw := m.width * 2 / 5
-		left := m.tasksCard(m.width-dw, h, 0, false)
+		left := m.tasksCardAt(min(tasksSizeFor(m.width-dw, h), sizeList), m.width-dw, h, 0, false)
 		right := m.boardPanel(m.detailTabTitle(), "", m.boardDetail(dw-4, h-2), dw, h, true)
 		body = lipgloss.JoinHorizontal(lipgloss.Top, left, right)
 	} else if m.boardDrawer {

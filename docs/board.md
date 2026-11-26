@@ -130,10 +130,12 @@ the main worktree's `.tasks/workflows/<name>.yml`; existing files are never over
 The list reloads after the editor exits (including errors) or a deletion. Editing
 and deleting target the selected file, including global workflows marked `global`.
 
-The sidebar opens on the five fixed lanes: todo, in progress, blocked, done, closed. At
-pane widths of 120 columns or more it shows those lanes, windowed around the
-selection when necessary. `h/l` selects a lane; `j/k` selects a card within it.
-Narrow panes retain the list with lane headers. `H/L` still moves the ticket's
+The sidebar has five fixed lanes: todo, in progress, blocked, done, closed. The
+Tasks pane picks what it shows from its own size (see the README): lane counts
+under 6 rows, the active lane's cards under 64 columns, the lane list beside the
+selected ticket, and at 100 columns and 12 rows four lanes side by side (done
+gives way to closed while a closed ticket is selected). `h/l` selects a lane;
+`j/k` selects a card within it. `H/L` still moves the ticket's
 status within its flow. Enter opens the detail drawer; Escape closes it. At 100
  columns or more it is a right pane beside the tickets, narrower panes show it
  full width. The drawer has four tabs: **Details** (description, attachments, note, agent runs),
@@ -183,8 +185,9 @@ an unknown name is an error at its line. The fire cap must be positive. A
 configured role requires an agent, or a `tier` (see [routing](routing.md)); a
 trigger requires an agent and valid template variables (see below).
 
-The TUI board always shows the five fixed lanes. Headers show the lane and
-ticket count; a card shows its real status. Blocked cards show the question;
+The TUI board has the five fixed lanes, and its four-lane view shows todo, in
+progress, blocked and done (closed in place of done while a closed ticket is
+selected). Headers show the lane and ticket count; a card shows its real status. Blocked cards show the question;
 done and closed cards collapse to one line. The web closed lane starts collapsed.
 
 ### Deprecated statuses and migration

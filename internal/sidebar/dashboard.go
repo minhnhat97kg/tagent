@@ -14,6 +14,7 @@ import (
 	"tagent/internal/metrics"
 	"tagent/internal/quota"
 	"tagent/internal/tasks"
+	"tagent/internal/tmux"
 )
 
 type metricMsg struct {
@@ -297,7 +298,25 @@ func (m Model) sectionTitle(label string, width int, focused bool) string {
 }
 
 // agentRows is the Agents card body: running agents (definitions live in Roles).
+// Under 3 body rows (a card under 5 rows) it is a count: agents, running, waiting, other.
 func (m Model) agentRows(width, height int) []string {
+	if height < 3 {
+		total, active, waiting := 0, 0, 0
+		for _, row := range m.rows {
+			if !isSelectablePaneRow(row) {
+				continue
+			}
+			total++
+			switch {
+			case row.Status == tmux.StatusWaiting:
+				waiting++
+			case row.Status.IsActive():
+				active++
+			}
+		}
+		text := fmt.Sprintf("%d agents · %d running · %d waiting · %d other", total, active, waiting, total-active-waiting)
+		return strings.Split(ansi.Wrap(text, max(1, width), ""), "\n")
+	}
 	running := m
 	running.rows = nil
 	for _, row := range m.rows {
@@ -467,8 +486,11 @@ func (m Model) defaultGeometry() dashGeom {
 	if g.wide {
 		left = min(44, max(38, width*40/100))
 	}
-	g.usageLines = m.usageLines(left-4, bh)
-	usageH := len(g.usageLines) + 2
+	usageRows := 3 // the card's height: 6 body rows on a tall pane fit the quota grid, else 3
+	if bh >= 22 {
+		usageRows = 6
+	}
+	usageH := len(m.usageLines(left-4, usageRows)) + 2
 	compH, _ := m.companionPanel(left)
 	if compH > 0 && bh-compH < map[bool]int{true: 15, false: 24}[g.wide] {
 		compH = 0
@@ -507,27 +529,43 @@ func (m Model) defaultGeometry() dashGeom {
 			g.comp = rect{0, 1 + bh - compH, width, compH}
 		}
 	}
+	g.usageLines = m.usageLines(g.usage.w-4, g.usage.h-2)
 	return g
 }
 
 // quotaGet reads the provider quotas; tests stub it so the golden does not depend on this machine.
 var quotaGet = quota.Get
 
-// usageLines is the Usage card body: what runs now, then provider
-// quotas (when the pane is tall enough) and tokens with the sparkline.
-func (m Model) usageLines(width, bodyHeight int) []string {
+// usageLines is the Usage card body for rows body rows: what runs now, then the
+// provider quotas, tokens today and the sparkline. Now and tokens always show;
+// the sparkline comes next if one row is left, then the quota grid if its three
+// rows and width fit too.
+func (m Model) usageLines(width, rows int) []string {
 	dim := lipgloss.NewStyle().Foreground(m.theme.TextMuted)
 	_, now := metrics.OverviewFacts(m.scopePanes(""), m.notes, m.metricState)
 	var out []string
 	if len(now) > 0 {
 		out = append(out, lipgloss.NewStyle().Foreground(m.theme.StatusRunning).Render(fitLine("Now  "+strings.Join(now, " · "), width)))
 	}
-	if bodyHeight >= 22 { // short panes keep the space for agents and tasks
+	left := rows - len(out) - 1 // the tokens row
+	chart := left >= 1
+	left -= b2i(chart)
+	if left >= 3 {
 		q := quotaGet()
-		out = append(out, m.quotaGrid(map[string]quota.Provider{"Claude": q.Claude, "Codex": q.Codex})...)
+		grid := m.quotaGrid(map[string]quota.Provider{"Claude": q.Claude, "Codex": q.Codex})
+		fits := true
+		for _, l := range grid {
+			fits = fits && ansi.StringWidth(l) <= width
+		}
+		if fits {
+			out = append(out, grid...)
+		}
 	}
 	today := metrics.TokenWindow(m.metricState, time.Now(), 7).Today
-	out = append(out, dim.Render("Tokens today ")+lipgloss.NewStyle().Foreground(m.theme.TextPrimary).Bold(true).Render(compactTokens(today)), m.chartLine(width))
+	out = append(out, dim.Render("Tokens today ")+lipgloss.NewStyle().Foreground(m.theme.TextPrimary).Bold(true).Render(compactTokens(today)))
+	if chart {
+		out = append(out, m.chartLine(width))
+	}
 	return out
 }
 

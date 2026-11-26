@@ -217,11 +217,7 @@ func (m Model) geometryFrom(boxes []paneBox, def dashGeom) dashGeom {
 			}
 		}
 	}
-	usageH := 0 // the quota grid needs 22 rows (usageLines); the default geometry passes the body height instead
-	if g.usage.h >= minUsageH {
-		usageH = 22
-	}
-	g.usageLines = m.usageLines(g.usage.w-4, usageH)
+	g.usageLines = m.usageLines(g.usage.w-4, g.usage.h-2)
 	return g
 }
 

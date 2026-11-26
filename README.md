@@ -171,6 +171,15 @@ terminal (the dashboard scrolls to the selected pane) or leave gaps. The layout
 is saved in `layout.json` next to `config.conf`, one for narrow (under 90
 columns) and one for wide, and survives restarts.
 
+Each pane picks what to show from its own size, so a pane that is shrunk
+changes too, whatever the terminal width. Tasks: under 6 rows, lane counts;
+narrower than 64 columns, the active lane's cards; 100 columns and 12 rows,
+four lanes side by side (todo, doing, blocked, done, closed while a closed
+ticket is selected); otherwise the lane list beside the selected ticket. Agents
+under 5 rows show counts. Usage adds its sparkline and quota grid only when the
+rows are there. Workflows at 80 columns or more show the selected workflow's
+job flow beside its list.
+
 ### CLI
 
 Run `tagent help` to see the commands and the agents defined in the current repo.
