@@ -60,24 +60,26 @@ export function OverviewPanel({ overview, className, days = 7, onDays }: { overv
     onCheckedChange={() => toggle(id)} onSelect={e => e.preventDefault()}>{name}</DropdownMenuCheckboxItem>
   return <section ref={ref} className={`rounded-lg border bg-card ${className ?? ""}`} aria-label="Usage">
     <PaneHeader className="min-h-8 border-b px-2.5">
-      {/* A narrow pane wraps these; the grip and the maximize link keep their ends. */}
-      <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-x-1.5">
-      <span className="flex size-5 items-center justify-center rounded-md bg-muted"><Gauge className="size-3.5 text-brand" /></span>
-      <h2 className="mr-auto text-[12.5px] font-semibold">Usage</h2>
-      <a href="#/routing" className="text-[11px] text-muted-foreground underline">Routing →</a>
+      {/* One row at any width: the title truncates; the range control sits in the body so it never wraps the header. */}
+      <div className="flex min-w-0 flex-1 items-center gap-1.5">
+      <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-muted"><Gauge className="size-3.5 text-brand" /></span>
+      <h2 className="mr-auto min-w-0 truncate text-[12.5px] font-semibold">Usage</h2>
+      <a href="#/routing" className="shrink-0 whitespace-nowrap text-[11px] text-muted-foreground underline">Routing →</a>
       <DropdownMenu>
-        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon-xs" className="pointer-coarse:size-8" aria-label="Choose usage to show" title="Choose usage to show"><ListChecks /></Button></DropdownMenuTrigger>
+        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon-xs" className="shrink-0 pointer-coarse:size-8" aria-label="Choose usage to show" title="Choose usage to show"><ListChecks /></Button></DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           {providers.map(p => <Fragment key={p.id}><DropdownMenuLabel>{p.name}</DropdownMenuLabel>{item(p.id, "5h and 7d limits")}</Fragment>)}
           {groups.map(g => <Fragment key={g.harness}><DropdownMenuLabel>{g.harness} · harness</DropdownMenuLabel>{g.rows.map(r => item(r.id, r.name))}</Fragment>)}
         </DropdownMenuContent>
       </DropdownMenu>
+      </div>
+    </PaneHeader>
+    <div className="flex justify-end px-2.5 pt-2.5">
       <div className="flex rounded-md bg-muted p-0.5 text-[10.5px]" role="group" aria-label="Range">
         {[1, 7, 30].map(d => <button key={d} aria-pressed={days === d} onClick={() => onDays?.(d)}
           className={`rounded px-1.5 py-px tabular-nums ${days === d ? "bg-card font-semibold shadow-sm" : "text-muted-foreground"}`}>{d}d</button>)}
       </div>
-      </div>
-    </PaneHeader>
+    </div>
     {!overview ? <p className="p-2.5 text-xs text-muted-foreground">Loading usage…</p> : <div className="flex flex-col gap-2.5 p-2.5">
       {providers.filter(p => shows(p.id)).map(p => <div key={p.name} className="flex flex-col gap-1">
         <div className="flex items-center gap-1.5 text-[12px] font-medium">{p.name}{p.stale && <span className="text-[10.5px] font-normal text-muted-foreground">· stale</span>}</div>

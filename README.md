@@ -331,7 +331,10 @@ The button at the right end of a pane header maximizes the pane (`#/pane/usage`,
 `#/pane/agents`, `#/pane/chat`, `#/pane/tasks`, `#/pane/workflows`; with a mouse
 it shows on hover or focus), and the same spot there minimizes it; the old
 links (`#/agent/<pane>`, `#/workflows`, `#/board/config`) still work, and an agent
-link selects that agent. Size changes what a pane shows: Tasks is a list under
+link selects that agent. A pane header is always one row: its title truncates,
+the agent name in Chat shows in full on hover, and the Usage range (1d/7d/30d)
+sits above its body. The top bar clears the iPad status bar and overlay through
+the safe-area insets. Size changes what a pane shows: Tasks is a list under
 600px and the board from 600px, its lanes scrolling sideways. Workflows lists them under 900px
 and edits them from 900px. Agents show only counts under 120px of height, and
 usage hides its token spend under 200px. Phones have **Agents** (with usage),
