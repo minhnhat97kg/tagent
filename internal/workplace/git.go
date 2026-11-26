@@ -17,6 +17,10 @@ import (
 // Dir is the repo-relative directory holding worktrees.
 const Dir = ".worktrees"
 
+// webDist is the build output generated from web/src by `make web`. Rebases may
+// conflict on it, and Gate rebuilds it instead of blocking.
+const webDist = "internal/web/dist"
+
 // Workplace is where a ticket's work is kept, merged and removed.
 type Workplace interface {
 	Create(root, id string) (string, error)
@@ -67,8 +71,10 @@ func (Git) Output(root, id string) string {
 
 // Gate commits the ticket checkout's work on agent/workflow-<id>, rebases it onto
 // the main checkout's HEAD if needed, and fast-forwards the main checkout to it.
-// After a rebase, checks (called only then) gives the check commands, each run in
-// the rebased checkout in order; a failing one refuses the merge. Nothing is forced
+// A rebase conflicting only on webDist is resolved, and after a rebase webDist is
+// rebuilt and committed when the repo tracks it. After a rebase, checks (called only
+// then) gives the check commands, each run in the rebased checkout in order; a
+// failing one refuses the merge. Nothing is forced
 // or reset; any refusal is returned and leaves both checkouts as they were. A
 // missing checkout has nothing to merge. note is the merge summary ("merged <sha>
 // into <branch>"), or "" when there was nothing to merge.
@@ -115,8 +121,11 @@ func (g Git) Gate(root, id, title string, checks func() ([]string, error)) (note
 				return "", cerr
 			}
 		}
-		if _, err := Run(wt, "rebase", head); err != nil {
+		if err := rebaseOnto(wt, head); err != nil {
 			Run(wt, "rebase", "--abort")
+			return "", err
+		}
+		if err := rebuildDist(wt); err != nil {
 			return "", err
 		}
 		for _, c := range list {
@@ -131,6 +140,60 @@ func (g Git) Gate(root, id, title string, checks func() ([]string, error)) (note
 	short, _ := Run(root, "rev-parse", "--short", "HEAD")
 	cur, _ := Run(root, "rev-parse", "--abbrev-ref", "HEAD")
 	return "merged " + short + " into " + cur, nil
+}
+
+// rebaseOnto rebases wt onto head. A rebase that stops only on conflicts under
+// webDist takes the branch's side of those paths and continues; any other conflict
+// is returned, and the caller aborts.
+func rebaseOnto(wt, head string) error {
+	_, err := Run(wt, "rebase", head)
+	for err != nil {
+		paths, perr := Run(wt, "diff", "--name-only", "--diff-filter=U")
+		if perr != nil || paths == "" {
+			return err
+		}
+		list := strings.Split(paths, "\n")
+		for _, p := range list {
+			if !strings.HasPrefix(p, webDist+"/") {
+				return err
+			}
+		}
+		if _, cerr := Run(wt, append([]string{"checkout", "--ours", "--"}, list...)...); cerr != nil {
+			return err
+		}
+		if _, aerr := Run(wt, append([]string{"add", "--"}, list...)...); aerr != nil {
+			return err
+		}
+		_, err = Run(wt, "-c", "core.editor=true", "rebase", "--continue")
+		if err != nil {
+			// A commit that only rebuilt dist can become empty; skip it when nothing is staged.
+			if _, serr := Run(wt, "diff", "--cached", "--quiet"); serr == nil {
+				_, err = Run(wt, "rebase", "--skip")
+			}
+		}
+	}
+	return nil
+}
+
+// rebuildDist regenerates webDist with `make web` in wt, when the repo tracks it,
+// and commits the result if it changed. A failed build is returned, which blocks
+// the merge, so the merged dist always matches a fresh build of web/src.
+func rebuildDist(wt string) error {
+	tracked, err := Run(wt, "ls-files", "--", webDist)
+	if err != nil || tracked == "" {
+		return err
+	}
+	if out, err := exec.Command("make", "-C", wt, "web").CombinedOutput(); err != nil {
+		return fmt.Errorf("make web: %s", strings.TrimSpace(string(out)))
+	}
+	if _, err := Run(wt, "add", "-A", "--", webDist); err != nil {
+		return err
+	}
+	if _, err := Run(wt, "diff", "--cached", "--quiet"); err == nil {
+		return nil // dist already matches
+	}
+	_, err = Run(wt, "commit", "-qm", "rebuild web dist")
+	return err
 }
 
 // runCheck runs one check command with sh -c in dir, as a workflow run job does,

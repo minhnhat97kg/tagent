@@ -2,6 +2,7 @@ package workplace
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"testing"
@@ -266,5 +267,98 @@ func TestDiscardRemovesUnmergedAndStaleCheckout(t *testing.T) {
 	}
 	if _, err := Run(repo, "rev-parse", "--verify", "-q", "refs/heads/agent/workflow-3"); err == nil {
 		t.Error("branch of stale checkout left behind")
+	}
+}
+
+// webRepo makes a repo whose `make web` concatenates web/src into internal/web/dist,
+// standing in for the npm build so the test needs no node.
+func webRepo(t *testing.T) string {
+	t.Helper()
+	if _, err := exec.LookPath("make"); err != nil {
+		t.Skip("make not installed")
+	}
+	repo := newRepo(t)
+	write(t, repo, "Makefile", ".PHONY: web\nweb:\n\tmkdir -p internal/web/dist && cat web/src/* > internal/web/dist/app.js\n")
+	write(t, repo, "web/src/a.txt", "a\n")
+	write(t, repo, "web/src/b.txt", "b\n")
+	commitBuild(t, repo, "base")
+	return repo
+}
+
+func write(t *testing.T, dir, rel, s string) {
+	t.Helper()
+	path := filepath.Join(dir, rel)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(s), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// commitBuild runs `make web` in dir, then commits everything, as a ticket does.
+func commitBuild(t *testing.T, dir, msg string) {
+	t.Helper()
+	if out, err := exec.Command("make", "-C", dir, "web").CombinedOutput(); err != nil {
+		t.Fatalf("make web: %s", out)
+	}
+	if _, err := Run(dir, "add", "-A"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Run(dir, "commit", "-qm", msg); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// Two branches that both rebuilt dist merge without help, and dist matches a fresh
+// build of the merged web/src.
+func TestGateResolvesDistConflictByRebuild(t *testing.T) {
+	repo := webRepo(t)
+	wt, err := Git{}.Create(repo, "21")
+	if err != nil {
+		t.Fatal(err)
+	}
+	write(t, wt, "web/src/b.txt", "b2\n")
+	commitBuild(t, wt, "ticket")
+	write(t, repo, "web/src/a.txt", "a2\n")
+	commitBuild(t, repo, "main")
+	if _, err := (Git{}).Gate(repo, "21", "title", nil); err != nil {
+		t.Fatalf("Gate: %v", err)
+	}
+	got, err := os.ReadFile(filepath.Join(repo, webDist, "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "a2\nb2\n"; string(got) != want {
+		t.Errorf("dist = %q, want fresh build %q", got, want)
+	}
+	if out, _ := Run(repo, "status", "--porcelain"); out != "" {
+		t.Errorf("main checkout dirty after merge: %q", out)
+	}
+}
+
+// A conflict in web/src is not auto-resolved: the rebase is aborted and main is unchanged.
+func TestGateSourceConflictStillBlocks(t *testing.T) {
+	repo := webRepo(t)
+	wt, err := Git{}.Create(repo, "22")
+	if err != nil {
+		t.Fatal(err)
+	}
+	write(t, wt, "web/src/a.txt", "ticket\n")
+	commitBuild(t, wt, "ticket")
+	write(t, repo, "web/src/a.txt", "main\n")
+	commitBuild(t, repo, "main")
+	before, _ := Run(repo, "rev-parse", "HEAD")
+	if _, err := (Git{}).Gate(repo, "22", "title", nil); err == nil {
+		t.Fatal("Gate merged a source conflict")
+	}
+	if after, _ := Run(repo, "rev-parse", "HEAD"); after != before {
+		t.Errorf("main moved: %s -> %s", before, after)
+	}
+	if _, err := Run(wt, "rev-parse", "--verify", "-q", "REBASE_HEAD"); err == nil {
+		t.Error("rebase left in progress")
+	}
+	if _, err := Run(repo, "rev-parse", "--verify", "-q", "refs/heads/agent/workflow-22"); err != nil {
+		t.Error("branch removed")
 	}
 }
