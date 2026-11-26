@@ -72,6 +72,19 @@ export function Board({ dir, proj, reload, selectedID, onSelect }: { dir: string
       reload()
     }))
   }
+  // Lanes scroll sideways when they do not fit; the right edge fades while there is more to see.
+  const columns = useRef<HTMLDivElement>(null)
+  const [more, setMore] = useState(false)
+  useEffect(() => {
+    const el = columns.current
+    if (!el) return
+    const check = () => setMore(el.scrollWidth - el.scrollLeft - el.clientWidth > 2)
+    const ro = new ResizeObserver(check)
+    ro.observe(el)
+    el.addEventListener("scroll", check, { passive: true })
+    check()
+    return () => { ro.disconnect(); el.removeEventListener("scroll", check) }
+  }, [proj])
   return <section className={`task-board ${selectedID ? "has-drawer" : ""}`}>
     <header className="board-tools" data-pane-head>
       <h2><span className="board-icon"><KanbanSquare /></span>Board</h2>
@@ -83,7 +96,7 @@ export function Board({ dir, proj, reload, selectedID, onSelect }: { dir: string
     </header>
     {proj && !all.length ? <p className="board-empty p-4 text-center">No tasks in {baseName(dir)}.</p> : <>
     {!statuses.length && <p className="board-empty">{proj ? `No board columns configured in ${baseName(dir)}.` : "Select a project to view tasks."}</p>}
-    <div className="board-columns">{LANES.map(lane => {
+    <div ref={columns} className={`board-columns ${more ? "has-more" : ""}`}>{LANES.map(lane => {
       const column = tasks.filter(t => laneOf(t.status) === lane).sort((a, b) => priorityRank(a.priority) - priorityRank(b.priority) || (b.updated || "").localeCompare(a.updated || ""))
       const live = column.some(t => proj?.workers?.[t.id]?.live)
       // "in progress" spans every working status, so a drop there has no single target status.
@@ -113,7 +126,7 @@ export function Board({ dir, proj, reload, selectedID, onSelect }: { dir: string
               {!!priorityMark(t.priority) && <span className="card-prio" title={`${t.priority} priority`} aria-label={`${t.priority} priority`}>{priorityMark(t.priority)}</span>}
               {!!t.auto_start && <span className="card-label" title="Auto-start: starts when its last dependency is done">auto</span>}
               {!!state && <span className={`card-deps ${state === "ready" ? "is-ready" : ""}`}>{state}</span>}
-              {lane === "in progress" && <span className="card-label" style={{ color: statusColor(t.status) }}>● {t.status}</span>}
+              {lane === "in progress" && <span className="card-label" style={{ color: statusColor(t.status) }} title={t.status}>● {t.status}</span>}
               {t.workflow && <span className="card-label">{t.workflow}</span>}
               {!!t.comments?.length && <span className="inline-flex items-center gap-0.5" aria-label={`${t.comments.length} comments`}><MessageSquare className="size-3" />{t.comments.length}</span>}
               {working && <span className="board-live">● working</span>}

@@ -170,6 +170,8 @@ waiting for human input are highlighted. A todo card with dependencies shows
 (j/k select, space toggles, Enter saves). Pane matching uses the exact
 `role#ticket` BoardTarget for the current status; assignment is metadata only.
 
+On the web board, each lane is only as tall as its cards (the pane caps it and the cards scroll). Lanes have a minimum width; when they do not all fit, the lanes scroll sideways and the right edge fades while more lanes are hidden. A card's badges wrap onto a second row whole, so a dot never splits from its status text, and a badge too long for its row ends in an ellipsis.
+
 - `n`: new; `e`: edit; `x`: delete with confirmation.
 - `m`: move using allowed next statuses (`next: []` allows none); `M`: explicit
   administrative override. Moves dispatch the same workflow events as the CLI.

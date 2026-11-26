@@ -3,9 +3,10 @@ import { fireEvent, render, screen, within } from "@testing-library/react"
 import { Board } from "./Board"
 import type { Project } from "@/types"
 
-// Some modules read matchMedia at import time; jsdom has none.
+// Some modules read matchMedia at import time; jsdom has none. The lanes observe their size; jsdom has no ResizeObserver.
 vi.hoisted(() => {
   window.matchMedia = ((q: string) => ({ matches: false, media: q, addEventListener: () => {}, removeEventListener: () => {} })) as unknown as typeof window.matchMedia
+  globalThis.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} } as unknown as typeof ResizeObserver
 })
 
 test("a project with no tasks gets one empty state, not four empty columns", () => {
