@@ -2,6 +2,8 @@ package metrics
 
 import (
 	"math"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -70,5 +72,36 @@ func TestBoardYAMLPricingParses(t *testing.T) {
 	}
 	if p, ok := priceOf(cfg, "my-model"); !ok || p.Output != 4 || p.CacheWrite != 1.25 {
 		t.Fatalf("pricing override not loaded: %+v %v", p, ok)
+	}
+}
+
+func TestCostOfHourCacheAndLongPrompts(t *testing.T) {
+	// 1M cache write, 600K of it for an hour.
+	m := costOf(usage.Count{CacheWrite: 1_000_000, CacheWrite1h: 600_000, Total: 1_000_000}, prices["claude-opus-5-5"])
+	if want := 0.4*5 + 0.6*8; !near(m.Low, want) {
+		t.Fatalf("1h cache = %+v, want %v", m, want)
+	}
+	// Haiku: 2M input of which 1M came in prompts over 100K; Sonnet has no such tier.
+	c := usage.Count{Input: 2_000_000, Long: usage.Split{In: 1_000_000}, Total: 2_000_000}
+	if m := costOf(c, prices["claude-haiku-5-5"]); !near(m.Low, 0.10+0.50) {
+		t.Fatalf("long haiku = %+v, want 0.60", m)
+	}
+	if m := costOf(c, prices["claude-sonnet-5-5"]); !near(m.Low, 4) {
+		t.Fatalf("sonnet = %+v, want 4", m)
+	}
+}
+
+func TestWithRatesReadsOldRecordsFromTheTranscript(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("CLAUDE_CONFIG_DIR", dir)
+	os.MkdirAll(filepath.Join(dir, "projects", "-p"), 0o755)
+	os.WriteFile(filepath.Join(dir, "projects", "-p", "old.jsonl"), []byte(`{"type":"assistant","message":{"id":"a","usage":{"cache_creation_input_tokens":10,"cache_creation":{"ephemeral_1h_input_tokens":10}}}}`+"\n"), 0o644)
+	old := Session{ID: "old", Harness: "claude", Usage: usage.Count{CacheWrite: 10, Total: 10}}
+	if got := withRates(old); got.CacheWrite1h != 10 {
+		t.Fatalf("old record not filled: %+v", got)
+	}
+	old.Usage.Total = 99 // the transcript no longer matches: keep what was recorded
+	if got := withRates(old); got.CacheWrite1h != 0 {
+		t.Fatalf("mismatch replaced the record: %+v", got)
 	}
 }

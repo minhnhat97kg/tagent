@@ -100,7 +100,11 @@ type ModelPrice struct {
 	Input      float64 `yaml:"input" json:"input"`
 	Output     float64 `yaml:"output" json:"output"`
 	CacheRead  float64 `yaml:"cache_read" json:"cache_read"`
-	CacheWrite float64 `yaml:"cache_write" json:"cache_write"`
+	CacheWrite float64 `yaml:"cache_write" json:"cache_write"` // 5-minute cache
+	// CacheWrite1h is the 1-hour cache write rate; 0 means CacheWrite.
+	CacheWrite1h float64 `yaml:"cache_write_1h,omitempty" json:"cache_write_1h,omitempty"`
+	// Over100K, when set, prices the requests whose prompt is over 100K tokens.
+	Over100K *ModelPrice `yaml:"over_100k,omitempty" json:"over_100k,omitempty"`
 }
 
 // BoardRoleSummary and BoardTriggerSummary carry the same board config to the

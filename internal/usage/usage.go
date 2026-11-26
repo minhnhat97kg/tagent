@@ -16,9 +16,27 @@ import (
 	"time"
 )
 
+// longPrompt is the prompt size above which some models charge a higher rate.
+const longPrompt = 100_000
+
 // Tokens is a session's usage.
 type Tokens struct {
 	In, Out, CacheRead, CacheWrite int64
+	CacheWrite1h                   int64 // the part of CacheWrite kept for an hour, billed higher
+	// Long is the part of the fields above from requests whose prompt was over longPrompt.
+	Long Split
+}
+
+// Split is a token count by billed rate.
+type Split struct{ In, Out, CacheRead, CacheWrite, CacheWrite1h int64 }
+
+// Add sums b into s.
+func (s *Split) Add(b Split) {
+	s.In += b.In
+	s.Out += b.Out
+	s.CacheRead += b.CacheRead
+	s.CacheWrite += b.CacheWrite
+	s.CacheWrite1h += b.CacheWrite1h
 }
 
 // Add sums b into t.
@@ -27,6 +45,8 @@ func (t *Tokens) Add(b Tokens) {
 	t.Out += b.Out
 	t.CacheRead += b.CacheRead
 	t.CacheWrite += b.CacheWrite
+	t.CacheWrite1h += b.CacheWrite1h
+	t.Long.Add(b.Long)
 }
 
 // Short renders "12.3k in · 4.1k out · 1.2M cached".
@@ -100,6 +120,9 @@ func parse(path string) (Tokens, error) {
 		Out        int64 `json:"output_tokens"`
 		CacheRead  int64 `json:"cache_read_input_tokens"`
 		CacheWrite int64 `json:"cache_creation_input_tokens"`
+		Creation   struct {
+			Hour int64 `json:"ephemeral_1h_input_tokens"`
+		} `json:"cache_creation"`
 	}
 	var line struct {
 		Type    string `json:"type"`
@@ -120,7 +143,12 @@ func parse(path string) (Tokens, error) {
 	}
 	var t Tokens
 	for _, u := range byID {
-		t.Add(Tokens{u.In, u.Out, u.CacheRead, u.CacheWrite})
+		one := Tokens{In: u.In, Out: u.Out, CacheRead: u.CacheRead, CacheWrite: u.CacheWrite, CacheWrite1h: u.Creation.Hour}
+		// Each request is priced on its own prompt size, cache reads and writes included.
+		if u.In+u.CacheRead+u.CacheWrite > longPrompt {
+			one.Long = Split{u.In, u.Out, u.CacheRead, u.CacheWrite, u.Creation.Hour}
+		}
+		t.Add(one)
 	}
 	return t, sc.Err()
 }

@@ -50,6 +50,8 @@ func addCount(a *usage.Count, b usage.Count) {
 	a.Output += b.Output
 	a.CacheRead += b.CacheRead
 	a.CacheWrite += b.CacheWrite
+	a.CacheWrite1h += b.CacheWrite1h
+	a.Long.Add(b.Long)
 	a.Total += b.Total
 }
 
@@ -78,6 +80,19 @@ func resolve(s State, e tasks.RunEntry) (best Session, found bool) {
 		}
 	}
 	return
+}
+
+// withRates fills in the billing detail of a record saved before usage kept it, from
+// the transcript, when that still holds exactly the same tokens.
+// ponytail: such a record is re-read (once per process) on every view of its ticket.
+func withRates(s Session) usage.Count {
+	c := s.Usage
+	if s.Harness == "claude" && c.CacheWrite1h == 0 && c.Long == (usage.Split{}) {
+		if now, ok := usage.Read(s.Harness, s.ID); ok && now.Total == c.Total {
+			return now
+		}
+	}
+	return c
 }
 
 // TicketUsageOf attributes stored session usage to one ticket through its
@@ -113,7 +128,7 @@ func TicketUsageOf(s State, t tasks.Task, cfg tasks.BoardConfig, events []tasks.
 			j := JobUsage{Role: e.Role, Harness: e.Harness, Model: e.Model, Effort: e.Effort, Pane: e.Pane}
 			if ok {
 				j.Harness, j.Has, j.Live = sess.Harness, sess.HasUsage, sess.Status != "closed"
-				j.Count = sess.Usage
+				j.Count = withRates(sess)
 			}
 			u.Jobs = append(u.Jobs, j)
 			i = len(u.Jobs) - 1

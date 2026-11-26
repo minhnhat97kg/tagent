@@ -93,17 +93,20 @@ each job's tokens at API list prices and sum them per ticket, labelled
 **API-equivalent**: an estimate, not a bill, also for subscription logins. Built-in
 prices cover the Claude 5.5 models (`claude-opus-5-5`, `claude-sonnet-5-5`,
 `claude-haiku-5-5`; the roles' `sonnet`/`haiku`/`opus` aliases map to them).
-Add or override a model with USD per million tokens:
+Add or override a model with USD per million tokens. `cache_write` is the 5-minute
+cache rate and `cache_write_1h` the 1-hour one (Claude subscriptions mostly write the
+latter; without it `cache_write` applies). `over_100k` takes the same keys and prices
+requests whose prompt is over 100K tokens (built in for Haiku 5.5). A model listed
+here replaces the built-in price, tiers included.
 
 ```yaml
 pricing:
-  claude-sonnet-5-5: {input: 2, output: 10, cache_read: 0.10, cache_write: 2.50}
+  claude-sonnet-5-5: {input: 2, output: 10, cache_read: 0.10, cache_write: 2.50, cache_write_1h: 4}
   my-model:          {input: 1, output: 4, cache_read: 0.1, cache_write: 1.25}
 ```
 
 A job whose model has no price shows its tokens only. A job with no input/output
-split shows a range (all input .. all output). Haiku 5.5's long-context tier
-(prompts over 100K, 5x) is not applied.
+split shows a range (all input .. all output). Subagent transcripts are not counted.
 
 ## Workflows vs board.yaml
 

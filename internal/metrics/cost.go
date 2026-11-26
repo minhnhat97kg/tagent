@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"cmp"
 	"fmt"
 
 	"tagent/internal/tasks"
@@ -8,14 +9,12 @@ import (
 )
 
 // prices are Anthropic API list prices, USD per MTok (Pricing page, checked
-// 2026-11-03). board.yaml `pricing:` adds or overrides models without code.
-// ponytail: Haiku 5.5's >100K prompt tier (5x) is not applied: usage keeps
-// per-ticket totals, not the prompt size of each request. Add it when the
-// transcript parser keeps per-request prompt sizes.
+// 2026-11-26). board.yaml `pricing:` adds or overrides models without code.
 var prices = map[string]tasks.ModelPrice{
-	"claude-opus-5-5":   {Input: 4, Output: 20, CacheRead: 0.20, CacheWrite: 5},
-	"claude-sonnet-5-5": {Input: 2, Output: 10, CacheRead: 0.10, CacheWrite: 2.50},
-	"claude-haiku-5-5":  {Input: 0.10, Output: 0.50, CacheRead: 0.01, CacheWrite: 0.125},
+	"claude-opus-5-5":   {Input: 4, Output: 20, CacheRead: 0.20, CacheWrite: 5, CacheWrite1h: 8},
+	"claude-sonnet-5-5": {Input: 2, Output: 10, CacheRead: 0.10, CacheWrite: 2.50, CacheWrite1h: 4},
+	"claude-haiku-5-5": {Input: 0.10, Output: 0.50, CacheRead: 0.01, CacheWrite: 0.125, CacheWrite1h: 0.20,
+		Over100K: &tasks.ModelPrice{Input: 0.50, Output: 2.50, CacheRead: 0.05, CacheWrite: 0.625, CacheWrite1h: 1}},
 }
 
 // Money is an API-equivalent estimate in USD, never a bill: subscription
@@ -55,14 +54,29 @@ func priceOf(cfg tasks.BoardConfig, model string) (tasks.ModelPrice, bool) {
 
 // costOf prices one job's usage at p.
 func costOf(c usage.Count, p tasks.ModelPrice) Money {
-	const mtok = 1e6
-	cached := (float64(c.CacheRead)*p.CacheRead + float64(c.CacheWrite)*p.CacheWrite) / mtok
-	if rest := c.Total - c.CacheRead - c.CacheWrite; c.Input+c.Output == 0 && rest > 0 {
-		uncached := float64(rest)
-		return Money{Low: cached + uncached*p.Input/mtok, High: cached + uncached*p.Output/mtok}
+	long := c.Long
+	if p.Over100K == nil {
+		long = usage.Split{}
 	}
-	exact := cached + (float64(c.Input)*p.Input+float64(c.Output)*p.Output)/mtok
+	all := usage.Split{In: c.Input, Out: c.Output, CacheRead: c.CacheRead, CacheWrite: c.CacheWrite, CacheWrite1h: c.CacheWrite1h}
+	short := usage.Split{In: all.In - long.In, Out: all.Out - long.Out, CacheRead: all.CacheRead - long.CacheRead,
+		CacheWrite: all.CacheWrite - long.CacheWrite, CacheWrite1h: all.CacheWrite1h - long.CacheWrite1h}
+	exact := rate(short, p)
+	if p.Over100K != nil {
+		exact += rate(long, *p.Over100K)
+	}
+	if rest := c.Total - c.CacheRead - c.CacheWrite; c.Input+c.Output == 0 && rest > 0 {
+		uncached := float64(rest) / 1e6
+		return Money{Low: exact + uncached*p.Input, High: exact + uncached*p.Output}
+	}
 	return Money{Low: exact, High: exact}
+}
+
+// rate is the USD price of t at p.
+func rate(t usage.Split, p tasks.ModelPrice) float64 {
+	hour := cmp.Or(p.CacheWrite1h, p.CacheWrite)
+	return (float64(t.In)*p.Input + float64(t.Out)*p.Output + float64(t.CacheRead)*p.CacheRead +
+		float64(t.CacheWrite-t.CacheWrite1h)*p.CacheWrite + float64(t.CacheWrite1h)*hour) / 1e6
 }
 
 // usd renders a Money as "$0.72" or "$0.12–0.60", and "<$0.01" for dust.

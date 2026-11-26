@@ -29,3 +29,18 @@ not json
 		t.Error("unknown session")
 	}
 }
+
+func TestForSessionSplitsRates(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("CLAUDE_CONFIG_DIR", dir)
+	os.MkdirAll(filepath.Join(dir, "projects", "-p"), 0o755)
+	// A short request, then one whose prompt (input + cache) is over 100K.
+	transcript := `{"type":"assistant","message":{"id":"a","usage":{"input_tokens":5,"output_tokens":1,"cache_creation_input_tokens":10,"cache_creation":{"ephemeral_1h_input_tokens":8}}}}
+{"type":"assistant","message":{"id":"b","usage":{"input_tokens":1,"output_tokens":2,"cache_read_input_tokens":100000,"cache_creation_input_tokens":4,"cache_creation":{"ephemeral_1h_input_tokens":4}}}}
+`
+	os.WriteFile(filepath.Join(dir, "projects", "-p", "split.jsonl"), []byte(transcript), 0o644)
+	got, ok := Read("claude", "split")
+	if !ok || got.CacheWrite != 14 || got.CacheWrite1h != 12 || got.Long != (Split{In: 1, Out: 2, CacheRead: 100000, CacheWrite: 4, CacheWrite1h: 4}) {
+		t.Fatalf("split = %+v %v", got, ok)
+	}
+}

@@ -19,6 +19,9 @@ import (
 // are details, not extra tokens to add to Total.
 type Count struct {
 	Input, Output, CacheRead, CacheWrite, Reasoning, Total int64
+	// Claude only, parts of the fields above that are billed at another rate.
+	CacheWrite1h int64
+	Long         Split
 }
 
 func Read(harness, sessionID string) (Count, bool) {
@@ -28,7 +31,8 @@ func Read(harness, sessionID string) (Count, bool) {
 	switch harness {
 	case "claude":
 		t, ok := ForSession(sessionID)
-		return Count{Input: t.In, Output: t.Out, CacheRead: t.CacheRead, CacheWrite: t.CacheWrite, Total: t.In + t.Out + t.CacheRead + t.CacheWrite}, ok
+		return Count{Input: t.In, Output: t.Out, CacheRead: t.CacheRead, CacheWrite: t.CacheWrite, Total: t.In + t.Out + t.CacheRead + t.CacheWrite,
+			CacheWrite1h: t.CacheWrite1h, Long: t.Long}, ok
 	case "pi":
 		return readPi(sessionID)
 	case "codex":
@@ -120,7 +124,7 @@ func readCodex(sessionID string) (Count, bool) {
 		}
 		u := row.Payload.Thread
 		if u.Total >= latest.Total {
-			latest = Count{u.Input, u.Output, u.CacheRead, u.CacheWrite, u.Reasoning, u.Total}
+			latest = Count{Input: u.Input, Output: u.Output, CacheRead: u.CacheRead, CacheWrite: u.CacheWrite, Reasoning: u.Reasoning, Total: u.Total}
 			found = true
 		}
 	}
