@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { usePoll } from "@/hooks/usePoll"
 import { enc } from "@/hooks/useRoute"
 import { useAppState } from "@/state"
-import { candidateName, flow, parseRef, reorder, spillReset, withUntil } from "@/lib/routing"
+import { candidateName, flow, parseRef, reorder, spillReset, withEffort, withUntil } from "@/lib/routing"
 import type { RoutingTier, RoutingView } from "@/types"
 
 type RoleRow = RoutingView["roles"][number]
@@ -75,7 +75,7 @@ export function RoutingPage({ dir }: { dir: string }) {
           </div>
           <section aria-label="New tier" className="rounded-lg border border-dashed p-3">
             <h3 className="mb-2 text-[13px] font-semibold">New tier</h3>
-            <CandidateForm label="Create tier" withName disabled={busy} harnesses={view.harnesses} models={state?.models ?? null} onSubmit={createTier} />
+            <CandidateForm label="Create tier" withName disabled={busy} harnesses={view.harnesses} efforts={view.efforts} models={state?.models ?? null} onSubmit={createTier} />
           </section>
           <section aria-label="Parallel agents" className="flex flex-col gap-2 rounded-lg border p-3">
             <h3 className="text-[13px] font-semibold">Parallel agents</h3>
@@ -136,6 +136,7 @@ function TierCard({ tier: t, view, busy, models, setRefs, onDelete }: {
     <ol className="relative flex flex-col gap-1.5 border-l-2 border-dashed border-border pl-3 ml-1.5">
       {t.candidates.map((c, i) => {
         const provider = view.providers.find(p => p.id === parseRef(c.ref).harness)
+        const levels = view.efforts[parseRef(c.ref).harness] ?? []
         return <li key={`${i}-${c.ref}`} aria-label={c.ref}
           onDragOver={e => { if (dragFrom.current !== null) e.preventDefault() }}
           onDrop={e => { e.preventDefault(); if (dragFrom.current !== null) move(dragFrom.current, i); dragFrom.current = null }}
@@ -157,6 +158,12 @@ function TierCard({ tier: t, view, busy, models, setRefs, onDelete }: {
             </span>
           </div>
           <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 pl-9">
+            {levels.length > 0 && <label className="flex items-center gap-1 text-[11.5px] text-muted-foreground">Effort
+              <select aria-label={`${c.ref} effort`} value={c.effort} disabled={busy} className="rounded border bg-background p-1 text-[12px] text-foreground disabled:opacity-60"
+                onChange={e => void setRefs(refs.map((r, j) => j === i ? withEffort(r, e.target.value) : r))}>
+                <option value="">default</option>
+                {levels.map(l => <option key={l} value={l}>{l}</option>)}
+              </select></label>}
             {c.threshold === null ? <span className="text-[11.5px] text-muted-foreground">no quota</span> : <>
               {provider && <div className="flex min-w-44 flex-1 flex-col gap-1">
                 <Meter label="5h" value={provider.five.usedPercent} marker={c.threshold} />
@@ -178,36 +185,44 @@ function TierCard({ tier: t, view, busy, models, setRefs, onDelete }: {
       })}
     </ol>
     {t.reason && <p className="text-[11.5px] text-brand-ink">{t.selected ? `Skipped for quota: ${t.reason}` : t.reason}</p>}
-    <div><CandidateForm label="Add candidate" disabled={busy} harnesses={view.harnesses} models={models} onSubmit={(_, ref) => setRefs([...refs, ref])} /></div>
+    <div><CandidateForm label="Add candidate" disabled={busy} harnesses={view.harnesses} efforts={view.efforts} models={models} onSubmit={(_, ref) => setRefs([...refs, ref])} /></div>
   </section>
 }
 
 // Harness, model and an optional name: a candidate to add, or the first candidate of a new tier.
 // onSubmit returns whether it saved; a saved form clears itself.
-function CandidateForm({ label, withName, disabled, harnesses, models, onSubmit }: {
+function CandidateForm({ label, withName, disabled, harnesses, efforts, models, onSubmit }: {
   label: string
   withName?: boolean
   disabled: boolean
   harnesses: string[]
+  efforts: Record<string, string[]>
   models: Record<string, string[]> | null
   onSubmit: (name: string, ref: string) => Promise<boolean>
 }) {
   const [name, setName] = useState("")
   const [harness, setHarness] = useState(harnesses[0] ?? "")
   const [model, setModel] = useState("")
+  const [effort, setEffort] = useState("")
+  const levels = efforts[harness] ?? []
   const list = models?.[harness] ?? []
   const listId = useId() // one datalist per form: every tier card has its own
   async function submit(e: FormEvent) {
     e.preventDefault()
-    if (await onSubmit(name.trim(), `${harness}:${model.trim()}`)) { setName(""); setModel("") }
+    if (await onSubmit(name.trim(), withEffort(`${harness}:${model.trim()}`, effort))) { setName(""); setModel(""); setEffort("") }
   }
   return <form onSubmit={submit} className="flex flex-wrap items-end gap-2 text-[12px]">
     {withName && <label className="font-medium">Tier name
       <input aria-label="Tier name" className={`${fieldClass} ml-1 w-40`} disabled={disabled} value={name} onChange={e => setName(e.target.value)} /></label>}
     <label className="font-medium">Harness
-      <select aria-label={`${label} harness`} className={`${fieldClass} ml-1`} disabled={disabled} value={harness} onChange={e => setHarness(e.target.value)}>
+      <select aria-label={`${label} harness`} className={`${fieldClass} ml-1`} disabled={disabled} value={harness} onChange={e => { setHarness(e.target.value); setEffort("") }}>
         {harnesses.map(h => <option key={h} value={h}>{h}</option>)}
       </select></label>
+    {levels.length > 0 && <label className="font-medium">Effort
+      <select aria-label={`${label} effort`} className={`${fieldClass} ml-1`} disabled={disabled} value={effort} onChange={e => setEffort(e.target.value)}>
+        <option value="">default</option>
+        {levels.map(l => <option key={l} value={l}>{l}</option>)}
+      </select></label>}
     <label className="font-medium">Model
       <input aria-label={`${label} model`} list={listId} className={`${fieldClass} ml-1 w-56`} disabled={disabled} value={model} placeholder="model id[@until]" onChange={e => setModel(e.target.value)} />
       <datalist id={listId}>{list.map(m => <option key={m} value={m} />)}</datalist></label>

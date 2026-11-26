@@ -33,7 +33,11 @@ harnesses:
       - {label: month, command: "my-usage-script"}   # prints e.g. 61
 ```
 
-- Candidates are `harness:model` or `harness:model@N`, split at the first `:`.
+- Candidates are `harness:model`, `harness:model@N` or `harness:model@N#effort`,
+  split at the first `:`. A trailing `#level` is the candidate's effort, chosen from
+  its harness's effort list (see [Effort levels](#effort-levels)); it is split off
+  first, so `claude:haiku@85#high` is haiku, spilled at 85%, at effort `high`.
+  Strings without `#` load as before.
   Harness is any name listed in `$XDG_CONFIG_HOME/tagent/harnesses.yml`
   (`~/.config/tagent/harnesses.yml`), so names may contain spaces (`Claude API`).
   The one list is `harnesses.yml` when it exists, otherwise the built-ins
@@ -46,12 +50,49 @@ harnesses:
   model id, and `pi:vertex/x@20250514@70` sets 70.
   `@0`, `@101`, `@0.5` and `claude:@70` (no model) are rejected. So is a model id
   whose short numeric tail is out of range, such as `pi:vertex/x@2025`.
+
 - `limits` defaults to 90 per provider. Its keys are `claude`, `codex`, or a
   harness with `usage` commands (its own provider). Any other key is rejected,
   since a limit on a harness without usage would do nothing.
 - `$XDG_CONFIG_HOME/tagent/routing.yaml` (default `~/.config/tagent/routing.yaml`).
   A missing file is an empty config. Unknown keys are an error.
 - Tier names match `^[A-Za-z0-9][A-Za-z0-9_-]*$`; a file with another name does not load.
+
+### Effort levels
+
+Each harness declares the levels it accepts in `harnesses.yml`, and that list is the
+only source: candidate validation, role saves, dispatch and the web pickers all use it.
+
+```yaml
+harnesses:
+  - name: claude                       # no efforts key: the built-in levels of its kind
+  - name: quick
+    command: claude
+    efforts: [fast, deep]              # exactly these levels, passed as --effort
+  - name: plain
+    command: opencode
+    efforts: []                        # takes no effort
+```
+
+- Absent: the built-in levels of the kind its command runs (`claude`: low, medium,
+  high, xhigh, max; `codex`: none, minimal, low, …, max; `pi`: off, minimal, …, max).
+- Empty list: the harness takes no effort. Other kinds have no built-in levels.
+- A custom list needs a `claude`, `codex` or `pi` command, since those are the only
+  kinds whose launch can pass a level. Each level is lowercase letters or digits.
+  Any other `efforts` value fails the whole `harnesses.yml`: the built-in list is
+  served and launches report the error.
+- A level not in the list is rejected when a candidate, role or agent is saved or
+  loaded (`invalid effort "x" for claude`, or `effort is unsupported for plain`).
+  Dispatch never passes an unlisted level.
+- A tier role's own `effort` is only checked to be a level some harness lists, since
+  its harness is chosen later. At dispatch it applies only if the chosen harness accepts it.
+
+Effort is part of the pane route: a tier pane is reused only when harness, model and
+effort all match. Effort is a launch argument, so a pane started at another level cannot
+change it in place. Switching a tier's candidate effort therefore starts one new pane.
+
+A candidate's effort is the `#level` at its end. Only a tail of lowercase letters
+and digits is read as one; any other `#` stays part of the model id.
 
 Board role:
 
@@ -60,7 +101,8 @@ roles:
   dev: {tier: fast, effort: medium}
 ```
 
-A tier role sets only `tier` and `effort`. It cannot set `agent`, `model`,
+A tier role sets only `tier` and, optionally, `effort`. The role's `effort` is a
+fallback: it applies only when the chosen candidate has no `#effort`. It cannot set `agent`, `model`,
 `skills`, `mcp`, `tools`, `allow` or `deny`: the harness is chosen per dispatch,
 and those lists are harness-specific.
 
@@ -90,9 +132,10 @@ At dispatch, for each action of a tier role:
    moves the ticket to blocked with the windows and the earliest reset, e.g.
    `tier fast exhausted: claude:haiku 5h 95% >= 90; pi:openai-codex/gpt-6-luna 5h 95% >= 90, earliest reset Nov 25 18:00`.
    With `first`, the reason ends `; all exhausted, running first`.
-6. Effort is passed only if the chosen harness accepts that level; otherwise it is dropped.
+6. Effort: the chosen candidate's `#effort` if it has one, else the role's `effort`.
+   It is passed only if the chosen harness accepts that level; otherwise it is dropped.
 
-A pane is reused only if it runs the same harness and model as the choice;
+A pane is reused only if it runs the same harness, model and effort as the choice;
 otherwise a new pane is spawned. The dispatch event records `tier` and `route`
 (e.g. `tier smart: claude:opus 5h 72% >= 70 -> pi:openai-codex/gpt-6.1-sol`;
 `tier smart` when nothing was skipped; or `step model`), shown on the Run page.
@@ -111,8 +154,9 @@ on the first candidate, since a one-shot CLI has no quota reading.
 The web UI edits the same file; the TUI does not.
 
 - **Agents page**: the Model control lists "Tier" (the account's tiers) and "Fixed"
-  models. A tier role hides Harness, disables the context fields and offers every
-  effort level. Choosing a fixed model switches the harness back to `claude`.
+  models. A tier role hides Harness and Effort and disables the context fields.
+  A fixed role's Effort lists its harness's served levels. Choosing a fixed model
+  switches the harness back to `claude`.
 - **Routing page** (`#/routing`, linked from Usage): one card per tier. A node
   chart at the top shows the flow as chips joined by arrows, e.g. `Claude opus
   until 70%` → `Codex gpt-6.1-sol until 90%` → `block` (the end node is `run
@@ -121,7 +165,8 @@ The web UI edits the same file; the TUI does not.
   a tick marks the candidate's `Spill at %`, which is edited in place (empty
   means the provider limit). The candidate running now shows `Running now`; an
   exhausted one shows `Spilled - resets <time>`. Reorder by dragging the grip or
-  with the up and down buttons; remove, add a candidate, and delete the tier from
+  with the up and down buttons; each candidate has an Effort picker with its
+  harness's levels (default: none). The add form takes an effort too. Remove, add a candidate, and delete the tier from
   the card, which also lists the roles that use it. `when_exhausted` shows at the
   end of every flow and is set under `Defaults`, with the provider limits. Each
   action saves at once and shows what the server selects now; it polls every 3 s.

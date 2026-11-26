@@ -143,3 +143,23 @@ func TestRoutingAPIPerCandidateThreshold(t *testing.T) {
 		t.Fatal("rejected PUT changed the file")
 	}
 }
+
+func TestRoutingEffortAPI(t *testing.T) {
+	config := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", config)
+	dir := t.TempDir()
+	s := &server{token: "secret", dir: dir, deps: apiDeps{quota: func() quota.Snapshot { return quota.Snapshot{} }}}
+	url := "/api/routing?dir=" + dir
+	body := `{"tiers":{"fast":["claude:haiku#high","pi:openai-codex/gpt-6-luna"]}}`
+	w := request(s, "PUT", url, body, true)
+	var v routingView
+	if err := json.Unmarshal(w.Body.Bytes(), &v); err != nil || w.Code != 200 {
+		t.Fatal(w.Code, w.Body.String(), err)
+	}
+	if got := v.Tiers[0].Candidates[0].Effort; got != "high" || len(v.Efforts["claude"]) == 0 || v.Efforts["pi"] == nil {
+		t.Fatalf("effort %q efforts %v", got, v.Efforts)
+	}
+	if w := request(s, "PUT", url, `{"tiers":{"fast":["claude:haiku#off"]}}`, true); w.Code == 200 {
+		t.Fatal("accepted an effort claude does not list")
+	}
+}

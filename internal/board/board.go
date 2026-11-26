@@ -66,6 +66,9 @@ func route(a *Action, r tasks.Role, stepModel string) {
 		return
 	}
 	a.Role, a.Model = c.Harness, c.Model
+	if c.Effort != "" { // the candidate's own level wins over the role's old effort
+		a.Effort = c.Effort
+	}
 	if tasks.ValidateEffort(c.Harness, a.Effort) != nil {
 		a.Effort = ""
 	}

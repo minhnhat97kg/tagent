@@ -701,13 +701,17 @@ token acceptance numbers, which need the rollout runs above.
 
 ### Role effort
 
-Optional `roles.<name>.effort` selects native reasoning effort for new launches:
+Optional `roles.<name>.effort` selects native reasoning effort for new launches.
+The level must be in the harness's list (`efforts` in `harnesses.yml`; the built-in
+levels of its kind when absent, see [Effort levels](routing.md#effort-levels)):
 
-- Pi: `--thinking LEVEL`: `off`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`.
-- Claude: `--effort LEVEL`: `low`, `medium`, `high`, `xhigh`, `max`.
-- Codex: `-c model_reasoning_effort="LEVEL"`: `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`.
+- Pi: `--thinking LEVEL`, built-in `off`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`.
+- Claude: `--effort LEVEL`, built-in `low`, `medium`, `high`, `xhigh`, `max`.
+- Codex: `-c model_reasoning_effort="LEVEL"`, built-in `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`.
 
-Other harnesses reject nonempty effort. Omit it to preserve harness defaults.
+Harnesses whose list is empty reject nonempty effort. Omit it to preserve harness defaults.
+A tier role's effort is a fallback for candidates without their own `#effort`
+(see [routing](routing.md)).
 Codex's installed schema permits model-advertised strings; these known spellings
 are accepted here, but model/version support still applies for all harnesses.
 Levels are not converted (`off` is not Codex `none`). Explicit effort is passed

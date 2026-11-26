@@ -87,6 +87,9 @@ func spawnAgent(o spawnOpts) (pane, warn string, err error) {
 							return "", "", err
 						}
 						o.Agent, o.Model = c.Harness, cmp.Or(o.Model, c.Model)
+						if c.Effort != "" {
+							br.Effort = c.Effort
+						}
 						if tasks.ValidateEffort(o.Agent, br.Effort) != nil {
 							br.Effort = ""
 						}
@@ -119,11 +122,11 @@ func spawnAgent(o spawnOpts) (pane, warn string, err error) {
 	if err != nil {
 		return "", "", err
 	}
-	o.Agent = spec.Command
-	effortArgs, err := nativeEffortArgs(roles.Harness(o.Agent), o.Effort)
+	effortArgs, err := nativeEffortArgs(o.Agent, o.Effort)
 	if err != nil {
 		return "", "", err
 	}
+	o.Agent = spec.Command
 	var role roles.Definition
 	if o.Role != "" {
 		var ok bool
@@ -282,14 +285,15 @@ func envPrefix(spec roles.HarnessSpec) string {
 }
 
 // nativeEffortArgs preserves the requested level; model support is checked by the harness.
-func nativeEffortArgs(harness, effort string) ([]string, error) {
+// name is the harness as picked, so its harnesses.yml efforts apply.
+func nativeEffortArgs(name, effort string) ([]string, error) {
 	if effort == "" {
 		return nil, nil
 	}
-	if err := tasks.ValidateEffort(harness, effort); err != nil {
+	if err := tasks.ValidateEffort(name, effort); err != nil {
 		return nil, err
 	}
-	switch harness {
+	switch roles.Harness(name) {
 	case "pi":
 		return []string{"--thinking", effort}, nil
 	case "claude":
@@ -297,7 +301,7 @@ func nativeEffortArgs(harness, effort string) ([]string, error) {
 	case "codex":
 		return []string{"-c", "model_reasoning_effort=" + strconv.Quote(effort)}, nil
 	default:
-		return nil, fmt.Errorf("effort is unsupported for %s", harness)
+		return nil, fmt.Errorf("effort is unsupported for %s", name)
 	}
 }
 

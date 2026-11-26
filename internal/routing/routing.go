@@ -24,8 +24,9 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Config maps each tier to its candidates, tried in order as "harness:model" or
-// "harness:model@N": N is the percent at which that candidate is skipped (default: its provider's limit).
+// Config maps each tier to its candidates, tried in order as "harness:model",
+// "harness:model@N" or "harness:model@N#effort". N is the percent at which that
+// candidate is skipped (default: its provider's limit); effort is a level the harness lists.
 type Config struct {
 	Limits        map[string]float64  `yaml:"limits,omitempty" json:"limits,omitempty"` // percent used that counts as exhausted, per provider
 	WhenExhausted string              `yaml:"when_exhausted,omitempty" json:"when_exhausted,omitempty"`
@@ -35,8 +36,9 @@ type Config struct {
 // Candidate is one harness:model of a tier with what the quota says about it.
 // State is available, exhausted or unknown; unknown counts as available.
 type Candidate struct {
-	Ref            string // as written in the config, with @N
+	Ref            string // as written in the config, with @N and #effort
 	Harness, Model string
+	Effort         string   // level for this candidate; "" when it has none
 	Until          float64  // own threshold; 0 when the candidate has none
 	Threshold      float64  // percent that counts as exhausted; 0 when the provider is unknown
 	Used           *float64 // highest counted window; nil when none is known
@@ -46,12 +48,14 @@ type Candidate struct {
 
 // Choice is the candidate a dispatch runs. Reason names the candidates skipped for quota.
 type Choice struct {
-	Ref, Harness, Model, Reason string
+	Ref, Harness, Model, Effort, Reason string
 }
 
 const defaultLimit = 90
 
 var tierName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]*$`)
+
+var effortName = regexp.MustCompile(`^[a-z0-9]+$`)
 
 // Reader is the usage readings of a configured harness that has usage commands;
 // ok is false when it has none. A nil Reader reads nothing: every such quota is unknown.
@@ -114,33 +118,43 @@ func (c Config) Validate() error {
 			return fmt.Errorf("tier %s: no candidates", tier)
 		}
 		for _, s := range list {
-			if _, _, _, err := parse(s); err != nil {
+			h, _, _, effort, err := parse(s)
+			if err != nil {
 				return fmt.Errorf("tier %s: %w", tier, err)
+			}
+			if err := tasks.ValidateEffort(h, effort); effort != "" && err != nil {
+				return fmt.Errorf("tier %s: candidate %q: %w", tier, s, err)
 			}
 		}
 	}
 	return nil
 }
 
-// parse splits harness:model[@N]. A trailing @N is a threshold only if it is a short
-// number; otherwise the @ belongs to the model id (e.g. vertex ids). until is 0 when absent.
-func parse(s string) (harness, model string, until float64, err error) {
-	harness, model, ok := strings.Cut(s, ":")
+// parse splits harness:model[@N][#effort]. A trailing #effort is split first, only
+// when it looks like a level name; any other # belongs to the model id.
+// A trailing @N is a threshold only if it is a short number; otherwise the @ belongs to the
+// model id (e.g. vertex ids). until is 0 and effort "" when absent.
+func parse(s string) (harness, model string, until float64, effort string, err error) {
+	body := s
+	if i := strings.LastIndex(s, "#"); i >= 0 && effortName.MatchString(s[i+1:]) {
+		body, effort = s[:i], s[i+1:]
+	}
+	harness, model, ok := strings.Cut(body, ":")
 	if !ok || !roles.KnownHarness(harness) {
-		return "", "", 0, fmt.Errorf("candidate %q: want HARNESS:MODEL[@1-100], HARNESS one of %s", s, strings.Join(roles.HarnessNames(), ", "))
+		return "", "", 0, "", fmt.Errorf("candidate %q: want HARNESS:MODEL[@1-100][#EFFORT], HARNESS one of %s", s, strings.Join(roles.HarnessNames(), ", "))
 	}
 	if i := strings.LastIndex(model, "@"); i >= 0 && len(model)-i <= 8 {
 		if v, perr := strconv.ParseFloat(model[i+1:], 64); perr == nil {
 			if !(v >= 1 && v <= 100) {
-				return "", "", 0, fmt.Errorf("candidate %q: threshold must be 1 to 100", s)
+				return "", "", 0, "", fmt.Errorf("candidate %q: threshold must be 1 to 100", s)
 			}
 			until, model = v, model[:i]
 		}
 	}
 	if model == "" {
-		return "", "", 0, fmt.Errorf("candidate %q: want HARNESS:MODEL[@1-100]", s)
+		return "", "", 0, "", fmt.Errorf("candidate %q: want HARNESS:MODEL[@1-100][#EFFORT]", s)
 	}
-	return harness, model, until, nil
+	return harness, model, until, effort, nil
 }
 
 // win is one counted usage window: a percentage and when it resets (zero if unknown).
@@ -236,11 +250,11 @@ func (c Config) Candidates(tier string, snap quota.Snapshot, read Reader) ([]Can
 	var out []Candidate
 	now := time.Now()
 	for _, s := range list {
-		h, m, until, err := parse(s)
+		h, m, until, effort, err := parse(s)
 		if err != nil {
 			return nil, err
 		}
-		cd := Candidate{Ref: s, Harness: h, Model: m, Until: until, State: "unknown"}
+		cd := Candidate{Ref: s, Harness: h, Model: m, Effort: effort, Until: until, State: "unknown"}
 		name, ws := source(h, m, specs, snap, read, now)
 		if name != "" {
 			cd.Threshold = until
@@ -289,13 +303,13 @@ func (c Config) Select(tier string, snap quota.Snapshot, read Reader) (Choice, e
 	var skipped []string
 	for _, cd := range cands {
 		if cd.State != "exhausted" {
-			return Choice{Ref: cd.Ref, Harness: cd.Harness, Model: cd.Model, Reason: strings.Join(skipped, "; ")}, nil
+			return Choice{Ref: cd.Ref, Harness: cd.Harness, Model: cd.Model, Effort: cd.Effort, Reason: strings.Join(skipped, "; ")}, nil
 		}
 		skipped = append(skipped, cd.Harness+":"+cd.Model+" "+cd.Why)
 	}
 	if c.WhenExhausted == "first" {
 		skipped = append(skipped, "all exhausted, running first")
-		return Choice{Ref: cands[0].Ref, Harness: cands[0].Harness, Model: cands[0].Model, Reason: strings.Join(skipped, "; ")}, nil
+		return Choice{Ref: cands[0].Ref, Harness: cands[0].Harness, Model: cands[0].Model, Effort: cands[0].Effort, Reason: strings.Join(skipped, "; ")}, nil
 	}
 	var earliest time.Time
 	for _, cd := range cands {

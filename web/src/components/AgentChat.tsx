@@ -8,7 +8,6 @@ import { Bubble, Composer, Fold, Markup, Typing, chatColumn, chatIndent, compose
 import { paneInput } from "@/lib/paneInput"
 import { clock, createdTask, currentModel, runningTool, splitSystem, toRows, type Feed, type Item, type Row } from "@/lib/transcript"
 import { cn } from "@/lib/utils"
-import { effortLevels } from "@/lib/roles"
 import { commandMatches } from "@/lib/harnessCommands"
 import { useAppState } from "@/state"
 import { applyMention, filterMentions, mentionItems, mentionQuery, type Mention } from "@/lib/mentions"
@@ -209,7 +208,7 @@ export function AgentChat({ pane, onOpenTerminal, onUnavailable, project, onSave
     } catch (e) { setError((e as Error).message) }
   }
   // Only claude is known to take "/effort <level>"; pi and codex have no verified in-chat command.
-  const effort = harness === "claude" ? effortLevels("claude") : []
+  const effort = harness === "claude" ? state?.efforts?.claude ?? [] : []
   async function chooseEffort(level: string) {
     setError("")
     try { await paneInput(pane, "send", `/effort ${level}`); setEffortSet({ pane, level }) } catch (e) { setError((e as Error).message) }

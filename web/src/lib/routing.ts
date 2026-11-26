@@ -3,15 +3,25 @@ import type { RoutingCandidate, RoutingView } from "@/types"
 type Provider = RoutingView["providers"][number]
 export const harnessName: Record<string, string> = { claude: "Claude", codex: "Codex", pi: "pi" }
 
-// A ref is harness:model, with an optional own threshold as @N (percent) on the end.
-export function parseRef(ref: string): { harness: string; model: string; until: number | null } {
-  const i = ref.indexOf(":")
-  const rest = i < 0 ? ref : ref.slice(i + 1)
+// A ref is harness:model, with an optional own threshold as @N (percent) and an optional #effort level on the end.
+const stripEffort = (ref: string) => ref.replace(/#[a-z0-9]+$/, "")
+export function parseRef(ref: string): { harness: string; model: string; until: number | null; effort: string } {
+  const effort = /#([a-z0-9]+)$/.exec(ref)?.[1] ?? ""
+  const bare = stripEffort(ref)
+  const i = bare.indexOf(":")
+  const rest = i < 0 ? bare : bare.slice(i + 1)
   const m = /@(\d+)$/.exec(rest)
-  return { harness: i < 0 ? "" : ref.slice(0, i), model: m ? rest.slice(0, m.index) : rest, until: m ? Number(m[1]) : null }
+  return { harness: i < 0 ? "" : bare.slice(0, i), model: m ? rest.slice(0, m.index) : rest, until: m ? Number(m[1]) : null, effort }
 }
-// withUntil sets (or with "" removes) the own threshold of a ref.
-export const withUntil = (ref: string, text: string) => { const base = ref.replace(/@\d+$/, ""); return text === "" ? base : `${base}@${text}` }
+// withUntil sets (or with "" removes) the own threshold of a ref, keeping its effort.
+export function withUntil(ref: string, text: string): string {
+  const base = stripEffort(ref).replace(/@\d+$/, "")
+  const bare = text === "" ? base : `${base}@${text}`
+  const effort = parseRef(ref).effort
+  return effort ? `${bare}#${effort}` : bare
+}
+// withEffort sets (or with "" removes) the effort level of a ref, keeping its threshold.
+export const withEffort = (ref: string, level: string) => level === "" ? stripEffort(ref) : `${stripEffort(ref)}#${level}`
 export function reorder<T>(xs: T[], from: number, to: number): T[] {
   const r = [...xs]
   const [x] = r.splice(from, 1)

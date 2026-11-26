@@ -1,17 +1,5 @@
 import type { Role } from "@/types"
 
-// Effort levels each harness accepts; mirrors tasks.ValidateEffort in Go.
-export function effortLevels(harness: string): string[] {
-  switch (harness) {
-    case "pi": return ["off", "minimal", "low", "medium", "high", "xhigh", "max"]
-    case "claude": return ["low", "medium", "high", "xhigh", "max"]
-    case "codex": return ["none", "minimal", "low", "medium", "high", "xhigh", "max"]
-    // A tier's harness is chosen at dispatch, so any level may be set; the chosen harness drops what it lacks.
-    case "tier": return ["off", "none", "minimal", "low", "medium", "high", "xhigh", "max"]
-    default: return []
-  }
-}
-
 // Models already in use across roles, for the model suggestions.
 export function modelsIn(roles: Role[]): string[] {
   return [...new Set(roles.map(r => r.model).filter(Boolean))].sort()

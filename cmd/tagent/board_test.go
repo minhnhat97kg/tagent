@@ -380,3 +380,14 @@ func TestRoleMemoryInDispatchPrompt(t *testing.T) {
 		t.Fatalf("prompt: %q", prompt)
 	}
 }
+
+func TestReusableMatchesEffort(t *testing.T) {
+	a := board.Action{Tier: "fast", Role: "claude", Model: "haiku", Effort: "high"}
+	if !reusable(a, "claude:haiku#high") || reusable(a, "claude:haiku#low") || reusable(a, "claude:haiku") {
+		t.Fatal("tier pane reused across effort")
+	}
+	a.Effort = ""
+	if !reusable(a, "claude:haiku") || reusable(a, "claude:haiku#high") {
+		t.Fatal("no-effort pane mismatch")
+	}
+}

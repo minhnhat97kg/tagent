@@ -5,7 +5,7 @@ import { api, send } from "@/api"
 import { usePoll } from "@/hooks/usePoll"
 import { enc } from "@/hooks/useRoute"
 import { Button } from "@/components/ui/button"
-import { contextList, contextText, editableKey, effortLevels, modelsIn, readOnlySource, roleTemplate, usedBySummary, withContext } from "@/lib/roles"
+import { contextList, contextText, editableKey, modelsIn, readOnlySource, roleTemplate, usedBySummary, withContext } from "@/lib/roles"
 import { useAppState } from "@/state"
 import type { Role, RoutingView } from "@/types"
 import { PaneHeader } from "@/components/PaneChrome"
@@ -48,7 +48,7 @@ export function AgentsPage({ dir, onDirty }: { dir: string; onDirty?: (dirty: bo
   }
   function chooseFixed(model: string) {
     if (!draft) return
-    setDraft(draft.tier ? { ...draft, tier: undefined, harness: "claude", model, effort: effortLevels("claude").includes(draft.effort) ? draft.effort : "" } : { ...draft, model })
+    setDraft(draft.tier ? { ...draft, tier: undefined, harness: "claude", model, effort: keepEffort("claude", draft.effort) } : { ...draft, model })
   }
   function create() {
     const name = prompt("Agent name (letters, numbers, - or _)")
@@ -59,12 +59,12 @@ export function AgentsPage({ dir, onDirty }: { dir: string; onDirty?: (dirty: bo
     })
   }
   // A tier's fixed alternative is Claude. Claude's model list never falls back to other harnesses' ids.
-  // A configured harness has the effort levels of the kind its command runs.
-  const kindOf = (h: string) => state?.kinds?.[h] ?? h
+  // Effort is per harness, from its served list; a tier role takes none here (its candidates in routing.yaml do).
+  const keepEffort = (h: string, effort: string) => (state?.efforts?.[h] ?? []).includes(effort) ? effort : ""
   const fixedHarness = draft?.tier ? "claude" : draft?.harness ?? ""
   const listed = state?.models?.[fixedHarness] ?? []
   const models = [...new Set([...(listed.length || fixedHarness === "claude" ? listed : modelsIn(roles)), ...(draft?.model ? [draft.model] : [])])]
-  const levels = draft ? effortLevels(draft.tier ? "tier" : kindOf(draft.harness)) : []
+  const levels = draft ? state?.efforts?.[draft.harness] ?? [] : []
   const fieldClass = "w-full rounded border bg-background p-2 text-sm disabled:opacity-60"
 
   return <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg border bg-card">
@@ -97,7 +97,7 @@ export function AgentsPage({ dir, onDirty }: { dir: string; onDirty?: (dirty: bo
           {copyable && <p className="border-b px-3 py-1.5 text-xs text-muted-foreground">{draft.source === "legacy" ? `Legacy harness file (${draft.path}): read-only here. Copy it to .tasks/agents to change it.` : `Global agent (${draft.path}): instruction edits apply in every repo. Harness, model and effort are saved to this repo's board.yaml. Copy it to the repo to change it here only.`}</p>}
           <div className="grid gap-3 p-3 sm:grid-cols-3">
             {!draft.tier && <label className="text-[12px] font-medium">Harness
-              <select aria-label="Harness" className={fieldClass} disabled={readOnly} value={draft.harness} onChange={e => setDraft({ ...draft, harness: e.target.value, model: "", effort: effortLevels(kindOf(e.target.value)).includes(draft.effort) ? draft.effort : "" })}>
+              <select aria-label="Harness" className={fieldClass} disabled={readOnly} value={draft.harness} onChange={e => setDraft({ ...draft, harness: e.target.value, model: "", effort: keepEffort(e.target.value, draft.effort) })}>
                 {(state?.harnesses ?? []).map(h => <option key={h} value={h}>{h}</option>)}
               </select></label>}
             <label className="text-[12px] font-medium">Model
@@ -111,11 +111,11 @@ export function AgentsPage({ dir, onDirty }: { dir: string; onDirty?: (dirty: bo
               </select>
               {!draft.tier && !listed.length && <><input aria-label="Model name" list="agent-models" className={`${fieldClass} mt-1`} disabled={readOnly} value={draft.model} placeholder="default" onChange={e => setDraft({ ...draft, model: e.target.value })} />
                 <datalist id="agent-models">{models.map(m => <option key={m} value={m} />)}</datalist></>}</label>
-            <label className="text-[12px] font-medium">Effort
+            {!draft.tier && <label className="text-[12px] font-medium">Effort
               <select aria-label="Effort" className={fieldClass} disabled={readOnly || !levels.length} value={draft.effort} onChange={e => setDraft({ ...draft, effort: e.target.value })}>
                 <option value="">default</option>
                 {levels.map(l => <option key={l} value={l}>{l}</option>)}
-              </select></label>
+              </select></label>}
           </div>
           <p className="px-3 text-[11.5px] text-muted-foreground">Model and effort apply to new panes only. Used by: {usedBySummary(draft)}.{draft.tier && " A tier's harness and model come from routing.yaml (Routing page) at each dispatch."}</p>
           <div className="grid gap-3 p-3 sm:grid-cols-3">

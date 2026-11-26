@@ -5,7 +5,7 @@ import { enc } from "@/hooks/useRoute"
 
 const mocks = vi.hoisted(() => ({ api: vi.fn(), send: vi.fn(), models: {} as Record<string, string[]> }))
 vi.mock("@/api", () => ({ api: mocks.api, send: mocks.send }))
-vi.mock("@/state", () => ({ useAppState: () => ({ state: { models: mocks.models, harnesses: ["pi", "claude", "codex", "Claude API"], kinds: { "Claude API": "claude" } } }) }))
+vi.mock("@/state", () => ({ useAppState: () => ({ state: { models: mocks.models, harnesses: ["pi", "claude", "codex", "Claude API"], efforts: { pi: ["off", "max"], claude: ["low", "medium", "high", "xhigh", "max"], codex: [], "Claude API": ["fast", "deep"] } } }) }))
 
 const dev = { name: "dev", harness: "claude", model: "opus", effort: "medium", source: "repo", path: ".tasks/agents/dev.md", instructions: "# dev", running: 0, panes: [], usedBy: [] }
 const lastBody = () => mocks.send.mock.calls.at(-1)?.[2]
@@ -22,15 +22,13 @@ async function openDev() {
   fireEvent.click(await screen.findByRole("button", { name: /^dev/ }))
 }
 
-test("picking a tier hides the harness, disables context and offers every effort level", async () => {
+test("picking a tier hides the harness, effort and disables context", async () => {
   render(<AgentsPage dir="/repo" />)
   await openDev()
   fireEvent.change(screen.getByLabelText("Model"), { target: { value: "tier:fast" } })
   expect(screen.queryByLabelText("Harness")).toBeNull()
+  expect(screen.queryByLabelText("Effort")).toBeNull()
   expect((screen.getByLabelText("Skills") as HTMLInputElement).disabled).toBe(true)
-  const effort = screen.getByLabelText("Effort") as HTMLSelectElement
-  const levels = Array.from(effort.options, o => o.value)
-  expect(levels).toEqual(expect.arrayContaining(["off", "max"]))
 
   fireEvent.click(screen.getByRole("button", { name: "Save" }))
   await waitFor(() => expect(mocks.send).toHaveBeenCalled())
@@ -67,10 +65,12 @@ test("the list shows a tier role as tier <name>", async () => {
   expect(await screen.findByText("tier fast")).toBeTruthy()
 })
 
-test("a configured harness offers the effort levels of its kind", async () => {
+test("a fixed role offers the served list of its harness", async () => {
   render(<AgentsPage dir="/repo" />)
   await openDev()
   fireEvent.change(screen.getByLabelText("Harness"), { target: { value: "Claude API" } })
   const effort = Array.from(screen.getByLabelText("Effort").querySelectorAll("option")).map(o => o.textContent)
-  expect(effort).toEqual(expect.arrayContaining(["low", "medium", "high", "xhigh", "max"]))
+  expect(effort).toEqual(["default", "fast", "deep"])
+  fireEvent.change(screen.getByLabelText("Harness"), { target: { value: "codex" } })
+  expect((screen.getByLabelText("Effort") as HTMLSelectElement).disabled).toBe(true)
 })

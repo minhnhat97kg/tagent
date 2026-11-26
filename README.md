@@ -194,7 +194,7 @@ Run `tagent help` to see the commands and the agents defined in the current repo
 The harness list in **New agent**, the Agents page and the routing tiers comes from
 `~/.config/tagent/harnesses.yml`; without the file it is the built-in list, and a file
 that lists names replaces the built-ins. An entry runs `command` (default: its `name`)
-with its `args` and `env`. Shell aliases do not work as `command`; spell them out.
+with its `args` and `env`, and `efforts` (the reasoning levels it accepts; see [docs/routing.md](docs/routing.md#effort-levels)). Shell aliases do not work as `command`; spell them out.
 Restart the web server after editing it.
 
 ```yaml

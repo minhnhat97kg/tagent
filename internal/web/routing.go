@@ -29,6 +29,7 @@ type routingCandidate struct {
 	Ref       string   `json:"ref"`
 	State     string   `json:"state"`
 	Why       string   `json:"why"`
+	Effort    string   `json:"effort"`    // level from #effort; "" = the role's effort or none
 	Until     *float64 `json:"until"`     // own threshold from @N; null = inherits the provider limit
 	Threshold *float64 `json:"threshold"` // percent that spills; null = provider unknown
 	Used      *float64 `json:"used"`      // highest counted window; null = no reading
@@ -51,6 +52,7 @@ type routingView struct {
 	WhenExhausted string                   `json:"when_exhausted"`
 	Providers     []routingProvider        `json:"providers"`
 	Harnesses     []string                 `json:"harnesses"` // the harnesses.yml names a candidate may name
+	Efforts       map[string][]string      `json:"efforts"`   // each harness's levels, for a candidate's #effort
 	Tiers         []routingTier            `json:"tiers"`
 	Roles         []tasks.BoardRoleSummary `json:"roles"` // board roles, with their max_instances
 }
@@ -88,7 +90,7 @@ func (s *server) routingState(dir string) routingView {
 	v := routingView{Path: routing.Path(), Providers: []routingProvider{
 		{ID: "claude", Name: "Claude", Five: routingWin(snap.Claude.Five), Week: routingWin(snap.Claude.Week), Stale: snap.Claude.Stale},
 		{ID: "codex", Name: "Codex", Five: routingWin(snap.Codex.Five), Week: routingWin(snap.Codex.Week), Stale: snap.Codex.Stale},
-	}, Harnesses: roles.HarnessNames(), Tiers: []routingTier{}, Roles: []tasks.BoardRoleSummary{}}
+	}, Harnesses: roles.HarnessNames(), Efforts: roles.EffortMap(), Tiers: []routingTier{}, Roles: []tasks.BoardRoleSummary{}}
 	if bc, e := tasks.LoadBoardConfig(dir); e == nil {
 		v.Roles = bc.Summary().Roles
 	}
@@ -117,7 +119,7 @@ func (s *server) routingState(dir string) routingView {
 		}
 		cands, _ := cfg.Candidates(name, snap, harnessusage.Read)
 		for _, c := range cands {
-			rc := routingCandidate{Ref: c.Ref, State: c.State, Why: c.Why, Used: c.Used, Spilled: c.State == "exhausted"}
+			rc := routingCandidate{Ref: c.Ref, Effort: c.Effort, State: c.State, Why: c.Why, Used: c.Used, Spilled: c.State == "exhausted"}
 			if c.Until != 0 {
 				rc.Until = &c.Until
 			}

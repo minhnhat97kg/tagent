@@ -47,7 +47,7 @@ export interface Role {
 export interface State {
   agents: Agent[]
   harnesses: string[] | null
-  kinds?: Record<string, string>
+  efforts?: Record<string, string[]> // each harness's effort levels, from harnesses.yml
   models: Record<string, string[]> | null
   host: string
   projects: string[] | null
@@ -89,6 +89,7 @@ export interface Project {
 export interface RoutingWindow { usedPercent: number | null; resetsAt: string | null }
 export interface RoutingCandidate {
   ref: string; state: string; why: string
+  effort: string // from #effort; "" = none
   until: number | null; threshold: number | null; used: number | null
   selected: boolean; spilled: boolean
 }
@@ -99,6 +100,7 @@ export interface RoutingView {
   limits: Record<string, number>
   when_exhausted: string
   harnesses: string[] // the harnesses.yml names a candidate may name
+  efforts: Record<string, string[]> // each harness's effort levels; a candidate picks from its own
   providers: { id: string; name: string; five: RoutingWindow; week: RoutingWindow; stale: boolean }[]
   tiers: RoutingTier[]
   roles: { name: string; tier?: string; maxInstances: number }[] // board roles; maxInstances 0 = no limit

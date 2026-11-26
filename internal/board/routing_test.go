@@ -130,3 +130,17 @@ triggers:
 		t.Fatal(a, err)
 	}
 }
+
+func TestRouteUsesCandidateEffort(t *testing.T) {
+	const tiers = "tiers:\n  fast: [claude:haiku#high, pi:openai-codex/gpt-6-luna#off]\n"
+	routeCase(t, tiers, claudeFull(93))
+	a := tierAction(t, "roles: {implementer: {tier: fast, effort: low}}")
+	if a.Role != "pi" || a.Effort != "off" {
+		t.Fatalf("%+v", a)
+	}
+	routeCase(t, tiers, quota.Snapshot{})
+	a = tierAction(t, "roles: {implementer: {tier: fast, effort: low}}")
+	if a.Role != "claude" || a.Effort != "high" {
+		t.Fatalf("%+v", a)
+	}
+}

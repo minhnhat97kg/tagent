@@ -42,6 +42,11 @@ func Harness(command string) string {
 			}
 		}
 	}
+	return kindOf(command)
+}
+
+// kindOf is Harness without the harnesses.yml lookup, so LoadHarnesses can use it.
+func kindOf(command string) string {
 	fields := strings.Fields(command)
 	if len(fields) == 0 {
 		return "claude"

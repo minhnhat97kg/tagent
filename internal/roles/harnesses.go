@@ -20,13 +20,15 @@ import (
 // HarnessSpec is one entry of harnesses.yml: the listed name, the binary it
 // runs (the name when empty), and the arguments and environment every launch of
 // it gets. A leading ~/ in an env value is the home directory. Usage commands
-// feed the web Usage panel.
+// feed the web Usage panel. Efforts are the levels it accepts: nil keeps the
+// built-in levels of its kind, empty means it takes no effort.
 type HarnessSpec struct {
 	Name    string            `yaml:"name"`
 	Command string            `yaml:"command"`
 	Args    []string          `yaml:"args"`
 	Env     map[string]string `yaml:"env"`
 	Usage   []UsageSpec       `yaml:"usage"`
+	Efforts []string          `yaml:"efforts"`
 }
 
 // UsageSpec is one usage row of a harness: a shell command that prints the
@@ -37,6 +39,55 @@ type UsageSpec struct {
 }
 
 var envName = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+
+var effortName = regexp.MustCompile(`^[a-z0-9]+$`)
+
+// kindEfforts are the levels a kind's command can pass on (see nativeEffortArgs); nil when it takes none.
+func kindEfforts(kind string) []string {
+	switch kind {
+	case "pi":
+		return []string{"off", "minimal", "low", "medium", "high", "xhigh", "max"}
+	case "claude":
+		return []string{"low", "medium", "high", "xhigh", "max"}
+	case "codex":
+		return []string{"none", "minimal", "low", "medium", "high", "xhigh", "max"}
+	}
+	return nil
+}
+
+// Efforts are the levels the harness name accepts: the only list validation, dispatch and the web use. nil: none.
+func Efforts(name string) []string {
+	if name == "" {
+		return nil
+	}
+	list, _ := LoadHarnesses()
+	for _, h := range list {
+		if h.Name == name && h.Efforts != nil {
+			return h.Efforts
+		}
+	}
+	return kindEfforts(Harness(name))
+}
+
+// EffortMap is every pickable harness with its levels, never nil, for the web.
+func EffortMap() map[string][]string {
+	out := map[string][]string{}
+	for _, name := range HarnessNames() {
+		out[name] = append([]string{}, Efforts(name)...)
+	}
+	return out
+}
+
+// KnownEffort reports whether some pickable harness accepts level: a tier's
+// effort is a fallback for candidates, so it only needs to be a real level.
+func KnownEffort(level string) bool {
+	for _, name := range HarnessNames() {
+		if slices.Contains(Efforts(name), level) {
+			return true
+		}
+	}
+	return false
+}
 
 var builtinHarnesses = []string{"claude", "codex", "opencode", "gemini", "pi", "copilot", "amp"}
 
@@ -67,6 +118,14 @@ func LoadHarnesses() ([]HarnessSpec, error) {
 	for _, h := range file.Harnesses {
 		if h.Name == "" {
 			return def, fmt.Errorf("%s: every harness needs a name", path)
+		}
+		if len(h.Efforts) > 0 && kindEfforts(kindOf(cmp.Or(h.Command, h.Name))) == nil {
+			return def, fmt.Errorf("%s: %s: efforts need a claude, codex or pi command", path, h.Name)
+		}
+		for _, level := range h.Efforts {
+			if !effortName.MatchString(level) {
+				return def, fmt.Errorf("%s: %s: bad effort %q", path, h.Name, level)
+			}
 		}
 		for k, v := range h.Env {
 			if !envName.MatchString(k) {

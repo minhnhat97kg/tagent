@@ -1,16 +1,10 @@
 import { describe, expect, it } from "vitest"
-import { contextList, contextText, editableKey, effortLevels, modelsIn, readOnlySource, roleTemplate, usedBySummary, withContext } from "@/lib/roles"
+import { contextList, contextText, editableKey, modelsIn, readOnlySource, roleTemplate, usedBySummary, withContext } from "@/lib/roles"
 import type { Role } from "@/types"
 
 const role = (over: Partial<Role>): Role => ({ name: "a", harness: "pi", model: "", effort: "", source: "board", path: "", instructions: "", running: 0, panes: null, usedBy: null, ...over })
 
 describe("roles helpers", () => {
-  it("lists effort levels per harness", () => {
-    expect(effortLevels("claude")).not.toContain("off")
-    expect(effortLevels("codex")).toContain("none")
-    expect(effortLevels("opencode")).toEqual([])
-    expect(effortLevels("tier")).toEqual(expect.arrayContaining(["off", "max"]))
-  })
   it("suggests each model once, sorted", () => {
     expect(modelsIn([role({ model: "b" }), role({ model: "a" }), role({ model: "b" }), role({})])).toEqual(["a", "b"])
   })

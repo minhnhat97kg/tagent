@@ -15,6 +15,7 @@ const base: RoutingView = {
   limits: { claude: 90, codex: 90 },
   when_exhausted: "block",
   harnesses: ["claude", "pi", "codex", "Claude API"],
+  efforts: { claude: ["low", "high"], pi: ["off", "max"], codex: [], "Claude API": ["fast"] },
   providers: [
     { id: "claude", name: "Claude", five: { usedPercent: 10, resetsAt: null }, week: { usedPercent: 5, resetsAt: null }, stale: false },
     { id: "codex", name: "Codex", five: { usedPercent: null, resetsAt: null }, week: { usedPercent: null, resetsAt: null }, stale: true },
@@ -22,8 +23,8 @@ const base: RoutingView = {
   tiers: [{
     name: "fast", usedBy: ["dev"], selected: "claude:haiku", reason: "",
     candidates: [
-      { ref: "claude:haiku", state: "available", why: "", until: null, threshold: 90, used: 10, selected: true, spilled: false },
-      { ref: "pi:openai-codex/gpt-6-luna", state: "unknown", why: "", until: null, threshold: null, used: null, selected: false, spilled: false },
+      { ref: "claude:haiku", state: "available", why: "", effort: "", until: null, threshold: 90, used: 10, selected: true, spilled: false },
+      { ref: "pi:openai-codex/gpt-6-luna", state: "unknown", why: "", effort: "", until: null, threshold: null, used: null, selected: false, spilled: false },
     ],
   }],
   roles: [{ name: "dev", tier: "fast", maxInstances: 0 }, { name: "review", maxInstances: 1 }],
@@ -76,6 +77,26 @@ test("the harness pickers offer the served list, configured names included", asy
   fireEvent.click(screen.getByRole("button", { name: "Add candidate" }))
   await waitFor(() => expect(mocks.send).toHaveBeenCalled())
   expect(lastPut().tiers.fast).toEqual(["claude:haiku", "pi:openai-codex/gpt-6-luna", "Claude API:sonnet@85"])
+})
+
+test("a candidate picks its effort from its harness's served list", async () => {
+  render(<RoutingPage dir="/repo" />)
+  const level = await screen.findByLabelText("claude:haiku effort")
+  expect(Array.from(level.querySelectorAll("option")).map(o => o.textContent)).toEqual(["default", "low", "high"])
+  fireEvent.change(level, { target: { value: "high" } })
+  await waitFor(() => expect(mocks.send).toHaveBeenCalledTimes(1))
+  expect(lastPut().tiers.fast).toEqual(["claude:haiku#high", "pi:openai-codex/gpt-6-luna"])
+  expect(screen.queryByLabelText("pi:openai-codex/gpt-6-luna effort")).not.toBeNull()
+})
+
+test("adding a candidate sends the effort chosen for it", async () => {
+  render(<RoutingPage dir="/repo" />)
+  fireEvent.change(await screen.findByLabelText("Add candidate harness"), { target: { value: "Claude API" } })
+  fireEvent.change(screen.getByLabelText("Add candidate model"), { target: { value: "sonnet" } })
+  fireEvent.change(screen.getByLabelText("Add candidate effort"), { target: { value: "fast" } })
+  fireEvent.click(screen.getByRole("button", { name: "Add candidate" }))
+  await waitFor(() => expect(mocks.send).toHaveBeenCalled())
+  expect(lastPut().tiers.fast).toEqual(["claude:haiku", "pi:openai-codex/gpt-6-luna", "Claude API:sonnet#fast"])
 })
 
 test("creates a tier with its first candidate", async () => {
@@ -210,8 +231,8 @@ test("edits a role's parallel agents limit and saves only a whole number", async
 })
 
 test("parseRef, withUntil, reorder and flow", () => {
-  expect(parseRef("claude:opus@70")).toEqual({ harness: "claude", model: "opus", until: 70 })
-  expect(parseRef("pi:openai-codex/gpt-6-luna")).toEqual({ harness: "pi", model: "openai-codex/gpt-6-luna", until: null })
+  expect(parseRef("claude:opus@70")).toEqual({ harness: "claude", model: "opus", until: 70, effort: "" })
+  expect(parseRef("pi:openai-codex/gpt-6-luna")).toEqual({ harness: "pi", model: "openai-codex/gpt-6-luna", until: null, effort: "" })
   expect(withUntil("claude:opus@70", "")).toBe("claude:opus")
   expect(withUntil("claude:opus", "80")).toBe("claude:opus@80")
   expect(withUntil("claude:opus@70", "80")).toBe("claude:opus@80")

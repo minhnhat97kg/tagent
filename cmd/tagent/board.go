@@ -286,7 +286,7 @@ func dispatchBoardAction(a board.Action) error {
 			fmt.Fprintln(os.Stderr, "board:", warn)
 		}
 		tmux.SetPaneOption(pane, tmux.BoardTarget, key)
-		tmux.SetPaneOption(pane, tmux.AgentRoute, a.Role+":"+a.Model)
+		tmux.SetPaneOption(pane, tmux.AgentRoute, routeKey(a))
 	}
 	// Memory rides in every dispatch, so a reused standing pane gets the current file.
 	if mem := roles.Memory(tasks.MainRoot(a.Dir), a.Agent); mem != "" {
@@ -328,9 +328,18 @@ func dispatchBoardAction(a board.Action) error {
 	return nil
 }
 
-// reusable: a tier pane is reused only on the harness and model it was spawned with.
+// routeKey is what a pane was spawned with: harness:model, and #effort when it has one.
+func routeKey(a board.Action) string {
+	if a.Effort == "" {
+		return a.Role + ":" + a.Model
+	}
+	return a.Role + ":" + a.Model + "#" + a.Effort
+}
+
+// reusable: a tier pane is reused only on the harness, model and effort it was spawned with.
+// Effort is a launch argument, so a pane started at another level cannot be reconfigured in place.
 func reusable(a board.Action, paneRoute string) bool {
-	return a.Tier == "" || paneRoute == a.Role+":"+a.Model
+	return a.Tier == "" || paneRoute == routeKey(a)
 }
 
 // boardPaneKey is the BoardTarget a role's pane answers for: one pane per

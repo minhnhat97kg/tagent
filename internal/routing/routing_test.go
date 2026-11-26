@@ -148,16 +148,16 @@ func TestSaveRoundTripAndRejects(t *testing.T) {
 
 func TestParseThreshold(t *testing.T) {
 	for _, s := range []string{"claude:opus", "claude:opus@70", "claude:opus@1", "claude:opus@100", "pi:vertex/x@20250514", "pi:vertex/x@20250514@70"} {
-		if _, _, _, err := parse(s); err != nil {
+		if _, _, _, _, err := parse(s); err != nil {
 			t.Errorf("%s: %v", s, err)
 		}
 	}
 	for _, s := range []string{"claude:opus@0", "claude:opus@0.5", "claude:opus@101", "claude:opus@-1", "claude:opus@NaN", "claude:@70", "claude:"} {
-		if _, _, _, err := parse(s); err == nil {
+		if _, _, _, _, err := parse(s); err == nil {
 			t.Errorf("%s: want error", s)
 		}
 	}
-	if h, m, u, _ := parse("pi:vertex/x@20250514@70"); h != "pi" || m != "vertex/x@20250514" || u != 70 {
+	if h, m, u, _, _ := parse("pi:vertex/x@20250514@70"); h != "pi" || m != "vertex/x@20250514" || u != 70 {
 		t.Fatalf("got %s %s %v", h, m, u)
 	}
 }
@@ -255,7 +255,7 @@ func TestConfiguredHarnessWithSpaces(t *testing.T) {
 	if err := cfg.Validate(); err != nil {
 		t.Fatal(err)
 	}
-	if h, m, u, err := parse("Claude API:sonnet@85"); err != nil || h != "Claude API" || m != "sonnet" || u != 85 {
+	if h, m, u, _, err := parse("Claude API:sonnet@85"); err != nil || h != "Claude API" || m != "sonnet" || u != 85 {
 		t.Fatalf("got %s %s %v %v", h, m, u, err)
 	}
 	if err := (Config{Tiers: map[string][]string{"fast": {"Nope:haiku"}}}).Validate(); err == nil || !strings.Contains(err.Error(), "Claude API") {
@@ -342,5 +342,44 @@ func TestFirstIgnoresUsage(t *testing.T) {
 	cfg := Config{Tiers: map[string][]string{"x": {"Claude API:sonnet", "claude:sonnet"}}}
 	if c, err := cfg.First("x"); err != nil || c.Harness != "Claude API" {
 		t.Fatalf("got %+v %v", c, err)
+	}
+}
+
+func TestParseCandidateEffort(t *testing.T) {
+	writeHarnesses(t, "harnesses:\n  - name: claude\n  - name: Claude API\n    command: claude-api\n  - name: pi\n")
+	h, m, u, e, err := parse("Claude API:haiku@85#high")
+	if err != nil || h != "Claude API" || m != "haiku" || u != 85 || e != "high" {
+		t.Fatal(h, m, u, e, err)
+	}
+	h, m, u, e, err = parse("pi:vertex/x@20250514")
+	if err != nil || h != "pi" || m != "vertex/x@20250514" || u != 0 || e != "" {
+		t.Fatal(h, m, u, e, err)
+	}
+	if _, _, _, _, err := parse("nope:m#high"); err == nil {
+		t.Fatal("accepted a bad effort token")
+	}
+}
+
+func TestValidateCandidateEffort(t *testing.T) {
+	writeHarnesses(t, "harnesses:\n  - name: claude\n  - name: pi\n  - name: deep\n    command: claude\n    efforts: [fast, deep]\n  - name: mute\n    command: opencode\n    efforts: []\n  - name: codex\n")
+	ok := Config{Tiers: map[string][]string{"fast": {"claude:haiku#high", "pi:x#off", "deep:m#fast"}}}
+	if err := ok.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	for _, s := range []string{"claude:haiku#off", "deep:m#high", "mute:m#high", "codex:m#bogus"} {
+		err := Config{Tiers: map[string][]string{"fast": {s}}}.Validate()
+		if err == nil || !strings.Contains(err.Error(), "tier fast") {
+			t.Fatalf("%s: %v", s, err)
+		}
+	}
+}
+
+// A "#" that is not followed by a level name is part of the model id, as before.
+func TestParseKeepsOtherHashInModel(t *testing.T) {
+	for _, s := range []string{"pi:vendor/m#Preview", "pi:m#a b", "pi:m#"} {
+		_, model, _, effort, err := parse(s)
+		if err != nil || effort != "" || "pi:"+model != s {
+			t.Errorf("%q: model %q effort %q err %v", s, model, effort, err)
+		}
 	}
 }
