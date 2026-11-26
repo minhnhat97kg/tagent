@@ -1,16 +1,18 @@
 import { getDisplayDefault, setDisplayDefault, type DisplayDefault } from "@/lib/transcript"
-import { Lock, RotateCcw } from "lucide-react"
+import { Lock, Plus, RotateCcw } from "lucide-react"
 import { toast } from "sonner"
 import { api, post } from "@/api"
+import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { Switch } from "@/components/ui/switch"
 import { usePoll } from "@/hooks/usePoll"
+import { baseName } from "@/lib/status"
 import { useAppState } from "@/state"
 
 interface Setting { key: string; group: string; label: string; help: string; kind: "bool" | "choice" | "preset" | "int" | "text"; value: string; default: string; choices: string[] | null; min: number; max: number; readOnly: boolean; secret: boolean; reload: boolean }
 
 // SettingsDialog edits the same registry as `tagent config` and the TUI settings screen (,).
-export function SettingsDialog({ open, onOpenChange, onResetLayout }: { open: boolean; onOpenChange: (open: boolean) => void; onResetLayout: () => void }) {
+export function SettingsDialog({ open, onOpenChange, onResetLayout, onAddWorkspace }: { open: boolean; onOpenChange: (open: boolean) => void; onResetLayout: () => void; onAddWorkspace: () => void }) {
   const poll = usePoll<Setting[]>(() => (open ? api<Setting[]>("/api/config") : Promise.resolve([])), 5000, String(open))
   const save = (s: Setting, body: { Value?: string; Reset?: boolean }) => {
     if (!body.Reset && body.Value === s.value) return
@@ -19,6 +21,8 @@ export function SettingsDialog({ open, onOpenChange, onResetLayout }: { open: bo
     }, e => toast.error((e as Error).message))
   }
   const { state } = useAppState()
+  const removeWorkspace = (dir: string) => api(`/api/workspaces?dir=${encodeURIComponent(dir)}`, { method: "DELETE" }).then(
+    () => toast.success(`Removed ${baseName(dir)}`), e => toast.error((e as Error).message))
   // "Model for new" belongs to the default agent: offer that harness's own models.
   const defaultAgent = (poll.data ?? []).find(x => x.key === "@agent-sidebar-default-agent")?.value
   const groups = [...new Set((poll.data ?? []).map(s => s.group))]
@@ -56,6 +60,16 @@ export function SettingsDialog({ open, onOpenChange, onResetLayout }: { open: bo
           {!s.readOnly && s.value !== s.default && !s.secret ? <button type="button" aria-label={`Reset ${s.label}`} title={`Reset to ${s.default || "empty"}`} className="flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent" onClick={() => save(s, { Reset: true })}><RotateCcw className="size-3.5" /></button> : <span />}
         </div>)}</div>
       </section>)}
+      <section>
+        <h3>Workspaces</h3>
+        <div className="flex flex-col divide-y divide-border overflow-hidden rounded-xl border bg-muted/50">
+          {(state?.projects ?? []).map(p => <div key={p} className="flex items-center gap-3 px-4 py-3">
+            <div className="min-w-0 flex-1"><div className="text-[12.5px] font-medium">{baseName(p)}</div><div className="truncate text-[11px] text-muted-foreground" title={p}>{p}</div></div>
+            <Button variant="ghost" size="sm" aria-label={`Remove ${baseName(p)}`} onClick={() => removeWorkspace(p)}>Remove</Button>
+          </div>)}
+          <div className="px-4 py-3"><Button variant="outline" size="sm" onClick={onAddWorkspace}><Plus /> Add workspace…</Button></div>
+        </div>
+      </section>
       <section>
         <h3>This device</h3>
         <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)_24px] items-center gap-4 rounded-xl border bg-muted/50 px-4 py-3">

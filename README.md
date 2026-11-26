@@ -356,6 +356,30 @@ not in the screen: `tagent config list` shows all of them, and
 `tagent config set <key> <value>` changes any — short names work
 (`avatar`, `width`, `notify_url`…).
 
+### Workspaces
+
+A workspace is a repo or folder that the board and the web UI show. It is not a
+ticket's worktree.
+
+- **Add:** run `tagent web` or bare `tagent` in a folder and it becomes a workspace
+  (a git worktree adds its main repo). In the web app, use the header dropdown's
+  *Add workspace…* or Settings → Workspaces: type or paste a path, or browse the
+  server's folders in the picker. In the TUI settings (`,`), `a` adds by typed path.
+- **Remove:** Settings → Workspaces → *Remove*, or `x` on the row in the TUI settings.
+  This only hides the workspace from the lists (dropdown, Settings, TUI). Ticket
+  files stay, and dispatch keeps running for tickets in flight. Adding it again
+  shows it, and so does `tagent web` or bare `tagent` run in it.
+- **Lists:** the dropdown and Settings show the server's folder, the repos with a
+  running agent and the registered workspaces, minus the removed ones. Auto-created
+  sidebars never add a workspace.
+- **One web server per user:** `web.lock` in tagent's state directory
+  (`~/.local/state/tagent/context/web.lock`) records the running server's pid,
+  address and token. A second `tagent web` in another folder adds that folder to
+  the running server, prints `added <dir> to running tagent: <url>` and exits 0.
+  The lock is released when the server exits, even after a crash.
+- **After upgrading:** if the sidebar shows `⊗ :<port>` because the old server still
+  holds the port, run `tagent reload` twice.
+
 ### Repo agents and task board
 
 Agent metadata is owned by tagent: `roles:` in `.tasks/board.yaml` names the harness, model and effort (optionally defaulted by `~/.config/tagent/agents/profiles.toml`). Instructions are plain markdown in `.tasks/agents/<name>.md`, or `~/.config/tagent/agents/<name>.md` for global agents; a harness directory implies neither. `tagent agents`, the sidebar below running panes, and the dashboard read every agent regardless of the process harness. To edit them in one place (repo, global and board.yaml roles), use the Agents page on the web (`#/agents`) or the dashboard's Agents card (`t` opens its Definitions tab); see `docs/board.md`. When a role starts a pane its instructions ride in the dispatch prompt on every harness, so pi gets them too. An optional per-agent memory file, `.tasks/memory/<name>.md`, is read on every dispatch and sent in the prompt above the ticket (a missing file adds nothing). It is never listed as a role and tagent never writes it; edit it by hand. Legacy `.claude/agents`, `.codex/agents` and `.opencode/agents` files are still read but never written; only those native files are loaded by their harness itself (Claude/OpenCode `--agent`, Codex `developer_instructions`) and are not repeated in the prompt.

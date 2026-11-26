@@ -200,13 +200,13 @@ func TestToggleNoSidebarCreatesPaneAndRestoresFocus(t *testing.T) {
 	fake.Set("%2\n", "display-message", "-t", "%50", "-p", "#{pane_id}")
 	fake.Set("$1\n", "display-message", "-t", "%2", "-p", "#{session_id}")
 	fake.Set("@50\n", "display-message", "-t", "%2", "-p", "#{window_id}")
-	fake.Set("%9\n", "split-window", "-hf", "-l", "30", "-t", "%2", "-c", "~", "-P", "-F", "#{pane_id}", bin)
+	fake.Set("%9\n", "split-window", "-hf", "-l", "30", "-t", "%2", "-c", "~", "-P", "-F", "#{pane_id}", bin, "sidebar")
 	defer tmux.SetRunner(fake)()
 
 	if code := Toggle([]string{"%50"}); code != 0 {
 		t.Fatalf("exit code = %d, want 0", code)
 	}
-	if !hasCall(fake, "split-window", "-hf", "-l", "30", "-t", "%2", "-c", "~", "-P", "-F", "#{pane_id}", bin) {
+	if !hasCall(fake, "split-window", "-hf", "-l", "30", "-t", "%2", "-c", "~", "-P", "-F", "#{pane_id}", bin, "sidebar") {
 		t.Fatalf("missing split-window command with the correct arguments in %v", fake.Calls())
 	}
 	if !hasCall(fake, "set", "-t", "%9", "-p", tmux.PaneRole, "sidebar") {
@@ -231,14 +231,14 @@ func TestToggleUsesPercentSidebarWidth(t *testing.T) {
 	fake.Set("", "list-panes", "-t", "%50", "-F", "#{pane_id}|#{@pane_role}")
 	fake.Set("0 100 %1\n", "list-panes", "-t", "%50", "-F", "#{pane_left} #{pane_width} #{pane_id}")
 	fake.Set("%1\n", "display-message", "-t", "%50", "-p", "#{pane_id}")
-	fake.Set("%9\n", "split-window", "-hfb", "-l", "15", "-t", "%1", "-c", "~", "-P", "-F", "#{pane_id}", bin)
+	fake.Set("%9\n", "split-window", "-hfb", "-l", "15", "-t", "%1", "-c", "~", "-P", "-F", "#{pane_id}", bin, "sidebar")
 	defer tmux.SetRunner(fake)()
 
 	if code := Toggle([]string{"%50"}); code != 0 {
 		t.Fatalf("exit code = %d, want 0", code)
 	}
 	// 100 * 15 / 100 = 15.
-	if !hasCall(fake, "split-window", "-hfb", "-l", "15", "-t", "%1", "-c", "~", "-P", "-F", "#{pane_id}", bin) {
+	if !hasCall(fake, "split-window", "-hfb", "-l", "15", "-t", "%1", "-c", "~", "-P", "-F", "#{pane_id}", bin, "sidebar") {
 		t.Fatalf("missing split-window -l 15 (15%% of 100) in %v", fake.Calls())
 	}
 }
@@ -272,17 +272,17 @@ func TestToggleAllCreatesInEveryWindowWhenNoSidebarExists(t *testing.T) {
 		fake.Set("", "list-panes", "-t", w.window, "-F", "#{pane_id}|#{@pane_role}")
 		fake.Set("0 20 %1\n", "list-panes", "-t", w.window, "-F", "#{pane_left} #{pane_width} #{pane_id}")
 		fake.Set("%1\n", "display-message", "-t", w.window, "-p", "#{pane_id}")
-		fake.Set("%9\n", "split-window", "-hfb", "-l", "30", "-t", "%1", "-c", w.path, "-P", "-F", "#{pane_id}", bin)
+		fake.Set("%9\n", "split-window", "-hfb", "-l", "30", "-t", "%1", "-c", w.path, "-P", "-F", "#{pane_id}", bin, "sidebar")
 	}
 	defer tmux.SetRunner(fake)()
 
 	if code := ToggleAll(nil); code != 0 {
 		t.Fatalf("exit code = %d, want 0", code)
 	}
-	if !hasCall(fake, "split-window", "-hfb", "-l", "30", "-t", "%1", "-c", "/tmp/a", "-P", "-F", "#{pane_id}", bin) {
+	if !hasCall(fake, "split-window", "-hfb", "-l", "30", "-t", "%1", "-c", "/tmp/a", "-P", "-F", "#{pane_id}", bin, "sidebar") {
 		t.Fatalf("missing split-window for $1 in %v", fake.Calls())
 	}
-	if !hasCall(fake, "split-window", "-hfb", "-l", "30", "-t", "%1", "-c", "/tmp/b", "-P", "-F", "#{pane_id}", bin) {
+	if !hasCall(fake, "split-window", "-hfb", "-l", "30", "-t", "%1", "-c", "/tmp/b", "-P", "-F", "#{pane_id}", bin, "sidebar") {
 		t.Fatalf("missing split-window for $2 in %v", fake.Calls())
 	}
 }

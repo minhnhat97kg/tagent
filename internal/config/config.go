@@ -24,11 +24,13 @@ import (
 type Kind int
 
 const (
-	Bool   Kind = iota // on / off
-	Choice             // one of Choices
-	Preset             // one of Choices, or any text
-	Int                // a number in [Min, Max]
-	Text               // free text
+	Bool         Kind = iota // on / off
+	Choice                   // one of Choices
+	Preset                   // one of Choices, or any text
+	Int                      // a number in [Min, Max]
+	Text                     // free text
+	Workspace                // a workspace row of the settings screen; Key is its path
+	AddWorkspace             // the row that adds one
 )
 
 // Setting describes one option.

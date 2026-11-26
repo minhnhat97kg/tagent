@@ -6,6 +6,7 @@ import (
 	"os"
 	"slices"
 
+	"tagent/internal/board"
 	"tagent/internal/config"
 	"tagent/internal/hook"
 	"tagent/internal/install"
@@ -18,6 +19,9 @@ import (
 	"tagent/internal/watch"
 	"tagent/internal/worktree"
 )
+
+// cwdIsWorkspace: a bare tagent adds its folder unless it runs in an auto sidebar pane.
+func cwdIsWorkspace(paneRole string) bool { return paneRole != "sidebar" }
 
 // Exit codes, following the sysexits convention:
 //
@@ -46,12 +50,18 @@ func run(args []string, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
 		// No subcommand means run the sidebar TUI. Print nothing to
 		// stdout/stderr on this path — sidebar.Run() owns the entire screen.
+		// Its folder becomes a workspace, except in auto sidebars (the scraper starts those anywhere).
+		if wd, _ := os.Getwd(); cwdIsWorkspace(tmux.GetPaneOptionValue(os.Getenv("TMUX_PANE"), tmux.PaneRole)) {
+			board.AddWorkspace(wd)
+		}
 		return sidebar.RunSharedRelay()
 	}
 
 	cmd := args[0]
 	rest := args[1:]
 	switch cmd {
+	case "sidebar":
+		return sidebar.RunSharedRelay() // hidden: the auto sidebar pane
 	case "sidebar-server":
 		return sidebar.SharedServer()
 	case "help", "--help", "-h":

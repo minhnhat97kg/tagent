@@ -5,7 +5,6 @@
 package web
 
 import (
-	"context"
 	"crypto/rand"
 	"crypto/subtle"
 	"embed"
@@ -37,17 +36,6 @@ import (
 //go:embed all:dist
 var dist embed.FS
 
-// Serve runs the server until it fails. token guards every request; the
-// page link carries it once and the browser keeps it as a cookie.
-func Serve(addr, token, dir string, fire ...board.Fire) error {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	s := &server{token: token, dir: dir}
-	if len(fire) > 0 {
-		go s.discoverBoards(ctx, fire[0])
-	}
-	return http.ListenAndServe(addr, s.handler())
-}
 func (s *server) handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/state", s.state)
@@ -82,6 +70,9 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("GET /api/tickets/{id}/chat", s.ticketChat)
 	mux.HandleFunc("POST /api/tickets/{id}/chat", s.ticketChat)
 	mux.HandleFunc("POST /api/tasks/{id}/attachments", s.attachments)
+	mux.HandleFunc("POST /api/workspaces", s.addWorkspace)
+	mux.HandleFunc("DELETE /api/workspaces", s.removeWorkspace)
+	mux.HandleFunc("GET /api/dirs", s.dirs)
 	mux.HandleFunc("GET /api/config", s.settings)
 	mux.HandleFunc("POST /api/config", s.settings)
 	sub, _ := fs.Sub(dist, "dist")
@@ -245,25 +236,15 @@ func (s *server) agents() []agentJSON {
 	return out
 }
 
-// projects are the repos with a running agent, plus the server's own dir.
+// projects are the workspaces (board.Workspaces): the server's dir, the repos
+// with a running agent and the registered ones, minus the removed ones.
 func (s *server) state(w http.ResponseWriter, r *http.Request) {
 	list := s.agents()
-	seen := map[string]bool{}
-	projects := []string{}
-	for _, d := range append([]string{s.dir}, func() (ps []string) {
-		for _, a := range list {
-			ps = append(ps, a.Path)
-		}
-		return
-	}()...) {
-		if d == "" {
-			continue
-		}
-		if root := tasks.MainRoot(d); !seen[root] {
-			seen[root] = true
-			projects = append(projects, root)
-		}
+	paths := []string{s.dir}
+	for _, a := range list {
+		paths = append(paths, a.Path)
 	}
+	projects := board.Workspaces(paths...)
 	host, _ := os.Hostname()
 	compact, _ := tmux.GetOption("@agent_compact")
 	writeJSON(w, map[string]any{"agents": list, "projects": projects, "host": host, "compact": compact == "on", "harnesses": []string{"claude", "codex", "opencode", "gemini", "pi", "copilot", "amp"}, "models": agents.Models()})

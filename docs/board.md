@@ -114,6 +114,14 @@ same, and with no name it falls back to `default_workflow`. A todo ticket's type
 is the Workflow line in the web Details tab, `T` in the TUI, or `task workflow ID
 NAME|-`. Editing a workflow changes existing tickets too
 (recipes resolve live), so there is one place to edit a flow.
+
+## Workspaces
+
+Each workspace is a repo whose `.tasks` board tagent dispatches. The web and TUI
+lists add and remove them (see the README's Workspaces section). Removing one only
+hides it from the lists: its tickets are untouched and dispatch keeps running for
+them, so removing a workspace never stalls work in flight. Adding it back shows it.
+
 ## Board UI
 
 `?` opens help for the focused panel or view only (tickets, Workflows, workflow

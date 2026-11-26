@@ -503,7 +503,10 @@ func (m model) updateSettings(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m *model) clampCursor() {
-	n := [4]int{len(m.agents), len(m.tasks), len(m.roles), len(config.Settings)}
+	n := [4]int{len(m.agents), len(m.tasks), len(m.roles), 1}
+	if m.editor != nil {
+		n[3] = m.editor.Len()
+	}
 	for i := range m.cursor {
 		if m.cursor[i] >= n[i] {
 			m.cursor[i] = n[i] - 1

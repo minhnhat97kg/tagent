@@ -473,7 +473,7 @@ func (m model) settingsBox(w, h int) []string {
 	if rows := h - 2; selLine >= rows {
 		body = body[min(len(body), selLine-rows+1):]
 	}
-	return m.box("Settings", fmt.Sprintf("%d", len(config.Settings)), "", body, w, h, true)
+	return m.box("Settings", fmt.Sprintf("%d", m.editor.Len()), "", body, w, h, true)
 }
 
 // settingsDetailBox shows the selected setting in full: where it lives, what
@@ -495,8 +495,11 @@ func (m model) settingsDetailBox(w, h int) []string {
 		m.fg(m.theme.TextPrimary).Bold(true).Render(s.Label),
 		dim.Render(s.Key),
 		"",
-		dim.Render("value    ") + value,
-		dim.Render("default  ") + m.fg(m.theme.TextMuted).Render(config.Display(s.Default)),
+	}
+	if s.Kind < config.Workspace {
+		body = append(body,
+			dim.Render("value    ")+value,
+			dim.Render("default  ")+m.fg(m.theme.TextMuted).Render(config.Display(s.Default)))
 	}
 	if len(s.Choices) > 0 {
 		body = append(body, dim.Render("choices  ")+m.fg(m.theme.TextMuted).Render(strings.Join(s.Choices, " · ")))
@@ -516,18 +519,24 @@ func (m model) settingsDetailBox(w, h int) []string {
 
 	key := m.fg(m.theme.Accent).Bold(true)
 	actions := []string{"enter/space", "toggle or cycle forward", "h/l ←/→", "cycle back / forward", "e", "edit", "r", "reset"}
+	usage := dim.Render("tagent config set " + s.Key + " <value>")
+	switch s.Kind {
+	case config.Workspace:
+		actions, usage = []string{"x", "remove from workspaces", "a", "add workspace"}, ""
+	case config.AddWorkspace:
+		actions, usage = []string{"enter", "add the folder typed here", "a", "add workspace"}, ""
+	}
 	var bar string
 	for i := 0; i+1 < len(actions); i += 2 {
 		bar += key.Render(actions[i]) + dim.Render(" "+actions[i+1]+"   ")
 	}
-	usage := dim.Render("tagent config set " + s.Key + " <value>")
 	if pad := h - 2 - len(body) - 3; pad > 0 {
 		body = append(body, make([]string, pad)...)
 	} else {
 		body = append(body, "")
 	}
 	body = append(body, dim.Render(strings.Repeat("─", iw)), bar, usage)
-	return m.box("Setting · "+s.Label, fmt.Sprintf("%d/%d", m.editor.Cursor()+1, len(config.Settings)), "", body, w, h, true)
+	return m.box("Setting · "+s.Label, fmt.Sprintf("%d/%d", m.editor.Cursor()+1, m.editor.Len()), "", body, w, h, true)
 }
 
 // settingValue styles a setting's current value by kind.

@@ -70,6 +70,7 @@ Worktrees and attempts
 
 UI and configuration
   watch                        Open dashboard
+  web [--addr ADDR]            Browser UI; another run adds its folder to it
   toggle | toggle-all          Show or hide sidebar panes
   expand                       Expand or collapse sidebar
   config [list|get|set|reset|path]  View or change settings

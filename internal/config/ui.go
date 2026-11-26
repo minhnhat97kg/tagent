@@ -76,7 +76,10 @@ func (m uiModel) View() string {
 	s := m.ed.Selected()
 	help := s.Key
 	if s.Help != "" {
-		help += " — " + s.Help
+		if help != "" {
+			help += " — "
+		}
+		help += s.Help
 	}
 	if s.Default != "" {
 		help += " · default " + s.Default
@@ -93,7 +96,7 @@ func (m uiModel) View() string {
 		}
 		flashLine = fg(c).Render(flash)
 	}
-	keys := "j/k move · enter/space toggle · ←/→ choose · e edit · r reset · q close"
+	keys := "j/k move · enter/space toggle · ←/→ choose · e edit · r reset · a add workspace · x remove workspace · q close"
 	if m.ed.Editing() {
 		keys = "enter save · esc cancel"
 	}

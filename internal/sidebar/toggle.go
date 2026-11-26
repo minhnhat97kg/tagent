@@ -82,7 +82,7 @@ func Toggle(args []string) int {
 		"-t", targetPane,
 		"-c", panePath,
 		"-P", "-F", "#{pane_id}",
-		selfBin,
+		selfBin, "sidebar",
 	)
 	sidebarPane = strings.TrimSpace(sidebarPane)
 

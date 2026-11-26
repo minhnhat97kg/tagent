@@ -2,12 +2,14 @@ package config
 
 import (
 	"fmt"
+	"path/filepath"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 
+	"tagent/internal/board"
 	"tagent/internal/sidebar"
 )
 
@@ -18,6 +20,7 @@ import (
 // to ConfigFile.
 type Editor struct {
 	cursor   int
+	rows     []Setting // Settings, then a row per workspace, then the add row
 	values   map[string]string
 	editing  bool
 	input    textinput.Model
@@ -35,8 +38,11 @@ func NewEditor() *Editor {
 	return e
 }
 
-// Selected is the setting under the cursor.
-func (e *Editor) Selected() Setting { return Settings[e.cursor] }
+// Selected is the row under the cursor.
+func (e *Editor) Selected() Setting { return e.rows[e.cursor] }
+
+// Len is the number of rows.
+func (e *Editor) Len() int { return len(e.rows) }
 
 // Cursor is the index of the selected setting.
 func (e *Editor) Cursor() int { return e.cursor }
@@ -56,12 +62,18 @@ func (e *Editor) Flash() (msg string, bad bool) { return e.flash, e.flashBad }
 // Resize adapts the inline input to the screen.
 func (e *Editor) Resize(width int) { e.input.Width = max(10, width-30) }
 
-// Refresh reloads every value, so a change made elsewhere (`tagent
-// config set`) shows up when the screen opens.
+// Refresh reloads every value and the workspaces, so a change made elsewhere
+// (`tagent config set`, another tagent) shows up when the screen opens.
 func (e *Editor) Refresh() {
+	e.rows = append([]Setting{}, Settings...)
 	for _, s := range Settings {
 		e.values[s.Key] = Get(s)
 	}
+	for _, dir := range board.Workspaces() {
+		e.rows = append(e.rows, Setting{Key: dir, Group: "Workspaces", Label: dir, Kind: Workspace})
+	}
+	e.rows = append(e.rows, Setting{Group: "Workspaces", Label: "Add workspace…", Kind: AddWorkspace, Help: "a folder path, absolute or ~/…"})
+	e.cursor = min(e.cursor, len(e.rows)-1)
 }
 
 // Cancel drops an inline edit; it does nothing when not editing.
@@ -84,7 +96,11 @@ func (e *Editor) HandleKey(msg tea.KeyMsg) (quit bool, cmd tea.Cmd) {
 		case "enter":
 			e.editing = false
 			e.input.Blur()
-			e.apply(e.Selected(), e.input.Value())
+			if s := e.Selected(); s.Kind == AddWorkspace {
+				e.addWorkspace(e.input.Value())
+			} else {
+				e.apply(s, e.input.Value())
+			}
 			return false, nil
 		}
 		e.input, cmd = e.input.Update(msg)
@@ -97,15 +113,23 @@ func (e *Editor) HandleKey(msg tea.KeyMsg) (quit bool, cmd tea.Cmd) {
 	case "q", "esc", "ctrl+c":
 		return true, nil
 	case "j", "down":
-		e.cursor = min(e.cursor+1, len(Settings)-1)
+		e.cursor = min(e.cursor+1, len(e.rows)-1)
 	case "k", "up":
 		e.cursor = max(e.cursor-1, 0)
+	case "a":
+		e.cursor = len(e.rows) - 1
+		return false, e.edit(e.Selected())
+	case "x":
+		if s.Kind == Workspace {
+			e.removeWorkspace(s.Key)
+		}
 	case "enter", " ", "l", "right":
 		switch s.Kind {
 		case Bool:
 			e.apply(s, map[string]string{"on": "off", "off": "on"}[e.values[s.Key]])
 		case Choice, Preset:
 			e.apply(s, cycle(s.Choices, e.values[s.Key], 1))
+		case Workspace:
 		default:
 			return false, e.edit(s)
 		}
@@ -117,8 +141,13 @@ func (e *Editor) HandleKey(msg tea.KeyMsg) (quit bool, cmd tea.Cmd) {
 			e.apply(s, map[string]string{"on": "off", "off": "on"}[e.values[s.Key]])
 		}
 	case "e":
-		return false, e.edit(s)
+		if s.Kind < Workspace {
+			return false, e.edit(s)
+		}
 	case "r":
+		if s.Kind >= Workspace {
+			break
+		}
 		if err := Reset(s); err != nil {
 			e.flash, e.flashBad = err.Error(), true
 			break
@@ -150,6 +179,26 @@ func (e *Editor) apply(s Setting, value string) {
 	e.afterChange(s, old)
 }
 
+func (e *Editor) addWorkspace(dir string) {
+	root, err := board.AddWorkspace(dir)
+	if err != nil {
+		e.flash, e.flashBad = err.Error(), true
+		return
+	}
+	e.flash, e.flashBad = "added "+root, false
+	e.Refresh()
+	e.cursor = len(e.rows) - 1
+}
+
+func (e *Editor) removeWorkspace(dir string) {
+	if err := board.RemoveWorkspace(dir); err != nil {
+		e.flash, e.flashBad = err.Error(), true
+		return
+	}
+	e.flash, e.flashBad = "removed "+filepath.Base(dir)+" from workspaces", false
+	e.Refresh()
+}
+
 func (e *Editor) afterChange(s Setting, old string) {
 	if s.Reload {
 		if err := ReloadKeys(old); err == nil {
@@ -164,7 +213,7 @@ func (e *Editor) Body(theme sidebar.Theme, labelW int, showValues bool) (lines [
 	fg := func(c lipgloss.Color) lipgloss.Style { return lipgloss.NewStyle().Foreground(c) }
 	dim, accent := fg(theme.TextDim), fg(theme.Accent).Bold(true)
 	group := ""
-	for i, s := range Settings {
+	for i, s := range e.rows {
 		if s.Group != group {
 			group = s.Group
 			if len(lines) > 0 {
@@ -186,6 +235,8 @@ func (e *Editor) Body(theme sidebar.Theme, labelW int, showValues bool) (lines [
 		v := e.values[s.Key]
 		val := fg(theme.TextPrimary).Render(Display(v))
 		switch s.Kind {
+		case Workspace, AddWorkspace:
+			val = ""
 		case Bool:
 			val = fg(map[string]lipgloss.Color{"on": theme.StatusRunning, "off": theme.TextDim}[v]).Bold(true).Render(map[string]string{"on": "● on", "off": "○ off"}[v])
 		case Choice, Preset:

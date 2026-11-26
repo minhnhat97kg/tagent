@@ -12,6 +12,7 @@ import { TaskDrawer } from "@/components/Board"
 import { BoardConfigPage } from "@/components/BoardConfigPage"
 import { NewAgentDialog } from "@/components/NewAgentDialog"
 import { ProjectSelect } from "@/components/ProjectSelect"
+import { AddWorkspaceDialog } from "@/components/AddWorkspaceDialog"
 import { AgentsPanel } from "@/components/panels/AgentsPanel"
 import { WorkflowsPage } from "@/components/WorkflowsPage"
 import { RunPage } from "@/components/RunPage"
@@ -43,6 +44,7 @@ export default function App() {
   const { state, error } = useAppState()
   const [newOpen, setNewOpen] = useState(false)
   const [settings, setSettings] = useState(false)
+  const [addWorkspace, setAddWorkspace] = useState(false)
   // The home layout: this device's saved boxes, or undefined for the default.
   const [panes, setPanes] = useState(loadPanes)
   const changePanes = (boxes: PaneBox[]) => { setPanes(boxes); savePanes(boxes) }
@@ -163,7 +165,7 @@ export default function App() {
         <header className="flex h-11 shrink-0 items-center gap-1 border-b bg-card px-2 md:gap-2 md:px-3">
           {!home && <Button variant="ghost" size="icon-xs" className="max-sm:size-9" onClick={() => nav("/")} aria-label="Back to home" title="Back to home"><ArrowLeft /></Button>}
           <a href="#/" className="flex shrink-0 items-center gap-1.5 text-[13px] font-semibold"><span className="flex size-6 items-center justify-center rounded-md bg-primary text-primary-foreground"><SquareTerminal className="size-3.5" /></span><span className="hidden sm:inline">tagent</span><span className="hidden font-normal text-muted-foreground lg:inline"> · {state?.host ?? ""}</span></a>
-          <div className="min-w-0 flex-1 overflow-hidden [&_button]:max-w-full"><ProjectSelect value={dir} projects={state?.projects ?? []} onChange={(d) => { setDir(d); nav("/") }} /></div>
+          <div className="min-w-0 flex-1 overflow-hidden [&_button]:max-w-full"><ProjectSelect value={dir} projects={state?.projects ?? []} onChange={(d) => { setDir(d); nav("/") }} onAdd={() => setAddWorkspace(true)} /></div>
           <div className="ml-auto flex items-center gap-1">
             <Notifications items={notices} dir={dir ?? ''} onOpen={openNotice} />
             <Button size="sm" className="max-sm:size-9" onClick={() => setNewOpen(true)}><Plus /> <span className="hidden sm:inline">New agent</span></Button>
@@ -189,7 +191,8 @@ export default function App() {
       </div>
       <TaskDrawer proj={proj} dir={dir} reload={projPoll.reload} id={noticeTicket?.dir === dir ? noticeTicket.id : undefined} initialReply={noticeTicket?.reply} origin={noticeOrigin} onClose={() => setNoticeTicket(undefined)} />
       {newOpen && <NewAgentDialog dir={dir} onOpenChange={setNewOpen} />}
-      <SettingsDialog open={settings} onOpenChange={setSettings} onResetLayout={resetPanes} />
+      <SettingsDialog open={settings} onOpenChange={setSettings} onResetLayout={resetPanes} onAddWorkspace={() => { setSettings(false); setAddWorkspace(true) }} />
+      <AddWorkspaceDialog open={addWorkspace} onOpenChange={setAddWorkspace} onAdded={(d) => { setDir(d); nav("/") }} />
       <Toaster richColors position="top-right" />
     </TooltipProvider>
   )
