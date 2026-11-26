@@ -84,11 +84,16 @@ The web UI edits the same file; the TUI does not.
 - **Agents page**: the Model control lists "Tier" (the account's tiers) and "Fixed"
   models. A tier role hides Harness, disables the context fields and offers every
   effort level. Choosing a fixed model switches the harness back to `claude`.
-- **Routing page** (`#/routing`, linked from Usage): quota per provider, the
-  `Exhausted at` threshold, `when_exhausted`, and each tier's candidates (add,
-  reorder, remove, create and delete tiers). A candidate's `Until %` field sets
-  its own `@N` (empty removes it). Each action saves at once and shows the
-  candidate the server selects now; it polls every 3 s.
+- **Routing page** (`#/routing`, linked from Usage): one card per tier. Its
+  first line is the flow, e.g. `Claude opus until 70% -> Codex gpt-6.1-sol until
+  90% -> block`. Candidates are in priority order with the 5h and 7d quota bars;
+  a tick marks the candidate's `Spill at %`, which is edited in place (empty
+  means the provider limit). The candidate running now shows `Running now`; an
+  exhausted one shows `Spilled - resets <time>`. Reorder by dragging the grip or
+  with the up and down buttons; remove, add a candidate, and delete the tier from
+  the card, which also lists the roles that use it. `when_exhausted` shows at the
+  end of every flow and is set under `Defaults`, with the provider limits. Each
+  action saves at once and shows what the server selects now; it polls every 3 s.
 - API: `GET` and `PUT /api/routing?dir=`. The server computes candidate state and
   the selection; the page only displays them. Each candidate carries `ref` (with
   `@N`), `state`, `why`, `until` (own threshold, null if inherited), `threshold`

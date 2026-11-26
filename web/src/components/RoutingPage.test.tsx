@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest"
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { RoutingPage } from "./RoutingPage"
+import { flow, parseRef, reorder, withUntil } from "@/lib/routing"
 import { enc } from "@/hooks/useRoute"
-import type { RoutingView } from "@/types"
+import type { RoutingCandidate, RoutingView } from "@/types"
 
 const mocks = vi.hoisted(() => ({ api: vi.fn(), send: vi.fn() }))
 vi.mock("@/api", () => ({ api: mocks.api, send: mocks.send }))
@@ -21,7 +22,7 @@ const base: RoutingView = {
     name: "fast", usedBy: ["dev"], selected: "claude:haiku", reason: "",
     candidates: [
       { ref: "claude:haiku", state: "available", why: "", until: null, threshold: 90, used: 10, selected: true, spilled: false },
-      { ref: "pi:openai-codex/gpt-6-luna", state: "unknown", why: "", until: null, threshold: 90, used: null, selected: false, spilled: false },
+      { ref: "pi:openai-codex/gpt-6-luna", state: "unknown", why: "", until: null, threshold: null, used: null, selected: false, spilled: false },
     ],
   }],
 }
@@ -43,7 +44,8 @@ test("shows the tier with the server's selection and who uses it", async () => {
   render(<RoutingPage dir="/repo" />)
   expect(await screen.findByRole("heading", { name: "fast" })).toBeTruthy()
   expect(screen.getByText("used by dev")).toBeTruthy()
-  expect(screen.getByText("selected")).toBeTruthy()
+  expect(within(screen.getByRole("listitem", { name: "claude:haiku" })).getByText("Running now")).toBeTruthy()
+  expect(screen.getByText("Claude haiku until 90% -> pi openai-codex/gpt-6-luna -> block")).toBeTruthy()
   expect(mocks.api).toHaveBeenCalledWith(path)
 })
 
@@ -94,7 +96,7 @@ test("saves a changed threshold and when_exhausted", async () => {
 
 test("sets a candidate's own threshold", async () => {
   render(<RoutingPage dir="/repo" />)
-  const until = await screen.findByLabelText("claude:haiku threshold")
+  const until = await screen.findByLabelText("claude:haiku spill at")
   fireEvent.change(until, { target: { value: "70" } })
   fireEvent.blur(until)
   await waitFor(() => expect(mocks.send).toHaveBeenCalledTimes(1))
@@ -104,7 +106,7 @@ test("sets a candidate's own threshold", async () => {
 test("clears a candidate's own threshold back to the provider limit", async () => {
   current.tiers[0].candidates[0] = { ...current.tiers[0].candidates[0], ref: "claude:haiku@70", until: 70, threshold: 70 }
   render(<RoutingPage dir="/repo" />)
-  const until = await screen.findByLabelText("claude:haiku@70 threshold")
+  const until = await screen.findByLabelText("claude:haiku@70 spill at")
   fireEvent.change(until, { target: { value: "" } })
   fireEvent.blur(until)
   await waitFor(() => expect(mocks.send).toHaveBeenCalledTimes(1))
@@ -122,13 +124,13 @@ test("an empty threshold is not saved as 0", async () => {
 
 test("the selected marker follows the quota poll", async () => {
   render(<RoutingPage dir="/repo" />)
-  await screen.findByText("selected")
+  await screen.findByText("Running now")
   current.tiers[0].selected = "pi:openai-codex/gpt-6-luna"
   current.tiers[0].candidates[0].selected = false
   current.tiers[0].candidates[1].selected = true
   current.tiers[0].reason = "claude:haiku 5h 93% >= 90"
   await waitFor(() => expect(screen.getByText("Skipped for quota: claude:haiku 5h 93% >= 90")).toBeTruthy(), { timeout: 4500 })
-  expect(screen.getAllByText("selected")).toHaveLength(1)
+  expect(screen.getAllByText("Running now")).toHaveLength(1)
 })
 
 test("an invalid file shows the error and no controls", async () => {
@@ -138,4 +140,59 @@ test("an invalid file shows the error and no controls", async () => {
   expect(screen.getByText(/does not load/).textContent).toContain("tier my.tier")
   expect(screen.queryByRole("button", { name: "Create tier" })).toBeNull()
   expect(screen.queryByLabelText("When exhausted")).toBeNull()
+})
+
+test("drag and drop reorders candidates", async () => {
+  render(<RoutingPage dir="/repo" />)
+  const row = await screen.findByRole("listitem", { name: "pi:openai-codex/gpt-6-luna" })
+  fireEvent.dragStart(screen.getByLabelText("Drag claude:haiku"))
+  fireEvent.dragOver(row)
+  fireEvent.drop(row)
+  await waitFor(() => expect(mocks.send).toHaveBeenCalled())
+  expect(lastPut().tiers.fast).toEqual(["pi:openai-codex/gpt-6-luna", "claude:haiku"])
+})
+
+test("a drop without a drag starts changes nothing", async () => {
+  render(<RoutingPage dir="/repo" />)
+  fireEvent.drop(await screen.findByRole("listitem", { name: "pi:openai-codex/gpt-6-luna" }))
+  expect(mocks.send).not.toHaveBeenCalled()
+})
+
+test("a spilled candidate shows when it resets, and the flow line keeps its threshold", async () => {
+  current.tiers[0].candidates[0] = { ...current.tiers[0].candidates[0], selected: false, spilled: true, used: 95, state: "exhausted" }
+  current.tiers[0].candidates[1].selected = true
+  current.providers[0].five = { usedPercent: 95, resetsAt: "2026-11-27T10:00:00Z" }
+  render(<RoutingPage dir="/repo" />)
+  const row = await screen.findByRole("listitem", { name: "claude:haiku" })
+  expect(within(row).getByText(/^Spilled - resets /)).toBeTruthy()
+  expect(within(screen.getByRole("listitem", { name: "pi:openai-codex/gpt-6-luna" })).getByText("Running now")).toBeTruthy()
+  expect(within(screen.getByRole("listitem", { name: "pi:openai-codex/gpt-6-luna" })).getByText("no quota")).toBeTruthy()
+})
+
+test("the defaults section holds when_exhausted and the provider limits", async () => {
+  render(<RoutingPage dir="/repo" />)
+  await screen.findByRole("heading", { name: "fast" })
+  expect(screen.getByText("Defaults")).toBeTruthy()
+  mocks.send.mockImplementation(async (_m: string, _p: string, body: { when_exhausted: string }) => { current.when_exhausted = body.when_exhausted; return structuredClone(current) })
+  fireEvent.change(screen.getByLabelText("When exhausted"), { target: { value: "first" } })
+  await waitFor(() => expect(mocks.send).toHaveBeenCalledTimes(1))
+  expect(lastPut().when_exhausted).toBe("first")
+  expect(await screen.findByText("Claude haiku until 90% -> pi openai-codex/gpt-6-luna -> run first")).toBeTruthy()
+})
+
+test("parseRef, withUntil, reorder and flow", () => {
+  expect(parseRef("claude:opus@70")).toEqual({ harness: "claude", model: "opus", until: 70 })
+  expect(parseRef("pi:openai-codex/gpt-6-luna")).toEqual({ harness: "pi", model: "openai-codex/gpt-6-luna", until: null })
+  expect(withUntil("claude:opus@70", "")).toBe("claude:opus")
+  expect(withUntil("claude:opus", "80")).toBe("claude:opus@80")
+  expect(withUntil("claude:opus@70", "80")).toBe("claude:opus@80")
+  expect(reorder(["a", "b", "c"], 0, 2)).toEqual(["b", "c", "a"])
+  expect(reorder(["a", "b", "c"], 2, 0)).toEqual(["c", "a", "b"])
+  const cs = [
+    { ref: "claude:opus@70", threshold: 70 },
+    { ref: "codex:gpt-6.1-sol", threshold: 90 },
+    { ref: "pi:openai-codex/gpt-6-luna", threshold: null },
+  ] as RoutingCandidate[]
+  expect(flow(cs, "block")).toBe("Claude opus until 70% -> Codex gpt-6.1-sol until 90% -> pi openai-codex/gpt-6-luna -> block")
+  expect(flow([], "first")).toBe("run first")
 })

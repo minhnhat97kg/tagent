@@ -12,11 +12,13 @@ const compact = (n: number) => Intl.NumberFormat("en", { notation: "compact", ma
 // A quota bar is neutral: a full bar is normal use, not an alert. Red is reserved for a real block (none is reported here).
 const level = (n: number | null) => (n === null ? "bg-muted-foreground/30" : "bg-foreground/60")
 
-export function Meter({ label, value, labelClass = "w-5" }: { label: string; value: number | null; labelClass?: string }) {
+// marker draws a tick at a percent (a spill threshold) over the bar.
+export function Meter({ label, value, labelClass = "w-5", marker }: { label: string; value: number | null; labelClass?: string; marker?: number | null }) {
   const v = value === null ? 0 : Math.max(0, Math.min(100, value))
   return <div className="flex min-w-0 flex-1 items-center gap-1.5" title={`${label}: ${value === null ? "unknown" : `${Math.round(value)}% used`}`}>
     {label && <span className={`${labelClass} shrink-0 text-[10.5px] text-muted-foreground`}>{label}</span>}
-    <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-muted"><div className={`h-full rounded-full ${level(value)}`} style={{ width: `${v}%` }} /></div>
+    <div className="relative h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-muted"><div className={`h-full rounded-full ${level(value)}`} style={{ width: `${v}%` }} />
+      {marker != null && <span className="absolute inset-y-0 w-px bg-foreground" style={{ left: `${marker}%` }} />}</div>
     <span className="w-8 shrink-0 text-right text-[11.5px] font-medium tabular-nums">{value === null ? "–" : `${Math.round(value)}%`}</span>
   </div>
 }
