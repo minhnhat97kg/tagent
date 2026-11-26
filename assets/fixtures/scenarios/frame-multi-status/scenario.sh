@@ -15,7 +15,7 @@ BIN="$(mktemp -d)/tagent"
 REPO_DIR="$(mktemp -d)/repo-status"
 mkdir -p "$REPO_DIR/.git"
 
-tmux -L "$SOCKET" new-session -d -s main -x 60 -y 34 -c "$REPO_DIR"
+tmux -L "$SOCKET" -f /dev/null new-session -d -s main -x 60 -y 34 -c "$REPO_DIR"
 SIDEBAR_PANE=$(tmux -L "$SOCKET" list-panes -t main -F '#{pane_id}')
 tmux -L "$SOCKET" set-option -t "$SIDEBAR_PANE" -p @pane_role sidebar
 

@@ -29,7 +29,7 @@ mkdir -p "$REPO_DIR/.git"
 
 # Sidebar window: exactly one pane filling it — the pane we capture. A fixed
 # size (-x/-y) keeps the layout independent of the runner's terminal.
-tmux -L "$SOCKET" new-session -d -s main -x 60 -y 34 -c "$REPO_DIR"
+tmux -L "$SOCKET" -f /dev/null new-session -d -s main -x 60 -y 34 -c "$REPO_DIR"
 SIDEBAR_PANE=$(tmux -L "$SOCKET" list-panes -t main -F '#{pane_id}')
 tmux -L "$SOCKET" set-option -t "$SIDEBAR_PANE" -p @pane_role sidebar
 

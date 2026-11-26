@@ -46,26 +46,46 @@ func Normalize(raw string) string {
 	return strings.Join(lines, "\n")
 }
 
+// startScenario runs scenario.sh on its own tmux socket and returns the socket and the pane id
+// it printed. The server is killed at cleanup, and cleanup fails the test if it is still alive.
+func startScenario(t *testing.T, scenarioPath string) (socket, paneID string) {
+	t.Helper()
+
+	socket = "tagent-test-" + filepath.Base(filepath.Dir(scenarioPath))
+	// Cleanups run last-in-first-out: the kill runs before this liveness check.
+	t.Cleanup(func() {
+		if exec.Command("tmux", "-L", socket, "has-session").Run() == nil {
+			t.Errorf("tmux server %s still running after the test", socket)
+		}
+	})
+	t.Cleanup(func() {
+		exec.Command("tmux", "-L", socket, "kill-server").Run()
+	})
+
+	// The sidebar and its scraper read the board from the state dir. Point them at a temp dir so
+	// a scenario can never dispatch the real board's tickets.
+	state := t.TempDir()
+	cmd := exec.Command("bash", scenarioPath, socket)
+	cmd.Env = append(os.Environ(), "TMUX=", "TMUX_PANE=",
+		"XDG_STATE_HOME="+state, "TMUX_AGENT_CONTEXT_DIR="+filepath.Join(state, "context"))
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("run %s: %v", scenarioPath, err)
+	}
+	paneID = strings.TrimSpace(string(out))
+	if paneID == "" {
+		t.Fatalf("%s did not print a pane id", scenarioPath)
+	}
+	return socket, paneID
+}
+
 // RunScenario runs scenario.sh, captures the pane it prints, then compares
 // against the golden file. When UPDATE_FRAMES is enabled it writes the
 // golden file instead of comparing.
 func RunScenario(t *testing.T, scenarioPath, goldenPath string) {
 	t.Helper()
 
-	socket := "tagent-test-" + filepath.Base(filepath.Dir(scenarioPath))
-	t.Cleanup(func() {
-		exec.Command("tmux", "-L", socket, "kill-server").Run()
-	})
-
-	out, err := exec.Command("bash", scenarioPath, socket).Output()
-	if err != nil {
-		t.Fatalf("run %s: %v", scenarioPath, err)
-	}
-	paneID := strings.TrimSpace(string(out))
-	if paneID == "" {
-		t.Fatalf("%s did not print a pane id", scenarioPath)
-	}
-
+	socket, paneID := startScenario(t, scenarioPath)
 	raw, err := Capture(socket, paneID)
 	if err != nil {
 		t.Fatal(err)

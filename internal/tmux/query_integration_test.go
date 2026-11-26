@@ -45,7 +45,8 @@ func TestPaneFormatRoundTripsPipeCharacterOnRealTmux(t *testing.T) {
 		exec.Command("tmux", "-L", socket, "kill-server").Run()
 	})
 
-	paneID := strings.TrimSpace(run("new-session", "-d", "-P", "-F", "#{pane_id}"))
+	// -f /dev/null: don't load ~/.tmux.conf, whose tagent.tmux would start a scraper on this server.
+	paneID := strings.TrimSpace(run("-f", "/dev/null", "new-session", "-d", "-P", "-F", "#{pane_id}"))
 	if paneID == "" {
 		t.Fatal("new-session did not return a pane id")
 	}
