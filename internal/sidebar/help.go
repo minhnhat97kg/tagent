@@ -18,7 +18,7 @@ var helpOrder = []paneID{paneAgents, paneAgentDefs, paneUsage, paneTasks, paneWo
 // helpNotes and helpStandalone are the sections that are not a pane's keys.
 var (
 	helpNotes      = shortcutSection{"Workflows vs board.yaml", [][2]string{{"workflows", ".tasks/workflows/*.yml define every flow (jobs, runs, loops)"}, {"board.yaml", "roles, triggers and default_workflow only"}, {"s / start", "start with default_workflow or pick another workflow"}}}
-	helpStandalone = shortcutSection{"Standalone (outside tmux)", [][2]string{{"enter", "type into selected agent"}, {"ctrl+] ctrl+\\", "back to list (or click it)"}, {"N", "start a new agent here"}, {"z", "layout: split · half · agent · dashboard"}}}
+	helpStandalone = shortcutSection{"Standalone (outside tmux)", [][2]string{{"enter", "type into selected agent"}, {"ctrl+] ctrl+\\", "back to list (or click it)"}, {"N", "start a new agent here"}, {"z", "layout: split · half · agent · dashboard"}, {"< >", "list narrower / wider (split; or drag the separator)"}, {"=", "default list width"}}}
 )
 
 // paneSection is a pane's ? section, built from its Hints.

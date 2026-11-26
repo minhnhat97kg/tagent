@@ -37,6 +37,8 @@ type standaloneModel struct {
 	cx, cy     int      // the agent's cursor, in screen cells
 	cursorOn   bool     // and whether it is visible
 	layout     int      // layoutSplit…
+	leftW      int      // split: the list's width the user set (0 = default); saved in layout.json
+	sepDrag    bool     // a mouse drag of the separator is in progress
 	leftView   string   // rendered dashboard, reused across screen polls
 	borrowed   string   // window of the user's own session we resized
 	idlePanes  []string // idle shells seen by the last cleanup sweep
@@ -87,7 +89,7 @@ func newStandaloneModel() Model {
 
 func runStandalone() int {
 	left := newStandaloneModel()
-	m := standaloneModel{left: left}
+	m := standaloneModel{left: left, leftW: loadLayouts().Left}
 	p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion())
 	done := make(chan struct{})
 	startBackgroundWorkers(p, done)
@@ -102,7 +104,8 @@ func runStandalone() int {
 	return 0
 }
 
-// Layouts, cycled with z (the terminal can't resize the split by dragging).
+// Layouts, cycled with z. In the split the list's width is set with < > or by
+// dragging the separator, and kept in layout.json.
 const (
 	layoutSplit     = iota // dashboard ~1/3, agent the rest
 	layoutHalf             // half and half
@@ -113,6 +116,11 @@ const (
 
 var layoutNames = [layoutCount]string{"split", "half", "agent", "dashboard"}
 
+const (
+	minPaneW  = 20 // the narrowest list or agent the user can make
+	leftStepW = 4  // columns per < or >
+)
+
 func (m standaloneModel) leftWidth() int {
 	switch m.layout {
 	case layoutHalf:
@@ -121,6 +129,9 @@ func (m standaloneModel) leftWidth() int {
 		return 0
 	case layoutDashboard:
 		return m.w
+	}
+	if m.leftW > 0 && m.w >= 2*minPaneW {
+		return min(max(m.leftW, minPaneW), m.w-minPaneW)
 	}
 	return min(48, max(36, m.w/3))
 }
@@ -281,11 +292,42 @@ func (m standaloneModel) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "z":
 			m.layout = (m.layout + 1) % layoutCount
 			return m.relayout()
+		case "<", ">", "=":
+			if m.layout != layoutSplit {
+				break
+			}
+			switch msg.String() {
+			case "<":
+				m.leftW = m.leftWidth() - leftStepW
+			case ">":
+				m.leftW = m.leftWidth() + leftStepW
+			default:
+				m.leftW = 0
+			}
+			_ = saveLeftWidth(m.leftW) // a failed save only loses the width at the next start
+			return m.relayout()
 		}
 
 	case tea.MouseMsg:
 		if msg.Action == tea.MouseActionPress && m.left.drag != nil { // a press anywhere ends a drag whose release was lost
 			m.left = m.left.cancelDrag()
+		}
+		if msg.Action == tea.MouseActionPress && m.sepDrag { // likewise a separator drag whose release was lost
+			m.sepDrag = false
+			_ = saveLeftWidth(m.leftW)
+		}
+		if m.sepDrag || m.layout == layoutSplit && msg.Button == tea.MouseButtonLeft && msg.Action == tea.MouseActionPress && msg.X == m.leftWidth() {
+			switch msg.Action {
+			case tea.MouseActionPress:
+				m.sepDrag = true
+			case tea.MouseActionMotion:
+				m.leftW = max(msg.X, minPaneW) // 0 would mean the default
+				return m.relayout()
+			case tea.MouseActionRelease:
+				m.sepDrag = false
+				_ = saveLeftWidth(m.leftW)
+			}
+			return m, nil
 		}
 		dragging := m.left.drag != nil && msg.Action != tea.MouseActionPress // a drag may cross into the right pane or the separator
 		if !dragging && m.layout != layoutDashboard && msg.X >= m.rightX() && msg.Y >= 0 {

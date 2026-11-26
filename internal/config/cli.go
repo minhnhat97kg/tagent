@@ -8,12 +8,14 @@ import (
 )
 
 // Dispatch implements `tagent config [list | get <key> | set <key>
-// <value> | reset <key> | path]`; no arguments opens the settings screen.
+// <value> | reset <key> | path]`; no arguments opens the settings screen; `board` opens its Board tab.
 func Dispatch(args []string, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
-		return RunUI()
+		return RunUI(tabGeneral)
 	}
 	switch args[0] {
+	case "board":
+		return RunUI(tabBoard)
 	case "list":
 		w := tabwriter.NewWriter(stdout, 0, 0, 2, ' ', 0)
 		fmt.Fprintln(w, "KEY\tVALUE\tDEFAULT\tGROUP")

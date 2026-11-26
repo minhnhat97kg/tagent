@@ -59,6 +59,9 @@ func (e *Editor) InputView() string { return e.input.View() }
 // Flash is the result of the last change, and whether it is an error.
 func (e *Editor) Flash() (msg string, bad bool) { return e.flash, e.flashBad }
 
+// SetFlash shows a message from outside the editor (the board.yaml edit).
+func (e *Editor) SetFlash(msg string, bad bool) { e.flash, e.flashBad = msg, bad }
+
 // Resize adapts the inline input to the screen.
 func (e *Editor) Resize(width int) { e.input.Width = max(10, width-30) }
 

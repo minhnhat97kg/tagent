@@ -158,6 +158,7 @@ ticket detail (`a` opens the list). See [attachment limits and previews](docs/bo
 | `j` `k` | focused list | select an agent or task; selected task details stay visible |
 | `s` / `T` / `x` | focused task | start with its type (picker if none) / type picker (todo) / confirm task deletion |
 | `[` `]` | sidebar / dashboard | change chart range: 24 hours, 7 days, 30 days |
+| `<` `>` `=` | standalone, split | list narrower / wider (4 columns); `=` default width. Dragging the separator works too; saved in `layout.json` |
 | `M` | dashboard | move and resize the panes: `h j k l` move, `H J K L` shrink width / grow height / shrink height / grow width, `tab` select, `enter` save, `esc` discard, `0` reset to the default |
 
 The sidebar and zoomed dashboard use one view and one process. Narrow panes
@@ -241,7 +242,7 @@ harnesses:
 | `tagent stats [ls\|clear]` | Show or delete local Claude, Codex, OpenCode and Pi usage history |
 | `tagent save` · `restore [--dry-run]` | Save / bring back your agents after a restart (Claude resumes its session); auto-saved every 30s |
 | `tagent tokens` | Tokens used per Claude agent + total |
-| `tagent config [list\|get\|set\|reset\|path]` | Central configuration; no arguments = the settings screen (also `,` in the sidebar, or the Settings tab in the dashboard) |
+| `tagent config [list\|get\|set\|reset\|path\|board]` | Central configuration; no arguments = the settings screen, `board` = its Board tab (board.yaml) (also `,` in the sidebar, or the Settings tab in the dashboard) |
 | `tagent list [--json]` | pane · name · agent · status · window · cwd |
 | `tagent name [<pane>] <name>` | Rename an agent (also `R` in the sidebar and in `tagent watch`, and the web agent menu). Every agent pane without a name gets a short unique nickname such as `mochi`; a name works instead of a pane id, and `""` goes back to a nickname |
 | `tagent send <pane> [--now] [--wait] [--timeout D] [--report FILE] <prompt>` | Type a prompt + Enter. A busy agent (working, or waiting on you) gets it **queued** and delivered when idle; `--now` types right away |
@@ -408,7 +409,8 @@ See [docs/board.md](docs/board.md) for schema, migration and delivery guarantees
 
 ### Central configuration
 
-`,` in the sidebar opens the settings popup (also `tagent config`): theme,
+`,` in the sidebar opens the settings popup (also `tagent config`; `tagent config board`
+opens its Board tab): General holds theme,
 avatar, sidebar position/width, default agent/model, stuck threshold and
 notifications. Changes apply at once and are saved to
 `~/.config/tagent/config.conf` (tmux syntax, loaded by the plugin at
@@ -416,6 +418,10 @@ startup). Less common options (avatar LLM/personality, key bindings…) are
 not in the screen: `tagent config list` shows all of them, and
 `tagent config set <key> <value>` changes any — short names work
 (`avatar`, `width`, `notify_url`…).
+
+The **Board** tab (`tab` switches) edits `.tasks/board.yaml` raw: `e` opens it in
+`$EDITOR`, and it is saved only if it parses. A rejected edit stays as a draft
+for the next `e`.
 
 ### Workspaces
 

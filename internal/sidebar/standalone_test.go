@@ -119,3 +119,28 @@ func TestStandaloneFrameLinesHaveEqualWidth(t *testing.T) {
 		}
 	}
 }
+
+// The user's list width is kept inside the minimum on both sides, and the
+// default comes back with no width set or on a window too narrow to split.
+func TestLeftWidthOverride(t *testing.T) {
+	m := standaloneModel{w: 120, layout: layoutSplit}
+	if got := m.leftWidth(); got != 40 {
+		t.Fatalf("default split = %d, want 40", got)
+	}
+	m.leftW = 60
+	if got := m.leftWidth(); got != 60 {
+		t.Fatalf("override = %d, want 60", got)
+	}
+	m.leftW = 5
+	if got := m.leftWidth(); got != minPaneW {
+		t.Fatalf("too narrow = %d, want %d", got, minPaneW)
+	}
+	m.leftW = 500
+	if got := m.leftWidth(); got != 120-minPaneW {
+		t.Fatalf("too wide = %d, want %d", got, 120-minPaneW)
+	}
+	m.w, m.leftW = 30, 20
+	if got := m.leftWidth(); got != min(48, max(36, 30/3)) {
+		t.Fatalf("compact ignores the override, got %d", got)
+	}
+}

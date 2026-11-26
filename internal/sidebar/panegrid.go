@@ -172,6 +172,7 @@ type layoutFile struct {
 	V      int       `json:"v"`
 	Narrow []paneBox `json:"narrow,omitempty"`
 	Wide   []paneBox `json:"wide,omitempty"`
+	Left   int       `json:"left,omitempty"` // standalone split: the list's width in columns (0 = default)
 }
 
 func (f layoutFile) boxes(wide bool) []paneBox {
@@ -206,8 +207,19 @@ func loadLayouts() layoutFile {
 // re-reads the file first, so a save from another sidebar is not lost.
 func saveLayout(wide bool, boxes []paneBox) error {
 	f := loadLayouts()
-	f.V = layoutFileVers
 	f.set(wide, boxes)
+	return writeLayouts(f)
+}
+
+// saveLeftWidth stores the standalone split's list width (0 restores the default).
+func saveLeftWidth(w int) error {
+	f := loadLayouts()
+	f.Left = w
+	return writeLayouts(f)
+}
+
+func writeLayouts(f layoutFile) error {
+	f.V = layoutFileVers
 	data, err := json.MarshalIndent(f, "", "  ")
 	if err != nil {
 		return err
