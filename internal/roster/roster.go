@@ -108,7 +108,7 @@ func Missing(saved, running []Agent) []Agent {
 
 // ResumeArgs are the agent arguments that continue its old session.
 func ResumeArgs(a Agent) []string {
-	if a.SessionID != "" && a.Agent == "claude" {
+	if a.SessionID != "" && tmux.IsClaude(a.Agent) {
 		return []string{"--resume", a.SessionID}
 	}
 	return nil

@@ -44,6 +44,8 @@ export function AgentChat({ pane, onOpenTerminal, onUnavailable, project, onSave
   useEffect(() => { unavailable.current = onUnavailable })
   const scroller = useRef<HTMLDivElement>(null)
   const atBottom = useRef(true)
+  // claude-api is a second Claude Code install: same commands, models and effort levels.
+  const harness = feed?.harness === "claude-api" ? "claude" : feed?.harness
   const touch = typeof matchMedia === "function" && matchMedia("(pointer: coarse)").matches
 
   // Poll while visible: one timer chain, never two requests at once. A kick during a request only moves the next poll.
@@ -143,7 +145,7 @@ export function AgentChat({ pane, onOpenTerminal, onUnavailable, project, onSave
   }
 
   // Enter sends, on touch keyboards too; Shift+Enter and IME composition keep their normal meaning.
-  const commands = commandMatches(feed?.harness, draft)
+  const commands = commandMatches(harness, draft)
   function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
     if (mentions.length && !e.nativeEvent.isComposing) {
       if (e.key === "ArrowDown" || e.key === "ArrowUp") {
@@ -205,7 +207,7 @@ export function AgentChat({ pane, onOpenTerminal, onUnavailable, project, onSave
     } catch (e) { setError((e as Error).message) }
   }
   // Only claude is known to take "/effort <level>"; pi and codex have no verified in-chat command.
-  const effort = feed?.harness === "claude" ? effortLevels("claude") : []
+  const effort = harness === "claude" ? effortLevels("claude") : []
   async function chooseEffort(level: string) {
     setError("")
     try { await paneInput(pane, "send", `/effort ${level}`); setEffortSet({ pane, level }) } catch (e) { setError((e as Error).message) }
@@ -235,7 +237,7 @@ export function AgentChat({ pane, onOpenTerminal, onUnavailable, project, onSave
           <Button size="xs" variant="ghost" aria-label={`Model: ${model}`} className={`${effort.length ? "" : "ml-auto "}min-w-0 shrink-0 font-mono text-muted-foreground max-sm:max-w-[40%]`}><Cpu /><span className="truncate">{model}</span><ChevronDown /></Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          {(state?.models?.[feed?.harness ?? ""] ?? []).map(m => <DropdownMenuItem key={m} onSelect={() => void chooseModel(m)}>{m}</DropdownMenuItem>)}
+          {(state?.models?.[harness ?? ""] ?? []).map(m => <DropdownMenuItem key={m} onSelect={() => void chooseModel(m)}>{m}</DropdownMenuItem>)}
           <DropdownMenuItem onSelect={() => void chooseModel()}>Pick in Terminal…</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>}

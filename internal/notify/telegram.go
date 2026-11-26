@@ -846,7 +846,7 @@ func reply(ctx context.Context, token string, chat int64, a agentPane) {
 }
 
 func lastAnswer(ctx context.Context, a agentPane) (string, bool) {
-	if (a.Agent == "claude" || a.Agent == "pi") && a.Session != "" {
+	if (tmux.IsClaude(a.Agent) || a.Agent == "pi") && a.Session != "" {
 		if it, err := transcript.Latest(ctx, a.Agent, a.Session); err == nil && it.Text != "" {
 			return it.Text, true
 		}

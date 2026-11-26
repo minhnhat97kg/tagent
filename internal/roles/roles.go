@@ -46,7 +46,11 @@ func Harness(command string) string {
 	if len(fields) == 0 {
 		return "claude"
 	}
-	return filepath.Base(fields[0])
+	base := filepath.Base(fields[0])
+	if base == "claude-api" { // second Claude Code install: same harness, own label
+		return "claude"
+	}
+	return base
 }
 
 // roots caches git answers: a checkout's toplevel never changes, and the board asks per role on every refresh.

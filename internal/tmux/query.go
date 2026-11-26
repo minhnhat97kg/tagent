@@ -261,7 +261,7 @@ func parsePaneFields(parts []string, snap *process.Snapshot) (PaneInfo, bool) {
 	// Codex/OpenCode, any value present in tmux is leftover junk; Codex's
 	// mode is re-derived from the process in applyCodexPermissionModes.
 	permissionMode := ModeDefault
-	if agent == AgentClaude {
+	if IsClaude(string(agent)) {
 		permissionMode = ParsePermissionMode(parts[pfPermissionMode])
 	}
 

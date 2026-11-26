@@ -153,6 +153,7 @@ var (
 // branch returns the active branch of a session, oldest first. Parsed results are
 // cached per file version so polls with no new bytes cost a stat.
 func branch(ctx context.Context, harness, sessionID string, strict bool) ([]Item, error) {
+	harness = canonical(harness)
 	parse, err := parserFor(harness)
 	if err != nil {
 		return nil, err
@@ -385,4 +386,13 @@ func withModel(items []Item, model string) []Item {
 		}
 	}
 	return items
+}
+
+// canonical maps the claude-api label (a second Claude Code install) to claude;
+// Find already searches every CLAUDE_CONFIG_DIR listed in harnesses.yml.
+func canonical(harness string) string {
+	if harness == "claude-api" {
+		return "claude"
+	}
+	return harness
 }

@@ -67,6 +67,7 @@ func Locate(ctx context.Context, root, suffix string) (string, bool) {
 
 // Find returns the transcript file of a session ("" when there is none).
 func Find(ctx context.Context, harness, sessionID string) string {
+	harness = canonical(harness)
 	if sessionID == "" || strings.ContainsAny(sessionID, "/\\") {
 		return ""
 	}

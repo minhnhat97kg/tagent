@@ -301,7 +301,7 @@ func (t Theme) StatusColor(status tmux.PaneStatus, attention bool) lipgloss.Colo
 // AgentColor maps an agent type to a color.
 func (t Theme) AgentColor(agent tmux.AgentType) lipgloss.Color {
 	switch agent {
-	case tmux.AgentClaude:
+	case tmux.AgentClaude, tmux.AgentClaudeAPI:
 		return t.AgentClaude
 	case tmux.AgentCodex:
 		return t.AgentCodex

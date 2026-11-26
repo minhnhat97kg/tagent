@@ -6,7 +6,15 @@ const (
 	AgentCodex    AgentType = "codex"
 	AgentOpenCode AgentType = "opencode"
 	AgentUnknown  AgentType = "unknown"
+	// AgentClaudeAPI is a second Claude Code install (CLAUDE_CONFIG_DIR=~/.claude-api);
+	// everything but its label treats it as claude (see IsClaude).
+	AgentClaudeAPI AgentType = "claude-api"
 )
+
+// IsClaude reports whether a pane agent label is a Claude Code install.
+func IsClaude(label string) bool {
+	return label == string(AgentClaude) || label == string(AgentClaudeAPI)
+}
 
 // otherAgents are agent labels accepted besides the three above: agents
 // with a hook adapter but no special-casing in the query layer (pi,
@@ -28,7 +36,7 @@ type AgentType string
 // label, so the caller can skip panes that aren't running an agent.
 func ParseAgentType(label string) (AgentType, bool) {
 	switch AgentType(label) {
-	case AgentClaude, AgentCodex, AgentOpenCode:
+	case AgentClaude, AgentClaudeAPI, AgentCodex, AgentOpenCode:
 		return AgentType(label), true
 	}
 	if otherAgents[label] {

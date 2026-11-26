@@ -27,7 +27,7 @@ export function AgentView({ agent, project }: { agent: Agent; project?: Project 
   const label = agentLabel(agent)
   const [touch] = useState(() => matchMedia("(pointer: coarse)").matches)
   // Chat reads the harness transcript; Terminal is always mounted so its connection and ownership never change.
-  const chatSupported = agent.agent === "claude" || agent.agent === "pi"
+  const chatSupported = ["claude", "claude-api", "pi"].includes(agent.agent)
   const [chatOk, setChatOk] = useState(chatSupported)
   const [mode, setModeState] = useState<DisplayMode>(() => getMode(agent.pane, chatSupported))
   const chat = chatOk && mode === "chat"

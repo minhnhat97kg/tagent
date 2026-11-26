@@ -226,12 +226,12 @@ func retryPiSubmit(pane, text string, timeout, poll time.Duration) {
 	for time.Now().Before(deadline) {
 		time.Sleep(poll)
 		agent := GetPaneOptionValue(pane, PaneAgent)
-		if (agent != "pi" && agent != "claude") || GetPaneOptionValue(pane, PaneStatusOpt) != string(StatusIdle) {
+		if (agent != "pi" && !IsClaude(agent)) || GetPaneOptionValue(pane, PaneStatusOpt) != string(StatusIdle) {
 			return
 		}
 		screen, ok := RunTmux("capture-pane", "-p", "-t", pane)
 		contains := piEditorContains
-		if agent == "claude" {
+		if IsClaude(agent) {
 			contains = claudeEditorContains
 		}
 		if !ok || !contains(screen, text) {

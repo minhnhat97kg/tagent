@@ -96,3 +96,14 @@ func TestParsePermissionModeAndBadge(t *testing.T) {
 		}
 	}
 }
+
+func TestIsClaudeCoversClaudeAPI(t *testing.T) {
+	for label, want := range map[string]bool{"claude": true, "claude-api": true, "pi": false, "": false} {
+		if IsClaude(label) != want {
+			t.Errorf("IsClaude(%q) != %v", label, want)
+		}
+	}
+	if _, ok := ParseAgentType("claude-api"); !ok {
+		t.Error("ParseAgentType must accept claude-api")
+	}
+}

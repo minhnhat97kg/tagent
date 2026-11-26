@@ -98,7 +98,7 @@ func loadTicketChat(dir, id string) tea.Cmd {
 		case "":
 			chat.Reason = p.PaneID + " is bound to this ticket but has no agent yet; it is still starting."
 			return ticketChatMsg{chat}
-		case "claude", "pi":
+		case "claude", "claude-api", "pi":
 		default:
 			chat.Reason = fmt.Sprintf("Chat needs a claude or pi agent, but %s runs %s.", p.PaneID, p.Agent)
 			return ticketChatMsg{chat}
