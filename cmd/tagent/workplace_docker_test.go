@@ -94,9 +94,6 @@ func TestWorkplaceDockerCreateExecRm(t *testing.T) {
 
 // With `cleanup: keep` the container stays after done, and the ticket says so.
 func TestWorkplaceDockerKeepsContainer(t *testing.T) {
-	if os.Getenv("TAGENT_FLAKY_TESTS") != "1" {
-		t.Skip("flaky under load, see #115")
-	}
 	calls, messages, id := runDockerTicket(t, "workplace: docker\ncleanup: keep\n")
 	if strings.Contains(calls, "rm -f") {
 		t.Fatalf("kept container was removed:\n%s", calls)

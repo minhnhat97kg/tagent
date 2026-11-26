@@ -26,11 +26,3 @@ func TestBenchTmuxServerIgnoresUserConfig(t *testing.T) {
 		t.Fatalf("private tmux server loaded user config: @tagent_leak=%q", v)
 	}
 }
-
-// skipUnlessFlaky quarantines load-sensitive tests until #115 fixes them.
-func skipUnlessFlaky(t *testing.T) {
-	t.Helper()
-	if os.Getenv("TAGENT_FLAKY_TESTS") != "1" {
-		t.Skip("flaky under load, see #115")
-	}
-}

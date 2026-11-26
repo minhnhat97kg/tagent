@@ -195,7 +195,6 @@ func waitLen(t *testing.T, file string, n int) []byte {
 // A burst of release messages fills the geometry request queue while the worker has events to send.
 // Every release is answered with ownership, and the connection keeps working.
 func TestTerminalGeometryFloodDoesNotDeadlock(t *testing.T) {
-	skipUnlessFlaky(t)
 	_, r, conn, _ := startBench(t, "geo-flood", "stty raw -echo; echo READY; exec cat")
 	const releases = 300
 	for i := 0; i < releases; i++ {

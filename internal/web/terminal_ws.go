@@ -243,22 +243,34 @@ func (s *server) paneWS(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	geometry := func() (paneShot, bool) {
-		info, ok := tmux.RunTmux("display-message", "-p", "-t", pane, "#{pane_width} #{pane_height} #{cursor_x} #{cursor_y} #{cursor_flag} #{alternate_on} #{mouse_any_flag} #{mouse_sgr_flag}")
+		// One tmux process answers geometry, owner and session client modes: each tmux spawn costs ~50ms here.
+		const paneFormat = "#{pane_width} #{pane_height} #{cursor_x} #{cursor_y} #{cursor_flag} #{alternate_on} #{mouse_any_flag} #{mouse_sgr_flag} #{@agent_size_owner}"
+		out, clientsOK := tmux.RunTmux("display-message", "-p", "-t", pane, paneFormat, ";", "list-clients", "-t", strings.TrimSpace(session), "-F", "#{client_control_mode}")
+		if !clientsOK {
+			// tmux exits nonzero when list-clients fails and then drops all output: read the pane line alone.
+			out, _ = tmux.RunTmux("display-message", "-p", "-t", pane, paneFormat)
+		}
+		info, clients, _ := strings.Cut(out, "\n")
 		var f paneShot
-		f.Automatic = sessionResizable(strings.TrimSpace(session))
-		f.Resizable = s.sizeOwners.owns(pane, viewer)
+		f.Automatic = controlClientsOnly(clients, clientsOK)
+		var cursor, alternate, mouse, sgr int
+		_, err := fmt.Sscan(info, &f.Cols, &f.Rows, &f.CX, &f.CY, &cursor, &alternate, &mouse, &sgr)
+		owner := "" // empty when unset: the ninth field is then absent
+		if fields := strings.Fields(info); len(fields) == 9 {
+			owner = fields[8]
+		}
+		f.Resizable = owner == "web:"+viewer
 		if f.Resizable {
 			hadOwnership = true
 		} else if hadOwnership {
 			released = true
 		}
-		var cursor, alternate, mouse, sgr int
-		_, err := fmt.Sscan(info, &f.Cols, &f.Rows, &f.CX, &f.CY, &cursor, &alternate, &mouse, &sgr)
 		f.Alternate = alternate == 1
 		// The app (Claude, pi...) reads the mouse itself: the client forwards wheel/swipe as SGR mouse events.
 		f.Mouse = mouse == 1 && sgr == 1
 		f.Cursor = cursor == 1
-		return f, ok && err == nil
+		// Judged by the geometry line alone: a failed list-clients must not look like a gone pane.
+		return f, err == nil
 	}
 	// sendKeys writes the keys as send-keys blocks on the control client's stdin, in order, and
 	// returns once each block has ended. The pane lock covers the whole message.
@@ -350,11 +362,16 @@ func (s *server) paneWS(w http.ResponseWriter, r *http.Request) {
 				case "release":
 					released = true
 					resizeC = nil
-					if e := s.sizeOwners.release(pane, viewer); e != nil && !emit(errorEvent(e)) {
-						return
+					// Only the owner has anything to give back; a non-owner release is one tmux call.
+					f, ok := geometry()
+					// A failed read must not keep the pane: release unless the read shows we do not own it.
+					if f.Resizable || !ok {
+						if e := s.sizeOwners.release(pane, viewer); e != nil && !emit(errorEvent(e)) {
+							return
+						}
+						f, _ = geometry()
 					}
-					f, _ := geometry() // Ownership is always answered, even when unchanged.
-					if !owner(f) {
+					if !owner(f) { // Ownership is always answered, even when unchanged.
 						return
 					}
 				case "handoff":
