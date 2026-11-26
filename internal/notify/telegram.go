@@ -409,7 +409,7 @@ func alert(ctx context.Context, token string, chat int64, title, body string, a 
 		out, _ := tmux.CaptureTail(a.ID, 40)
 		screen = dialogContext(out, question, opts)
 	}
-	rows = append(rows, []button{btn("👀 Screen", "s|"+a.ID), btn("💬 Chat", "u|"+a.label())})
+	rows = append(rows, []button{btn("👀 Screen", "s|"+a.ID), btn("💬 Chat", "u|"+a.target())})
 	if len(opts) == 0 {
 		question = ""
 	}
@@ -496,6 +496,15 @@ func (a agentPane) label() string {
 		return a.Name
 	case a.Board != "":
 		return a.Board
+	}
+	return a.ID
+}
+
+// target is what a button stores to choose this agent: its label, or the pane
+// id when the label cannot go in callback data (board names carry "#").
+func (a agentPane) target() string {
+	if l := a.label(); nameRe.MatchString(l) && len("u|"+l) <= 64 { // Telegram callback_data cap
+		return l
 	}
 	return a.ID
 }
@@ -954,7 +963,8 @@ func lockTarget(key string) func() {
 }
 
 // handleCallback: "a|<pane>|<key>|<hash>" answers a dialog if it is still the
-// one that was alerted; "u|<name>" sets the chat's target; "n|<page>" shows a
+// one that was alerted; "u|<name>" sets the chat's target ("p|<name>" also
+// redraws the agent list it was tapped in); "n|<page>" shows a
 // menu page in place; "s|<pane>" sends the pane's screen.
 func handleCallback(cfg tgConfig, cb callback, dirs func() []string) {
 	chat := cb.Message.Chat.ID
@@ -983,7 +993,7 @@ func handleCallback(cfg tgConfig, cb callback, dirs func() []string) {
 		}
 		screen, _ := tmux.CaptureTail(a.ID, 30)
 		text := card("👀", a.label()+" · "+a.ID, nil, "<pre>"+esc(strings.TrimRight(screen, "\n "), bodyUnits)+"</pre>")
-		_ = sendMsg(ctx, cfg.token, chat, text, keyboard([]button{btn("💬 Chat", "u|"+a.label())}), a)
+		_ = sendMsg(ctx, cfg.token, chat, text, keyboard([]button{btn("💬 Chat", "u|"+a.target())}), a)
 		answer("")
 	case len(parts) == 4 && parts[0] == "a" && paneRe.MatchString(parts[1]) && keyRe.MatchString(parts[2]):
 		pane, key, hash := parts[1], parts[2], parts[3]
@@ -1011,7 +1021,7 @@ func handleCallback(cfg tgConfig, cb callback, dirs func() []string) {
 		}
 		outcome("✅ Answered: " + label)
 		releaseAlert(chat, pane)
-	case len(parts) == 2 && parts[0] == "u" && nameRe.MatchString(parts[1]):
+	case len(parts) == 2 && (parts[0] == "u" || parts[0] == "p") && nameRe.MatchString(parts[1]):
 		updateState(func(st *tgState) {
 			if st.Targets == nil {
 				st.Targets = map[string]string{}
@@ -1019,6 +1029,11 @@ func handleCallback(cfg tgConfig, cb callback, dirs func() []string) {
 			st.Targets[strconv.FormatInt(chat, 10)] = parts[1]
 		})
 		answer("target: " + parts[1])
+		if parts[0] == "p" { // tapped in the list: redraw it with the new mark
+			text, markup := view(ctx, cfg, dirs, "agents", strconv.FormatInt(chat, 10))
+			_ = tgCall(ctx, cfg.token, "editMessageText", map[string]any{"chat_id": chat, "message_id": cb.Message.ID,
+				"text": text, "parse_mode": "HTML", "reply_markup": markup}, nil)
+		}
 	default:
 		answer("")
 	}

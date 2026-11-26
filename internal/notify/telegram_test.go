@@ -195,17 +195,20 @@ func TestTelegramGateway(t *testing.T) {
 	t.Run("agents list, use button and offset", func(t *testing.T) {
 		r := setupRig(t, "tok-secret",
 			msg(20, 100, "/agents", 0),
-			tap(21, 100, "u|rec"),
+			tap(21, 100, "p|rec"),
 			msg(22, 100, "after tap", 0),
 		)
 		if err := pollOnce(loadConfig(), nil); err != nil {
 			t.Fatal(err)
 		}
-		if !r.sentTo("sendMessage", "100", `"callback_data":"u|rec"`) {
+		if !r.sentTo("sendMessage", "100", `"callback_data":"p|rec"`) {
 			t.Error("/agents did not offer a /use button per agent")
 		}
 		if !r.agentCalled("send", "%5", "--timeout", "10m", "after tap") {
 			t.Error("the u| tap did not set the chat target")
+		}
+		if !r.sentTo("editMessageText", "100", "✅ ⚪ rec · claude") {
+			t.Error("the tap did not redraw the list with the chosen agent marked")
 		}
 		if got := loadState().Offset; got != 23 {
 			t.Errorf("offset %d, want 23 (persisted before handling)", got)

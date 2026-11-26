@@ -66,7 +66,7 @@ func TestMenuEditsInPlace(t *testing.T) {
 	if err := pollOnce(loadConfig(), nil); err != nil {
 		t.Fatal(err)
 	}
-	if !r.sentTo("sendMessage", "100", "Blocked tickets") || !r.sentTo("editMessageText", "100", "Custom panes") || !r.sentTo("editMessageText", "100", "u|rec") {
+	if !r.sentTo("sendMessage", "100", "Blocked tickets") || !r.sentTo("editMessageText", "100", "Custom panes") || !r.sentTo("editMessageText", "100", "p|rec") {
 		t.Errorf("menu: %+v", r.http)
 	}
 }

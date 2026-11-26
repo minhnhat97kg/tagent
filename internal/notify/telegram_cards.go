@@ -259,6 +259,18 @@ func statusIcon(status tmux.PaneStatus) string {
 	return "⚪"
 }
 
+func statusRank(status tmux.PaneStatus) int {
+	switch status {
+	case tmux.StatusWaiting:
+		return 0
+	case tmux.StatusError:
+		return 1
+	case tmux.StatusRunning:
+		return 2
+	}
+	return 3
+}
+
 // view renders one menu page: "home", "agents" or "tickets".
 func view(ctx context.Context, cfg tgConfig, dirs func() []string, page, note string) (string, any) {
 	nav := []button{btn("« Back", "n|home"), btn("🔄 Refresh", "n|"+page)}
@@ -266,32 +278,42 @@ func view(ctx context.Context, cfg tgConfig, dirs func() []string, page, note st
 	var rows [][]button
 	switch page {
 	case "agents":
-		var lines []string
-		var row []button
-		add := func(name string) {
-			if nameRe.MatchString(name) && len("u|"+name) <= 64 { // Telegram callback_data cap
-				if row = append(row, btn(trunc(name, 30), "u|"+name)); len(row) == 2 {
-					rows, row = append(rows, row), nil
-				}
+		// One full-width button per agent; the button is the list. A tap ("p|")
+		// moves the mark by editing this same message.
+		chosen := currentTarget(note)
+		now, found := "nobody yet", false
+		add := func(target, label string, picked bool) {
+			b := btn(trunc(label, 40), "p|"+target)
+			if picked {
+				b["text"], b["style"] = trunc("✅ "+label, 40), "primary"
+				now, found = label, true
 			}
+			rows = append(rows, []button{b})
 		}
 		agents := listAgents()
+		// Waiting agents first, then running: the ones worth tapping.
+		slices.SortStableFunc(agents, func(a, b agentPane) int { return statusRank(a.Status) - statusRank(b.Status) })
 		for i, a := range agents {
 			if i == listMax {
-				lines = append(lines, fmt.Sprintf("… %d more", len(agents)-listMax))
 				break
 			}
-			lines = append(lines, statusIcon(a.Status)+" <b>"+esc(a.label(), 60)+"</b> · "+esc(a.Agent, 30)+" · "+esc(string(a.Status), 20))
-			add(a.label())
+			label := statusIcon(a.Status) + " " + a.label()
+			if a.Agent != "" && a.Agent != a.label() {
+				label += " · " + a.Agent
+			}
+			add(a.target(), label, !found && chosen != "" && (chosen == a.ID || chosen == a.Name || chosen == a.Board))
 		}
-		if _, ok := matchAgent(cfg.defaultAgent); !ok {
-			lines = append(lines, "⚪ <b>"+esc(cfg.defaultAgent, 60)+"</b> · not running (default)")
-			add(cfg.defaultAgent)
+		if _, ok := matchAgent(cfg.defaultAgent); !ok && nameRe.MatchString(cfg.defaultAgent) {
+			add(cfg.defaultAgent, "💤 "+cfg.defaultAgent+" · starts on message", chosen == cfg.defaultAgent)
 		}
-		if len(row) > 0 {
-			rows = append(rows, row)
+		if !found && chosen != "" {
+			now = chosen + " (not running)"
 		}
-		text = card("🤖", "Agents", nil, strings.Join(lines, "\n")+"\n"+rule+"\nTap an agent to chat with it.")
+		body := "🟡 waiting  🟢 running  ⚪ idle"
+		if len(agents) > listMax {
+			body += fmt.Sprintf("\n… %d more, use /use <agent>", len(agents)-listMax)
+		}
+		text = card("🤖", "Choose who to chat with", []string{field("💬", "Now", now)}, body)
 		rows = append(rows, nav)
 	case "tickets":
 		tickets := listTickets(ctx, dirs)
