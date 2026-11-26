@@ -218,7 +218,7 @@ export default function App() {
           <a href="#/" className="flex shrink-0 items-center gap-1.5 text-[13px] font-semibold max-md:hidden"><span className="flex size-6 items-center justify-center rounded-md bg-primary text-primary-foreground"><SquareTerminal className="size-3.5" /></span><span className="hidden sm:inline">tagent</span><span className="hidden font-normal text-muted-foreground lg:inline"> · {state?.host ?? ""}</span></a>
           <div className="min-w-0 flex-1 overflow-hidden [&_button]:max-w-full"><ProjectSelect value={dir} projects={state?.projects ?? []} onChange={(d) => { setDir(d); setPicked(undefined); nav("/") }} onAdd={() => setAddWorkspace(true)} /></div>
           <div ref={setTabSlot} className="flex shrink-0 md:hidden" />
-          <div className="ml-auto flex items-center gap-1">
+          <div className="ml-auto flex items-center gap-1 max-md:flex-1 max-md:justify-end">
             {panes.length > 0 && <a href="#/custom" className="max-md:hidden px-1.5 text-[13px] text-muted-foreground hover:text-foreground">Custom</a>}
             <PaneMenu shown={panesOf(shown)} exts={exts ?? []} onAdd={addToLayout} onChanged={extPoll.reload} />
             <Notifications items={notices} dir={dir ?? ''} onOpen={openNotice} />

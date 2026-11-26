@@ -44,7 +44,7 @@ export function HomeLayout(props: Props) {
   const customs = Object.keys(panes).filter(id => extName(id))
   const custom = customs.includes(props.tab)
   const tab = custom || TABS.some(t => t.id === props.tab) ? props.tab : "agents" // a deleted pane's tab falls back
-  const look = (on: boolean) => cn("flex h-7 w-8 items-center justify-center rounded-md", on ? "bg-accent" : "text-muted-foreground")
+  const look = (on: boolean) => cn("flex h-6.5 w-8 items-center justify-center rounded-md", on ? "bg-accent" : "text-muted-foreground")
   const bar = <div role="tablist" aria-label="Home panes" className="flex shrink-0 gap-0.5 rounded-lg border p-0.5">
     {TABS.map(({ id, label, Icon }) => <button key={id} type="button" role="tab" aria-selected={tab === id} aria-label={label} title={label} onClick={() => onTab(id)}
       className={look(tab === id)}><Icon className="size-4" /></button>)}
