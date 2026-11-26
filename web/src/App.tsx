@@ -178,7 +178,8 @@ export default function App() {
   useEffect(() => { if (rawRoute === "/board") location.replace("#/") }, [rawRoute])
 
   if (error?.message.startsWith("unauthorized")) {
-    return <div className="app-viewport flex items-center justify-center p-6 text-center"><p>tagent: open the link printed by <code>tagent web</code> (it carries the access token).</p></div>
+    // A reload gets the server's login page.
+    return <div className="app-viewport flex items-center justify-center p-6 text-center"><p>tagent: signed out. <button type="button" className="underline" onClick={() => location.reload()}>Enter the access token</button></p></div>
   }
 
   const proj = projPoll.data

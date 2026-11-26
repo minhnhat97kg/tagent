@@ -4,7 +4,7 @@ export async function api<T = unknown>(path: string, init?: RequestInit): Promis
   const r = await fetch(path, init)
   const text = await r.text()
   if (!r.ok) {
-    throw new Error(r.status === 401 ? "unauthorized: open the link printed by `tagent web`" : text || r.statusText)
+    throw new Error(r.status === 401 ? "unauthorized: reload the page and enter the access token" : text || r.statusText)
   }
   const isJSON = (r.headers.get("content-type") ?? "").includes("json")
   return (isJSON && text ? JSON.parse(text) : text) as T

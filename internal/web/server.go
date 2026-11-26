@@ -136,13 +136,29 @@ type server struct {
 	deps       apiDeps
 }
 
+// loginPage is all a browser without the cookie gets: a place for the token.
+const loginPage = `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>tagent</title>
+<body style="font-family:sans-serif;max-width:22rem;margin:4rem auto;padding:0 16px">
+<form method="post" action="/login">
+<p><label for="token">tagent access token</label></p>
+<input id="token" name="token" type="password" required autofocus autocomplete="current-password" style="box-sizing:border-box;width:100%;font-size:16px;padding:8px">
+<p><button style="font-size:16px;padding:8px 16px">Open</button></p>
+</form>
+<p>It is the <code>token=</code> part of the link printed by <code>tagent web</code>.</p>
+`
+
 func (s *server) auth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/ext/sdk.js" { // a sandboxed pane's subresource request has no cookie; the file holds no secret
 			next.ServeHTTP(w, r)
 			return
 		}
-		if t := r.URL.Query().Get("token"); t != "" && s.ok(t) {
+		t, wrong := r.URL.Query().Get("token"), ""
+		if r.Method == http.MethodPost && r.URL.Path == "/login" { // the form below: the token stays out of the URL
+			r.Body = http.MaxBytesReader(w, r.Body, 4096)
+			t, wrong = strings.TrimSpace(r.PostFormValue("token")), "<p role='alert'>Wrong token.</p>"
+		}
+		if t != "" && s.ok(t) {
 			http.SetCookie(w, &http.Cookie{Name: "tmux_agent", Value: t, Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode, MaxAge: 90 * 24 * 3600})
 			http.Redirect(w, r, "/", http.StatusFound)
 			return
@@ -152,8 +168,9 @@ func (s *server) auth(next http.Handler) http.Handler {
 			if strings.HasPrefix(r.URL.Path, "/api/") {
 				http.Error(w, "unauthorized", http.StatusUnauthorized)
 			} else {
+				w.Header().Set("Content-Type", "text/html; charset=utf-8")
 				w.WriteHeader(http.StatusUnauthorized)
-				io.WriteString(w, "<p style='font-family:sans-serif'>tagent: open the link printed by <code>tagent web</code> (it carries the access token).</p>")
+				io.WriteString(w, loginPage+wrong)
 			}
 			return
 		}

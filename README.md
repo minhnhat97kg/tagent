@@ -433,6 +433,8 @@ ticket's worktree.
 - **Lists:** the dropdown and Settings show the server's folder, the repos with a
   running agent and the registered workspaces, minus the removed ones. Auto-created
   sidebars never add a workspace.
+- **Signing in:** open the link `tagent web` prints, or open the bare address and
+  paste its `token=` value into the field. The browser keeps a cookie for 90 days.
 - **One web server per user:** `web.lock` in tagent's state directory
   (`~/.local/state/tagent/context/web.lock`) records the running server's pid,
   address and token. A second `tagent web` in another folder adds that folder to
