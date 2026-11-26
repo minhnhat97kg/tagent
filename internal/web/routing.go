@@ -45,13 +45,14 @@ type routingTier struct {
 }
 
 type routingView struct {
-	Path          string             `json:"path"`
-	Error         string             `json:"error,omitempty"`
-	Limits        map[string]float64 `json:"limits"`
-	WhenExhausted string             `json:"when_exhausted"`
-	Providers     []routingProvider  `json:"providers"`
-	Harnesses     []string           `json:"harnesses"` // the harnesses.yml names a candidate may name
-	Tiers         []routingTier      `json:"tiers"`
+	Path          string                   `json:"path"`
+	Error         string                   `json:"error,omitempty"`
+	Limits        map[string]float64       `json:"limits"`
+	WhenExhausted string                   `json:"when_exhausted"`
+	Providers     []routingProvider        `json:"providers"`
+	Harnesses     []string                 `json:"harnesses"` // the harnesses.yml names a candidate may name
+	Tiers         []routingTier            `json:"tiers"`
+	Roles         []tasks.BoardRoleSummary `json:"roles"` // board roles, with their max_instances
 }
 
 func routingWin(w quota.Window) routingWindow {
@@ -87,7 +88,10 @@ func (s *server) routingState(dir string) routingView {
 	v := routingView{Path: routing.Path(), Providers: []routingProvider{
 		{ID: "claude", Name: "Claude", Five: routingWin(snap.Claude.Five), Week: routingWin(snap.Claude.Week), Stale: snap.Claude.Stale},
 		{ID: "codex", Name: "Codex", Five: routingWin(snap.Codex.Five), Week: routingWin(snap.Codex.Week), Stale: snap.Codex.Stale},
-	}, Harnesses: roles.HarnessNames(), Tiers: []routingTier{}}
+	}, Harnesses: roles.HarnessNames(), Tiers: []routingTier{}, Roles: []tasks.BoardRoleSummary{}}
+	if bc, e := tasks.LoadBoardConfig(dir); e == nil {
+		v.Roles = bc.Summary().Roles
+	}
 	cfg, err := routing.Load()
 	if err != nil {
 		v.Error, cfg = err.Error(), routing.Config{}

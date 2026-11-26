@@ -427,6 +427,23 @@ dispatch to the role reuses it, and a ticket reaching done kills only its own
 cursor carries over from another ticket), and it runs in the main checkout, not the
 ticket's worktree.
 
+`max_instances: N` in `roles:` caps how many panes of that role run at once on
+this board (absent or `0` means no limit; a negative or fractional value is a
+config error at its line). A pane counts while it is not idle (any status other
+than idle, such as working, queued, starting, waiting for approval or error). An
+idle pane holds no slot, and a ticket that reaches done has its panes closed,
+which frees theirs. A ticket that already has a pane of the role reuses it
+without a new slot. A dispatch over the limit is not
+dropped: it waits, the ticket's audit says `waiting: role <role> at max_instances N
+(running: #a, #b)` once, and it starts when a slot frees, oldest first. If the
+panes cannot be read (tmux error), the dispatch waits too, with the audit
+`waiting: cannot read role <role> panes`, and never fires over the limit. A waiting
+ticket that moves on, is removed, or no longer dispatches the role is dropped with
+an audit line. Waiting survives a restart. Run jobs, Close, Advance, blocks and
+`long_lived` roles are never held. Lowering a limit never stops running panes; it
+only holds new starts. The routing page (`#/routing`, "Parallel agents") edits
+each role's limit and saves it to `board.yaml`, keeping comments and order.
+
 Everything the TUI, web and CLI write goes to `board.yaml` and
 `.tasks/agents/<name>.md`; a new agent starts from a plain markdown template. A
 legacy `.claude/agents`, `.codex/agents` or `.opencode/agents` file is still read

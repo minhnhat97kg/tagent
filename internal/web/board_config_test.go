@@ -196,3 +196,51 @@ func TestBoardDefaultWorkflowEndpoint(t *testing.T) {
 		t.Fatalf("remove: %s", b)
 	}
 }
+
+func TestBoardRoleLimitEndpoint(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	s := &server{dir: dir}
+	path := filepath.Join(dir, ".tasks", "board.yaml")
+	source := "# keep me\nroles:\n  # builder\n  builder: {agent: pi}\n  reviewer: {agent: pi}\nmax_fires_per_hour: 4\n"
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(source), 0600); err != nil {
+		t.Fatal(err)
+	}
+	call := func(body string, want int) *httptest.ResponseRecorder {
+		t.Helper()
+		w := httptest.NewRecorder()
+		s.boardRoleLimit(w, httptest.NewRequest("PUT", "/api/board/config/role-limit", strings.NewReader(body)))
+		if w.Code != want {
+			t.Fatalf("%s: %d %s", body, w.Code, w.Body.String())
+		}
+		return w
+	}
+	w := call(`{"role":"builder","max":2}`, http.StatusOK)
+	var got boardConfigJSON
+	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Summary == nil || got.Summary.Roles[0].MaxInstances != 2 {
+		t.Fatalf("response: %+v", got.Summary)
+	}
+	b, _ := os.ReadFile(path)
+	for _, want := range []string{"# keep me", "# builder", "max_instances: 2", "max_fires_per_hour: 4"} {
+		if !strings.Contains(string(b), want) {
+			t.Fatalf("missing %q:\n%s", want, b)
+		}
+	}
+	for _, body := range []string{`{"role":"builder","max":-1}`, `{"role":"builder","max":1.5}`, `{"role":"builder","max":"x"}`} {
+		call(body, http.StatusBadRequest)
+	}
+	if now, _ := os.ReadFile(path); string(now) != string(b) {
+		t.Fatal("rejected value changed the file")
+	}
+	call(`{"role":"ghost","max":1}`, http.StatusBadRequest)
+	call(`{"role":"builder","max":0}`, http.StatusOK)
+	if now, _ := os.ReadFile(path); strings.Contains(string(now), "max_instances") {
+		t.Fatalf("0 keeps the key:\n%s", now)
+	}
+}

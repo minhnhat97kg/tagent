@@ -76,7 +76,7 @@ func TestWorkplaceRemoteRunsOverSSH(t *testing.T) {
 	}
 
 	deadline := time.Now().Add(10 * time.Second)
-	for tmux.GetPaneOptionValue(pane, tmux.PaneStatusOpt) != "running" && time.Now().Before(deadline) {
+	for !strings.Contains(readRemoteLog(inLog), "Remote workplace") && time.Now().Before(deadline) {
 		time.Sleep(100 * time.Millisecond)
 	}
 	if !strings.Contains(readRemoteLog(inLog), "Remote workplace") {

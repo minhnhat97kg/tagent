@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"syscall"
 	"tagent/internal/harnessusage"
@@ -87,11 +88,18 @@ type state struct {
 	// Since is set when a board starts without a state file: events older than
 	// it are history (e.g. tickets copied in from another scope), never fired.
 	Since time.Time `json:"since,omitempty"`
+	// Waiting holds dispatches held back by max_instances, oldest first.
+	Waiting []waiting `json:"waiting,omitempty"`
 }
 
 var ErrLocked = errors.New("board dispatcher already running")
 
 func Run(ctx context.Context, dir string, fire Fire) error {
+	return RunWith(ctx, dir, fire, nil)
+}
+
+// RunWith is Run with live reporting the role panes that max_instances counts.
+func RunWith(ctx context.Context, dir string, fire Fire, live LivePanes) error {
 	dir = tasks.MainRoot(dir)
 	scope := tasks.Scope(dir)
 	base := tasks.BoardDir(scope)
@@ -143,6 +151,102 @@ func Run(ctx context.Context, dir string, fire Fire) error {
 		}
 		return tasks.DispatchAudit(scope, a.Event.Task, fmt.Sprintf("%s: %s (%s; seq %d trigger %d)", target, outcome, a.Event.Kind, a.Event.Seq, a.Trigger))
 	}
+	// fireAction reserves the hourly rate, saves, and fires one dispatch.
+	fireAction := func(a Action, ev tasks.Event, task tasks.Task, cfg tasks.BoardConfig) error {
+		now := time.Now().UTC()
+		recent := s.Fires[ev.Task][:0]
+		for _, t := range s.Fires[ev.Task] {
+			if now.Sub(t) < time.Hour {
+				recent = append(recent, t)
+			}
+		}
+		s.Fires[ev.Task] = recent
+		allowed := len(recent) < cfg.MaxFiresPerHour
+		if allowed {
+			s.Fires[ev.Task] = append(recent, now)
+		}
+		if err := save(); err != nil {
+			return err
+		}
+		if !allowed {
+			return audit(a, "suppressed: hourly rate limit; wait then task retry "+task.ID)
+		}
+		if err := audit(a, "reserved; outcome uncertain"); err != nil {
+			return err
+		}
+		a.OnError = func(e error) {
+			select {
+			case failures <- failure{a, e}:
+			case <-ctx.Done():
+			}
+		}
+		if e := fire(a); e != nil {
+			s.LastError = fmt.Sprintf("seq %d trigger %d: %v", ev.Seq, a.Trigger, e)
+			if err := audit(a, "failure: "+e.Error()); err != nil {
+				return err
+			}
+		} else {
+			target := a.Agent
+			if a.Run != "" {
+				target = "CI run"
+			}
+			if e := tasks.DispatchAudit(scope, task.ID, fmt.Sprintf("▶ triggered %s: accepted, not completed (%s; seq %d trigger %d)", target, ev.Kind, ev.Seq, a.Trigger)); e != nil {
+				return e
+			}
+			// An agent working a ticket that still sits in todo moves it to doing here,
+			// in code, so it never depends on the agent doing it. Status-driven
+			// dispatch (Trigger -1) already arrives in the step's own status.
+			if a.Trigger >= 0 && a.Run == "" {
+				moveToDoing(scope, cfg, task.ID)
+			}
+		}
+		return save()
+	}
+	// retryWaiting fires held dispatches whose role has a free slot now, oldest first.
+	retryWaiting := func(cfg tasks.BoardConfig) error {
+		for i := 0; i < len(s.Waiting); {
+			w := s.Waiting[i]
+			drop := func(why string) error {
+				s.Waiting = slices.Delete(s.Waiting, i, i+1)
+				if e := audit(Action{Event: w.Event, Trigger: w.Trigger, Agent: w.Role}, "dropped: "+why); e != nil {
+					return e
+				}
+				return save()
+			}
+			task, e := tasks.Get(scope, w.Event.Task)
+			finished := task.Status == "done" || task.Status == "closed"
+			if e != nil || finished || ((w.Event.Kind == "status" || w.Event.Kind == "retry") && task.Status != w.Event.To) {
+				if err := drop("ticket finished or moved on before its role had a free slot"); err != nil {
+					return err
+				}
+				continue
+			}
+			actions, e := Actions(dir, cfg, w.Event, task)
+			if e != nil {
+				s.LastError = e.Error()
+				i++
+				continue
+			}
+			idx := slices.IndexFunc(actions, func(x Action) bool {
+				return x.Trigger == w.Trigger && x.Agent == w.Role && !x.Close && x.Advance == "" && x.BlockReason == ""
+			})
+			if idx < 0 {
+				if err := drop("no longer dispatched by the board config"); err != nil {
+					return err
+				}
+				continue
+			}
+			if max, _, err := slotFull(dir, cfg, actions[idx], w.Event.Task, live); err != nil || max > 0 {
+				i++
+				continue
+			}
+			s.Waiting = slices.Delete(s.Waiting, i, i+1)
+			if err := fireAction(actions[idx], w.Event, task, cfg); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
 	tick := time.NewTicker(time.Second)
 	defer tick.Stop()
 	for {
@@ -169,6 +273,9 @@ func Run(ctx context.Context, dir string, fire Fire) error {
 		} else {
 			if hasTier(cfg) {
 				quotaGet() // quota refreshes in the background; calling it keeps the cache warm
+			}
+			if err = retryWaiting(cfg); err != nil {
+				return err
 			}
 			events, e := tasks.ReadEvents(scope, s.LastSeq)
 			if e != nil {
@@ -255,58 +362,22 @@ func Run(ctx context.Context, dir string, fire Fire) error {
 						}
 						continue
 					}
-					now := time.Now().UTC()
-					recent := s.Fires[ev.Task][:0]
-					for _, t := range s.Fires[ev.Task] {
-						if now.Sub(t) < time.Hour {
-							recent = append(recent, t)
+					max, running, serr := slotFull(dir, cfg, a, ev.Task, live)
+					if serr != nil || max > 0 {
+						why := fmt.Sprintf("waiting: role %s at max_instances %d (running: %s)", a.Agent, max, ticketList(running))
+						if serr != nil {
+							why = fmt.Sprintf("waiting: cannot read role %s panes: %v", a.Agent, serr)
 						}
-					}
-					s.Fires[ev.Task] = recent
-					allowed := len(recent) < cfg.MaxFiresPerHour
-					if allowed {
-						s.Fires[ev.Task] = append(recent, now)
-					}
-					if err = save(); err != nil {
-						return err
-					}
-					if !allowed {
-						if err = audit(a, "suppressed: hourly rate limit; wait then task retry "+task.ID); err != nil {
+						s.Waiting = append(s.Waiting, waiting{Seq: ev.Seq, Trigger: a.Trigger, Role: a.Agent, Event: ev})
+						if err = audit(a, why); err != nil {
+							return err
+						}
+						if err = save(); err != nil {
 							return err
 						}
 						continue
 					}
-					if err = audit(a, "reserved; outcome uncertain"); err != nil {
-						return err
-					}
-					a.OnError = func(e error) {
-						select {
-						case failures <- failure{a, e}:
-						case <-ctx.Done():
-						}
-					}
-					if e = fire(a); e != nil {
-						s.LastError = fmt.Sprintf("seq %d trigger %d: %v", ev.Seq, a.Trigger, e)
-						if err = audit(a, "failure: "+e.Error()); err != nil {
-							return err
-						}
-					} else {
-						target := a.Agent
-						if a.Run != "" {
-							target = "CI run"
-						}
-						e = tasks.DispatchAudit(scope, task.ID, fmt.Sprintf("▶ triggered %s: accepted, not completed (%s; seq %d trigger %d)", target, ev.Kind, ev.Seq, a.Trigger))
-						if e != nil {
-							return e
-						}
-						// An agent working a ticket that still sits in todo moves it to doing here,
-						// in code, so it never depends on the agent doing it. Status-driven
-						// dispatch (Trigger -1) already arrives in the step's own status.
-						if a.Trigger >= 0 && a.Run == "" {
-							moveToDoing(scope, cfg, task.ID)
-						}
-					}
-					if err = save(); err != nil {
+					if err = fireAction(a, ev, task, cfg); err != nil {
 						return err
 					}
 				}

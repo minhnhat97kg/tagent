@@ -54,6 +54,7 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("GET /api/board/config", s.boardConfig)
 	mux.HandleFunc("PUT /api/board/config", s.boardConfig)
 	mux.HandleFunc("PUT /api/board/config/default-workflow", s.boardDefaultWorkflow)
+	mux.HandleFunc("PUT /api/board/config/role-limit", s.boardRoleLimit)
 	mux.HandleFunc("GET /api/routing", s.routingAPI)
 	mux.HandleFunc("PUT /api/routing", s.routingAPI)
 	mux.HandleFunc("GET /api/roles", s.roles)

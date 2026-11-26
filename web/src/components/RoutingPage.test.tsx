@@ -26,6 +26,7 @@ const base: RoutingView = {
       { ref: "pi:openai-codex/gpt-6-luna", state: "unknown", why: "", until: null, threshold: null, used: null, selected: false, spilled: false },
     ],
   }],
+  roles: [{ name: "dev", tier: "fast", maxInstances: 0 }, { name: "review", maxInstances: 1 }],
 }
 let current: RoutingView
 const lastPut = () => mocks.send.mock.calls.at(-1)?.[2]
@@ -190,6 +191,22 @@ test("the defaults section holds when_exhausted and the provider limits", async 
   await waitFor(() => expect(mocks.send).toHaveBeenCalledTimes(1))
   expect(lastPut().when_exhausted).toBe("first")
   expect(await screen.findByText("Claude haiku until 90% -> pi openai-codex/gpt-6-luna -> run first")).toBeTruthy()
+})
+
+test("edits a role's parallel agents limit and saves only a whole number", async () => {
+  render(<RoutingPage dir="/repo" />)
+  const dev = await screen.findByLabelText("dev parallel agents")
+  expect((screen.getByLabelText("review parallel agents") as HTMLInputElement).value).toBe("1")
+  fireEvent.change(dev, { target: { value: "2" } })
+  fireEvent.blur(dev)
+  await waitFor(() => expect(mocks.send).toHaveBeenCalledWith("PUT", "/api/board/config/role-limit?dir=" + enc("/repo"), { role: "dev", max: 2 }))
+
+  mocks.send.mockClear()
+  fireEvent.change(screen.getByLabelText("review parallel agents"), { target: { value: "1.5" } })
+  fireEvent.blur(screen.getByLabelText("review parallel agents"))
+  expect(await screen.findByRole("alert")).toBeTruthy()
+  expect(screen.getByText("Enter a whole number, 0 or more")).toBeTruthy()
+  expect(mocks.send).not.toHaveBeenCalled()
 })
 
 test("parseRef, withUntil, reorder and flow", () => {

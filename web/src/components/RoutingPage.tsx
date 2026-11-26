@@ -1,4 +1,4 @@
-import { Fragment, useId, useRef, useState, type FormEvent } from "react"
+import { Fragment, useId, useRef, useState, type FocusEvent, type FormEvent } from "react"
 import { ArrowDown, ArrowRight, ArrowUp, GripVertical, Plus, Trash2 } from "lucide-react"
 import { api, send } from "@/api"
 import { Meter } from "@/components/panels/OverviewPanel"
@@ -8,6 +8,8 @@ import { enc } from "@/hooks/useRoute"
 import { useAppState } from "@/state"
 import { candidateName, flow, parseRef, reorder, spillReset, withUntil } from "@/lib/routing"
 import type { RoutingTier, RoutingView } from "@/types"
+
+type RoleRow = RoutingView["roles"][number]
 
 // The shape PUT /api/routing takes: the whole file, so each save writes the current config plus one change.
 type Config = { limits: Record<string, number>; when_exhausted: string; tiers: Record<string, string[]> }
@@ -74,6 +76,12 @@ export function RoutingPage({ dir }: { dir: string }) {
           <section aria-label="New tier" className="rounded-lg border border-dashed p-3">
             <h3 className="mb-2 text-[13px] font-semibold">New tier</h3>
             <CandidateForm label="Create tier" withName disabled={busy} harnesses={view.harnesses} models={state?.models ?? null} onSubmit={createTier} />
+          </section>
+          <section aria-label="Parallel agents" className="flex flex-col gap-2 rounded-lg border p-3">
+            <h3 className="text-[13px] font-semibold">Parallel agents</h3>
+            <p className="text-[11.5px] text-muted-foreground">Most agents of each role that may run at once on this project. Empty or 0 means no limit; a ticket over the limit waits.</p>
+            {!view.roles.length && <p className="text-sm text-muted-foreground">No roles in this project yet.</p>}
+            {view.roles.map(r => <RoleLimit key={r.name} dir={dir} role={r} disabled={busy} onSaved={poll.reload} />)}
           </section>
           <details className="rounded-lg border p-3 text-[12px]">
             <summary className="cursor-pointer text-[13px] font-semibold">Defaults</summary>
@@ -205,6 +213,36 @@ function CandidateForm({ label, withName, disabled, harnesses, models, onSubmit 
       <datalist id={listId}>{list.map(m => <option key={m} value={m} />)}</datalist></label>
     <Button type="submit" size="xs" variant="outline" disabled={disabled || !model.trim() || (!!withName && !name.trim())}><Plus />{label}</Button>
   </form>
+}
+
+// RoleLimit edits one role's max_instances; it saves on blur or Enter, only when changed, and shows the server's error beside the field.
+function RoleLimit({ dir, role, disabled, onSaved }: { dir: string; role: RoleRow; disabled: boolean; onSaved: () => Promise<unknown> }) {
+  const [error, setError] = useState("")
+  const current = role.maxInstances
+  async function save(e: FocusEvent<HTMLInputElement>) {
+    const input = e.currentTarget
+    const text = input.value.trim()
+    if (input.validity.badInput || (text !== "" && !/^\d+$/.test(text))) { setError("Enter a whole number, 0 or more"); return }
+    const max = text === "" ? 0 : Number(text)
+    if (max === current) { setError(""); return }
+    try {
+      await send("PUT", "/api/board/config/role-limit?dir=" + enc(dir), { role: role.name, max })
+      setError("")
+      await onSaved()
+    } catch (err) {
+      setError((err as Error).message)
+    }
+  }
+  return <div className="flex flex-col gap-1 text-[12px]">
+    <label className="flex flex-wrap items-center gap-2">
+      <span className="min-w-28 font-medium">{role.name}{role.tier && <span className="font-normal text-muted-foreground"> · {role.tier}</span>}</span>
+      <input type="number" min={0} step={1} aria-label={`${role.name} parallel agents`} placeholder="no limit"
+        defaultValue={current || ""} key={current} disabled={disabled}
+        className="w-20 rounded border bg-background p-1 text-right tabular-nums disabled:opacity-60"
+        onBlur={save} onKeyDown={e => { if (e.key === "Enter") e.currentTarget.blur() }} />
+    </label>
+    {error && <p role="alert" className="text-destructive">{error}</p>}
+  </div>
 }
 
 // Threshold is the percent used that counts as exhausted; it saves on blur or Enter, and only when changed.

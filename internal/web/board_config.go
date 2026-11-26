@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
+	"strconv"
 
 	"tagent/internal/tasks"
 	"tagent/internal/workflow"
@@ -127,6 +128,41 @@ func (s *server) boardDefaultWorkflow(w http.ResponseWriter, r *http.Request) {
 	}
 	sum := cfg.Summary()
 	writeJSON(w, boardConfigJSON{Dir: dir, Path: path, YAML: string(b), Default: tasks.BoardExample, Exists: true, Summary: &sum, Workflows: workflowOptions(dir)})
+}
+
+// boardRoleLimit changes only roles.<role>.max_instances in board.yaml. max
+// must be a whole number of 0 or more; 0 removes the limit.
+func (s *server) boardRoleLimit(w http.ResponseWriter, r *http.Request) {
+	dir := s.projectDir(r)
+	var o struct {
+		Role string      `json:"role"`
+		Max  json.Number `json:"max"`
+	}
+	if err := readBody(r, &o); err != nil {
+		fail(w, err)
+		return
+	}
+	n, err := strconv.Atoi(o.Max.String())
+	if err != nil || n < 0 {
+		http.Error(w, "max_instances must be a whole number, 0 or more", http.StatusBadRequest)
+		return
+	}
+	if err := tasks.SetRoleMaxInstances(dir, o.Role, n); err != nil {
+		boardConfigFail(w, err)
+		return
+	}
+	b, err := os.ReadFile(tasks.BoardConfigPath(dir))
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	cfg, err := tasks.ParseBoardConfigFor(dir, b)
+	if err != nil {
+		boardConfigFail(w, err)
+		return
+	}
+	sum := cfg.Summary()
+	writeJSON(w, boardConfigJSON{Dir: dir, Path: tasks.BoardConfigPath(dir), YAML: string(b), Default: tasks.BoardExample, Exists: true, Summary: &sum, Workflows: workflowOptions(dir)})
 }
 
 // boardConfigFail carries the line the editor should mark, like workflow validation.

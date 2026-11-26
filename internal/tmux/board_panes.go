@@ -2,6 +2,16 @@ package tmux
 
 import "strings"
 
+// NoServer reports that err means no tmux server is up, so there are no panes.
+func NoServer(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.HasPrefix(msg, "no server running on ") ||
+		strings.HasPrefix(msg, "error connecting to ") && strings.HasSuffix(msg, "(No such file or directory)")
+}
+
 // BoardPanes reads ownership metadata without agent detection or cleanup. A
 // dispatched pane can still own a ticket while its harness metadata is absent.
 func BoardPanes() ([]PaneInfo, error) {

@@ -28,7 +28,17 @@ func TestSharedSidebarRealTmux(t *testing.T) {
 	socket := fmt.Sprintf("sidebar-test-%d", os.Getpid())
 	// Isolated HOME/state: the tagent processes started in this server must
 	// never see (or dispatch for) the real board, even if they outlive the test.
-	home := t.TempDir()
+	// Not t.TempDir: processes dying with the server may still write here, which
+	// must not fail the test.
+	home, err := os.MkdirTemp("", "sidebar-home-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		for i := 0; i < 50 && os.RemoveAll(home) != nil; i++ {
+			time.Sleep(100 * time.Millisecond)
+		}
+	})
 	run := func(args ...string) (string, error) {
 		cmd := exec.Command("tmux", append([]string{"-L", socket}, args...)...)
 		cmd.Env = append(os.Environ(), "TMUX=", "TMPDIR=/tmp", "NO_COLOR=", "HOME="+home, "XDG_STATE_HOME="+filepath.Join(home, ".local", "state"), "XDG_CONFIG_HOME="+filepath.Join(home, ".config"))

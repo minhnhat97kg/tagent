@@ -46,11 +46,13 @@ type Trigger struct {
 	Prompt string `yaml:"prompt"`
 }
 type Role struct {
-	FreshAfter *int   `yaml:"fresh_after,omitempty"`
-	Effort     string `yaml:"effort,omitempty"`
-	Agent      string `yaml:"agent,omitempty"`
-	Model      string `yaml:"model"`
-	Tier       string `yaml:"tier,omitempty"` // harness and model come from routing.yaml at dispatch
+	FreshAfter *int `yaml:"fresh_after,omitempty"`
+	// MaxInstances caps the role's non-idle panes on this board; 0 means no limit.
+	MaxInstances int    `yaml:"max_instances,omitempty"`
+	Effort       string `yaml:"effort,omitempty"`
+	Agent        string `yaml:"agent,omitempty"`
+	Model        string `yaml:"model"`
+	Tier         string `yaml:"tier,omitempty"` // harness and model come from routing.yaml at dispatch
 	// LongLived keeps one standing pane for the role across tickets (no ticket in its key), never refreshed by default.
 	LongLived   bool `yaml:"long_lived,omitempty"`
 	RoleContext `yaml:",inline"`
@@ -110,12 +112,13 @@ type ModelPrice struct {
 // BoardRoleSummary and BoardTriggerSummary carry the same board config to the
 // web page and the TUI's read-only config view.
 type BoardRoleSummary struct {
-	Name       string `json:"name"`
-	Agent      string `json:"agent"`
-	Tier       string `json:"tier,omitempty"`
-	Model      string `json:"model,omitempty"`
-	Effort     string `json:"effort,omitempty"`
-	FreshAfter *int   `json:"freshAfter,omitempty"`
+	Name         string `json:"name"`
+	Agent        string `json:"agent"`
+	Tier         string `json:"tier,omitempty"`
+	Model        string `json:"model,omitempty"`
+	Effort       string `json:"effort,omitempty"`
+	FreshAfter   *int   `json:"freshAfter,omitempty"`
+	MaxInstances int    `json:"maxInstances"`
 }
 type BoardTriggerSummary struct {
 	On     string `json:"on"`
@@ -175,11 +178,14 @@ type boardYAMLLines struct {
 	statuses map[string]int
 	columns  map[string]int
 	roles    map[string]int
-	triggers []int
+	// maxLine maps a role to the line of its max_instances; fractional marks a value that is not a whole number.
+	maxLine    map[string]int
+	fractional map[string]int
+	triggers   []int
 }
 
 func boardConfigLines(b []byte) boardYAMLLines {
-	out := boardYAMLLines{top: map[string]int{}, statuses: map[string]int{}, columns: map[string]int{}, roles: map[string]int{}}
+	out := boardYAMLLines{top: map[string]int{}, statuses: map[string]int{}, columns: map[string]int{}, roles: map[string]int{}, maxLine: map[string]int{}, fractional: map[string]int{}}
 	var doc yaml.Node
 	if yaml.Unmarshal(b, &doc) != nil || len(doc.Content) == 0 {
 		return out
@@ -206,6 +212,12 @@ func boardConfigLines(b []byte) boardYAMLLines {
 			if value.Kind == yaml.MappingNode {
 				for j := 0; j+1 < len(value.Content); j += 2 {
 					out.roles[value.Content[j].Value] = value.Content[j].Line
+					if n := mappingValue(value.Content[j+1], "max_instances"); n != nil {
+						out.maxLine[value.Content[j].Value] = n.Line
+						if n.Tag != "!!int" {
+							out.fractional[value.Content[j].Value] = n.Line
+						}
+					}
 				}
 			}
 		case "triggers":
@@ -255,7 +267,7 @@ func (c BoardConfig) Summary() BoardSummary {
 	sum := BoardSummary{DefaultWorkflow: c.DefaultWorkflow, MaxFiresPerHour: c.MaxFiresPerHour,
 		Roles: []BoardRoleSummary{}, Triggers: []BoardTriggerSummary{}}
 	for name, r := range c.Roles {
-		sum.Roles = append(sum.Roles, BoardRoleSummary{Name: name, Agent: r.Agent, Tier: r.Tier, Model: r.Model, Effort: r.Effort, FreshAfter: r.FreshAfter})
+		sum.Roles = append(sum.Roles, BoardRoleSummary{Name: name, Agent: r.Agent, Tier: r.Tier, Model: r.Model, Effort: r.Effort, FreshAfter: r.FreshAfter, MaxInstances: r.MaxInstances})
 	}
 	slices.SortFunc(sum.Roles, func(a, b BoardRoleSummary) int { return strings.Compare(a.Name, b.Name) })
 	for _, t := range c.Triggers {
@@ -335,6 +347,12 @@ func ParseBoardConfigFor(dir string, b []byte) (BoardConfig, error) {
 	for name, r := range c.Roles {
 		if err := ValidateEffort(r.Agent, r.Effort); err != nil {
 			return c, configErr(lines.roles[name], "role %s: %w", name, err)
+		}
+		if line, ok := lines.fractional[name]; ok {
+			return c, configErr(line, "role %s: max_instances must be a whole number", name)
+		}
+		if r.MaxInstances < 0 {
+			return c, configErr(lines.maxLine[name], "role %s: max_instances must be 0 or more", name)
 		}
 		if r.Tier != "" {
 			// A tier role's harness is chosen per dispatch, so it cannot pin a model or harness context.
@@ -591,6 +609,47 @@ func YAMLValue(m *yaml.Node, key string) *yaml.Node {
 		}
 	}
 	return nil
+}
+
+// SetRoleMaxInstances changes only roles.<role>.max_instances in .tasks/board.yaml,
+// keeping comments and key order. n == 0 removes the key (no limit).
+func SetRoleMaxInstances(dir, role string, n int) error {
+	path := BoardConfigPath(dir)
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	var doc yaml.Node
+	if err := yaml.Unmarshal(b, &doc); err != nil {
+		return err
+	}
+	if doc.Kind != yaml.DocumentNode || len(doc.Content) == 0 || doc.Content[0].Kind != yaml.MappingNode {
+		return fmt.Errorf("board.yaml is not a mapping")
+	}
+	roles := YAMLValue(doc.Content[0], "roles")
+	if roles == nil || roles.Kind != yaml.MappingNode || YAMLValue(roles, role) == nil {
+		return fmt.Errorf("unknown role %q", role)
+	}
+	entry := YAMLValue(roles, role)
+	if entry.Kind != yaml.MappingNode {
+		return fmt.Errorf("role %q is not a mapping", role)
+	}
+	if n == 0 {
+		SetYAMLField(entry, "max_instances", "")
+	} else {
+		SetYAMLField(entry, "max_instances", strconv.Itoa(n))
+		YAMLValue(entry, "max_instances").Tag = "!!int"
+	}
+	var buf bytes.Buffer
+	enc := yaml.NewEncoder(&buf)
+	enc.SetIndent(2)
+	if err := enc.Encode(&doc); err != nil {
+		return err
+	}
+	if _, err := ParseBoardConfigFor(dir, buf.Bytes()); err != nil {
+		return err
+	}
+	return AtomicWrite(path, buf.Bytes())
 }
 
 // SetDefaultWorkflow changes only default_workflow in .tasks/board.yaml. It

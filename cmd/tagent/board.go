@@ -80,7 +80,7 @@ func cmdBoard(args []string, stdout, stderr io.Writer) int {
 	case "run":
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
-		err = board.Run(ctx, *dir, dispatchBoardAction)
+		err = board.RunWith(ctx, *dir, dispatchBoardAction, boardRolePanes)
 	default:
 		return exitUsage
 	}
@@ -89,6 +89,26 @@ func cmdBoard(args []string, stdout, stderr io.Writer) int {
 		return exitFailure
 	}
 	return exitOK
+}
+
+// boardRolePanes lists this board's panes of role by ticket, idle or not.
+func boardRolePanes(dir, role string) (map[string]bool, error) {
+	panes, err := tmux.BoardPanes()
+	if tmux.NoServer(err) {
+		return nil, nil // no server, no panes: the dispatch starts one
+	}
+	if err != nil {
+		return nil, err
+	}
+	scope := tasks.Scope(dir)
+	out := map[string]bool{}
+	for _, p := range panes {
+		r, ticket, ok := strings.Cut(p.BoardTarget, "#")
+		if ok && r == role && ticket != "" && tasks.Scope(p.Path) == scope {
+			out[ticket] = tmux.GetPaneOptionValue(p.PaneID, tmux.PaneStatusOpt) == string(tmux.StatusIdle)
+		}
+	}
+	return out, nil
 }
 
 // ensureStarterWorkflow gives `board init`'s default_workflow a recipe to run.
