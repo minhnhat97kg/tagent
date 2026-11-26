@@ -197,6 +197,7 @@ Run `tagent help` to see the commands and the agents defined in the current repo
 | `tagent answer <pane> <1\|2\|…\|y\|n\|?>` | Answer an agent's approval prompt (also right in the sidebar) |
 | `tagent diff <name> [--stat]` · `merge <name> [--discard]` · `discard <name>` | Review / merge / drop the changes of an agent running in a worktree |
 | `tagent fanout -n 3 [--role r] [--wait] "<prompt>"` · `compare <prefix>` | Best-of-N: the same task to N agents in N worktrees, compare, keep the best |
+| `tagent schedule ls [--json]` · `schedule run\|pause\|resume <name>` | Scheduled tickets and agent prompts from `.tasks/schedules.yml` and `~/.config/tagent/schedules.yml`; see [scheduled triggers](docs/board.md#scheduled-triggers) |
 | `tagent task [ls]` · `task add --to <name> "<text>"` · `task start <id> <pane>` · `task set <id> <todo\|doing\|blocked\|done\|closed>` · `task close <id> [reason]` · `task purge --closed [--yes]` · `task assign <id> <name[,name]>` · `task rm <id>` | Create, dispatch, and track tasks on the repo board |
 | `tagent chat [--dir DIR] [--agent claude\|pi] [--clear] <id>` | One assistant pane per ticket, reused until cleared. The first message is a ticket brief (summary, step, `tagent task show` for details); `tagent task` in that pane refuses other tickets |
 | `tagent stats [ls\|clear]` | Show or delete local Claude, Codex, OpenCode and Pi usage history |
@@ -485,6 +486,7 @@ Set options with `set -g …` before loading the plugin, or use `tagent config`.
 | `@agent_scrape` | `on` | screen detection for agents without hooks |
 | `@agent_checkpoints` | `on` | snapshot the repo before each agent turn (for `undo`) |
 | `@agent_stuck_minutes` | `10` | warn when a running agent shows no activity this long |
+| `@agent_blocked_hours` | `24` | notify once when a ticket stays `blocked` (waiting on a human) this long |
 | `@sidebar_notifications` | `on` | desktop notifications |
 | `@agent_notify_url` | — | phone alerts and task-status transitions (ntfy or plain-text POST webhook); empty disables delivery |
 | `@agent_theme` | `light` | `dark` / `light`; `@agent_color_<token>`, `@agent_icon_<token>` override single colors/icons |

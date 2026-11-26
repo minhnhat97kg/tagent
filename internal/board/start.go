@@ -3,7 +3,10 @@ package board
 import (
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"tagent/internal/tasks"
+	"tagent/internal/workflow"
 )
 
 // Start begins a ticket's workflow. An empty name uses the ticket's workflow,
@@ -67,4 +70,56 @@ func autoStart(dir, done string) error {
 		}
 	}
 	return errors.Join(errs...)
+}
+
+// RunWorkflow creates a ticket of workflow name and moves it to the workflow's
+// first status. An empty title is the workflow name plus its inputs. actor is
+// recorded on the events ("" = the caller). It does not register the repo: that
+// is consent for its local schedules, so only the explicit CLI gives it.
+func RunWorkflow(dir, name, title string, given map[string]string, actor string) (string, error) {
+	dir = tasks.MainRoot(dir)
+	scope := tasks.Scope(dir)
+	w, err := workflow.Find(dir, name)
+	if err != nil {
+		return "", err
+	}
+	values, err := w.Values(given)
+	if err != nil {
+		return "", err
+	}
+	text := title
+	if text == "" {
+		text = w.Name
+		keys := slices.Sorted(maps.Keys(values))
+		for _, k := range keys {
+			text += " " + k + "=" + values[k]
+		}
+	}
+	t, err := tasks.Add(scope, text, nil, tasks.MutationOptions{Workflow: w.Name, Inputs: values, Actor: actor})
+	if err != nil {
+		return "", err
+	}
+	err = tasks.Move(scope, t.ID, w.Jobs[0].Status, "", tasks.MutationOptions{Actor: actor})
+	return t.ID, err
+}
+
+// AgentAction is a send to agent in repo dir, dispatched the way a board
+// trigger reaches a role: its standing pane, spawned when absent.
+func AgentAction(dir, agent, prompt string) (Action, error) {
+	dir = tasks.MainRoot(dir)
+	a := Action{Dir: dir, Agent: agent, Prompt: prompt, LongLived: true}
+	cfg, err := tasks.LoadBoardConfig(dir)
+	if err != nil {
+		return a, err
+	}
+	if r, ok := cfg.Roles[agent]; ok {
+		a.Role, a.Model, a.Effort = r.Agent, r.Model, r.Effort
+		if r.Tier != "" {
+			route(&a, r, "")
+		}
+		if a.BlockReason != "" {
+			return a, errors.New(a.BlockReason)
+		}
+	}
+	return a, nil
 }

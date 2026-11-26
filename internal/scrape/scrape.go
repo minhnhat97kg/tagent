@@ -19,6 +19,7 @@ import (
 	"tagent/internal/hook"
 	"tagent/internal/process"
 	"tagent/internal/queue"
+	"tagent/internal/schedule"
 	"tagent/internal/tmux"
 )
 
@@ -135,6 +136,7 @@ func Run() int {
 			return 0
 		}
 		wd.maybeRun(time.Now())
+		schedule.MaybeRun(time.Now())
 		time.Sleep(interval)
 	}
 }

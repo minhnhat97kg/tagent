@@ -326,6 +326,33 @@ CLI move registers automated tickets and ensures the scraper so no existing pane
 is needed. `@agent_scrape off` disables scraper-based automation; use board run
 explicitly if desired. Web/TUI discover repositories as before.
 
+## Scheduled triggers
+
+`schedules.yml` fires a workflow ticket (the same path as `tagent workflow run`)
+or queues a prompt to an agent, on a daily time or an interval:
+
+```yaml
+- name: morning-ci-triage     # unique per file
+  at: "08:00"                 # daily local time, or every: 30m (min 1m); exactly one
+  workflow: bugfix            # or send: {agent: receptionist, prompt: "..."}
+  title: "Triage CI failures"
+  inputs: {bug: "CI red on main"}
+  # dir: ~/projects/x         # required for a global workflow; forbidden in a repo
+  # enabled: false
+```
+
+- Local: `<repo>/.tasks/schedules.yml` runs only for trusted repos, listed one per line in `~/.config/tagent/schedule-trust`. A clone's file does not run until you `tagent schedule run|resume|trust` in it (`trust --remove` undoes it), so a repo cannot start work on its own.
+- Global: `~/.config/tagent/schedules.yml`.
+- A global `workflow` needs its `dir` registered on the board already: run `tagent workflow run` there once, or the schedule fails with a note. A global schedule never trusts or registers a repo.
+- A blocked ticket (waiting on a human) longer than `@agent_blocked_hours` (default 24) gets one notification per blocked spell.
+- State (last run, last ticket, note): `schedules.state.json` beside each file.
+- Checked by the scraper once a minute, so it needs the scraper running (`@agent_scrape off` stops schedules too).
+- The first check arms a new entry: it runs at its first slot after that, not at once. A run missed while the machine was off fires once, not once per missed slot.
+- A workflow whose previous ticket is still open (not done or closed) is skipped; the state notes it.
+- `send` reuses the agent's standing pane in that repo, spawns it when absent, and queues while it is busy.
+- An invalid entry shows `file:line: problem` in `tagent schedule ls` and is disabled; its siblings still run.
+- `tagent schedule pause|resume NAME` only changes `enabled` in the file.
+
 ## Shell checks and limits
 
 Workflow jobs with `run:` execute `sh -c` asynchronously at the main repository root. Combined

@@ -63,6 +63,7 @@ var Settings = []Setting{
 	{Key: "@agent_model", Group: "Agents", Label: "Model for `new`", Kind: Text, Help: "passed as --model to the selected harness; empty uses harness default"},
 	{Key: "@agent_claude_flags", Group: "Agents", Label: "Extra flags for claude agents", Kind: Text, Help: "appended to every claude launch, e.g. --strict-mcp-config (no MCP servers); empty = none"},
 	{Key: "@agent_stuck_minutes", Group: "Agents", Label: "Stuck after (minutes)", Kind: Int, Default: "10", Min: 1, Max: 240},
+	{Key: "@agent_blocked_hours", Group: "Agents", Label: "Blocked alert after (hours)", Kind: Int, Default: "24", Min: 1, Max: 720, Help: "notify once when a ticket waits on a human this long"},
 	{Key: "@sidebar_notifications", Group: "Notifications", Label: "Desktop notifications", Kind: Bool, Default: "on"},
 	{Key: "@agent_notify_url", Group: "Notifications", Label: "Phone push URL", Kind: Text,
 		Help: "Phone alerts and task-status updates: ntfy or plain-text POST webhook URL; empty = off"},

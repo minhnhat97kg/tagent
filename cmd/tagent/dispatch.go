@@ -94,6 +94,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return cmdWorkflow(args[1:], stdout, stderr)
 	case "board":
 		return cmdBoard(rest, stdout, stderr)
+	case "schedule":
+		return cmdSchedule(rest, stdout, stderr)
 	case "workplace":
 		return cmdWorkplace(rest, stdout, stderr)
 	case "task":

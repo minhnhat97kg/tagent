@@ -8,7 +8,6 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
-	"sort"
 	"strings"
 	"tagent/internal/board"
 	"tagent/internal/tasks"
@@ -106,31 +105,8 @@ func cmdWorkflow(args []string, out, errs io.Writer) int {
 			title = append(title, args[i])
 		}
 	}
-	w, e := workflow.Find(dir, name)
+	id, e := board.RunWorkflow(dir, name, strings.Join(title, " "), given, "")
 	if e != nil {
-		return fail(e)
-	}
-	values, e := w.Values(given)
-	if e != nil {
-		return fail(e)
-	}
-	text := strings.Join(title, " ")
-	if text == "" {
-		text = w.Name
-		keys := []string{}
-		for k := range values {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-		for _, k := range keys {
-			text += " " + k + "=" + values[k]
-		}
-	}
-	t, e := tasks.Add(scope, text, nil, tasks.MutationOptions{Workflow: w.Name, Inputs: values})
-	if e != nil {
-		return fail(e)
-	}
-	if e = tasks.Move(scope, t.ID, w.Jobs[0].Status, ""); e != nil {
 		return fail(e)
 	}
 	if e = board.Register(dir); e != nil {
@@ -139,11 +115,11 @@ func cmdWorkflow(args []string, out, errs io.Writer) int {
 	if e = ensureBoardScraper(); e != nil {
 		return fail(e)
 	}
-	fmt.Fprintln(out, t.ID)
+	fmt.Fprintln(out, id)
 	if wait {
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 		defer stop()
-		return waitWorkflow(ctx, scope, t.ID, errs)
+		return waitWorkflow(ctx, scope, id, errs)
 	}
 	return exitOK
 }

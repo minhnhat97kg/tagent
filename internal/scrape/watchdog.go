@@ -32,6 +32,8 @@ import (
 //   - stalled: a board agent went idle while its ticket still waits on its
 //     status — it stopped without `task move` or a blocked question — for
 //     @agent_stuck_minutes (default 10).
+//   - blocked: a ticket waiting on a human (status blocked) for
+//     @agent_blocked_hours (default 24) — one notice per blocked spell (blocked.go).
 //   - conflict: two agents of the same project edited the same file within
 //     conflictWindow; a note goes on the project's shared context too.
 //
@@ -51,6 +53,7 @@ var editTools = map[string]bool{"Edit": true, "Write": true, "MultiEdit": true, 
 type watchdog struct {
 	lastWatch  time.Time
 	lastSave   time.Time
+	lastBlock  time.Time
 	screenHash map[string][20]byte
 	lastActive map[string]time.Time
 	idleSince  map[string]time.Time // pane -> when it was first seen idle
@@ -74,6 +77,10 @@ func (w *watchdog) maybeRun(now time.Time) {
 	w.checkStuck(sessions, now)
 	w.checkConflicts(sessions, now)
 	checkSubagents(sessions)
+	if now.Sub(w.lastBlock) >= time.Minute {
+		w.lastBlock = now
+		checkBlocked(now)
+	}
 	if now.Sub(w.lastSave) >= saveEvery { // for `tagent restore`
 		w.lastSave = now
 		roster.Save(roster.Collect(sessions))
