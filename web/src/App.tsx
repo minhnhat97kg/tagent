@@ -205,7 +205,7 @@ export default function App() {
   else if (route.page === "run") main = maxed("workflows", <RunPage key={(runDir ?? dir) + route.ticket} dir={runDir ?? dir} id={route.ticket} />)
   else if (route.page === "boardConfig") main = maxed("workflows", <BoardConfigPage key={dir} dir={dir} />)
   else if (route.page === "routing") main = <RoutingPage key={dir} dir={dir} />
-  else if (route.page === "custom") main = <CustomPage names={panes} name={route.name} />
+  else if (route.page === "custom") main = <CustomPage exts={exts ?? []} name={route.name} reload={() => void extPoll.reload()} />
   else main = null
 
   return (
