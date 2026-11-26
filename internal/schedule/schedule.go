@@ -45,7 +45,15 @@ func (e Entry) Rule() string {
 	if e.At != "" {
 		return "at " + e.At
 	}
-	return "every " + e.Every.String()
+	// Duration.String pads zero units ("30m0s", "1h0m0s"); drop them.
+	s := e.Every.String()
+	if strings.HasSuffix(s, "m0s") {
+		s = s[:len(s)-2]
+	}
+	if strings.HasSuffix(s, "h0m") {
+		s = s[:len(s)-2]
+	}
+	return "every " + s
 }
 
 // Next is the first slot after last: last+every, or the next HH:MM after last.

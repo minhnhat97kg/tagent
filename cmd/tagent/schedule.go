@@ -209,9 +209,9 @@ func scheduleLs(root string, asJSON bool, out, errs io.Writer) int {
 		if last == "" {
 			last = "-"
 		}
-		ticket := r.Ticket
-		if ticket == "" {
-			ticket = "-"
+		target := "-"
+		if r.Ticket != "" {
+			target = "#" + r.Ticket
 		}
 		status := map[bool]string{true: "enabled", false: "paused"}[r.Enabled]
 		switch {
@@ -220,7 +220,7 @@ func scheduleLs(root string, asJSON bool, out, errs io.Writer) int {
 		case r.Scope == "local" && !trusted:
 			status = "untrusted (run tagent schedule trust)"
 		}
-		fmt.Fprintf(out, "%s\t%s\t%s\tnext %s\tlast %s\t→ #%s\t%s\t%s\n", r.Name, r.Scope, r.Rule, r.Next, last, ticket, status, r.Note)
+		fmt.Fprintf(out, "%s\t%s\t%s\tnext %s\tlast %s\t→ %s\t%s\t%s\n", r.Name, r.Scope, r.Rule, r.Next, last, target, status, r.Note)
 	}
 	return exitOK
 }

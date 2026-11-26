@@ -581,10 +581,18 @@ func resolve(ctx context.Context, target string, dirs func() []string) (a agentP
 		out, errOut, code := runTagent(ctx, "new", "--repo-agent", target, "--cwd", d)
 		if code == 0 {
 			id := strings.TrimSpace(out)
-			if a, ok := matchAgent(id); ok {
-				return a, d, nil
+			// The new pane registers itself a moment after it starts; a bare
+			// record would make every reply read as "gone", so poll briefly.
+			for i := 0; i < 10; i++ {
+				if a, ok := matchAgent(id); ok {
+					return a, d, nil
+				}
+				select {
+				case <-ctx.Done():
+					return agentPane{ID: id, Name: target}, d, nil
+				case <-time.After(200 * time.Millisecond):
+				}
 			}
-			// ponytail: a pane not yet registered is stored bare, so a reply to it reads as "gone"; wait for registration, follow-up ticket
 			return agentPane{ID: id, Name: target}, d, nil
 		}
 		if !strings.Contains(errOut, "unknown repo agent") {
