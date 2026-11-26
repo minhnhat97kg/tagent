@@ -222,7 +222,7 @@ not skip a role just because that role made the transition.
 
 ### Editing the configuration
 
-`#/board/config` (the Settings icon in the Board header) edits the raw
+`#/board/config` (the Settings icon in the Tasks header or the Board header) edits the raw
 `.tasks/board.yaml`. The readable half previews the draft as-is: the default
 workflow, roles with harness and model, and triggers. A **Default workflow**
 select lists local and global workflows and writes only the `default_workflow`

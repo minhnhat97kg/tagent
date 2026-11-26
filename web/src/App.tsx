@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { bindVisualViewport } from '@/lib/touchViewport'
-import { ArrowLeft, Bot, ChevronDown, ChevronUp, Kanban, Maximize2, Minimize2, Monitor, Moon, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Plus, Settings, SquareTerminal, Sun, Workflow } from "lucide-react"
+import { ArrowLeft, Bot, Maximize2, Minimize2, Monitor, Moon, MoreHorizontal, Plus, Settings, SquareTerminal, Sun, Workflow } from "lucide-react"
 import { nextTheme, useWebTheme } from "@/lib/theme"
 import { SettingsDialog } from "@/components/SettingsDialog"
 import { api } from "@/api"
@@ -8,36 +8,33 @@ import { AgentView } from "@/components/AgentView"
 import { Notifications } from '@/components/Notifications'
 import { agentLabel } from '@/lib/status'
 import { notifications, nextNotice, useAlerts, type Notice } from '@/lib/notifications'
-import { Board, TaskDrawer } from "@/components/Board"
+import { TaskDrawer } from "@/components/Board"
 import { BoardConfigPage } from "@/components/BoardConfigPage"
 import { NewAgentDialog } from "@/components/NewAgentDialog"
 import { ProjectSelect } from "@/components/ProjectSelect"
-import { RailStrip } from "@/components/Rail"
 import { AgentsPanel } from "@/components/panels/AgentsPanel"
 import { WorkflowsPage } from "@/components/WorkflowsPage"
 import { RunPage } from "@/components/RunPage"
 import { AgentsPage } from "@/components/AgentsPage"
 import { RoutingPage } from "@/components/RoutingPage"
 import { OverviewPanel } from "@/components/panels/OverviewPanel"
-import { TasksPanel } from "@/components/panels/TasksPanel"
+import { TasksPane } from "@/components/panels/TasksPane"
+import { PaneGrid } from "@/components/PaneGrid"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
-import { cn } from "@/lib/utils"
 import { useKeys } from "@/hooks/useKeys"
 import { usePoll } from "@/hooks/usePoll"
 import { useProjectDir } from "@/hooks/useProjectDir"
-import { useRailCollapsed } from "@/hooks/useRail"
-import { useRailLayout, type RailId } from "@/hooks/useRailLayout"
 import { enc, nav, parseSel, useRoute } from "@/hooks/useRoute"
 import { baseName, byTaskOrder } from "@/lib/status"
+import { loadPanes, savePanes, type PaneBox } from "@/lib/paneLayout"
 import { useAppState } from "@/state"
 import type { Agent, Overview, Project } from "@/types"
 
-// App is a fixed shell: top bar, a left rail (usage, agents, tasks) and one main view.
-// The rail collapses to an icon strip (remembered per device). Home shows the
-// board; /agent/<pane> shows that agent's terminal.
+// App is a fixed shell: a top bar and one main view. Home is the pane grid (usage,
+// agents, tasks); /agent/<pane> shows that agent's terminal.
 export default function App() {
   useLayoutEffect(() => bindVisualViewport(document.documentElement), [])
   const route = useRoute()
@@ -45,10 +42,10 @@ export default function App() {
   const { state, error } = useAppState()
   const [newOpen, setNewOpen] = useState(false)
   const [settings, setSettings] = useState(false)
-  // Rail collapsed state: an icon strip keeps the board room to itself.
-  const [railCollapsed, setRailCollapsed] = useRailCollapsed()
-  const layout = useRailLayout()
-  const [editing, setEditing] = useState(false)
+  // The home layout: this device's saved boxes, or undefined for the default.
+  const [panes, setPanes] = useState(loadPanes)
+  const changePanes = (boxes: PaneBox[]) => { setPanes(boxes); savePanes(boxes) }
+  const resetPanes = () => { setPanes(undefined); savePanes(undefined); setSettings(false) }
   // Whole app full screen (browser chrome hidden). iPhone Safari has no Fullscreen API, so the button hides there.
   const [full, setFull] = useState(false)
   useEffect(() => {
@@ -77,7 +74,7 @@ export default function App() {
 
   const agent = sel?.kind === "agent" ? state?.agents.find((a) => a.pane === sel.pane) : undefined
   const [dir, setDir] = useProjectDir(agent?.path)
-  // The rail lists only this workspace's agents; project is the main repo's name, so worktree agents count too.
+  // The agents list shows only this workspace's agents; project is the main repo's name, so worktree agents count too.
   // An agent belongs to the deepest workspace holding its path, so a home-folder workspace doesn't swallow every project.
   const dirAgents = useMemo(() => {
     if (!dir) return ordered
@@ -126,83 +123,44 @@ export default function App() {
     const next = nextNotice(notices, lastNotice.current ?? (agent ? 'agent:' + agent.pane : undefined))
     if (next) openNotice(next)
   })
+  // The Board is the Tasks pane now: an old #/board link lands on home.
+  useEffect(() => { if (route === "/board") location.replace("#/") }, [route])
 
   if (error?.message.startsWith("unauthorized")) {
     return <div className="app-viewport flex items-center justify-center p-6 text-center"><p>tagent: open the link printed by <code>tagent web</code> (it carries the access token).</p></div>
   }
 
   const proj = projPoll.data
-  const boardRoute = route === '/board'
   const boardConfigRoute = route === '/board/config'
   const flowRoute = /^\/workflows(?:\/([^/]+))?$/.exec(route)
   // Old ticket links (/workflows/<wf>/<ticket>) open the run page, not the editor.
   const runRoute = runMatch ?? /^\/workflows\/[^/]+\/([^/]+)$/.exec(route)
   const agentsRoute = route === "/agents"
   const routingRoute = route === "/routing"
-  const home = !sel && !boardRoute && !boardConfigRoute && !flowRoute && !runRoute && !agentsRoute && !routingRoute
-  const board = <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border bg-card"><Board dir={dir} proj={proj} reload={projPoll.reload} /></section>
-  const tasks = <TasksPanel proj={proj} dir={dir} reload={projPoll.reload} className="min-h-0 flex-1" />
-
-
-  const railIds = layout.order
-  // Desktop rail never overflows: on a short window every panel shrinks and scrolls inside.
-  const railCls: Record<RailId, string> = { overview: "max-h-[40%]", agents: "max-h-[35%]", tasks: "min-h-24 flex-1" }
-
-  const railPanel = (id: RailId, i: number, ids: RailId[], cls: Record<RailId, string>) => <div key={id} className={cn("group/rail relative flex min-h-0 flex-col", id === "overview" && "overflow-y-auto", cls[id])} style={ids.every(x => layout.heights[x]) ? { flex: `${layout.heights[id]} 1 0%`, minHeight: 64, maxHeight: "none" } : undefined}>
-              {editing && <div className="absolute top-1 left-1/2 z-10 flex -translate-x-1/2 rounded-md bg-card/90 shadow-sm ring-1 ring-border">
-                <button aria-label="Move panel up" disabled={i === 0} className="rounded hover:bg-accent disabled:invisible" onClick={() => layout.move(id, -1, ids)}><ChevronUp className="size-4" /></button>
-                <button aria-label="Move panel down" disabled={i === ids.length - 1} className="rounded hover:bg-accent disabled:invisible" onClick={() => layout.move(id, 1, ids)}><ChevronDown className="size-4" /></button>
-              </div>}
-              {id === "overview" && <OverviewPanel days={usageDays} onDays={setUsageDays} overview={overview} className="shrink-0" />}
-              {id === "agents" && <AgentsPanel ordered={dirAgents} byTask={byTask} onToggleTask={toggleByTask} selPane={agent?.pane} className="min-h-0 flex-1" />}
-              {id === "tasks" && tasks}
-              {editing && i < ids.length - 1 && <div role="separator" aria-orientation="horizontal" title="Drag to resize (double-click to reset)" className="group/grip absolute inset-x-0 bottom-0 z-10 flex h-3 cursor-row-resize touch-none items-end justify-center"
-                onDoubleClick={() => layout.setHeights({})}
-                onPointerDown={(e) => {
-                  // The bar trades height between this panel and the next; the panels always share the whole rail.
-                  const panels = Array.from(e.currentTarget.parentElement!.parentElement!.children) as HTMLElement[]
-                  e.currentTarget.setPointerCapture(e.pointerId)
-                  const hs = panels.map(p => p.offsetHeight), total = hs.reduce((a, b) => a + b, 0) || 1
-                  const pair = hs[i]! + hs[i + 1]!, h0 = hs[i]!, y0 = e.clientY
-                  const apply = () => panels.forEach((p, k) => { p.style.flex = `${(hs[k]! / total) * 100} 1 0%`; p.style.maxHeight = "none" })
-                  const h = (ev: PointerEvent) => { hs[i] = Math.max(64, Math.min(pair - 64, h0 + ev.clientY - y0)); hs[i + 1] = pair - hs[i]!; apply() }
-                  const up = () => { window.removeEventListener("pointermove", h); window.removeEventListener("pointerup", up); layout.setHeights(Object.fromEntries(ids.map((x, k) => [x, Math.round((hs[k]! / total) * 1000) / 10]))) }
-                  apply(); window.addEventListener("pointermove", h); window.addEventListener("pointerup", up)
-                }}><span className="mb-0.5 h-1 w-10 rounded-full bg-muted-foreground/30 group-hover/grip:bg-brand" /></div>}
-  </div>
-  const phoneIds: RailId[] = layout.order
-  // Phone home fits the screen like the desktop rail: no page scroll, each panel scrolls inside.
-  const phoneCls: Record<RailId, string> = { overview: "max-h-[30%]", agents: "max-h-[30%]", tasks: "min-h-24 flex-1" }
+  const home = !sel && !boardConfigRoute && !flowRoute && !runRoute && !agentsRoute && !routingRoute
 
   let main
-  if (boardRoute) main = board
-  else if (boardConfigRoute) main = <BoardConfigPage key={dir} dir={dir} />
+  if (boardConfigRoute) main = <BoardConfigPage key={dir} dir={dir} />
   else if (runRoute) main = <RunPage key={(runDir ?? dir) + runRoute[1]} dir={runDir ?? dir} id={decodeURIComponent(runRoute[1]!)} />
   else if (flowRoute) main = <WorkflowsPage key={dir + route} dir={dir} initial={decodeURIComponent(flowRoute[1] ?? '')} />
   else if (agentsRoute) main = <AgentsPage key={dir} dir={dir} />
   else if (routingRoute) main = <RoutingPage key={dir} dir={dir} />
   else if (agent) main = <AgentView key={agent.pane} agent={agent} project={proj} />
   else if (sel) main = state ? <div className="p-6 text-muted-foreground">Agent not found. <a href="#/" className="text-foreground underline">Home</a></div> : null
-  else main = <>
-    {/* Phone home: the rail's lists stacked; the board is in the header. */}
-    <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden md:hidden">
-      {phoneIds.map((id, i) => railPanel(id, i, phoneIds, phoneCls))}
-    </div>
-    <div className="hidden min-h-0 min-w-0 flex-1 md:flex">
-      {board}
-    </div>
-  </>
+  else main = <PaneGrid saved={panes} onChange={changePanes} panes={{
+    usage: <OverviewPanel className="min-h-0 flex-1" days={usageDays} onDays={setUsageDays} overview={overview} />,
+    agents: <AgentsPanel className="min-h-0 flex-1" ordered={dirAgents} byTask={byTask} onToggleTask={toggleByTask} />,
+    tasks: <TasksPane proj={proj} dir={dir} reload={projPoll.reload} />,
+  }} />
 
   return (
     <TooltipProvider>
       <div className="app-viewport flex flex-col bg-sidebar">
         <header className="flex h-11 shrink-0 items-center gap-1 border-b bg-card px-2 md:gap-2 md:px-3">
-          {!home && <Button variant="ghost" size="icon-xs" className={`max-sm:size-9 ${boardRoute ? "md:hidden" : ""}`} onClick={() => nav("/")} aria-label="Back to home" title="Back to home"><ArrowLeft /></Button>}
-          <Button variant="ghost" size="icon-xs" className="hidden md:inline-flex" onClick={() => setRailCollapsed(!railCollapsed)} aria-label={railCollapsed ? "Show sidebar" : "Hide sidebar"} title={railCollapsed ? "Show sidebar" : "Hide sidebar"}>{railCollapsed ? <PanelLeftOpen /> : <PanelLeftClose />}</Button>
+          {!home && <Button variant="ghost" size="icon-xs" className="max-sm:size-9" onClick={() => nav("/")} aria-label="Back to home" title="Back to home"><ArrowLeft /></Button>}
           <a href="#/" className="flex shrink-0 items-center gap-1.5 text-[13px] font-semibold"><span className="flex size-6 items-center justify-center rounded-md bg-primary text-primary-foreground"><SquareTerminal className="size-3.5" /></span><span className="hidden sm:inline">tagent</span><span className="hidden font-normal text-muted-foreground lg:inline"> · {state?.host ?? ""}</span></a>
           <div className="min-w-0 flex-1 overflow-hidden [&_button]:max-w-full"><ProjectSelect value={dir} projects={state?.projects ?? []} onChange={(d) => { setDir(d); nav("/") }} /></div>
           <div className="ml-auto flex items-center gap-1">
-            <Button variant="ghost" size="icon-xs" className="max-sm:hidden" aria-label="Board" title="Board" onClick={() => nav('/board')}><Kanban /></Button>
             <Button variant="ghost" size="icon-xs" className="max-sm:hidden" aria-label="Agents" title="Agents" onClick={() => nav('/agents')}><Bot /></Button>
             <Button variant="ghost" size="icon-xs" className="max-sm:hidden" aria-label="Workflows" title="Workflows" onClick={() => nav('/workflows')}><Workflow /></Button>
             <Notifications items={notices} dir={dir ?? ''} onOpen={openNotice} />
@@ -214,7 +172,6 @@ export default function App() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild><Button variant="ghost" size="icon-xs" className="max-sm:size-9 sm:hidden" aria-label="More" title="More"><MoreHorizontal /></Button></DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onSelect={() => nav('/board')}>Board</DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => nav('/agents')}>Agents</DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => nav('/workflows')}>Workflows</DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => setWebTheme(nextTheme[webTheme])}>Theme: {webTheme}</DropdownMenuItem>
@@ -224,17 +181,13 @@ export default function App() {
           </div>
         </header>
 
-        {editing && <div className="flex shrink-0 items-center gap-2 border-b bg-card px-3 py-1.5 text-xs text-muted-foreground"><span className="min-w-0 flex-1">Editing layout: use ▲▼ to move, drag the bar under a panel to resize.</span><Button size="xs" onClick={() => setEditing(false)}>Done</Button></div>}
         <div className="flex min-h-0 flex-1 gap-2 p-2">
-          {railCollapsed ? <RailStrip tasks onExpand={() => setRailCollapsed(false)} /> : <aside className="hidden w-72 shrink-0 flex-col gap-2 md:flex">
-            {railIds.map((id, i) => railPanel(id, i, railIds, railCls))}
-          </aside>}
           <main className="flex min-h-0 min-w-0 flex-1 flex-col">{main}</main>
         </div>
       </div>
       <TaskDrawer proj={proj} dir={dir} reload={projPoll.reload} id={noticeTicket?.dir === dir ? noticeTicket.id : undefined} initialReply={noticeTicket?.reply} origin={noticeOrigin} onClose={() => setNoticeTicket(undefined)} />
       {newOpen && <NewAgentDialog dir={dir} onOpenChange={setNewOpen} />}
-      <SettingsDialog open={settings} onOpenChange={setSettings} onEditLayout={() => { setSettings(false); setEditing(true) }} />
+      <SettingsDialog open={settings} onOpenChange={setSettings} onResetLayout={resetPanes} />
       <Toaster richColors position="top-right" />
     </TooltipProvider>
   )

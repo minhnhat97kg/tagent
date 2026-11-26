@@ -1,5 +1,5 @@
 import { useRef, useState } from "react"
-import { ListTodo, Plus } from "lucide-react"
+import { ListTodo, Plus, Settings } from "lucide-react"
 import { act, post } from "@/api"
 import { TaskDrawer } from "@/components/Board"
 import { Avatar, shortId, statusColor, title } from "@/components/BoardDrawer"
@@ -29,7 +29,7 @@ export function TasksPanel({ proj, dir, reload, className }: { proj?: Project; d
   const open = sorted.filter(t => !finished(t))
   const shown = showDone ? sorted : [...open, ...done.slice(0, Math.max(0, 10 - open.length))]
   const hidden = sorted.length - shown.length
-  return <Panel className={className} icon={<ListTodo className="text-amber-600" />} title={<a href="#/" className="hover:underline">Tasks</a>} right={<><span>{tasks.length}</span><button aria-label="Add task" className="flex size-6 items-center justify-center rounded-md hover:bg-accent" onClick={() => { setKind(proj?.defaultWorkflow ?? ""); setAdding(!adding) }}><Plus className="size-3.5" /></button></>} bodyClass="py-1">
+  return <Panel className={className} icon={<ListTodo className="text-amber-600" />} title={<a href="#/" className="hover:underline">Tasks</a>} right={<><span>{tasks.length}</span><button aria-label="Add task" className="flex size-6 items-center justify-center rounded-md hover:bg-accent" onClick={() => { setKind(proj?.defaultWorkflow ?? ""); setAdding(!adding) }}><Plus className="size-3.5" /></button><a href="#/board/config" aria-label="Board settings" title="Board settings" className="flex size-6 items-center justify-center rounded-md hover:bg-accent"><Settings className="size-3.5" /></a></>} bodyClass="py-1">
     {adding && <form className="flex gap-1.5 px-2 pb-1" onSubmit={e => { e.preventDefault(); if (draft.trim()) act(post("/api/tasks", { Dir: dir, Op: "add", Text: draft.trim(), Workflow: kind }).then(() => { setDraft(""); setAdding(false); reload() })) }}>
       <Input autoFocus value={draft} onChange={e => setDraft(e.target.value)} placeholder="New task…" className="h-8 min-w-0 flex-1 text-[12.5px]" />
       {/* Radix Select cannot take "" as an item value: "__none" stands for no workflow and never leaves this component. */}

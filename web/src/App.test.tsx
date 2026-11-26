@@ -9,15 +9,20 @@ vi.mock("@/state", () => ({ useAppState: () => ({ state: st.state, error: undefi
 vi.mock("@/components/Board", () => ({ Board: () => <div data-testid="board" />, TaskDrawer: () => null }))
 vi.mock("@/components/AgentView", () => ({ AgentView: () => null }))
 
-// Some modules (the terminal) read matchMedia at import time; jsdom has none.
-vi.hoisted(() => {
+// Some modules (the terminal) read matchMedia at import time; jsdom has none. Tests default to a phone width.
+const phoneMedia = vi.hoisted(() => {
   const fake = (q: string) =>
     ({ matches: false, media: q, onchange: null, addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false })
   window.matchMedia = fake as unknown as typeof window.matchMedia
+  return fake
 })
+// The pane grid observes its size; jsdom has no ResizeObserver.
+globalThis.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} } as unknown as typeof ResizeObserver
 
-// The phone home stacks the same panels, so the rail's copy is the count beyond one.
-const usageHeadings = () => screen.queryAllByRole("heading", { name: "Usage" }).length
+const desktop = () => {
+  window.matchMedia = ((q: string) => ({ matches: q.includes("min-width: 768px"), media: q, addEventListener: () => {}, removeEventListener: () => {} })) as unknown as typeof window.matchMedia
+}
+const pane = (id: string) => document.querySelector<HTMLElement>(`[data-pane="${id}"]`)
 
 beforeEach(() => {
   localStorage.clear()
@@ -27,28 +32,45 @@ beforeEach(() => {
   vi.mocked(api).mockReset().mockResolvedValue(undefined)
   Element.prototype.scrollTo = vi.fn()
 })
-afterEach(cleanup)
-
-test("the rail collapses to an icon strip and remembers it", () => {
-  render(<App />)
-  expect(usageHeadings()).toBe(2)
-  expect(screen.queryByLabelText("Panels")).toBeNull()
-
-  fireEvent.click(screen.getByRole("button", { name: "Hide sidebar" }))
-  expect(usageHeadings()).toBe(1)
-  expect(screen.getByLabelText("Panels")).toBeTruthy()
-  expect(localStorage.getItem("tagent.rail")).toBe("collapsed")
-
-  fireEvent.click(screen.getByRole("button", { name: "Show usage panel" }))
-  expect(usageHeadings()).toBe(2)
-  expect(localStorage.getItem("tagent.rail")).toBe("open")
+afterEach(() => {
+  cleanup()
+  window.matchMedia = phoneMedia as unknown as typeof window.matchMedia
 })
 
-test("a remembered collapsed rail starts collapsed", () => {
-  localStorage.setItem("tagent.rail", "collapsed")
+test("home shows the usage, agents and tasks panes", () => {
   render(<App />)
-  expect(usageHeadings()).toBe(1)
-  expect(screen.getByRole("button", { name: "Show agents panel" })).toBeTruthy()
+  expect(screen.getAllByRole("heading", { name: "Usage" })).toHaveLength(1)
+  expect(screen.getByRole("heading", { name: "Agents" })).toBeTruthy()
+  expect(screen.getByRole("heading", { name: "Tasks" })).toBeTruthy()
+})
+
+test("the rail and the Board page are gone; #/board lands on home", () => {
+  location.hash = "#/board"
+  render(<App />)
+  expect(location.hash).toBe("#/")
+  expect(screen.queryByRole("button", { name: "Board" })).toBeNull()
+  expect(screen.queryByRole("button", { name: "Hide sidebar" })).toBeNull()
+  expect(screen.getByRole("heading", { name: "Tasks" })).toBeTruthy()
+})
+
+test("a saved layout is applied after a remount, and Reset layout restores the default", () => {
+  desktop()
+  const saved = [
+    { id: "usage", x: 0, y: 5, w: 3, h: 10 },
+    { id: "agents", x: 0, y: 15, w: 3, h: 14 },
+    { id: "tasks", x: 3, y: 0, w: 9, h: 24 },
+  ]
+  localStorage.setItem("tagent.panes", JSON.stringify({ v: 1, boxes: saved }))
+  const { unmount } = render(<App />)
+  expect(pane("usage")!.style.gridRow).toBe("6 / span 10")
+  unmount()
+
+  render(<App />)
+  expect(pane("usage")!.style.gridRow).toBe("6 / span 10")
+  fireEvent.click(screen.getByRole("button", { name: "Settings" }))
+  fireEvent.click(screen.getByRole("button", { name: "Reset layout" }))
+  expect(localStorage.getItem("tagent.panes")).toBeNull()
+  expect(pane("usage")!.style.gridRow).toBe("1 / span 10")
 })
 
 test("opening an agent makes its project the remembered one", () => {

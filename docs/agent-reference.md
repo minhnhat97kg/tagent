@@ -45,7 +45,7 @@ on every harness.
 An optional memory file, `.tasks/memory/<role>.md`, is prepended to every dispatch
 prompt; it is hand-edited and never listed as a role.
 The scraper dispatches (`@agent_scrape` on); `board run` runs in the foreground.
-Edit the board from the web Board header (Settings, `#/board/config`) or the TUI
+Edit the board from the web Tasks header (Settings, `#/board/config`) or the TUI
 board: `B` shows the default workflow, roles and triggers, `E` opens `$EDITOR`. Saves are
 validated; an error names its line and keeps the loaded config.
 Roles map to harness/agent instructions and optional models; models affect new

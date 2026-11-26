@@ -35,7 +35,7 @@ export function RunView({ dir, id, page = false }: { dir: string; id: string; pa
   const attachment = (name: string, commentId?: string) => findAttachment(attachments, name, commentId)
 
   if (poll.error) return page
-    ? <Panel title="Run" className="m-2 self-start"><div className="space-y-2 p-3 text-sm"><p role="alert">Couldn't load the run in <b>{baseName(dir)}</b>. {poll.error.message}</p><Button variant="outline" size="sm" onClick={() => nav("/board")}>Back to board</Button></div></Panel>
+    ? <Panel title="Run" className="m-2 self-start"><div className="space-y-2 p-3 text-sm"><p role="alert">Couldn't load the run in <b>{baseName(dir)}</b>. {poll.error.message}</p><Button variant="outline" size="sm" onClick={() => nav("/")}>Back to board</Button></div></Panel>
     : <p role="alert" className="p-4 text-sm">Couldn't load the run. {poll.error.message}</p>
   if (!run) return <p className="p-4 text-sm text-muted-foreground">Loading…</p>
 

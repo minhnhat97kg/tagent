@@ -10,7 +10,7 @@ import { useAppState } from "@/state"
 interface Setting { key: string; group: string; label: string; help: string; kind: "bool" | "choice" | "preset" | "int" | "text"; value: string; default: string; choices: string[] | null; min: number; max: number; readOnly: boolean; secret: boolean; reload: boolean }
 
 // SettingsDialog edits the same registry as `tagent config` and the TUI settings screen (,).
-export function SettingsDialog({ open, onOpenChange, onEditLayout }: { open: boolean; onOpenChange: (open: boolean) => void; onEditLayout: () => void }) {
+export function SettingsDialog({ open, onOpenChange, onResetLayout }: { open: boolean; onOpenChange: (open: boolean) => void; onResetLayout: () => void }) {
   const poll = usePoll<Setting[]>(() => (open ? api<Setting[]>("/api/config") : Promise.resolve([])), 5000, String(open))
   const save = (s: Setting, body: { Value?: string; Reset?: boolean }) => {
     if (!body.Reset && body.Value === s.value) return
@@ -65,8 +65,8 @@ export function SettingsDialog({ open, onOpenChange, onEditLayout }: { open: boo
           </select><span />
         </div>
         <div className="mt-2 grid grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)_24px] items-center gap-4 rounded-xl border bg-muted/50 px-4 py-3">
-          <div className="min-w-0"><div className="text-[12.5px] font-medium">Panel layout</div><div className="text-[11px] leading-snug text-muted-foreground">Reorder and resize Usage, Agents and Tasks; saved on this device</div></div>
-          <button type="button" className="h-9 rounded-lg border bg-card px-2.5 text-[12.5px] hover:bg-accent" onClick={onEditLayout}>Edit layout</button><span />
+          <div className="min-w-0"><div className="text-[12.5px] font-medium">Panel layout</div><div className="text-[11px] leading-snug text-muted-foreground">Drag a pane header or its corner; saved on this device</div></div>
+          <button type="button" className="h-9 rounded-lg border bg-card px-2.5 text-[12.5px] hover:bg-accent" onClick={onResetLayout}>Reset layout</button><span />
         </div>
       </section>
     </DialogContent>

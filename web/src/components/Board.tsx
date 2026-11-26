@@ -1,20 +1,15 @@
-import { useEffect, useRef, useState } from "react"
+import { useRef, useState } from "react"
 import { KanbanSquare, MessageSquare, Search, Settings } from "lucide-react"
 import { toast } from "sonner"
 import { Avatar, BoardDrawer, needState, priorityMark, priorityRank, shortId, statusColor, title } from "./BoardDrawer"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { act, post } from "@/api"
+import { useMedia } from "@/hooks/useMedia"
 import { baseName } from "@/lib/status"
 import type { Project, Task } from "@/types"
 import "./board.css"
 
 type PurgeItem = { id: string; title: string; removed: boolean; warning?: string; kept?: string }
-
-function useMedia(q: string) {
-  const [on, setOn] = useState(() => matchMedia(q).matches)
-  useEffect(() => { const m = matchMedia(q); const f = () => setOn(m.matches); m.addEventListener("change", f); return () => m.removeEventListener("change", f) }, [q])
-  return on
-}
 
 // TaskDrawer is the Jira-like right panel shared by the board and the tasks list.
 export function TaskDrawer({ proj, dir, reload, id, onClose, onOpen, origin, initialReply = '' }: { initialReply?: string; onOpen?: (id: string) => void; proj?: Project; dir: string; reload: () => void; id?: string; onClose: () => void; origin: React.RefObject<HTMLElement | null> }) {
@@ -61,7 +56,7 @@ export function Board({ dir, proj, reload }: { dir: string; proj?: Project; relo
     }))
   }
   return <section className={`task-board ${selectedID ? "has-drawer" : ""}`}>
-    <header className="board-tools">
+    <header className="board-tools" data-pane-head>
       <h2><span className="board-icon"><KanbanSquare /></span>Board</h2>
       {proj?.defaultWorkflow && <a href="#/board/config" className="board-muted" title="Default workflow">default: {proj.defaultWorkflow}</a>}
       <label className="board-search"><Search /><input aria-label="Search tasks" placeholder="Search" value={query} onChange={e => setQuery(e.target.value)} /></label>

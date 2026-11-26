@@ -27,7 +27,7 @@ function Bars({ days }: { days: { date: string; tokens: number }[] }) {
 export function OverviewPanel({ overview, className, days = 7, onDays }: { overview?: Overview; className?: string; days?: number; onDays?: (days: number) => void }) {
   const total = overview?.tokens.days.reduce((s, d) => s + d.tokens, 0) ?? 0
   return <section className={`rounded-lg border bg-card ${className ?? ""}`} aria-label="Usage">
-    <header className="flex h-8 items-center gap-1.5 border-b px-2.5">
+    <header data-pane-head className="flex h-8 items-center gap-1.5 border-b px-2.5">
       <span className="flex size-5 items-center justify-center rounded-md bg-muted"><Gauge className="size-3.5 text-brand" /></span>
       <h2 className="mr-auto text-[12.5px] font-semibold">Usage</h2>
       <a href="#/routing" className="text-[11px] text-muted-foreground underline">Routing →</a>
