@@ -172,7 +172,7 @@ is saved in `layout.json` next to `config.conf`, one for narrow (under 90
 columns) and one for wide, and survives restarts.
 
 The `Compact panes` setting (`@agent_compact`, in the settings screen and the
-web Settings dialog) collapses the TUI panes to small rows and packs them upward.
+web Settings page) collapses the TUI panes to small rows and packs them upward.
 The saved layout is kept. While it is on, `M` and mouse drag do nothing, and
 nothing is saved. Turn it off to get the saved layout back. On the web home it
 only tightens spacing.

@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Markdown from "react-markdown"
 import { ArrowLeft, Bot, Copy, Eye, Pencil, Plus, Save, Trash2 } from "lucide-react"
 import { api, send } from "@/api"
@@ -12,7 +12,7 @@ import { PaneHeader } from "@/components/PaneChrome"
 
 // AgentsPage edits the agent roles the board and the workflows use: harness, model or tier, effort and instructions.
 // Model and effort apply to panes started after the save; running panes keep theirs. A tier takes its harness and model from routing.yaml at each dispatch.
-export function AgentsPage({ dir }: { dir: string }) {
+export function AgentsPage({ dir, onDirty }: { dir: string; onDirty?: (dirty: boolean) => void }) {
   const path = "/api/roles?dir=" + enc(dir)
   const poll = usePoll(() => api<Role[]>(path), 2000, dir)
   const routing = usePoll(() => api<RoutingView>("/api/routing?dir=" + enc(dir)), 10000, dir)
@@ -25,6 +25,7 @@ export function AgentsPage({ dir }: { dir: string }) {
   const saved = roles.find(r => r.name === draft?.name)
   const panes = saved?.panes ?? []
   const dirty = !!draft && !!saved && editableKey(draft) !== editableKey(saved)
+  useEffect(() => { onDirty?.(dirty); return () => onDirty?.(false) }, [dirty, onDirty])
   const tierNames = [...new Set([...(routing.data?.tiers.map(t => t.name) ?? []), ...(draft?.tier ? [draft.tier] : [])])]
   const readOnly = !draft || readOnlySource(draft.source)
   const copyable = !!draft && (readOnlySource(draft.source) || draft.source === "global")

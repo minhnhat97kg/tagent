@@ -72,7 +72,7 @@ export function BoardSummaryView({ summary }: { summary?: BoardSummary }) {
   </>
 }
 
-export function BoardConfigPage({ dir }: { dir: string }) {
+export function BoardConfigPage({ dir, onDirty }: { dir: string; onDirty?: (dirty: boolean) => void }) {
   const path = '/api/board/config?dir=' + enc(dir)
   const [draft, setDraft] = useState('')
   const [saved, setSaved] = useState('')
@@ -134,6 +134,7 @@ export function BoardConfigPage({ dir }: { dir: string }) {
   }
 
   const dirty = draft !== saved
+  useEffect(() => { onDirty?.(dirty); return () => onDirty?.(false) }, [dirty, onDirty])
   const invalid = !!validation
   // The server's message already starts with "line N: "; the button adds it once.
   const validationMessage = validation.replace(new RegExp(`^line ${validationLine}: `), '')

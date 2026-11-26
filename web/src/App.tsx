@@ -2,7 +2,7 @@ import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type
 import { bindVisualViewport } from '@/lib/touchViewport'
 import { ArrowLeft, Maximize2, Menu, Minimize2, Monitor, Moon, Plus, Settings, SquareTerminal, Sun } from "lucide-react"
 import { nextTheme, useWebTheme } from "@/lib/theme"
-import { SettingsDialog } from "@/components/SettingsDialog"
+import { DeviceSettings, GeneralSettings, SettingsTabs, WorkspaceSettings } from "@/components/SettingsPage"
 import { api } from "@/api"
 import { AgentView } from "@/components/AgentView"
 import { Notifications } from '@/components/Notifications'
@@ -55,12 +55,12 @@ export default function App() {
   const route = parseRoute(rawRoute)
   const { state, error } = useAppState()
   const [newOpen, setNewOpen] = useState(false)
-  const [settings, setSettings] = useState(false)
+  const [unsaved, setUnsaved] = useState(false) // the open settings page has a draft
   const [addWorkspace, setAddWorkspace] = useState(false)
   // The home layout: this device's saved columns and sizes, or undefined for the default.
   const [layout, setLayout] = useState(loadPanes)
   const changePanes = (l: Layout) => { setLayout(l); savePanes(l) }
-  const resetPanes = () => { setLayout(undefined); savePanes(undefined); setSettings(false) }
+  const resetPanes = () => { setLayout(undefined); savePanes(undefined); nav("/") }
   // The agent in the chat pane: picked in place, or named by an old link (#/agent/<pane>).
   const [picked, setPicked] = useState<string>()
   const [phoneTab, setPhoneTab] = useState<PhoneTab>("agents")
@@ -201,13 +201,19 @@ export default function App() {
   if (home) main = <HomeLayout saved={shown} onChange={changePanes} onRemove={removeFromLayout} compact={state?.compact} tab={phoneTab} onTab={setPhoneTab} tabSlot={tabSlot}
     panes={{ agents: agentsPane, usage: usagePane, chat: chatPane, tasks: tasksPane, ...extPanes }} />
   else if (route.page === "pane") main = maxed(route.pane, extName(route.pane) ? extPanes[route.pane] ?? <div className="p-6 text-sm text-muted-foreground">{exts ? "No custom pane by that name." : null}</div> : route.pane === "usage" ? usagePane : route.pane === "chat" ? chatPane : tasksPane)
-  else if (route.page === "agents") main = withAgents(minimizable("agents", <AgentsPage key={dir} dir={dir} />))
-  else if (route.page === "flows") main = maxed("workflows", <WorkflowsPage key={dir + rawRoute} dir={dir} initial={route.name} />)
+  else if (route.page === "agents") main = withAgents(minimizable("agents", <AgentsPage key={dir} dir={dir} onDirty={setUnsaved} />))
+  else if (route.page === "flows") main = maxed("workflows", <WorkflowsPage key={dir + rawRoute} dir={dir} initial={route.name} onDirty={setUnsaved} />)
   else if (route.page === "run") main = maxed("workflows", <RunPage key={(runDir ?? dir) + route.ticket} dir={runDir ?? dir} id={route.ticket} />)
-  else if (route.page === "boardConfig") main = maxed("workflows", <BoardConfigPage key={dir} dir={dir} />)
+  else if (route.page === "boardConfig") main = maxed("workflows", <BoardConfigPage key={dir} dir={dir} onDirty={setUnsaved} />)
   else if (route.page === "routing") main = <RoutingPage key={dir} dir={dir} />
   else if (route.page === "custom") main = <CustomPage exts={exts ?? []} name={route.name} reload={() => void extPoll.reload()} />
+  else if (route.page === "settings") main = route.tab === "workspaces" ? <WorkspaceSettings onAddWorkspace={() => setAddWorkspace(true)} />
+    : route.tab === "device" ? <DeviceSettings theme={webTheme} onTheme={setWebTheme} onResetLayout={resetPanes} />
+    : <GeneralSettings />
   else main = null
+  // Every configuration page is a tab of Settings.
+  const tab = route.page === "settings" ? route.tab : route.page === "flows" ? "workflows" : route.page === "boardConfig" ? "board" : route.page === "agents" || route.page === "routing" ? route.page : undefined
+  if (tab) main = <SettingsTabs tab={tab} unsaved={unsaved}>{main}</SettingsTabs>
 
   return (
     <TooltipProvider>
@@ -225,7 +231,7 @@ export default function App() {
             <Button size="sm" className="max-sm:size-8" onClick={() => setNewOpen(true)}><Plus /> <span className="hidden sm:inline">New agent</span></Button>
             {canFull && <Button className="hidden sm:inline-flex" variant="ghost" size="icon-xs" aria-label={full ? "Exit full screen" : "Full screen"} title={full ? "Exit full screen" : "Full screen"} onClick={() => void toggleFull()}>{full ? <Minimize2 /> : <Maximize2 />}</Button>}
             <Button variant="ghost" size="icon-xs" className="max-sm:hidden" aria-label={`Web theme: ${webTheme}`} title={`Web theme: ${webTheme} (this browser only)`} onClick={() => setWebTheme(nextTheme[webTheme])}>{webTheme === "dark" ? <Moon /> : webTheme === "light" ? <Sun /> : <Monitor />}</Button>
-            <Button variant="ghost" size="icon-xs" className="max-sm:hidden" aria-label="Settings" title="Settings" onClick={() => setSettings(true)}><Settings /></Button>
+            <Button variant="ghost" size="icon-xs" className="max-sm:hidden" aria-label="Settings" title="Settings" onClick={() => nav("/settings")}><Settings /></Button>
             {/* Below 768px (where the Workflows pane is not shown) the header keeps back, project, new agent and notifications; the rest lives here. */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild><Button variant="ghost" size="icon-xs" className="max-sm:size-8 md:hidden" aria-label="More" title="More"><Menu /></Button></DropdownMenuTrigger>
@@ -233,7 +239,7 @@ export default function App() {
                 <DropdownMenuItem onSelect={() => nav('/agents')}>Agents</DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => nav('/workflows')}>Workflows</DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => setWebTheme(nextTheme[webTheme])}>Theme: {webTheme}</DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => setSettings(true)}>Settings</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => nav('/settings')}>Settings</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -245,7 +251,6 @@ export default function App() {
       </div>
       <TaskDrawer proj={proj} dir={dir} reload={projPoll.reload} id={noticeTicket?.dir === dir ? noticeTicket.id : undefined} initialReply={noticeTicket?.reply} origin={noticeOrigin} onClose={() => setNoticeTicket(undefined)} />
       {newOpen && <NewAgentDialog dir={dir} onOpenChange={setNewOpen} />}
-      <SettingsDialog open={settings} onOpenChange={setSettings} onResetLayout={resetPanes} onAddWorkspace={() => { setSettings(false); setAddWorkspace(true) }} />
       <AddWorkspaceDialog open={addWorkspace} onOpenChange={setAddWorkspace} onAdded={(d) => { setDir(d); setPicked(undefined); nav("/") }} />
       <Toaster richColors position="top-right" />
     </TooltipProvider>
