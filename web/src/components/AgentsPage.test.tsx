@@ -29,7 +29,7 @@ test("picking a tier hides the harness, disables context and offers every effort
   expect(screen.queryByLabelText("Harness")).toBeNull()
   expect((screen.getByLabelText("Skills") as HTMLInputElement).disabled).toBe(true)
   const effort = screen.getByLabelText("Effort") as HTMLSelectElement
-  const levels = [...effort.options].map(o => o.value)
+  const levels = Array.from(effort.options, o => o.value)
   expect(levels).toEqual(expect.arrayContaining(["off", "max"]))
 
   fireEvent.click(screen.getByRole("button", { name: "Save" }))

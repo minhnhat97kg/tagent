@@ -68,6 +68,10 @@ func (s *server) workflows(w http.ResponseWriter, r *http.Request) {
 			} else if err != nil {
 				message = err.Error()
 			}
+			kind, cleanup := "", ""
+			if f.Err == nil {
+				kind, cleanup = workflowWorkplace(f)
+			}
 			total, running := 0, 0
 			var last time.Time
 			for _, t := range tickets {
@@ -82,7 +86,7 @@ func (s *server) workflows(w http.ResponseWriter, r *http.Request) {
 					last = t.Created
 				}
 			}
-			out = append(out, map[string]any{"name": f.Name, "key": strings.TrimSuffix(filepath.Base(f.File), filepath.Ext(f.File)), "global": f.Global, "yaml": string(b), "description": f.Description, "jobs": f.Jobs, "inputs": f.Inputs, "total": total, "running": running, "lastUsed": last, "error": message, "errorLine": workflow.ErrorLine(f.Err)})
+			out = append(out, map[string]any{"name": f.Name, "key": strings.TrimSuffix(filepath.Base(f.File), filepath.Ext(f.File)), "global": f.Global, "yaml": string(b), "description": f.Description, "jobs": f.Jobs, "inputs": f.Inputs, "total": total, "running": running, "lastUsed": last, "workplace": kind, "cleanup": cleanup, "error": message, "errorLine": workflow.ErrorLine(f.Err)})
 		}
 		writeJSON(w, out)
 		return

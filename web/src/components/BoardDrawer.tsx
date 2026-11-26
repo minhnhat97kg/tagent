@@ -12,7 +12,7 @@ import { TicketChat } from "./TicketChat"
 import { useTicketChat } from "@/hooks/useTicketChat"
 import { enc } from "@/hooks/useRoute"
 import { usePoll } from "@/hooks/usePoll"
-import type { Money, Project, RunEntry, RunView as RunData, Task, TicketUsage, Workflow } from "@/types"
+import type { Money, Project, RunEntry, RunView as RunData, Task, TicketUsage, TicketWorkplace, Workflow } from "@/types"
 
 // TABS splits the ticket panel: the facts, the ticket's chat, the conversation
 // on the ticket, and what actually ran. Chat is disabled with a reason when the
@@ -115,6 +115,20 @@ function historyRows(entries: RunEntry[]): Row[] {
     if (e.role) rows.push({ key: `d${e.seq}`, when: e.start, icon: <Play />, text: `dispatched ${e.role}${e.harness ? ` (${e.harness}${e.model ? `, ${e.model}` : ""})` : ""}` })
     return rows
   })
+}
+
+// WorkplaceRow says where the ticket's workflow keeps its work. It asks only while Details is open, and again on a status change (cleanup runs at done).
+function WorkplaceRow({ dir, task }: { dir: string; task: Task }) {
+  const poll = usePoll(() => api<TicketWorkplace>(`/api/tasks/${enc(task.id)}/workplace?dir=${enc(dir)}`), 3000, `${dir}|${task.id}|${task.workflow}|${task.status}`)
+  const w = poll.data
+  if (poll.error) return <div className="workflow-row" role="alert"><span className="board-muted">Workplace</span><span>Couldn't load the workplace. {poll.error.message}</span></div>
+  if (w?.error) return <div className="workflow-row" role="alert"><span className="board-muted">Workplace</span><span>{w.error}</span></div>
+  if (!w?.type) return null
+  return <div className="workflow-row">
+    <span className="board-muted">Workplace</span>
+    <span>{[w.type, w.state, w.cleanup && `cleanup ${w.cleanup}`].filter(Boolean).join(" · ")}</span>
+    {w.location && <code className="basis-full break-all select-text text-[11px] text-muted-foreground">{w.location}</code>}
+  </div>
 }
 
 export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, workflows, project, initialReply = '', onOpen }: { initialReply?: string; onOpen?: (id: string) => void; project?: Project; task: Task; statuses: string[]; roles: string[]; role: string; reason?: string; dir: string; reload: () => void; workflows: Workflow[] }) {
@@ -299,6 +313,7 @@ export function BoardDrawer({ task, statuses, roles, role, reason, dir, reload, 
             <button type="button" onClick={() => setTab("run")} className="inline-flex items-center gap-0.5 text-[11px] text-brand-ink underline-offset-2 hover:underline">View run<ArrowRight className="size-3" /></button></>
         })()}
       </div>
+      {task.workflow && <WorkplaceRow dir={dir} task={task} />}
       {/* Usage: one summary line under the meta; open it for one line per job. */}
       {!!usage?.jobs?.length && <section className="usage">
         <button type="button" className="usage-summary" aria-label={`Usage: ${tok(usage.total.Total)} tokens, ${usage.loops} loops, ${dur(usage.elapsed)}`} aria-expanded={usageOpen} onClick={() => setUsageOpen(v => !v)}>

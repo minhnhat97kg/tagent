@@ -412,9 +412,13 @@ role definitions are passed inline from that checkout, so main-only or edited
 roles do not fall back to stale definitions in the ticket tree. Reuse validates
 the worktree's repository identity, expected branch and committed HEAD.
 A recipe's top-level `workplace:` key is `git-worktree` (the default), `none`, `folder`, `browser`, `remote` or `docker`;
-any other value fails validation on its line. A top-level `cleanup:` key is `remove`
+any other value fails validation on its line.
+A top-level `cleanup:` key is `remove`
 (the default) or `keep`, validated the same way; `keep` leaves a done ticket's worktree and
-branch in place (its work is still merged). With the default, workflow
+branch in place (its work is still merged). The web UI shows a ticket's workplace (type,
+state, cleanup and location) in its Details tab, and a workflow's workplace and cleanup in
+its header. The ticket view asks `GET /api/tasks/<id>/workplace` and reports a recipe that
+cannot be resolved as an error, not as a worktree. With the default, workflow
 execution lazily creates `.worktrees/workflow-<ticket>` from committed HEAD (a Git
 repository with a commit is required). All agent jobs, mentions, shell jobs and retries for that
 ticket share this directory; relative files survive handoffs and dispatcher

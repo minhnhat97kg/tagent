@@ -11,7 +11,7 @@ const WorkflowYamlEditor = lazy(() => import('@/components/WorkflowYamlEditor'))
 
 type Job = { ID: string; Status: string; Agent: string; Model: string; Prompt: string; Run: string; Outputs: string[]; OnFailure: string; MaxLoops: number }
 type Input = { Description: string; Default: string; Required: boolean }
-export type Flow = { key: string; name: string; global: boolean; yaml: string; description: string; error: string; errorLine: number; jobs: Job[]; inputs: Record<string, Input>; total: number; running: number; lastUsed: string }
+export type Flow = { key: string; name: string; global: boolean; yaml: string; description: string; error: string; errorLine: number; jobs: Job[]; inputs: Record<string, Input>; total: number; running: number; lastUsed: string; workplace: string; cleanup: string }
 type Preview = { Name: string; Description: string; Jobs: Job[] }
 
 // onDirty reports unsaved YAML, so a pane never resizes away a draft.
@@ -132,6 +132,8 @@ function WorkflowEditor({ dir, initial, onDirty }: { dir: string; initial: strin
   }
   function start(f: Flow) { setRun(f); setError(''); setValues(Object.fromEntries(Object.entries(f.inputs ?? {}).map(([key, value]) => [key, value.Default]))) }
   const flows = poll.data ?? []
+  // The saved row, not the snapshot: Save refreshes the workplace, and the draft is not what runs.
+  const live = flows.find(f => f.key === selected?.key && f.global === selected?.global)
   // Opened with a name (#/workflows/<name>): select it once the list arrives.
   const [pending, setPending] = useState(initial)
   if (pending && poll.data) { setPending(''); const f = flows.find(x => x.name === pending || x.key === pending); if (f) open(f) }
@@ -161,7 +163,7 @@ function WorkflowEditor({ dir, initial, onDirty }: { dir: string; initial: strin
       {!selected ? <div className="hidden flex-1 flex-col items-center justify-center gap-2 text-sm text-muted-foreground md:flex">Select a workflow to see its YAML and flow.<Button size="xs" variant="outline" disabled={busy} onClick={newFlow}><Plus />New workflow</Button></div> :
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           <div className="flex shrink-0 flex-wrap items-center gap-2 border-b px-3 py-1.5">
-            <h3 className="mr-auto truncate text-[13px] font-semibold">{selected.name}{dirty && <span className="ml-1 text-amber-600">•</span>}<span className="ml-2 text-[11px] font-normal text-muted-foreground">{selected.total} tickets · {selected.running} in progress</span></h3>
+            <h3 className="mr-auto truncate text-[13px] font-semibold">{selected.name}{dirty && <span className="ml-1 text-amber-600">•</span>}<span className="ml-2 text-[11px] font-normal text-muted-foreground">{selected.total} tickets · {selected.running} in progress</span>{live?.workplace && <span className="ml-2 text-[11px] font-normal text-muted-foreground">workplace {live.workplace}{live.cleanup && ` · cleanup ${live.cleanup}`}</span>}</h3>
             <Button size="xs" disabled={busy || !!selected.error} onClick={() => start(selected)}><Play />Run</Button>
             {!selected.global && <>
               <Button size="xs" variant="outline" disabled={busy || !dirty || !!validation} onClick={async () => { if (await mutate('POST', { Name: selected.key, YAML: yaml })) select({ ...selected, yaml }) }}><Save />Save</Button>

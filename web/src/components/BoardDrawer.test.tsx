@@ -170,6 +170,24 @@ test("the workflow is picked in Details and Start only starts", async () => {
   expect(mocks.post).toHaveBeenCalledWith("/api/tasks", { Dir: "/repo", ID: "30", Op: "start", Status: "" })
 })
 
+test("Details shows where the workflow keeps its work", async () => {
+  mocks.api.mockImplementation(async (path: string) => path.includes("/workplace")
+    ? { type: "folder", state: "active", cleanup: "keep", location: "/repo/.tasks/folder/30" }
+    : run)
+  mount()
+  expect(await screen.findByText("folder · active · cleanup keep")).toBeTruthy()
+  expect(screen.getByText("/repo/.tasks/folder/30")).toBeTruthy()
+  expect(mocks.api).toHaveBeenCalledWith(expect.stringContaining("/api/tasks/30/workplace"))
+})
+
+test("a workplace that cannot be resolved shows its error", async () => {
+  mocks.api.mockImplementation(async (path: string) => path.includes("/workplace")
+    ? { error: "workplace docker needs docker: {image} in board.yaml" }
+    : run)
+  mount()
+  expect(await screen.findByText("workplace docker needs docker: {image} in board.yaml")).toBeTruthy()
+})
+
 test("Run reuses the run view inside the panel", async () => {
   mount()
   await userEvent.click(screen.getByRole("tab", { name: "Run" }))

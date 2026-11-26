@@ -78,6 +78,7 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("GET /api/tasks/{id}/attachments", s.attachments)
 	mux.HandleFunc("GET /api/tasks/{id}/run", s.run)
 	mux.HandleFunc("GET /api/tasks/{id}/usage", s.ticketUsage)
+	mux.HandleFunc("GET /api/tasks/{id}/workplace", s.workplace)
 	mux.HandleFunc("GET /api/tickets/{id}/chat", s.ticketChat)
 	mux.HandleFunc("POST /api/tickets/{id}/chat", s.ticketChat)
 	mux.HandleFunc("POST /api/tasks/{id}/attachments", s.attachments)

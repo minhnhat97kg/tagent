@@ -97,6 +97,8 @@ export interface RoutingView {
   tiers: RoutingTier[]
 }
 export interface Overview { dir: string; project: string; attention: { needed: boolean; text: string; items?: {kind: string; text: string; pane: string | null; count: number}[] }; providers: {name: string; usedPercent: number | null; weeklyPercent: number | null; stale: boolean}[]; tokens: {today: number; total7d: number; sparkline: string; days: {date: string; tokens: number}[]} }
+// TicketWorkplace is where a ticket's workflow keeps its work; error replaces the rest when the recipe cannot be resolved.
+export interface TicketWorkplace { type?: string; cleanup?: string; location?: string; state?: string; error?: string }
 export interface Workflow { name: string; description: string; global: boolean; file: string; error: string; jobs: { id: string; status: string; agent: string; run: string }[] }
 
 // RunEntry is one entry into a step of a ticket's workflow run. The dispatch
