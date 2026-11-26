@@ -1,5 +1,5 @@
 import { act, post } from "@/api"
-import { Bot, Folder, ListTodo, ListTree } from "lucide-react"
+import { Bot, ChevronDown, ChevronRight, Folder, ListTodo, ListTree, type LucideIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Panel } from "@/components/Panel"
 import { StatusDot } from "@/components/StatusDot"
@@ -7,15 +7,37 @@ import { useMedia } from "@/hooks/useMedia"
 import { useSize } from "@/hooks/useSize"
 import { ago, agentLabel, baseName, isActive, shortHarness, shortPrompt, taskOf } from "@/lib/status"
 import { cn } from "@/lib/utils"
-import { useState, Fragment } from "react"
+import { useState, Fragment, type ReactNode } from "react"
 import type { Agent } from "@/types"
 
 const projOf = (a: Agent) => a.project || baseName(a.path)
+const SHUT = "tagent.shutGroups"
+const loadShut = (): string[] => { try { const v: unknown = JSON.parse(localStorage.getItem(SHUT) ?? "[]"); return Array.isArray(v) ? v : [] } catch { return [] } }
+
+// Group is a group's header: it folds the group away, and then still says how many agents it holds and how many wait.
+function Group({ icon: Icon, open, agents, onToggle, className, children }: { icon: LucideIcon; open: boolean; agents: Agent[]; onToggle: () => void; className: string; children: ReactNode }) {
+  const waiting = agents.filter(a => a.status === "waiting").length
+  const Chevron = open ? ChevronDown : ChevronRight
+  return <h3 className={cn("font-semibold text-muted-foreground", className)}>
+    <button type="button" aria-expanded={open} onClick={onToggle} className="flex w-full items-center gap-2 px-2.5 py-1 text-left hover:bg-accent pointer-coarse:py-2">
+      <Icon aria-hidden className="size-3.5 shrink-0" />
+      <span className="min-w-0 truncate">{children}</span>
+      {!open && <span className="shrink-0 font-normal">{agents.length}{waiting > 0 && <span className="text-amber-600 dark:text-amber-400"> · {waiting} waiting</span>}</span>}
+      <Chevron aria-hidden className="ml-auto size-3.5 shrink-0" />
+    </button>
+  </h3>
+}
 
 // AgentsPanel lists agents in the order useKeys walks them (grouped by project).
 // Under 120px of height (five rows) it shows only the counts; the height tier is desktop only.
 export function AgentsPanel({ ordered, byTask, onToggleTask, onSelect, selPane, className }: { ordered: Agent[]; byTask: boolean; onToggleTask: () => void; onSelect: (pane: string) => void; selPane?: string; className?: string }) {
   const [open, setOpen] = useState<string | null>(null)
+  const [shut, setShut] = useState(loadShut)
+  const toggle = (key: string) => {
+    const next = shut.includes(key) ? shut.filter(k => k !== key) : [...shut, key]
+    setShut(next)
+    try { localStorage.setItem(SHUT, JSON.stringify(next)) } catch { /* not remembered in private mode */ }
+  }
   const multi = new Set(ordered.map(projOf)).size > 1
   const [ref, { h }] = useSize()
   const desktop = useMedia("(min-width: 768px)")
@@ -37,16 +59,20 @@ export function AgentsPanel({ ordered, byTask, onToggleTask, onSelect, selPane, 
       {ordered.map((a, i) => {
         const waitingDialog = a.status === "waiting" && !!a.dialog
         const isOpen = open === a.pane
+        const project = projOf(a), task = byTask ? taskOf(a) : ""
+        const newProject = i === 0 || projOf(ordered[i - 1]!) !== project
+        const projectKey = project, taskKey = `${project}#${task}`
+        const projectShut = multi && shut.includes(projectKey)
+        const taskShut = !!task && shut.includes(taskKey)
         return (
           <Fragment key={a.pane}>
-            {multi && (i === 0 || projOf(ordered[i - 1]!) !== projOf(a)) && (
-              <h3 className="flex items-center gap-2 px-2.5 pt-2 pb-0.5 text-[11px] font-semibold text-muted-foreground">
-                <Folder aria-hidden className="size-3.5 shrink-0" />{projOf(a)}
-              </h3>
+            {multi && newProject && (
+              <Group icon={Folder} className="pt-1 text-[11px]" open={!projectShut} onToggle={() => toggle(projectKey)} agents={ordered.filter(x => projOf(x) === project)}>{project}</Group>
             )}
-            {byTask && taskOf(a) && (i === 0 || projOf(ordered[i - 1]!) !== projOf(a) || taskOf(ordered[i - 1]!) !== taskOf(a)) && (
-              <h4 className="flex items-center gap-2 px-2.5 pt-1.5 pb-0.5 text-[10.5px] font-medium text-muted-foreground"><ListTodo aria-hidden className="size-3.5 shrink-0" />Task #{taskOf(a)}</h4>
+            {!projectShut && task && (newProject || taskOf(ordered[i - 1]!) !== task) && (
+              <Group icon={ListTodo} className="text-[10.5px] font-medium" open={!taskShut} onToggle={() => toggle(taskKey)} agents={ordered.filter(x => projOf(x) === project && taskOf(x) === task)}>Task #{task}</Group>
             )}
+            {!projectShut && !taskShut && <>
             <div
               role="button"
               tabIndex={0}
@@ -100,6 +126,7 @@ export function AgentsPanel({ ordered, byTask, onToggleTask, onSelect, selPane, 
                 ))}
               </div>
             )}
+            </>}
           </Fragment>
         )
       })}
