@@ -1,5 +1,5 @@
 import { act, post } from "@/api"
-import { Bot } from "lucide-react"
+import { Bot, Folder, ListTodo, ListTree } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Panel } from "@/components/Panel"
 import { StatusDot } from "@/components/StatusDot"
@@ -29,7 +29,7 @@ export function AgentsPanel({ ordered, byTask, onToggleTask, onSelect, selPane, 
       className="@container min-h-0 flex-1"
       icon={<Bot className="text-brand" />}
       title="Agents"
-      right={<>{/* A narrow pane drops the link: maximizing it opens the same page. */}<a href="#/agents" className="underline @max-[17rem]:hidden">Definitions</a><Button size="xs" variant={byTask ? "secondary" : "ghost"} aria-pressed={byTask} title="Group agents by task" onClick={onToggleTask}>By task</Button></>}
+      right={<>{/* A narrow pane drops the link: maximizing it opens the same page. */}<a href="#/agents" className="underline @max-[17rem]:hidden">Definitions</a><Button size="icon-xs" variant={byTask ? "secondary" : "ghost"} className="pointer-coarse:size-7" aria-label="By task" aria-pressed={byTask} title="Group agents by task" onClick={onToggleTask}><ListTree className="size-3.5" /></Button></>}
       bodyClass="py-1"
     >
       {short ? <p className="px-2.5 py-2 text-xs text-muted-foreground">{ordered.length ? `${ordered.length} agents, ${waiting} waiting, ${working} working` : "No agents. Press + New agent."}</p> : <>
@@ -40,12 +40,12 @@ export function AgentsPanel({ ordered, byTask, onToggleTask, onSelect, selPane, 
         return (
           <Fragment key={a.pane}>
             {multi && (i === 0 || projOf(ordered[i - 1]!) !== projOf(a)) && (
-              <h3 className="px-2.5 pt-2 pb-0.5 text-[11px] font-semibold text-muted-foreground">
-                {projOf(a)}
+              <h3 className="flex items-center gap-2 px-2.5 pt-2 pb-0.5 text-[11px] font-semibold text-muted-foreground">
+                <Folder aria-hidden className="size-3.5 shrink-0" />{projOf(a)}
               </h3>
             )}
             {byTask && taskOf(a) && (i === 0 || projOf(ordered[i - 1]!) !== projOf(a) || taskOf(ordered[i - 1]!) !== taskOf(a)) && (
-              <h4 className="px-2.5 pt-1.5 pb-0.5 text-[10.5px] font-medium text-muted-foreground">Task #{taskOf(a)}</h4>
+              <h4 className="flex items-center gap-2 px-2.5 pt-1.5 pb-0.5 text-[10.5px] font-medium text-muted-foreground"><ListTodo aria-hidden className="size-3.5 shrink-0" />Task #{taskOf(a)}</h4>
             )}
             <div
               role="button"
