@@ -26,10 +26,10 @@ export function AgentsPanel({ ordered, byTask, onToggleTask, onSelect, selPane, 
   return (
     <div ref={ref} className={cn("flex min-h-0 flex-col", className)}>
     <Panel
-      className="min-h-0 flex-1"
+      className="@container min-h-0 flex-1"
       icon={<Bot className="text-brand" />}
       title="Agents"
-      right={<><a href="#/agents" className="underline">Definitions</a><Button size="xs" variant={byTask ? "secondary" : "ghost"} aria-pressed={byTask} title="Group agents by task" onClick={onToggleTask}>By task</Button></>}
+      right={<>{/* A narrow pane drops the link: maximizing it opens the same page. */}<a href="#/agents" className="underline @max-[17rem]:hidden">Definitions</a><Button size="xs" variant={byTask ? "secondary" : "ghost"} aria-pressed={byTask} title="Group agents by task" onClick={onToggleTask}>By task</Button></>}
       bodyClass="py-1"
     >
       {short ? <p className="px-2.5 py-2 text-xs text-muted-foreground">{ordered.length ? `${ordered.length} agents, ${waiting} waiting, ${working} working` : "No agents. Press + New agent."}</p> : <>

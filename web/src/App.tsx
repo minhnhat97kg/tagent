@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { bindVisualViewport } from '@/lib/touchViewport'
 import { ArrowLeft, Maximize2, Minimize2, Monitor, Moon, MoreHorizontal, Plus, Settings, SquareTerminal, Sun } from "lucide-react"
 import { nextTheme, useWebTheme } from "@/lib/theme"
@@ -19,6 +19,8 @@ import { RunPage } from "@/components/RunPage"
 import { AgentsPage } from "@/components/AgentsPage"
 import { RoutingPage } from "@/components/RoutingPage"
 import { OverviewPanel } from "@/components/panels/OverviewPanel"
+import { Panel } from "@/components/Panel"
+import { PaneChromeContext } from "@/lib/paneChrome"
 import { TasksColumn } from "@/components/panels/TasksPane"
 import { HomeLayout, type PhoneTab } from "@/components/HomeLayout"
 import { Button } from "@/components/ui/button"
@@ -30,9 +32,15 @@ import { usePoll } from "@/hooks/usePoll"
 import { useProjectDir } from "@/hooks/useProjectDir"
 import { enc, nav, parseRoute, useRoute } from "@/hooks/useRoute"
 import { baseName, byTaskOrder } from "@/lib/status"
-import { loadPanes, savePanes, type PaneSizes } from "@/lib/paneLayout"
+import { loadPanes, savePanes, type Layout } from "@/lib/paneLayout"
 import { useAppState } from "@/state"
 import type { Agent, Overview, Project } from "@/types"
+
+// ChatEmpty is the chat pane without an agent. Where a pane has a header to drag or maximize, it has one too.
+function ChatEmpty({ className, children }: { className: string; children: ReactNode }) {
+  if (!useContext(PaneChromeContext)) return <div className={className}>{children}</div>
+  return <Panel className="min-h-0 flex-1" title="Chat" bodyClass="flex items-center justify-center p-6 text-sm text-muted-foreground"><p>{children}</p></Panel>
+}
 
 // App is a fixed shell: a top bar and one main view. Home is one page (agents, usage, chat, tasks);
 // a maximized pane (#/pane/<id>) fills the view.
@@ -44,10 +52,10 @@ export default function App() {
   const [newOpen, setNewOpen] = useState(false)
   const [settings, setSettings] = useState(false)
   const [addWorkspace, setAddWorkspace] = useState(false)
-  // The home layout: this device's saved sizes, or undefined for the default.
-  const [sizes, setSizes] = useState(loadPanes)
-  const changePanes = (s: PaneSizes) => { setSizes(s); savePanes(s) }
-  const resetPanes = () => { setSizes(undefined); savePanes(undefined); setSettings(false) }
+  // The home layout: this device's saved columns and sizes, or undefined for the default.
+  const [layout, setLayout] = useState(loadPanes)
+  const changePanes = (l: Layout) => { setLayout(l); savePanes(l) }
+  const resetPanes = () => { setLayout(undefined); savePanes(undefined); setSettings(false) }
   // The agent in the chat pane: picked in place, or named by an old link (#/agent/<pane>).
   const [picked, setPicked] = useState<string>()
   const [phoneTab, setPhoneTab] = useState<PhoneTab>("agents")
@@ -147,23 +155,24 @@ export default function App() {
 
   const proj = projPoll.data
   // A maximized pane fills the view. The Agents definitions page keeps the agent list beside its content.
-  const maxed = (pane: string, node: ReactNode) => <div data-max={pane} className="flex min-h-0 min-w-0 flex-1 flex-col">{node}</div>
+  const minimizable = (id: string, node: ReactNode) => <PaneChromeContext.Provider value={{ id, maximized: true }}>{node}</PaneChromeContext.Provider>
+  const maxed = (pane: string, node: ReactNode) => <div data-max={pane} className="flex min-h-0 min-w-0 flex-1 flex-col">{minimizable(pane, node)}</div>
   const withAgents = (content: ReactNode) => <div data-max="agents" className="flex min-h-0 min-w-0 flex-1 gap-2">
     <AgentsPanel className="w-64 shrink-0 max-lg:hidden" ordered={dirAgents} byTask={byTask} onToggleTask={toggleByTask} onSelect={select} selPane={agent?.pane} />
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">{content}</div>
   </div>
   const usagePane = <OverviewPanel className="min-h-0 flex-1 overflow-y-auto" days={usageDays} onDays={setUsageDays} overview={overview} />
   const agentsPane = <AgentsPanel className="min-h-0 flex-1" ordered={dirAgents} byTask={byTask} onToggleTask={toggleByTask} onSelect={select} selPane={agent?.pane} />
-  const tasks = (maximize?: boolean) => <TasksColumn proj={proj} dir={dir} reload={projPoll.reload} maximize={maximize} />
+  const tasksPane = <TasksColumn proj={proj} dir={dir} reload={projPoll.reload} />
   const chatPane = agent ? <AgentView key={agent.pane} agent={agent} project={proj} />
-    : routeAgent ? state ? <div className="p-6 text-muted-foreground">Agent not found. <a href="#/" className="text-foreground underline">Home</a></div> : null
-    : <div className="flex min-h-0 flex-1 items-center justify-center rounded-lg border bg-card text-sm text-muted-foreground">Pick an agent</div>
+    : routeAgent ? state ? <ChatEmpty className="p-6 text-muted-foreground">Agent not found. <a href="#/" className="text-foreground underline">Home</a></ChatEmpty> : null
+    : <ChatEmpty className="flex min-h-0 flex-1 items-center justify-center rounded-lg border bg-card text-sm text-muted-foreground">Pick an agent</ChatEmpty>
 
   let main
-  if (home) main = <HomeLayout saved={sizes} onChange={changePanes} compact={state?.compact} tab={phoneTab} onTab={setPhoneTab}
-    panes={{ agents: agentsPane, usage: usagePane, chat: chatPane, tasks: tasks(true) }} />
-  else if (route.page === "pane") main = maxed(route.pane, route.pane === "usage" ? usagePane : route.pane === "chat" ? chatPane : tasks())
-  else if (route.page === "agents") main = withAgents(<AgentsPage key={dir} dir={dir} />)
+  if (home) main = <HomeLayout saved={layout} onChange={changePanes} compact={state?.compact} tab={phoneTab} onTab={setPhoneTab}
+    panes={{ agents: agentsPane, usage: usagePane, chat: chatPane, tasks: tasksPane }} />
+  else if (route.page === "pane") main = maxed(route.pane, route.pane === "usage" ? usagePane : route.pane === "chat" ? chatPane : tasksPane)
+  else if (route.page === "agents") main = withAgents(minimizable("agents", <AgentsPage key={dir} dir={dir} />))
   else if (route.page === "flows") main = maxed("workflows", <WorkflowsPage key={dir + rawRoute} dir={dir} initial={route.name} />)
   else if (route.page === "run") main = maxed("workflows", <RunPage key={(runDir ?? dir) + route.ticket} dir={runDir ?? dir} id={route.ticket} />)
   else if (route.page === "boardConfig") main = maxed("workflows", <BoardConfigPage key={dir} dir={dir} />)

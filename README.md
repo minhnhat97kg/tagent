@@ -205,6 +205,27 @@ harnesses:
   - name: pi
 ```
 
+An entry may add `usage`: rows for the web **Usage** panel, each a `command` and an
+optional `label`. The command runs with `sh -c` in your home directory, with the web
+server's environment plus the entry's `env`. It must exit 0 within 5 seconds and print
+only the percentage **used**, 0–100 (`42`, `42.5` or `42%`); anything else shows `error`
+on that row. Results are cached for about 60 seconds and refreshed in the background.
+Commands are read only from this file, and neither they nor `env` reach the browser.
+The panel's checklist button chooses which rows this device shows.
+
+```yaml
+harnesses:
+  - name: Claude API
+    command: claude
+    env:
+      CLAUDE_CONFIG_DIR: ~/.claude-api
+    usage:
+      - label: month
+        command: ~/bin/claude-api-usage   # your script; prints e.g. 42
+      - label: disk
+        command: df -P "$HOME" | awk 'NR==2 {print $5}'
+```
+
 | Command | Does |
 |---|---|
 | `tagent new --repo-agent <name> [--name <pane-name>] [--agent claude\|codex\|opencode] [--model model] [--worktree] [--ticket id]` | Start a repo agent defined in the selected harness's native format; harness/model are chosen by tagent config or flags. `--ticket` binds the pane to a ticket, as `tagent chat` does |
@@ -284,19 +305,34 @@ to the ticket as a comment, so what the conversation settled stays on the board.
 The tab is disabled with the reason when its pane runs a harness Chat cannot
 read.
 
-The web dashboard is one page with three columns: Agents over Usage, the selected
-agent's Terminal/Chat, and Tasks. Drag a divider to resize, or focus it and use
-the arrow keys; double-click resets it. Usage can be dragged shut, and its
-**Usage** button reopens it. The sizes are saved per device (`tagent.panes` in
-local storage; layouts saved by the older pane grid are ignored) and Settings >
-Reset layout restores the default. Clicking an agent shows it in place. The Tasks
+The web dashboard is one page of split panes; by default Agents over Usage, the
+selected agent's Terminal/Chat, and Tasks. Drag any divider to resize, or focus
+it and use the arrow keys; double-click resets that row or stack. To move a pane,
+drag its header or the grip in it (mouse, pen or finger). Over another pane, its
+top, bottom, left or right quarter puts the pane on that side of it, and the
+middle swaps the two. Along an edge that a group of panes shares, a thin strip
+spans the whole group instead, and the outermost strip spans the full width or
+height of the page (for example Tasks under Agents and Chat). The highlight and
+its label show the area the pane will take; a place that would not fit the
+window's minimum sizes is not offered. A group is panes that already sit together
+in one row or stack, so spanning two of three columns can take two moves: dock
+under both while they are the only columns, then add the third beside them.
+Buttons, links, fields and tabs in a header work as usual. Escape or dropping
+outside cancels. On a focused grip, up and down move the pane within its stack,
+left and right into the neighbouring column; with nowhere to go it moves out to
+span the next larger group on that side. A new neighbour takes half of the size
+it docks on. A stacked Usage can be dragged shut, and its **Usage** button
+reopens it. The layout is saved per device (`tagent.panes` in local storage;
+earlier column layouts are converted, and the older pane grid is ignored) and
+Settings > Reset layout restores the default. Phones keep their tabs.
+Clicking an agent shows it in place. The Tasks
 column has **Tasks** and **Workflows** tabs, and a ticket opens in a side panel.
-The corner link at the bottom left maximizes a pane (`#/pane/usage`,
-`#/pane/agents`, `#/pane/chat`, `#/pane/tasks`, `#/pane/workflows`); the old
+The button at the right end of a pane header maximizes the pane (`#/pane/usage`,
+`#/pane/agents`, `#/pane/chat`, `#/pane/tasks`, `#/pane/workflows`; with a mouse
+it shows on hover or focus), and the same spot there minimizes it; the old
 links (`#/agent/<pane>`, `#/workflows`, `#/board/config`) still work, and an agent
 link selects that agent. Size changes what a pane shows: Tasks is a list under
-900px and the board from 900px (dragging gets there on windows about 1372px or
-wider; `#/pane/tasks` works on narrower ones). Workflows lists them under 900px
+600px and the board from 600px, its lanes scrolling sideways. Workflows lists them under 900px
 and edits them from 900px. Agents show only counts under 120px of height, and
 usage hides its token spend under 200px. Phones have **Agents** (with usage),
 **Chat** and **Tasks** tabs; selecting an agent opens Chat.

@@ -104,6 +104,42 @@ test("a saved layout is applied after a remount, and Reset layout restores the d
   expect(pane("Agents and Chat").getAttribute("aria-valuenow")).toBe("22")
 })
 
+test("desktop panes have a move grip; a saved order applies and Reset layout restores the default", () => {
+  desktop()
+  localStorage.setItem("tagent.panes", JSON.stringify({ v: 2, cols: [0.3, 0.4, 0.3], left: [0.5, 0.5], order: ["tasks", "chat", "usage", "agents"] }))
+  render(<App />)
+  const placed = () => Array.from(document.querySelectorAll("[data-pane-slot]"), s => s.querySelector('button[aria-label^="Move "]')?.getAttribute("aria-label")?.split(" ")[1])
+  expect(placed()).toEqual(["tasks", "chat", "usage", "agents"])
+  fireEvent.click(screen.getByRole("button", { name: "Settings" }))
+  fireEvent.click(screen.getByRole("button", { name: "Reset layout" }))
+  expect(placed()).toEqual(["agents", "usage", "chat", "tasks"])
+})
+
+test("a phone and a maximized pane have no move grip", () => {
+  render(<App />)
+  expect(document.querySelector('button[aria-label^="Move "]')).toBeNull()
+  cleanup()
+  desktop()
+  location.hash = "#/pane/usage"
+  render(<App />)
+  expect(document.querySelector('button[aria-label^="Move "]')).toBeNull()
+})
+
+test("desktop pane headers maximize, and the maximized page minimizes back from the same spot", () => {
+  desktop()
+  render(<App />)
+  for (const id of ["agents", "usage", "chat", "tasks"]) expect(screen.getByRole("link", { name: `Maximize ${id} pane` }).getAttribute("href")).toBe(`#/pane/${id}`)
+  fireEvent.click(screen.getByRole("tab", { name: "workflows" }))
+  expect(screen.getByRole("link", { name: "Maximize workflows pane" }).getAttribute("href")).toBe("#/pane/workflows")
+  for (const id of ["agents", "usage", "chat", "tasks", "workflows"]) {
+    cleanup()
+    location.hash = `#/pane/${id}`
+    render(<App />)
+    expect(screen.getByRole("link", { name: `Minimize ${id} pane` }).getAttribute("href"), id).toBe("#/")
+    expect(screen.getAllByRole("link", { name: /^M(ax|in)imize/ }), id).toHaveLength(1)
+  }
+})
+
 test("the saved grid layout (v:1) is ignored, and the default layout shows", () => {
   desktop()
   localStorage.setItem("tagent.panes", JSON.stringify({ v: 1, boxes: [{ id: "usage", x: 0, y: 5, w: 3, h: 10 }] }))

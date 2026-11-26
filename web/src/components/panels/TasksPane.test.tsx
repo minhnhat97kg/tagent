@@ -7,7 +7,7 @@ import type { Project } from "@/types"
 // The real board and drawer run here.
 vi.mock("@/api", () => ({ api: vi.fn().mockResolvedValue(undefined), post: vi.fn(), act: (p: Promise<unknown>) => p.catch(() => {}) }))
 
-let width = 899
+let width = 599
 let resized: (() => void)[] = []
 const proj = { statuses: [{ id: "todo", role: "", run: "" }], tasks: [{ id: "1", title: "Alpha", text: "Alpha", status: "todo", assignees: null, created: "", updated: "", comments: [] }], roles: [], workflows: [], dir: "/p" } as unknown as Project
 
@@ -30,40 +30,40 @@ const board = () => !!document.querySelector("section.task-board")
 const view = () => render(<><TasksPane proj={proj} dir="/p" reload={() => {}} /><div data-pane="chat"><textarea aria-label="Agent terminal" /></div></>)
 const openFromList = () => fireEvent.click(screen.getByRole("button", { name: "#1 todo: Alpha" }))
 
-test("the list below 900px, the board from 900, and back", () => {
-  width = 899
+test("the list below 600px, the board from 600, and back", () => {
+  width = 599
   view()
   expect(screen.getByRole("heading", { name: "Tasks" })).toBeTruthy()
   expect(board()).toBe(false)
-  at(900)
+  at(600)
   expect(board()).toBe(true)
   expect(screen.queryByRole("heading", { name: "Tasks" })).toBeNull()
-  at(899)
+  at(599)
   expect(board()).toBe(false)
 })
 
 test("clicking a ticket in the list opens the drawer, which stays open from list to board and back", () => {
-  width = 600
+  width = 500
   view()
   openFromList()
   expect(screen.getByRole("dialog")).toBeTruthy()
   expect(document.querySelector("[data-ticket-detail]")).toBeNull()
-  at(900)
+  at(600)
   expect(board()).toBe(true)
   expect(screen.getAllByRole("dialog")).toHaveLength(1)
-  at(600)
+  at(500)
   expect(screen.getAllByRole("dialog")).toHaveLength(1)
 })
 
 test("a board card opens the same drawer", () => {
-  width = 900
+  width = 600
   view()
   fireEvent.click(screen.getByRole("button", { name: "#1: Alpha" }))
   expect(screen.getByRole("dialog")).toBeTruthy()
 })
 
 test("Escape in the chat pane leaves the drawer open; Escape elsewhere closes it", () => {
-  width = 600
+  width = 500
   view()
   openFromList()
   fireEvent.keyDown(screen.getByLabelText("Agent terminal"), { key: "Escape" })
@@ -73,7 +73,7 @@ test("Escape in the chat pane leaves the drawer open; Escape elsewhere closes it
 })
 
 test("opening a ticket in another drawer closes the pane's, so two never stack", () => {
-  width = 600
+  width = 500
   const other = (id?: string) => <>
     <TasksPane proj={proj} dir="/p" reload={() => {}} />
     <TaskDrawer proj={proj} dir="/p" reload={() => {}} id={id} onClose={() => {}} origin={{ current: null }} />

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react"
 import type { Agent } from "@/types"
 
-// Keys do nothing while typing, inside the pane's terminal, in a dialog or an open ticket, or on a pane divider (arrows move it).
+// Keys do nothing while typing, inside the pane's terminal, in a dialog or an open ticket, or on a pane divider or drag grip (arrows move it).
 const SKIP = "input, textarea, select, [contenteditable], [data-terminal], [role=dialog], [data-pane-handle]"
 
 // useKeys binds the dashboard shortcuts: j/k move, n jumps to the next agent that needs you,

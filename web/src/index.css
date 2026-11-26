@@ -96,3 +96,6 @@
   @media (prefers-reduced-motion: reduce) { button { transition: none; } button:not(:disabled):active { transform: none; } }
   h1, h2, h3, .font-serif { font-family: var(--font-serif); font-weight: 600; letter-spacing: normal; }
 }
+
+/* A pane being moved: the grabbing cursor over everything, also controls that set their own. */
+[data-pane-dragging], [data-pane-dragging] * { cursor: grabbing !important; }

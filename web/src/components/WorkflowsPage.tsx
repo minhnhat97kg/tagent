@@ -6,6 +6,7 @@ import { enc } from '@/hooks/useRoute'
 import { Button } from '@/components/ui/button'
 import { statusColor } from '@/components/BoardDrawer'
 import { jobRanges } from '@/components/workflowYaml'
+import { PaneHeader } from '@/components/PaneChrome'
 
 const WorkflowYamlEditor = lazy(() => import('@/components/WorkflowYamlEditor'))
 
@@ -144,11 +145,11 @@ function WorkflowEditor({ dir, initial, onDirty }: { dir: string; initial: strin
 
   function newFlow() { const name = prompt('Workflow filename (letters, numbers and hyphens)'); if (name) void mutate('POST', { Name: name, Op: 'new' }) }
   return <section className="flex h-full min-h-0 select-text flex-col overflow-hidden rounded-lg border bg-card">
-    <header data-pane-head className="flex h-10 shrink-0 items-center gap-2 border-b px-3">
+    <PaneHeader className="h-10 shrink-0 gap-2 border-b px-3">
       {selected && <Button variant="ghost" size="icon-xs" className="md:hidden" aria-label="Back to workflows" onClick={() => open(undefined)}><ArrowLeft /></Button>}
       <WorkflowIcon className="size-4 text-teal-600" /><h2 className="text-[13px] font-semibold">Workflows</h2>
       <Button size="xs" variant="outline" className="ml-auto" disabled={busy} onClick={newFlow}><Plus />New</Button>
-    </header>
+    </PaneHeader>
     <div className="flex min-h-0 flex-1">
       <nav aria-label="Workflow list" className={`min-h-0 w-full shrink-0 overflow-auto border-r md:w-60 ${selected ? 'hidden md:block' : ''}`}>
         {poll.error ? <p role="alert" className="p-3 text-sm">Couldn't load workflows. {poll.error.message}</p> : !poll.data ? <p className="p-3 text-sm text-muted-foreground">Loading…</p> : !flows.length ? <p className="p-3 text-sm text-muted-foreground">No workflows yet.</p> : null}

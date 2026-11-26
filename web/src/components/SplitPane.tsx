@@ -37,6 +37,7 @@ export function SplitPane({ axis, sizes, defaults, mins, collapsible, labels, co
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const [draft, setDraft] = useState<number[]>()
+  const [dragging, setDragging] = useState<number>()
   const endDrag = useRef<(() => void) | undefined>(undefined) // ends a drag in progress
   useEffect(() => () => endDrag.current?.(), [])
   const shown = draft ?? sizes
@@ -61,6 +62,7 @@ export function SplitPane({ axis, sizes, defaults, mins, collapsible, labels, co
       window.removeEventListener("pointercancel", stop)
       endDrag.current = undefined
       setDraft(undefined)
+      setDragging(undefined)
     }
     const up = () => {
       const changed = last.some((v, k) => v !== start[k])
@@ -71,6 +73,7 @@ export function SplitPane({ axis, sizes, defaults, mins, collapsible, labels, co
     window.addEventListener("pointerup", up)
     window.addEventListener("pointercancel", stop)
     endDrag.current = stop
+    setDragging(i)
   }
 
   const key = (i: number, e: KeyboardEvent<HTMLDivElement>) => {
@@ -95,9 +98,14 @@ export function SplitPane({ axis, sizes, defaults, mins, collapsible, labels, co
         {k < kids.length - 1 && <div role="separator" tabIndex={0} aria-label={labels[k]} aria-orientation={axis === "x" ? "vertical" : "horizontal"}
           aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(shown[k]! * 100)} data-pane-handle data-split-handle
           onPointerDown={e => drag(k, e)} onDoubleClick={() => onChange(defaults)} onKeyDown={e => key(k, e)}
-          className={cn("group flex shrink-0 touch-none justify-center outline-none focus-visible:bg-brand/20",
-            axis === "x" ? cn("cursor-col-resize", compact ? "w-1" : "w-2") : cn("cursor-row-resize items-center", compact ? "h-1" : "h-2"))}>
-          <span className={cn("bg-border group-hover:bg-brand group-focus-visible:bg-brand", axis === "x" ? "w-px" : "h-px w-full")} />
+          data-dragging={dragging === k || undefined}
+          // The grip shows only on hover, keyboard focus or a drag. The ::before is the hit area: on touch it reaches 8px into both panes, so a finger can grab it.
+          className={cn("group relative z-10 flex shrink-0 touch-none select-none items-center justify-center outline-none [-webkit-touch-callout:none] before:absolute before:inset-0",
+            axis === "x" ? cn("cursor-col-resize pointer-coarse:before:-inset-x-2", compact ? "w-1 pointer-coarse:w-2" : "w-2 pointer-coarse:w-3")
+              : cn("cursor-row-resize pointer-coarse:before:-inset-y-2", compact ? "h-1 pointer-coarse:h-2" : "h-2 pointer-coarse:h-3"))}>
+          <span aria-hidden className={cn("pointer-events-none rounded-full bg-brand opacity-0 transition-all group-hover:opacity-100 group-focus-visible:opacity-100 group-active:opacity-100 group-data-dragging:opacity-100",
+            axis === "x" ? "h-9 w-1 group-hover:h-14 group-focus-visible:h-14 group-data-dragging:h-20 pointer-coarse:h-12"
+              : "h-1 w-9 group-hover:w-14 group-focus-visible:w-14 group-data-dragging:w-20 pointer-coarse:w-12")} />
         </div>}
       </Fragment>
     })}

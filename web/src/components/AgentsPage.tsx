@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { contextList, contextText, editableKey, effortLevels, modelsIn, readOnlySource, roleTemplate, usedBySummary, withContext } from "@/lib/roles"
 import { useAppState } from "@/state"
 import type { Role, RoutingView } from "@/types"
+import { PaneHeader } from "@/components/PaneChrome"
 
 // AgentsPage edits the agent roles the board and the workflows use: harness, model or tier, effort and instructions.
 // Model and effort apply to panes started after the save; running panes keep theirs. A tier takes its harness and model from routing.yaml at each dispatch.
@@ -64,11 +65,11 @@ export function AgentsPage({ dir }: { dir: string }) {
   const fieldClass = "w-full rounded border bg-background p-2 text-sm disabled:opacity-60"
 
   return <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg border bg-card">
-    <header className="flex h-10 shrink-0 items-center gap-2 border-b px-3">
+    <PaneHeader className="h-10 shrink-0 gap-2 border-b px-3">
       {draft && <Button variant="ghost" size="icon-xs" className="md:hidden" aria-label="Back to agents" onClick={() => open(undefined)}><ArrowLeft /></Button>}
       <Bot className="size-4 text-indigo-600" /><h2 className="text-[13px] font-semibold">Agents</h2>
       <Button size="xs" variant="outline" className="ml-auto" disabled={busy} onClick={create}><Plus />New</Button>
-    </header>
+    </PaneHeader>
     <div className="flex min-h-0 flex-1">
       <nav aria-label="Agent list" className={`min-h-0 w-full shrink-0 overflow-auto border-r md:w-60 ${draft ? "hidden md:block" : ""}`}>
         {poll.error ? <p role="alert" className="p-3 text-sm">Couldn't load agents. {poll.error.message}</p> : !poll.data ? <p className="p-3 text-sm text-muted-foreground">Loading…</p> : !roles.length ? <p className="p-3 text-sm text-muted-foreground">No agents yet.</p> : null}

@@ -39,6 +39,10 @@ func TestHarnessesFile(t *testing.T) {
 	if !KnownHarness("aider") || !KnownHarness("claude") || KnownHarness("dev") {
 		t.Fatal("KnownHarness")
 	}
+	write("harnesses:\n  - name: pi\n    usage:\n      - {label: week, command: ./pct}\n      - command: other\n")
+	if h, err := ResolveHarness("pi"); err != nil || !slices.Equal(h.Usage, []UsageSpec{{"week", "./pct"}, {"", "other"}}) {
+		t.Fatalf("usage: %v %v", h, err)
+	}
 	write("harnesses:\n  - args: [x]\n")
 	if _, err := ResolveHarness("claude"); err == nil {
 		t.Fatal("want error for a nameless entry")

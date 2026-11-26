@@ -1,29 +1,45 @@
-import type { ReactNode } from "react"
-import { Maximize2 } from "lucide-react"
+import { Fragment, useCallback, useEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from "react"
+import { createPortal } from "react-dom"
+import { GripVertical } from "lucide-react"
+import { PaneChromeContext } from "@/lib/paneChrome"
 import { SplitPane } from "@/components/SplitPane"
-import { DEFAULT_PANES, type PaneSizes } from "@/lib/paneLayout"
+import { buttonHolder, cells, DEFAULT_LAYOUT, defaultSizes, dropAt, fits, nodeAt, paneRect, PANES, panesOf, reopen, replace, settle, shutIndex, step, type Drop, type Layout, type PaneId, type Path, type Rect } from "@/lib/paneLayout"
 import { useMedia } from "@/hooks/useMedia"
+import { useSize } from "@/hooks/useSize"
 import { cn } from "@/lib/utils"
 
 export type PhoneTab = "agents" | "chat" | "tasks"
 const TABS: { id: PhoneTab; label: string }[] = [{ id: "agents", label: "Agents" }, { id: "chat", label: "Chat" }, { id: "tasks", label: "Tasks" }]
-const MIN_COLS = [220, 220, 280]
-const MIN_LEFT = [128, 0]
+const NAMES: Record<PaneId, string> = { agents: "Agents", usage: "Usage", chat: "Chat", tasks: "Tasks" }
+// A press on one of these in a header is a click or typing, never the start of a drag. The grip is the exception.
+const NO_DRAG = "button, a, input, select, textarea, label, summary, [contenteditable], [role=button], [role=tab], [role^=menu]"
+const DRAG_PX = 6 // a press that moves less is a click
 
-// HomeLayout is the home view. On desktop: Agents (over Usage) | Chat | Tasks, split by dividers that
-// are dragged or moved with the arrow keys. A phone shows one of the three as tabs.
-export function HomeLayout({ saved, onChange, compact, tab, onTab, panes }: {
-  saved?: PaneSizes
+const SIDES = { above: "Above", below: "Below", left: "Left of", right: "Right of" }
+// dropLabel says where a drop lands: beside or in place of a pane, beside a group, or along the whole layout.
+function dropLabel({ zone, path }: Drop, layout: Layout, id: PaneId) {
+  const names = panesOf(nodeAt(layout, path)).filter(p => p !== id).map(p => NAMES[p]).join(" + ")
+  if (zone === "swap") return `Swap with ${names}`
+  if (!path.length) return zone === "left" || zone === "right" ? `Full height ${zone}` : `Full width ${zone}`
+  return `${SIDES[zone]} ${names}`
+}
+
+type Props = {
+  saved?: Layout
   compact?: boolean // tighter spacing only; the layout is the same
-  onChange: (sizes: PaneSizes) => void
+  onChange: (layout: Layout) => void
   tab: PhoneTab
   onTab: (tab: PhoneTab) => void
-  panes: { agents: ReactNode; usage: ReactNode; chat: ReactNode; tasks: ReactNode }
-}) {
-  const desktop = useMedia("(min-width: 768px)")
-  const sizes = saved ?? DEFAULT_PANES
+  panes: Record<PaneId, ReactNode>
+}
 
-  if (!desktop) return <div className="flex min-h-0 flex-1 flex-col gap-2">
+// HomeLayout is the home view. On desktop it is a tree of split panes (Desktop). A phone shows one of Agents,
+// Chat and Tasks as tabs.
+export function HomeLayout(props: Props) {
+  const { tab, onTab, panes } = props
+  if (useMedia("(min-width: 768px)")) return <Desktop {...props} />
+
+  return <div className="flex min-h-0 flex-1 flex-col gap-2">
     <div role="tablist" aria-label="Home panes" className="flex shrink-0 gap-1 rounded-lg border bg-card p-0.5">
       {TABS.map(t => <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} onClick={() => onTab(t.id)}
         className={cn("h-8 flex-1 rounded-md text-[12.5px] font-medium", tab === t.id ? "bg-accent" : "text-muted-foreground")}>{t.label}</button>)}
@@ -35,32 +51,164 @@ export function HomeLayout({ saved, onChange, compact, tab, onTab, panes }: {
     {tab === "chat" && <div className="flex min-h-0 flex-1 flex-col">{panes.chat}</div>}
     {tab === "tasks" && <div className="flex min-h-0 flex-1 flex-col">{panes.tasks}</div>}
   </div>
-
-  const collapsed = sizes.left[1] === 0
-  return <SplitPane axis="x" sizes={sizes.cols} defaults={DEFAULT_PANES.cols} mins={MIN_COLS} labels={["Agents and Chat", "Chat and Tasks"]} compact={compact}
-    onChange={cols => onChange({ ...sizes, cols })}>
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-      <SplitPane axis="y" sizes={sizes.left} defaults={DEFAULT_PANES.left} mins={MIN_LEFT} collapsible={1} labels={["Agents over Usage"]} compact={compact}
-        onChange={left => onChange({ ...sizes, left })}>
-        <Slot id="agents">{panes.agents}</Slot>
-        {collapsed ? null : <Slot id="usage">{panes.usage}</Slot>}
-      </SplitPane>
-      {/* A shut Usage has no height, so its reopen button sits under the column. */}
-      {collapsed && <button type="button" aria-label="Show usage" title="Show usage" onClick={() => onChange({ ...sizes, left: DEFAULT_PANES.left })}
-        className="h-8 shrink-0 border-t px-2.5 text-left text-[12.5px] font-semibold hover:bg-accent">Usage</button>}
-    </div>
-    <Slot id="chat">{panes.chat}</Slot>
-    {panes.tasks}
-  </SplitPane>
 }
 
-// Slot is one desktop pane with its corner link to #/pane/<id>, which maximizes it.
+// Desktop lays the panes out in nested rows and stacks, split by dividers that are dragged or moved with the
+// arrow keys. Dragging a pane's header docks it beside a pane, a group or the whole layout, or swaps two panes;
+// arrow keys on its grip move it.
+function Desktop({ saved, onChange, compact, panes }: Props) {
+  const layout = saved ?? DEFAULT_LAYOUT
+  const coarse = useMedia("(pointer: coarse)")
+  const gap = compact ? (coarse ? 8 : 4) : (coarse ? 12 : 8) // the width SplitPane gives a divider
+  const [root, { w, h }] = useSize()
+  // Each pane renders into its own element, which moves between places. So a move never remounts a pane:
+  // a chat draft and a terminal connection survive it.
+  const [hosts] = useState(() => Object.fromEntries(PANES.map(id => [id, Object.assign(document.createElement("div"), { className: "flex min-h-0 min-w-0 flex-1 flex-col" })])) as Record<PaneId, HTMLDivElement>)
+  const [dragging, setDragging] = useState<{ id: PaneId; x: number; y: number; drop?: { label: string; rect: Rect } }>()
+  const endDrag = useRef<(() => void) | undefined>(undefined)
+  useEffect(() => () => endDrag.current?.(), [])
+
+  // placed is next as the window would show it, or undefined when there is no change or no room for it.
+  const placed = (next: Layout | undefined) => {
+    const el = root.current!
+    const width = el.clientWidth, height = el.clientHeight
+    return next && fits(next, layout, width, height, gap) ? { next: settle(next, width, height, gap), width, height } : undefined
+  }
+
+  const drag = (id: PaneId, e: PointerEvent<HTMLElement>) => {
+    if (e.button !== 0 || endDrag.current) return
+    const pressed = e.target as Element
+    const control = pressed.closest<HTMLElement>(NO_DRAG)
+    // A press in a menu the header opened reaches it through React, but is not inside it.
+    if (!e.currentTarget.contains(pressed) || (control && !control.matches("[data-pane-handle]"))) return
+    e.preventDefault() // no text selection while dragging
+    control?.focus()
+    const { pointerId: pointer, clientX: x0, clientY: y0 } = e
+    let moving = false
+    // What a release here would do; undefined (outside, on itself, no change or no room) does nothing.
+    const drop = (ev: globalThis.PointerEvent) => {
+      const slot = document.elementFromPoint(ev.clientX, ev.clientY)?.closest<HTMLElement>("[data-pane-slot]")
+      if (!slot) return undefined
+      const r = slot.getBoundingClientRect()
+      const hit = dropAt(layout, id, slot.dataset.paneSlot as PaneId, ev.clientX - r.left, ev.clientY - r.top, r.width, r.height,
+        coarse ? 32 : 24, next => !!placed(next))
+      const to = hit && placed(hit.next)
+      return to && { next: to.next, label: dropLabel(hit, layout, id), rect: paneRect(to.next, id, to.width, to.height, gap) }
+    }
+    const move = (ev: globalThis.PointerEvent) => {
+      if (ev.pointerId !== pointer || (!moving && Math.hypot(ev.clientX - x0, ev.clientY - y0) < DRAG_PX)) return
+      moving = true
+      document.documentElement.toggleAttribute("data-pane-dragging", true) // the grabbing cursor, everywhere
+      setDragging({ id, x: ev.clientX, y: ev.clientY, drop: drop(ev) })
+    }
+    const up = (ev: globalThis.PointerEvent) => {
+      if (ev.pointerId !== pointer) return
+      const to = moving ? drop(ev) : undefined
+      stop()
+      if (to) onChange(to.next)
+    }
+    const cancel = (ev: globalThis.PointerEvent) => { if (ev.pointerId === pointer) stop() }
+    const escape = (ev: globalThis.KeyboardEvent) => {
+      if (ev.key !== "Escape" || !moving) return
+      ev.preventDefault()
+      ev.stopPropagation() // an open ticket stays open
+      stop()
+    }
+    const stop = () => {
+      window.removeEventListener("pointermove", move)
+      window.removeEventListener("pointerup", up)
+      window.removeEventListener("pointercancel", cancel)
+      window.removeEventListener("keydown", escape, true)
+      document.documentElement.removeAttribute("data-pane-dragging")
+      endDrag.current = undefined
+      setDragging(undefined)
+    }
+    window.addEventListener("pointermove", move)
+    window.addEventListener("pointerup", up)
+    window.addEventListener("pointercancel", cancel)
+    window.addEventListener("keydown", escape, true)
+    endDrag.current = stop
+  }
+
+  const key = (id: PaneId, e: KeyboardEvent) => {
+    if (!e.key.startsWith("Arrow")) return
+    e.preventDefault()
+    const to = placed(step(layout, id, e.key))
+    if (to) onChange(to.next)
+  }
+
+  const render = (node: Layout, path: Path, area: Rect): ReactNode => {
+    if (typeof node === "string") return <Position key={node} id={node} host={hosts[node]} from={dragging?.id === node} />
+    const list = cells(node, area, gap)
+    const shut = shutIndex(node)
+    const open = node.children.flatMap((_, i) => (i === shut ? [] : [i]))
+    const usage = node.axis === "y" ? open.findIndex(i => node.children[i] === "usage") : -1
+    const first = (i: number) => NAMES[panesOf(node.children[i]!)[0]!]
+    // A shut Usage has no height, so its reopen button sits where it was, on a neighbour.
+    const button = (where: string) => <button type="button" aria-label="Show usage" title="Show usage" onClick={() => onChange(reopen(layout))}
+      className={cn("h-8 shrink-0 px-2.5 text-left text-[12.5px] font-semibold hover:bg-accent", where)}>{NAMES.usage}</button>
+    return <SplitPane key={panesOf(node).join()} axis={node.axis} compact={compact} sizes={open.map(i => node.sizes[i]!)} defaults={defaultSizes(node.axis, open.length)}
+      mins={open.map((i, k) => (k === usage ? 0 : list[i]!.min))} collapsible={usage < 0 ? undefined : usage}
+      labels={open.slice(1).map((i, k) => `${first(open[k]!)} ${node.axis === "x" ? "and" : "over"} ${first(i)}`)}
+      onChange={next => onChange(replace(layout, path, { ...node, sizes: node.children.map((_, i) => (i === shut ? 0 : next[open.indexOf(i)]!)) }))}>
+      {open.map(i => {
+        const holds = buttonHolder(shut) === i
+        return <Fragment key={panesOf(node.children[i]!).join()}>
+          {holds && shut < i && button("border-b")}
+          {render(node.children[i]!, [...path, i], list[i]!.rect)}
+          {holds && shut > i && button("border-t")}
+        </Fragment>
+      })}
+    </SplitPane>
+  }
+
+  return <>
+    <div ref={root} className="relative flex min-h-0 min-w-0 flex-1">
+      {render(layout, [], { left: 0, top: 0, width: w, height: h })}
+      {/* The area the dragged pane would take. */}
+      {dragging?.drop && <div data-drop style={dragging.drop.rect} className="pointer-events-none absolute z-30 flex items-center justify-center rounded-lg bg-brand/10 ring-2 ring-brand ring-inset">
+        <span className="rounded-md border bg-popover px-2.5 py-1 text-xs font-semibold whitespace-nowrap text-popover-foreground shadow-md">{dragging.drop.label}</span>
+      </div>}
+    </div>
+    {/* After the split, so each element is in the document before its pane's effects run. */}
+    {PANES.map(id => {
+      const grip = <button type="button" data-pane-handle aria-label={`Move ${id} pane`} title="Drag to move, or use the arrow keys" onKeyDown={e => key(id, e)}
+        className="-ml-1.5 flex h-6 w-5 shrink-0 cursor-grab items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground pointer-coarse:h-8">
+        <GripVertical className="size-3.5" />
+      </button>
+      return createPortal(<PaneChromeContext.Provider value={{ id, grip, onPointerDown: e => drag(id, e) }}>
+        {id === "tasks" ? panes.tasks : <Slot id={id}>{panes[id]}</Slot>}
+      </PaneChromeContext.Provider>, hosts[id], id)
+    })}
+    {/* Above the pointer, so a finger does not cover it. */}
+    {dragging && <div aria-hidden data-pane-chip style={{ left: dragging.x + 12, top: Math.max(4, dragging.y - 40) }}
+      className="pointer-events-none fixed z-50 rounded-md border bg-popover px-2 py-1 text-xs font-semibold text-popover-foreground shadow-md">{NAMES[dragging.id]}</div>}
+  </>
+}
+
+// Where focus and scrolling were when a pane's element left its position: the browser forgets both.
+const left = new WeakMap<HTMLElement, () => void>()
+
+// Position is a leaf of the tree; it holds the element of the pane that sits there.
+function Position({ id, host, from }: { id: PaneId; host: HTMLElement; from: boolean }) {
+  const ref = useCallback((el: HTMLDivElement | null) => {
+    if (!el) return
+    el.appendChild(host)
+    left.get(host)?.()
+    return () => {
+      const focus = host.contains(document.activeElement) ? document.activeElement as HTMLElement : undefined
+      const scrolled = Array.from(host.querySelectorAll("*")).filter(n => n.scrollTop || n.scrollLeft).map(n => [n, n.scrollTop, n.scrollLeft] as const)
+      left.set(host, () => {
+        for (const [n, y, x] of scrolled) { n.scrollTop = y; n.scrollLeft = x }
+        focus?.focus({ preventScroll: true })
+      })
+      host.remove()
+    }
+  }, [host])
+  return <div ref={ref} data-pane-slot={id} className={cn("flex min-h-0 min-w-0 flex-1 flex-col", from && "opacity-60")} />
+}
+
+// Slot names one desktop pane; hovering it shows its maximize link.
 function Slot({ id, children }: { id: string; children: ReactNode }) {
-  return <div data-pane={id} className="group/pane relative flex min-h-0 min-w-0 flex-1 flex-col">
-    {children}
-    <a href={`#/pane/${id}`} aria-label={`Maximize ${id} pane`} title="Maximize"
-      className="absolute bottom-0 left-0 z-10 flex size-4 items-center justify-center rounded-tr-md text-muted-foreground hover:text-foreground">
-      <Maximize2 className="size-3" />
-    </a>
-  </div>
+  return <div data-pane={id} className="group/pane flex min-h-0 min-w-0 flex-1 flex-col">{children}</div>
 }

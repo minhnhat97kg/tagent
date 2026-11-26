@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest"
 import { cleanup, render, screen } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import { AgentsPanel } from "./AgentsPanel"
 import { OverviewPanel } from "./OverviewPanel"
 import type { Agent, Overview } from "@/types"
@@ -55,4 +56,26 @@ test("a wide Tasks pane renders the board", async () => {
   const { TasksPane } = await import("./TasksPane")
   render(<TasksPane dir="/p" reload={() => {}} />)
   expect(document.querySelector("section.task-board")).toBeTruthy()
+})
+
+test("usage: harness rows show their value or an error, and a hidden row stays hidden on this device", async () => {
+  localStorage.clear()
+  const user = userEvent.setup()
+  const withRows = { ...overview, harnesses: [
+    { harness: "Claude API", label: "month", usedPercent: 61, error: false },
+    { harness: "Claude API", label: "credits", usedPercent: null, error: true },
+  ] }
+  const { unmount } = render(<OverviewPanel overview={withRows} />)
+  expect(screen.getByTitle("month: 61% used")).toBeTruthy()
+  expect(screen.getByText("error")).toBeTruthy()
+  await user.click(screen.getByRole("button", { name: "Choose usage to show" }))
+  await user.click(screen.getByRole("menuitemcheckbox", { name: "month" }))
+  await user.click(screen.getByRole("menuitemcheckbox", { name: "5h and 7d limits" })) // the menu stays open
+  expect(screen.queryByTitle("month: 61% used")).toBeNull()
+  expect(screen.queryByText("5h")).toBeNull()
+  unmount()
+  render(<OverviewPanel overview={withRows} />)
+  expect(screen.queryByTitle("month: 61% used")).toBeNull()
+  expect(screen.queryByText("5h")).toBeNull()
+  expect(screen.getByText("credits")).toBeTruthy()
 })

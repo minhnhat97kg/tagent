@@ -122,8 +122,9 @@ type server struct {
 	boardDirs  sync.Map
 	pinned     sync.Map
 	sizeOwners terminalOwners
-	chatClaims sync.Map // panes whose size Chat borrowed for a clipped question
-	chatLocks  sync.Map // per-ticket mutex around resolving/spawning a chat pane
+	chatClaims sync.Map   // panes whose size Chat borrowed for a clipped question
+	chatLocks  sync.Map   // per-ticket mutex around resolving/spawning a chat pane
+	usage      usageCache // results of the harnesses.yml usage commands
 	deps       apiDeps
 }
 

@@ -19,12 +19,21 @@ import (
 
 // HarnessSpec is one entry of harnesses.yml: the listed name, the binary it
 // runs (the name when empty), and the arguments and environment every launch of
-// it gets. A leading ~/ in an env value is the home directory.
+// it gets. A leading ~/ in an env value is the home directory. Usage commands
+// feed the web Usage panel.
 type HarnessSpec struct {
 	Name    string            `yaml:"name"`
 	Command string            `yaml:"command"`
 	Args    []string          `yaml:"args"`
 	Env     map[string]string `yaml:"env"`
+	Usage   []UsageSpec       `yaml:"usage"`
+}
+
+// UsageSpec is one usage row of a harness: a shell command that prints the
+// percentage used.
+type UsageSpec struct {
+	Label   string `yaml:"label"`
+	Command string `yaml:"command"`
 }
 
 var envName = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
