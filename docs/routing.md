@@ -16,18 +16,39 @@ Three layers:
 limits: {claude: 90, codex: 90}   # % used (5h or 7d window) that counts as exhausted
 when_exhausted: block              # block | first
 tiers:
-  fast:  [claude:haiku, pi:openai-codex/gpt-6-luna]
-  smart: [claude:opus@70, pi:openai-codex/gpt-6.1-sol]   # spill from Claude at 70%
+  fast:    ["Claude API:haiku@85", "claude:haiku"]   # Claude API until its quota reaches 85%
+  smart:   [claude:opus@70, pi:openai-codex/gpt-6.1-sol]   # spill from Claude at 70%
+```
+
+A harness that routing names is defined in `harnesses.yml`. A usage command
+prints the percentage used (`0` to `100`) and makes that harness its own quota:
+
+```yaml
+# ~/.config/tagent/harnesses.yml
+harnesses:
+  - name: Claude API
+    command: claude-api                 # runs as the claude kind
+    env: {CLAUDE_CONFIG_DIR: ~/.claude-api}
+    usage:
+      - {label: month, command: "my-usage-script"}   # prints e.g. 61
 ```
 
 - Candidates are `harness:model` or `harness:model@N`, split at the first `:`.
-  Harness is `claude`, `pi` or `codex`. A trailing `@N` (1 to 100) is that
+  Harness is any name listed in `$XDG_CONFIG_HOME/tagent/harnesses.yml`
+  (`~/.config/tagent/harnesses.yml`), so names may contain spaces (`Claude API`).
+  The one list is `harnesses.yml` when it exists, otherwise the built-ins
+  (`claude`, `codex`, `opencode`, `gemini`, `pi`, `copilot`, `amp`). A file that
+  lists names replaces the built-ins, so list every harness a tier uses (for
+  example `claude`). The same list validates tiers and agents, and feeds the
+  web pickers. A trailing `@N` (1 to 100) is that
   candidate's own threshold; without it the provider's `limits` value applies.
   Only a short numeric tail counts as `@N`: `pi:vertex/x@20250514` keeps its
   model id, and `pi:vertex/x@20250514@70` sets 70.
   `@0`, `@101`, `@0.5` and `claude:@70` (no model) are rejected. So is a model id
   whose short numeric tail is out of range, such as `pi:vertex/x@2025`.
-- `limits` defaults to 90 per provider. Unknown providers are rejected.
+- `limits` defaults to 90 per provider. Its keys are `claude`, `codex`, or a
+  harness with `usage` commands (its own provider). Any other key is rejected,
+  since a limit on a harness without usage would do nothing.
 - `$XDG_CONFIG_HOME/tagent/routing.yaml` (default `~/.config/tagent/routing.yaml`).
   A missing file is an empty config. Unknown keys are an error.
 - Tier names match `^[A-Za-z0-9][A-Za-z0-9_-]*$`; a file with another name does not load.
@@ -50,13 +71,21 @@ At dispatch, for each action of a tier role:
 1. A step with its own `model:` wins. It uses the tier's first candidate's
    harness with that model, and no quota check runs.
 2. Otherwise the first candidate whose provider is under its threshold is used
-   (its `@N`, else the provider's `limits` value). A provider is `claude` for
-   Claude; `codex`, and `pi` with an `openai-codex/` model, for Codex; anything
-   else is unknown and has no threshold.
+   (its `@N`, else the provider's `limits` value). Quota comes from the harness
+   entry:
+   - An entry with `usage` commands is its own provider, named by the entry.
+     Each command's percentage is a window, and any one reaching the threshold
+     exhausts it.
+   - An entry without `usage` keeps the quota of the kind its command runs
+     (`claude` for Claude, `codex`, and `pi` with an `openai-codex/` model, for
+     Codex) only when it sets no `env`, so it shares that account. With `env`
+     it is unknown.
+   - Anything else is unknown and has no threshold.
 3. A window counts as exhausted when `used >= threshold`. Either the 5h or the
    7d window is enough. A window whose reset time has passed is ignored (the
    snapshot is stale).
 4. Unknown quota (no reading yet, or the read failed) counts as available.
+   A usage command that failed or has not run yet adds no window.
 5. All candidates exhausted: `first` runs the first candidate; `block` (default)
    moves the ticket to blocked with the windows and the earliest reset, e.g.
    `tier fast exhausted: claude:haiku 5h 95% >= 90; pi:openai-codex/gpt-6-luna 5h 95% >= 90, earliest reset Nov 25 18:00`.
@@ -94,12 +123,18 @@ The web UI edits the same file; the TUI does not.
   the card, which also lists the roles that use it. `when_exhausted` shows at the
   end of every flow and is set under `Defaults`, with the provider limits. Each
   action saves at once and shows what the server selects now; it polls every 3 s.
+- The candidate pickers offer the same harness list, served as `harnesses` by
+  the API. The Agents page Harness picker uses it too. Provider cards cover
+  only Claude and Codex; a usage-backed harness shows its percentages in the
+  Usage panel and on its candidates, with no card of its own.
 - API: `GET` and `PUT /api/routing?dir=`. The server computes candidate state and
   the selection; the page only displays them. Each candidate carries `ref` (with
   `@N`), `state`, `why`, `until` (own threshold, null if inherited), `threshold`
   (effective, null for an unknown provider), `used` (highest counted window, %),
   `selected` and `spilled` (exhausted). PUT takes `{limits, when_exhausted, tiers}`,
   refuses a file that does not load (409), and refuses a body without `tiers` (400).
+- Usage commands live only in the global `harnesses.yml`; the API never returns
+  their text or `env`.
 - A web save rewrites the file: YAML comments are lost, and `limits` and
   `when_exhausted` are written explicitly. Last write wins between two tabs.
 - Deleting a tier used by a role blocks that role's tickets with `unknown tier`
@@ -109,6 +144,10 @@ The web UI edits the same file; the TUI does not.
 
 - Quota is read in the dispatcher's background refresh (about once a minute).
   A fresh dispatcher has no reading, so its first dispatches use the first candidate.
+  Usage commands (of a `harnesses.yml` entry) run at most once a minute, in the
+  web server and the dispatcher alike; a command that is slow or fails counts as unknown.
+- A harness removed from `harnesses.yml` while a tier still names it makes the
+  routing config fail to load: dispatch blocks with the error, and the web save is refused (409).
 - Routed panes that no longer match stay running (they may be busy). Done closes them all, unless the ticket's worktree is kept for uncommitted changes.
 - Not included: retry at reset time, switching candidates mid-step after a
   rate limit, quota for other pi providers, editing routing in the TUI, an LLM proxy.

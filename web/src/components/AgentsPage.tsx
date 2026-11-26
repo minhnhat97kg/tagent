@@ -58,10 +58,12 @@ export function AgentsPage({ dir }: { dir: string }) {
     })
   }
   // A tier's fixed alternative is Claude. Claude's model list never falls back to other harnesses' ids.
+  // A configured harness has the effort levels of the kind its command runs.
+  const kindOf = (h: string) => state?.kinds?.[h] ?? h
   const fixedHarness = draft?.tier ? "claude" : draft?.harness ?? ""
   const listed = state?.models?.[fixedHarness] ?? []
   const models = [...new Set([...(listed.length || fixedHarness === "claude" ? listed : modelsIn(roles)), ...(draft?.model ? [draft.model] : [])])]
-  const levels = draft ? effortLevels(draft.tier ? "tier" : draft.harness) : []
+  const levels = draft ? effortLevels(draft.tier ? "tier" : kindOf(draft.harness)) : []
   const fieldClass = "w-full rounded border bg-background p-2 text-sm disabled:opacity-60"
 
   return <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg border bg-card">
@@ -94,8 +96,8 @@ export function AgentsPage({ dir }: { dir: string }) {
           {copyable && <p className="border-b px-3 py-1.5 text-xs text-muted-foreground">{draft.source === "legacy" ? `Legacy harness file (${draft.path}): read-only here. Copy it to .tasks/agents to change it.` : `Global agent (${draft.path}): instruction edits apply in every repo. Harness, model and effort are saved to this repo's board.yaml. Copy it to the repo to change it here only.`}</p>}
           <div className="grid gap-3 p-3 sm:grid-cols-3">
             {!draft.tier && <label className="text-[12px] font-medium">Harness
-              <select aria-label="Harness" className={fieldClass} disabled={readOnly} value={draft.harness} onChange={e => setDraft({ ...draft, harness: e.target.value, model: "", effort: effortLevels(e.target.value).includes(draft.effort) ? draft.effort : "" })}>
-                {["pi", "claude", "codex"].map(h => <option key={h} value={h}>{h}</option>)}
+              <select aria-label="Harness" className={fieldClass} disabled={readOnly} value={draft.harness} onChange={e => setDraft({ ...draft, harness: e.target.value, model: "", effort: effortLevels(kindOf(e.target.value)).includes(draft.effort) ? draft.effort : "" })}>
+                {(state?.harnesses ?? []).map(h => <option key={h} value={h}>{h}</option>)}
               </select></label>}
             <label className="text-[12px] font-medium">Model
               <select aria-label="Model" className={fieldClass} disabled={readOnly} value={draft.tier ? `tier:${draft.tier}` : draft.model}

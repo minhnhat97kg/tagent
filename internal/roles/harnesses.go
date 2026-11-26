@@ -94,9 +94,10 @@ func HarnessNames() []string {
 	return names
 }
 
-// KnownHarness reports whether name is a built-in or configured harness.
+// KnownHarness reports whether name is in the pickable list: the only list that
+// routing, agent definitions and the web accept. Without harnesses.yml it is the built-ins.
 func KnownHarness(name string) bool {
-	return slices.Contains(builtinHarnesses, name) || slices.Contains(HarnessNames(), name)
+	return slices.Contains(HarnessNames(), name)
 }
 
 // ResolveHarness turns a picked harness (a configured name, or a command) into

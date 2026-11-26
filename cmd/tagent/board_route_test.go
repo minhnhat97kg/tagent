@@ -18,3 +18,14 @@ func TestTierPaneReuseNeedsSameRoute(t *testing.T) {
 		t.Fatal("fixed roles reuse as before")
 	}
 }
+
+// A configured harness is its own pane route: "Claude API" never shares a pane with "claude".
+func TestTierPaneReuseKeepsConfiguredName(t *testing.T) {
+	api := board.Action{Agent: "dev", Role: "Claude API", Model: "haiku", Tier: "fast"}
+	if !reusable(api, "Claude API:haiku") {
+		t.Fatal("same configured name and model should reuse")
+	}
+	if reusable(api, "claude:haiku") {
+		t.Fatal("the plain claude harness must not reuse a Claude API pane")
+	}
+}

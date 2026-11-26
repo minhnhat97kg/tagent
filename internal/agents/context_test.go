@@ -1,6 +1,8 @@
 package agents
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -50,5 +52,22 @@ func TestSaveWithoutContextKeysKeepsRestrictions(t *testing.T) {
 	}
 	if got := byName(List(dir, "", nil))["reviewer"]; got.MCP == nil || (*got.MCP)[0] != "tagent" {
 		t.Fatalf("context deleted by a save without context keys: %+v", got.RoleContext)
+	}
+}
+
+// A configured harness name is saved, with the effort levels of its kind; a name outside harnesses.yml is refused.
+func TestSaveConfiguredHarness(t *testing.T) {
+	dir := setup(t)
+	config := filepath.Join(dir, "xdg")
+	os.MkdirAll(filepath.Join(config, "tagent"), 0700)
+	os.WriteFile(filepath.Join(config, "tagent", "harnesses.yml"), []byte("harnesses:\n  - name: Claude API\n    command: claude-api\n"), 0600)
+	if err := Save(dir, "", Agent{Name: "reviewer", Harness: "Claude API", Model: "haiku", Effort: "xhigh", Source: "board"}); err != nil {
+		t.Fatal(err)
+	}
+	if got := byName(List(dir, "", nil))["reviewer"]; got.Harness != "Claude API" || got.Effort != "xhigh" {
+		t.Fatalf("listed %+v", got)
+	}
+	if err := Save(dir, "", Agent{Name: "reviewer", Harness: "Nope", Source: "board"}); err == nil || !strings.Contains(err.Error(), "Claude API") {
+		t.Fatalf("unknown harness: %v", err)
 	}
 }

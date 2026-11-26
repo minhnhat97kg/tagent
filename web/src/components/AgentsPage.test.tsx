@@ -5,7 +5,7 @@ import { enc } from "@/hooks/useRoute"
 
 const mocks = vi.hoisted(() => ({ api: vi.fn(), send: vi.fn(), models: {} as Record<string, string[]> }))
 vi.mock("@/api", () => ({ api: mocks.api, send: mocks.send }))
-vi.mock("@/state", () => ({ useAppState: () => ({ state: { models: mocks.models } }) }))
+vi.mock("@/state", () => ({ useAppState: () => ({ state: { models: mocks.models, harnesses: ["pi", "claude", "codex", "Claude API"], kinds: { "Claude API": "claude" } } }) }))
 
 const dev = { name: "dev", harness: "claude", model: "opus", effort: "medium", source: "repo", path: ".tasks/agents/dev.md", instructions: "# dev", running: 0, panes: [], usedBy: [] }
 const lastBody = () => mocks.send.mock.calls.at(-1)?.[2]
@@ -53,6 +53,7 @@ test("switching back to a fixed model defaults the harness to claude", async () 
   fireEvent.change(screen.getByLabelText("Model"), { target: { value: "tier:fast" } })
   fireEvent.change(screen.getByLabelText("Model"), { target: { value: "haiku" } })
   expect((screen.getByLabelText("Harness") as HTMLSelectElement).value).toBe("claude")
+  expect(Array.from(screen.getByLabelText("Harness").querySelectorAll("option")).map(o => o.textContent)).toEqual(["pi", "claude", "codex", "Claude API"])
   expect((screen.getByLabelText("Skills") as HTMLInputElement).disabled).toBe(false)
   fireEvent.click(screen.getByRole("button", { name: "Save" }))
   await waitFor(() => expect(mocks.send).toHaveBeenCalled())
@@ -64,4 +65,12 @@ test("the list shows a tier role as tier <name>", async () => {
     p.startsWith("/api/roles") ? [{ ...dev, harness: "", model: "", tier: "fast" }] : { path: "", limits: {}, when_exhausted: "block", providers: [], tiers: [] })
   render(<AgentsPage dir="/repo" />)
   expect(await screen.findByText("tier fast")).toBeTruthy()
+})
+
+test("a configured harness offers the effort levels of its kind", async () => {
+  render(<AgentsPage dir="/repo" />)
+  await openDev()
+  fireEvent.change(screen.getByLabelText("Harness"), { target: { value: "Claude API" } })
+  const effort = Array.from(screen.getByLabelText("Effort").querySelectorAll("option")).map(o => o.textContent)
+  expect(effort).toEqual(expect.arrayContaining(["low", "medium", "high", "xhigh", "max"]))
 })

@@ -47,6 +47,7 @@ export interface Role {
 export interface State {
   agents: Agent[]
   harnesses: string[] | null
+  kinds?: Record<string, string>
   models: Record<string, string[]> | null
   host: string
   projects: string[] | null
@@ -97,6 +98,7 @@ export interface RoutingView {
   error?: string
   limits: Record<string, number>
   when_exhausted: string
+  harnesses: string[] // the harnesses.yml names a candidate may name
   providers: { id: string; name: string; five: RoutingWindow; week: RoutingWindow; stale: boolean }[]
   tiers: RoutingTier[]
 }

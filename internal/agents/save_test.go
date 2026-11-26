@@ -166,7 +166,7 @@ func TestSaveRejectsBadInputAndLeavesBoardAlone(t *testing.T) {
 	before := board(t, dir)
 	bad := []Agent{
 		{Name: "../x", Harness: "claude"},
-		{Name: "x", Harness: "opencode"},
+		{Name: "x", Harness: "nope"},
 		{Name: "x", Harness: "pi", Effort: "ultra"},
 		{Name: "g", Harness: "claude", Source: "global"},
 		{Name: "g", Harness: "claude", Source: "legacy"},

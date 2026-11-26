@@ -36,7 +36,8 @@ func TestHarnessesFile(t *testing.T) {
 		!slices.Equal(h.EnvAssignments(), []string{"A_DIR=/h/.claude-api", "B=x y"}) {
 		t.Fatalf("alias: %v %v", h, err)
 	}
-	if !KnownHarness("aider") || !KnownHarness("claude") || KnownHarness("dev") {
+	// A configured list replaces the built-ins: claude is unknown unless the file names it.
+	if !KnownHarness("aider") || KnownHarness("claude") || KnownHarness("dev") {
 		t.Fatal("KnownHarness")
 	}
 	write("harnesses:\n  - name: pi\n    usage:\n      - {label: week, command: ./pct}\n      - command: other\n")

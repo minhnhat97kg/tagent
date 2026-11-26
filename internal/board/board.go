@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"tagent/internal/harnessusage"
 	"tagent/internal/quota"
 	"tagent/internal/roles"
 	"tagent/internal/routing"
@@ -53,7 +54,7 @@ func route(a *Action, r tasks.Role, stepModel string) {
 		c.Model = stepModel
 		a.Route = "step model"
 	} else if err == nil {
-		c, err = cfg.Select(r.Tier, quotaGet())
+		c, err = cfg.Select(r.Tier, quotaGet(), harnessusage.Read)
 		a.Route = "tier " + r.Tier
 		if c.Reason != "" {
 			a.Route += ": " + c.Reason + " -> " + c.Harness + ":" + c.Model

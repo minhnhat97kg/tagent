@@ -20,7 +20,10 @@ func routingWindowAt(used float64) quota.Window {
 }
 
 func TestRoutingAPI(t *testing.T) {
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	config := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", config)
+	os.MkdirAll(filepath.Join(config, "tagent"), 0700)
+	os.WriteFile(filepath.Join(config, "tagent", "harnesses.yml"), []byte("harnesses:\n  - name: claude\n  - name: Claude API\n    command: claude-api\n  - name: pi\n"), 0600)
 	dir := t.TempDir()
 	if err := os.MkdirAll(filepath.Dir(tasks.BoardConfigPath(dir)), 0700); err != nil {
 		t.Fatal(err)
@@ -44,6 +47,9 @@ func TestRoutingAPI(t *testing.T) {
 	w := request(s, "GET", url, "", true)
 	if v := view(w); w.Code != 200 || len(v.Tiers) != 0 || v.WhenExhausted != "block" || v.Limits["claude"] != 90 || len(v.Providers) != 2 {
 		t.Fatal(w.Body.String())
+	}
+	if v := view(w); strings.Join(v.Harnesses, ",") != "claude,Claude API,pi" {
+		t.Fatalf("harnesses %v", v.Harnesses)
 	}
 
 	body := `{"limits":{"claude":80,"codex":90},"when_exhausted":"block","tiers":{"fast":["claude:haiku","pi:openai-codex/gpt-6-luna"]}}`

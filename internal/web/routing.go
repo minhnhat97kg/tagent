@@ -5,7 +5,9 @@ import (
 	"sort"
 	"time"
 
+	"tagent/internal/harnessusage"
 	"tagent/internal/quota"
+	"tagent/internal/roles"
 	"tagent/internal/routing"
 	"tagent/internal/tasks"
 )
@@ -48,6 +50,7 @@ type routingView struct {
 	Limits        map[string]float64 `json:"limits"`
 	WhenExhausted string             `json:"when_exhausted"`
 	Providers     []routingProvider  `json:"providers"`
+	Harnesses     []string           `json:"harnesses"` // the harnesses.yml names a candidate may name
 	Tiers         []routingTier      `json:"tiers"`
 }
 
@@ -84,7 +87,7 @@ func (s *server) routingState(dir string) routingView {
 	v := routingView{Path: routing.Path(), Providers: []routingProvider{
 		{ID: "claude", Name: "Claude", Five: routingWin(snap.Claude.Five), Week: routingWin(snap.Claude.Week), Stale: snap.Claude.Stale},
 		{ID: "codex", Name: "Codex", Five: routingWin(snap.Codex.Five), Week: routingWin(snap.Codex.Week), Stale: snap.Codex.Stale},
-	}, Tiers: []routingTier{}}
+	}, Harnesses: roles.HarnessNames(), Tiers: []routingTier{}}
 	cfg, err := routing.Load()
 	if err != nil {
 		v.Error, cfg = err.Error(), routing.Config{}
@@ -108,7 +111,7 @@ func (s *server) routingState(dir string) routingView {
 		if t.UsedBy == nil {
 			t.UsedBy = []string{}
 		}
-		cands, _ := cfg.Candidates(name, snap)
+		cands, _ := cfg.Candidates(name, snap, harnessusage.Read)
 		for _, c := range cands {
 			rc := routingCandidate{Ref: c.Ref, State: c.State, Why: c.Why, Used: c.Used, Spilled: c.State == "exhausted"}
 			if c.Until != 0 {
@@ -119,7 +122,7 @@ func (s *server) routingState(dir string) routingView {
 			}
 			t.Candidates = append(t.Candidates, rc)
 		}
-		if choice, err := cfg.Select(name, snap); err != nil {
+		if choice, err := cfg.Select(name, snap, harnessusage.Read); err != nil {
 			t.Reason = err.Error()
 		} else {
 			t.Selected, t.Reason = choice.Ref, choice.Reason

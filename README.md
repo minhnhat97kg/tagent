@@ -190,9 +190,11 @@ job flow beside its list.
 
 Run `tagent help` to see the commands and the agents defined in the current repo.
 
-The harness list in **New agent** comes from `~/.config/tagent/harnesses.yml`; without
-the file it is the built-in list. An entry runs `command` (default: its `name`) with its
-`args` and `env`. Shell aliases do not work as `command`; spell them out. Restart the web server after editing it.
+The harness list in **New agent**, the Agents page and the routing tiers comes from
+`~/.config/tagent/harnesses.yml`; without the file it is the built-in list, and a file
+that lists names replaces the built-ins. An entry runs `command` (default: its `name`)
+with its `args` and `env`. Shell aliases do not work as `command`; spell them out.
+Restart the web server after editing it.
 
 ```yaml
 harnesses:

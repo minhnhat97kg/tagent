@@ -14,6 +14,7 @@ const base: RoutingView = {
   path: "/home/me/.config/tagent/routing.yaml",
   limits: { claude: 90, codex: 90 },
   when_exhausted: "block",
+  harnesses: ["claude", "pi", "codex", "Claude API"],
   providers: [
     { id: "claude", name: "Claude", five: { usedPercent: 10, resetsAt: null }, week: { usedPercent: 5, resetsAt: null }, stale: false },
     { id: "codex", name: "Codex", five: { usedPercent: null, resetsAt: null }, week: { usedPercent: null, resetsAt: null }, stale: true },
@@ -63,6 +64,17 @@ test("adds a candidate to a tier", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Add candidate" }))
   await waitFor(() => expect(mocks.send).toHaveBeenCalled())
   expect(lastPut().tiers.fast).toEqual(["claude:haiku", "pi:openai-codex/gpt-6-luna", "claude:opus"])
+})
+
+test("the harness pickers offer the served list, configured names included", async () => {
+  render(<RoutingPage dir="/repo" />)
+  const picker = await screen.findByLabelText("Add candidate harness")
+  expect(Array.from(picker.querySelectorAll("option")).map(o => o.textContent)).toEqual(["claude", "pi", "codex", "Claude API"])
+  fireEvent.change(picker, { target: { value: "Claude API" } })
+  fireEvent.change(screen.getByLabelText("Add candidate model"), { target: { value: "sonnet@85" } })
+  fireEvent.click(screen.getByRole("button", { name: "Add candidate" }))
+  await waitFor(() => expect(mocks.send).toHaveBeenCalled())
+  expect(lastPut().tiers.fast).toEqual(["claude:haiku", "pi:openai-codex/gpt-6-luna", "Claude API:sonnet@85"])
 })
 
 test("creates a tier with its first candidate", async () => {

@@ -12,7 +12,6 @@ import type { RoutingTier, RoutingView } from "@/types"
 // The shape PUT /api/routing takes: the whole file, so each save writes the current config plus one change.
 type Config = { limits: Record<string, number>; when_exhausted: string; tiers: Record<string, string[]> }
 
-const harnesses = ["claude", "pi", "codex"]
 const fieldClass = "rounded border bg-background p-2 text-sm disabled:opacity-60"
 const configOf = (v: RoutingView): Config => ({
   limits: v.limits,
@@ -74,7 +73,7 @@ export function RoutingPage({ dir }: { dir: string }) {
           </div>
           <section aria-label="New tier" className="rounded-lg border border-dashed p-3">
             <h3 className="mb-2 text-[13px] font-semibold">New tier</h3>
-            <CandidateForm label="Create tier" withName disabled={busy} models={state?.models ?? null} onSubmit={createTier} />
+            <CandidateForm label="Create tier" withName disabled={busy} harnesses={view.harnesses} models={state?.models ?? null} onSubmit={createTier} />
           </section>
           <details className="rounded-lg border p-3 text-[12px]">
             <summary className="cursor-pointer text-[13px] font-semibold">Defaults</summary>
@@ -158,21 +157,22 @@ function TierCard({ tier: t, view, busy, models, setRefs, onDelete }: {
       })}
     </ol>
     {t.reason && <p className="text-[11.5px] text-brand-ink">{t.selected ? `Skipped for quota: ${t.reason}` : t.reason}</p>}
-    <div><CandidateForm label="Add candidate" disabled={busy} models={models} onSubmit={(_, ref) => setRefs([...refs, ref])} /></div>
+    <div><CandidateForm label="Add candidate" disabled={busy} harnesses={view.harnesses} models={models} onSubmit={(_, ref) => setRefs([...refs, ref])} /></div>
   </section>
 }
 
 // Harness, model and an optional name: a candidate to add, or the first candidate of a new tier.
 // onSubmit returns whether it saved; a saved form clears itself.
-function CandidateForm({ label, withName, disabled, models, onSubmit }: {
+function CandidateForm({ label, withName, disabled, harnesses, models, onSubmit }: {
   label: string
   withName?: boolean
   disabled: boolean
+  harnesses: string[]
   models: Record<string, string[]> | null
   onSubmit: (name: string, ref: string) => Promise<boolean>
 }) {
   const [name, setName] = useState("")
-  const [harness, setHarness] = useState("claude")
+  const [harness, setHarness] = useState(harnesses[0] ?? "")
   const [model, setModel] = useState("")
   const list = models?.[harness] ?? []
   const listId = useId() // one datalist per form: every tier card has its own

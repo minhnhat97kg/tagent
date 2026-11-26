@@ -4,19 +4,21 @@ package routing
 
 import (
 	"bytes"
+	"cmp"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"regexp"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
 
 	"tagent/internal/apppath"
+	"tagent/internal/harnessusage"
 	"tagent/internal/quota"
+	"tagent/internal/roles"
 	"tagent/internal/tasks"
 
 	"gopkg.in/yaml.v3"
@@ -51,7 +53,9 @@ const defaultLimit = 90
 
 var tierName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]*$`)
 
-var harnesses = []string{"claude", "pi", "codex"}
+// Reader is the usage readings of a configured harness that has usage commands;
+// ok is false when it has none. A nil Reader reads nothing: every such quota is unknown.
+type Reader func(harness string) ([]harnessusage.Reading, bool)
 
 // Path is the routing config file.
 func Path() string { return filepath.Join(apppath.ConfigDir(), "routing.yaml") }
@@ -92,8 +96,8 @@ func Save(c Config) error {
 // Validate reports why c cannot be saved or dispatched.
 func (c Config) Validate() error {
 	for p, v := range c.Limits {
-		if p != "claude" && p != "codex" {
-			return fmt.Errorf("limits: unknown provider %q (claude or codex)", p)
+		if p != "claude" && p != "codex" && !hasUsage(p) {
+			return fmt.Errorf("limits: unknown provider %q (claude, codex, or a harness with usage commands)", p)
 		}
 		if v < 1 || v > 100 {
 			return fmt.Errorf("limits %s: %v must be 1 to 100", p, v)
@@ -122,8 +126,8 @@ func (c Config) Validate() error {
 // number; otherwise the @ belongs to the model id (e.g. vertex ids). until is 0 when absent.
 func parse(s string) (harness, model string, until float64, err error) {
 	harness, model, ok := strings.Cut(s, ":")
-	if !ok || !slices.Contains(harnesses, harness) {
-		return "", "", 0, fmt.Errorf("candidate %q: want claude:MODEL[@1-100], pi:MODEL or codex:MODEL", s)
+	if !ok || !roles.KnownHarness(harness) {
+		return "", "", 0, fmt.Errorf("candidate %q: want HARNESS:MODEL[@1-100], HARNESS one of %s", s, strings.Join(roles.HarnessNames(), ", "))
 	}
 	if i := strings.LastIndex(model, "@"); i >= 0 && len(model)-i <= 8 {
 		if v, perr := strconv.ParseFloat(model[i+1:], 64); perr == nil {
@@ -134,20 +138,83 @@ func parse(s string) (harness, model string, until float64, err error) {
 		}
 	}
 	if model == "" {
-		return "", "", 0, fmt.Errorf("candidate %q: want claude:MODEL[@1-100], pi:MODEL or codex:MODEL", s)
+		return "", "", 0, fmt.Errorf("candidate %q: want HARNESS:MODEL[@1-100]", s)
 	}
 	return harness, model, until, nil
 }
 
-// provider names the quota a candidate draws on; "" means unknown.
-func provider(harness, model string) string {
-	switch {
-	case harness == "claude":
-		return "claude"
-	case harness == "codex" || (harness == "pi" && strings.HasPrefix(model, "openai-codex/")):
-		return "codex"
+// win is one counted usage window: a percentage and when it resets (zero if unknown).
+type win struct {
+	name  string
+	used  float64
+	reset time.Time
+}
+
+// source names the quota a candidate draws on and its windows; "" means unknown.
+// A configured harness with usage commands is its own provider. Otherwise it keeps
+// the quota of its kind unless its entry sets env, which means another account.
+func source(h, m string, specs []roles.HarnessSpec, snap quota.Snapshot, read Reader, now time.Time) (string, []win) {
+	spec, configured := find(specs, h)
+	if configured && len(spec.Usage) > 0 {
+		var rs []harnessusage.Reading
+		if read != nil {
+			rs, _ = read(h)
+		}
+		var ws []win
+		for _, r := range rs {
+			ws = append(ws, win{cmp.Or(r.Label, "usage"), r.Used, time.Time{}})
+		}
+		return h, ws
 	}
-	return ""
+	if configured && len(spec.Env) > 0 {
+		return "", nil
+	}
+	name := ""
+	switch kind := roles.Harness(h); {
+	case kind == "claude":
+		name = "claude"
+	case kind == "codex" || (kind == "pi" && strings.HasPrefix(m, "openai-codex/")):
+		name = "codex"
+	}
+	if name == "" {
+		return "", nil
+	}
+	p := snap.Claude
+	if name == "codex" {
+		p = snap.Codex
+	}
+	var ws []win
+	for _, w := range []struct {
+		name string
+		win  quota.Window
+	}{{"5h", p.Five}, {"7d", p.Week}} {
+		if w.win.Used == nil {
+			continue
+		}
+		at := w.win.ResetAt()
+		if !at.IsZero() && at.Before(now) {
+			continue
+		}
+		ws = append(ws, win{w.name, *w.win.Used, at})
+	}
+	return name, ws
+}
+
+// hasUsage reports whether name is a configured harness with usage commands, the only harness quota that has its own limit key.
+func hasUsage(name string) bool {
+	specs, _ := roles.LoadHarnesses()
+	spec, ok := find(specs, name)
+	return ok && len(spec.Usage) > 0
+}
+
+// find returns the harnesses.yml entry called name.
+func find(specs []roles.HarnessSpec, name string) (roles.HarnessSpec, bool) {
+	for _, h := range specs {
+		if h.Name == name {
+			return h, true
+		}
+	}
+	return roles.HarnessSpec{}, false
 }
 
 // Limit is the percent used that counts as exhausted for provider when a candidate has no @N.
@@ -158,13 +225,14 @@ func (c Config) Limit(provider string) float64 {
 	return defaultLimit
 }
 
-// Candidates returns the tier's candidates judged against snap, in config order.
+// Candidates returns the tier's candidates judged against snap and read, in config order.
 // A window whose reset has passed is ignored: the snapshot predates it.
-func (c Config) Candidates(tier string, snap quota.Snapshot) ([]Candidate, error) {
+func (c Config) Candidates(tier string, snap quota.Snapshot, read Reader) ([]Candidate, error) {
 	list, ok := c.Tiers[tier]
 	if !ok {
 		return nil, fmt.Errorf("unknown tier %q", tier)
 	}
+	specs, _ := roles.LoadHarnesses()
 	var out []Candidate
 	now := time.Now()
 	for _, s := range list {
@@ -173,45 +241,29 @@ func (c Config) Candidates(tier string, snap quota.Snapshot) ([]Candidate, error
 			return nil, err
 		}
 		cd := Candidate{Ref: s, Harness: h, Model: m, Until: until, State: "unknown"}
-		name := provider(h, m)
+		name, ws := source(h, m, specs, snap, read, now)
 		if name != "" {
 			cd.Threshold = until
 			if cd.Threshold == 0 {
 				cd.Threshold = c.Limit(name)
 			}
-			p := snap.Claude
-			if name == "codex" {
-				p = snap.Codex
-			}
 			var parts []string
-			counted := false
-			for _, w := range []struct {
-				name string
-				win  quota.Window
-			}{{"5h", p.Five}, {"7d", p.Week}} {
-				if w.win.Used == nil {
-					continue
-				}
-				at := w.win.ResetAt()
-				if !at.IsZero() && at.Before(now) {
-					continue
-				}
-				counted = true
-				if cd.Used == nil || *w.win.Used > *cd.Used {
-					used := *w.win.Used
+			for _, w := range ws {
+				if cd.Used == nil || w.used > *cd.Used {
+					used := w.used
 					cd.Used = &used
 				}
-				if *w.win.Used >= cd.Threshold {
-					parts = append(parts, fmt.Sprintf("%s %.0f%% >= %g", w.name, *w.win.Used, cd.Threshold))
-					if at.After(cd.Reset) {
-						cd.Reset = at
+				if w.used >= cd.Threshold {
+					parts = append(parts, fmt.Sprintf("%s %.0f%% >= %g", w.name, w.used, cd.Threshold))
+					if w.reset.After(cd.Reset) {
+						cd.Reset = w.reset
 					}
 				}
 			}
 			switch {
 			case len(parts) > 0:
 				cd.State, cd.Why = "exhausted", strings.Join(parts, ", ")
-			case counted:
+			case len(ws) > 0:
 				cd.State = "available"
 			}
 		}
@@ -221,13 +273,13 @@ func (c Config) Candidates(tier string, snap quota.Snapshot) ([]Candidate, error
 }
 
 // First is the tier's first candidate: what a dispatch runs when no quota is known.
-func (c Config) First(tier string) (Choice, error) { return c.Select(tier, quota.Snapshot{}) }
+func (c Config) First(tier string) (Choice, error) { return c.Select(tier, quota.Snapshot{}, nil) }
 
 // Select picks the first candidate of tier that still has quota. When all are
 // exhausted, when_exhausted decides: first runs the first candidate, block (the
 // default) returns an error with the windows and the earliest reset.
-func (c Config) Select(tier string, snap quota.Snapshot) (Choice, error) {
-	cands, err := c.Candidates(tier, snap)
+func (c Config) Select(tier string, snap quota.Snapshot, read Reader) (Choice, error) {
+	cands, err := c.Candidates(tier, snap, read)
 	if err != nil {
 		return Choice{}, err
 	}

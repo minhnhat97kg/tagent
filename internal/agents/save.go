@@ -34,8 +34,8 @@ func Save(dir, harness string, a Agent) error {
 			return fmt.Errorf("tier %s: a tier role takes no model or context", a.Tier)
 		}
 		a.Harness = ""
-	} else if !slices.Contains([]string{"pi", "claude", "codex"}, a.Harness) {
-		return fmt.Errorf("unknown harness %q (pi, claude or codex)", a.Harness)
+	} else if !roles.KnownHarness(a.Harness) {
+		return fmt.Errorf("unknown harness %q (%s)", a.Harness, strings.Join(roles.HarnessNames(), ", "))
 	}
 	if err := tasks.ValidateEffort(a.Harness, a.Effort); err != nil {
 		return err

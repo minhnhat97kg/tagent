@@ -131,9 +131,8 @@ type server struct {
 	boardDirs  sync.Map
 	pinned     sync.Map
 	sizeOwners terminalOwners
-	chatClaims sync.Map   // panes whose size Chat borrowed for a clipped question
-	chatLocks  sync.Map   // per-ticket mutex around resolving/spawning a chat pane
-	usage      usageCache // results of the harnesses.yml usage commands
+	chatClaims sync.Map // panes whose size Chat borrowed for a clipped question
+	chatLocks  sync.Map // per-ticket mutex around resolving/spawning a chat pane
 	deps       apiDeps
 }
 
@@ -262,7 +261,7 @@ func (s *server) state(w http.ResponseWriter, r *http.Request) {
 	projects := board.Workspaces(paths...)
 	host, _ := os.Hostname()
 	compact, _ := tmux.GetOption("@agent_compact")
-	writeJSON(w, map[string]any{"agents": list, "projects": projects, "host": host, "compact": compact == "on", "harnesses": roles.HarnessNames(), "models": agents.Models()})
+	writeJSON(w, map[string]any{"agents": list, "projects": projects, "host": host, "compact": compact == "on", "harnesses": roles.HarnessNames(), "kinds": harnessKinds(), "models": agents.Models()})
 }
 
 var paneRe = regexp.MustCompile(`^%\d+$`)
@@ -613,4 +612,14 @@ func (s *server) taskOp(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fail(w, err)
 	}
+}
+
+// harnessKinds maps each pickable harness to the kind its command runs, which
+// decides its effort levels: a configured name behaves as its kind.
+func harnessKinds() map[string]string {
+	out := map[string]string{}
+	for _, h := range roles.HarnessNames() {
+		out[h] = roles.Harness(h)
+	}
+	return out
 }

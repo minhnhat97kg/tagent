@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"tagent/internal/harnessusage"
 	"tagent/internal/metrics"
 	"tagent/internal/quota"
 	"tagent/internal/tasks"
@@ -79,5 +80,5 @@ func (s *server) overview(w http.ResponseWriter, r *http.Request) {
 	case "30":
 		days = 30
 	}
-	writeJSON(w, map[string]any{"dir": dir, "project": filepath.Base(tasks.MainRoot(dir)), "attention": attention, "now": now, "providers": []provider{{"Claude", q.Claude.Five.Used, q.Claude.Week.Used, q.Claude.Stale}, {"Codex", q.Codex.Five.Used, q.Codex.Week.Used, q.Codex.Stale}}, "harnesses": s.harnessUsage(), "tokens": metrics.TokenWindow(state, time.Now(), days)})
+	writeJSON(w, map[string]any{"dir": dir, "project": filepath.Base(tasks.MainRoot(dir)), "attention": attention, "now": now, "providers": []provider{{"Claude", q.Claude.Five.Used, q.Claude.Week.Used, q.Claude.Stale}, {"Codex", q.Codex.Five.Used, q.Codex.Week.Used, q.Codex.Stale}}, "harnesses": harnessusage.Rows(), "tokens": metrics.TokenWindow(state, time.Now(), days)})
 }
