@@ -26,9 +26,12 @@ func TestSharedSidebarRealTmux(t *testing.T) {
 		t.Fatalf("build: %v: %s", err, out)
 	}
 	socket := fmt.Sprintf("sidebar-test-%d", os.Getpid())
+	// Isolated HOME/state: the tagent processes started in this server must
+	// never see (or dispatch for) the real board, even if they outlive the test.
+	home := t.TempDir()
 	run := func(args ...string) (string, error) {
 		cmd := exec.Command("tmux", append([]string{"-L", socket}, args...)...)
-		cmd.Env = append(os.Environ(), "TMUX=", "TMPDIR=/tmp", "NO_COLOR=")
+		cmd.Env = append(os.Environ(), "TMUX=", "TMPDIR=/tmp", "NO_COLOR=", "HOME="+home, "XDG_STATE_HOME="+filepath.Join(home, ".local", "state"), "XDG_CONFIG_HOME="+filepath.Join(home, ".config"))
 		out, err := cmd.CombinedOutput()
 		return strings.TrimSpace(string(out)), err
 	}
@@ -41,7 +44,6 @@ func TestSharedSidebarRealTmux(t *testing.T) {
 		return out
 	}
 	must("-f", "/dev/null", "new-session", "-d", "-s", "shared", "-x", "120", "-y", "40")
-	defer run("kill-server")
 	must("set-option", "-g", "@agent_avatar", "off")
 	must("set-option", "-g", "@agent_digest_llm", "off")
 	first := must("new-window", "-t", "shared", "-P", "-F", "#{pane_id}", binary)
@@ -54,6 +56,19 @@ func TestSharedSidebarRealTmux(t *testing.T) {
 		n, _ := strconv.Atoi(out)
 		return n
 	}
+	// The sidebar server is detached and survives kill-server: kill it too.
+	var serverPIDs []int
+	defer func() {
+		for _, pane := range []string{first, second} {
+			if pid := getPID(pane); pid > 0 {
+				serverPIDs = append(serverPIDs, pid)
+			}
+		}
+		run("kill-server")
+		for _, pid := range serverPIDs {
+			syscall.Kill(pid, syscall.SIGKILL)
+		}
+	}()
 	wait := func(cond func() bool, message string) {
 		t.Helper()
 		until := time.Now().Add(12 * time.Second)
