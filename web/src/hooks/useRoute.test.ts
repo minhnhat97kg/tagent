@@ -25,6 +25,10 @@ test.each([
   ["/runs/61", { page: "run", ticket: "61", dir: null }],
   ["/board/config", { page: "boardConfig" }],
   ["/routing", { page: "routing" }],
+  ["/custom", { page: "custom" }],
+  ["/custom/hello%20x", { page: "custom", name: "hello x" }],
+  ["/custom/", { page: "home" }],
+  ["/custom/a/b", { page: "home" }],
 ])("%s", (route, want) => {
   expect(parseRoute(route)).toEqual(want)
 })

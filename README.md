@@ -593,6 +593,24 @@ agent=receptionist
 
 A key missing from the file falls back to the tmux option. Prefer the file for the token: anyone who can run `tmux show -g` can read an option (agents running as your user can still read the file). The file applies to every tmux server, and only one of them polls at a time. Chat state (update offset, per-chat target, reply routing) is kept in `~/.config/tagent/telegram.json`.
 
+### Custom panes
+
+Add your own pane without rebuilding: drop an HTML file into `~/.config/tagent/ui/` (next to `config.conf`), reload the web UI, and it appears under **Custom**. Each file is `<name>.html` (letters, digits, `-` and `_`).
+
+```html
+<!doctype html><meta charset="utf-8"><pre id="out"></pre>
+<script src="/ext/sdk.js"></script>
+<script>
+  tagent.api("/api/state").then(s => out.textContent = s.host)
+  // tagent.api("/api/ext/hello/data", { method: "PUT", body: { n: 1 } })
+</script>
+```
+
+- The pane runs in a sandboxed iframe (`sandbox="allow-scripts"`): it cannot read the app page, `localStorage` or the access cookie. It calls the API only through `tagent.api(path, {method, body})`.
+- `GET`/`PUT /api/ext/<name>/data` keeps JSON state in `<name>.json` next to the HTML, for the pane to save its own data.
+- **A pane is trusted code.** Through the bridge it can call any `/api/*` route, including starting agents and typing into terminals. Only add panes you wrote or have read. Panes are not isolated from each other, and can reach the network.
+- Panes are read from this folder only, never from a repo. Reload the web UI after adding or changing a pane; `location.reload()` inside a pane does not work, so reload the app instead.
+
 ## Development
 
 ```sh

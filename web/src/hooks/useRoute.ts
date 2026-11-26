@@ -14,6 +14,7 @@ export type Route =
   | { page: "routing" | "boardConfig" }
   | { page: "pane"; pane: "usage" | "tasks" | "chat" }
   | { page: "agents" } // the Agents definitions page
+  | { page: "custom"; name?: string } // a custom pane (#/custom/<name>); no name = the first one
   | { page: "flows"; name: string } // "" = no workflow chosen
   | { page: "run"; ticket: string; dir: string | null }
 
@@ -43,6 +44,7 @@ export function parseRoute(route: string): Route {
       if (c) return { page: "run", ticket: c, dir }
       return { page: "flows", name: b ?? "" }
     case "runs": return b ? { page: "run", ticket: b, dir } : { page: "home" }
+    case "custom": return parts.length === 1 ? { page: "custom" } : b && parts.length === 2 ? { page: "custom", name: b } : { page: "home" }
     default: return { page: "home" }
   }
 }

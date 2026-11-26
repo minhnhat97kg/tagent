@@ -76,9 +76,15 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("GET /api/dirs", s.dirs)
 	mux.HandleFunc("GET /api/config", s.settings)
 	mux.HandleFunc("POST /api/config", s.settings)
+	mux.HandleFunc("GET /api/ext", s.extList)
+	mux.HandleFunc("GET /api/ext/{name}/data", s.extData)
+	mux.HandleFunc("PUT /api/ext/{name}/data", s.extData)
+	mux.HandleFunc("GET /ext/sdk.js", s.extSDKFile)
+	mux.HandleFunc("GET /ext/{file}", s.extPane)
 	sub, _ := fs.Sub(dist, "dist")
 	files := http.FileServerFS(sub)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Security-Policy", "frame-src 'self'") // a pane cannot navigate its frame away and keep the bridge
 		if !strings.HasPrefix(r.URL.Path, "/assets/") {
 			w.Header().Set("Cache-Control", "no-cache") // index.html must pick up new hashed assets
 		} else {
@@ -130,6 +136,10 @@ type server struct {
 
 func (s *server) auth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/ext/sdk.js" { // a sandboxed pane's subresource request has no cookie; the file holds no secret
+			next.ServeHTTP(w, r)
+			return
+		}
 		if t := r.URL.Query().Get("token"); t != "" && s.ok(t) {
 			http.SetCookie(w, &http.Cookie{Name: "tmux_agent", Value: t, Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode, MaxAge: 90 * 24 * 3600})
 			http.Redirect(w, r, "/", http.StatusFound)

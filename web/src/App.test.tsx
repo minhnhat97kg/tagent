@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest"
-import { cleanup, fireEvent, render, screen } from "@testing-library/react"
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import App from "./App"
 import { api } from "@/api"
 
@@ -230,4 +230,18 @@ test("a run that fails to load names the project and offers the board", async ()
   render(<App />)
   expect((await screen.findByRole("alert")).textContent).toBe("Couldn't load the run in a. ticket not found")
   expect(screen.getByRole("button", { name: "Back to board" })).toBeTruthy()
+})
+
+test("the header shows Custom only when a custom pane exists", async () => {
+  desktop()
+  vi.mocked(api).mockImplementation(async p => (p === "/api/ext" ? ["hello"] : undefined))
+  render(<App />)
+  expect(await screen.findByRole("link", { name: "Custom" })).toBeTruthy()
+})
+
+test("no custom panes, no Custom link", async () => {
+  desktop()
+  render(<App />)
+  await waitFor(() => expect(vi.mocked(api)).toHaveBeenCalledWith("/api/ext"))
+  expect(screen.queryByRole("link", { name: "Custom" })).toBeNull()
 })

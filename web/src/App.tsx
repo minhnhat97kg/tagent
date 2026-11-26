@@ -18,6 +18,7 @@ import { WorkflowsPage } from "@/components/WorkflowsPage"
 import { RunPage } from "@/components/RunPage"
 import { AgentsPage } from "@/components/AgentsPage"
 import { RoutingPage } from "@/components/RoutingPage"
+import { CustomPage } from "@/components/CustomPage"
 import { OverviewPanel } from "@/components/panels/OverviewPanel"
 import { Panel } from "@/components/Panel"
 import { PaneChromeContext } from "@/lib/paneChrome"
@@ -59,6 +60,9 @@ export default function App() {
   // The agent in the chat pane: picked in place, or named by an old link (#/agent/<pane>).
   const [picked, setPicked] = useState<string>()
   const [phoneTab, setPhoneTab] = useState<PhoneTab>("agents")
+  // Custom panes (<config dir>/ui/*.html), listed once per load; the header and More menu show "Custom" only when there are some.
+  const [panes, setPanes] = useState<string[]>([])
+  useEffect(() => { api<string[]>("/api/ext").then(l => setPanes(Array.isArray(l) ? l : []), () => {}) }, [])
   // Whole app full screen (browser chrome hidden). iPhone Safari has no Fullscreen API, so the button hides there.
   const [full, setFull] = useState(false)
   useEffect(() => {
@@ -177,6 +181,7 @@ export default function App() {
   else if (route.page === "run") main = maxed("workflows", <RunPage key={(runDir ?? dir) + route.ticket} dir={runDir ?? dir} id={route.ticket} />)
   else if (route.page === "boardConfig") main = maxed("workflows", <BoardConfigPage key={dir} dir={dir} />)
   else if (route.page === "routing") main = <RoutingPage key={dir} dir={dir} />
+  else if (route.page === "custom") main = <CustomPage names={panes} name={route.name} />
   else main = null
 
   return (
@@ -188,6 +193,7 @@ export default function App() {
           <a href="#/" className="flex shrink-0 items-center gap-1.5 text-[13px] font-semibold"><span className="flex size-6 items-center justify-center rounded-md bg-primary text-primary-foreground"><SquareTerminal className="size-3.5" /></span><span className="hidden sm:inline">tagent</span><span className="hidden font-normal text-muted-foreground lg:inline"> · {state?.host ?? ""}</span></a>
           <div className="min-w-0 flex-1 overflow-hidden [&_button]:max-w-full"><ProjectSelect value={dir} projects={state?.projects ?? []} onChange={(d) => { setDir(d); setPicked(undefined); nav("/") }} onAdd={() => setAddWorkspace(true)} /></div>
           <div className="ml-auto flex items-center gap-1">
+            {panes.length > 0 && <a href="#/custom" className="max-md:hidden px-1.5 text-[13px] text-muted-foreground hover:text-foreground">Custom</a>}
             <Notifications items={notices} dir={dir ?? ''} onOpen={openNotice} />
             <Button size="sm" className="max-sm:size-9" onClick={() => setNewOpen(true)}><Plus /> <span className="hidden sm:inline">New agent</span></Button>
             {canFull && <Button className="hidden sm:inline-flex" variant="ghost" size="icon-xs" aria-label={full ? "Exit full screen" : "Full screen"} title={full ? "Exit full screen" : "Full screen"} onClick={() => void toggleFull()}>{full ? <Minimize2 /> : <Maximize2 />}</Button>}
@@ -199,6 +205,7 @@ export default function App() {
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onSelect={() => nav('/agents')}>Agents</DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => nav('/workflows')}>Workflows</DropdownMenuItem>
+                {panes.length > 0 && <DropdownMenuItem onSelect={() => nav('/custom')}>Custom</DropdownMenuItem>}
                 <DropdownMenuItem onSelect={() => setWebTheme(nextTheme[webTheme])}>Theme: {webTheme}</DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => setSettings(true)}>Settings</DropdownMenuItem>
               </DropdownMenuContent>

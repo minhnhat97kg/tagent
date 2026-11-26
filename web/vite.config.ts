@@ -7,5 +7,5 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: { alias: { "@": path.resolve(import.meta.dirname, "./src") } },
   build: { outDir: "../internal/web/dist", emptyOutDir: true },
-  server: { proxy: { "/api": "http://127.0.0.1:7777" } },
+  server: { proxy: { "/api": "http://127.0.0.1:7777", "/ext": "http://127.0.0.1:7777" } },
 })
