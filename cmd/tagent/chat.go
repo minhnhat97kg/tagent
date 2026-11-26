@@ -66,7 +66,7 @@ func cmdChat(args []string, stdout, stderr io.Writer) int {
 			continue
 		}
 		if !chatHarness(p.Agent) {
-			fmt.Fprintf(stderr, "chat: %s is bound to ticket %s but runs %s; chat needs claude or pi (use --agent with --clear)\n", p.PaneID, id, p.Agent)
+			fmt.Fprintf(stderr, "chat: %s is bound to ticket %s but runs %s; chat needs claude or pi (use --agent with --clear)\n", tmux.PaneLabel(p.PaneID), id, p.Agent)
 			return exitFailure
 		}
 		existing = p.PaneID

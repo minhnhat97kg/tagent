@@ -33,7 +33,7 @@ export interface Role {
   path: string
   instructions: string
   running: number
-  panes: { pane: string; status: string }[] | null
+  panes: { pane: string; name: string; status: string }[] | null
   usedBy: string[] | null
   tier?: string // harness and model come from routing.yaml; harness is ""
   // Context: undefined keeps the harness default; [] means none (skills, mcp only).

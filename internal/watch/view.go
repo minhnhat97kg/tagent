@@ -334,7 +334,7 @@ func (m model) previewBox(w, h int) []string {
 	if el := elapsed(a); el != "" {
 		status += m.fg(m.theme.TextDim).Render(" " + el)
 	}
-	info := m.theme.AgentStyle(a.Agent).Render(string(a.Agent)) + " · " + a.Where + " · " + a.PaneID
+	info := m.theme.AgentStyle(a.Agent).Render(string(a.Agent)) + " · " + a.Where
 	return m.box(label(a.PaneInfo), info, status, body, w, h, false)
 }
 

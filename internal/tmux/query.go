@@ -400,7 +400,9 @@ func QuerySessionsWithSnapshot() ([]SessionInfo, *process.Snapshot) {
 	if len(codexPIDs) > 0 && snap != nil {
 		applyCodexPermissionModes(windowsBySession, codexPIDs, snap)
 	}
-	return finalizeSessions(sessionOrder, windowsBySession), snap
+	sessions := finalizeSessions(sessionOrder, windowsBySession)
+	nameAgentPanes(sessions)
+	return sessions, snap
 }
 
 // codexPIDEntry is the minimal info needed to later patch the right pane:

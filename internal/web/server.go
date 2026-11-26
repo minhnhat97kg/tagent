@@ -302,7 +302,8 @@ func lockPaneInput(pane string) func() {
 type paneReq struct {
 	Dialog *dialogJSON `json:"dialog,omitempty"`
 	Pane   string      `json:"pane"`
-	Data   string      `json:"data"` // raw terminal input (input) / text (send) / option key (answer)
+	Data   string      `json:"data"`           // raw terminal input (input) / text (send) / option key (answer)
+	Name   string      `json:"name,omitempty"` // new pane name (action "rename"); "" resets to a nickname
 }
 
 func (s *server) paneBody(w http.ResponseWriter, r *http.Request) (paneReq, bool) {

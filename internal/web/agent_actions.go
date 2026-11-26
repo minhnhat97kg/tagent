@@ -40,6 +40,10 @@ func (s *server) agentAction(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]string{"text": out})
 	case "dismiss":
 		tmux.UnsetPaneOption(p.Pane, tmux.PaneUnseen)
+	case "rename":
+		if _, err := self("name", p.Pane, p.Name); err != nil {
+			fail(w, err)
+		}
 	case "clear-subagents":
 		tmux.UnsetPaneOption(p.Pane, tmux.PaneSubagents)
 	default:

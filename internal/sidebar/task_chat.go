@@ -96,11 +96,11 @@ func loadTicketChat(dir, id string) tea.Cmd {
 		chat.Pane, chat.Harness, chat.Status = p.PaneID, p.Agent, string(p.Status)
 		switch p.Agent {
 		case "":
-			chat.Reason = p.PaneID + " is bound to this ticket but has no agent yet; it is still starting."
+			chat.Reason = tmux.PaneLabel(p.PaneID) + " is bound to this ticket but has no agent yet; it is still starting."
 			return ticketChatMsg{chat}
 		case "claude", "claude-api", "pi":
 		default:
-			chat.Reason = fmt.Sprintf("Chat needs a claude or pi agent, but %s runs %s.", p.PaneID, p.Agent)
+			chat.Reason = fmt.Sprintf("Chat needs a claude or pi agent, but %s runs %s.", tmux.PaneLabel(p.PaneID), p.Agent)
 			return ticketChatMsg{chat}
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -110,7 +110,7 @@ func loadTicketChat(dir, id string) tea.Cmd {
 		case errors.Is(err, transcript.ErrUnsupported):
 			chat.Reason = "Chat cannot read a " + p.Agent + " transcript."
 		case err != nil:
-			chat.Reason = "The transcript is not readable yet; " + p.PaneID + " is still starting."
+			chat.Reason = "The transcript is not readable yet; " + tmux.PaneLabel(p.PaneID) + " is still starting."
 		default:
 			chat.Items = page.Items
 		}

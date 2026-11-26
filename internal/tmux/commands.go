@@ -189,17 +189,36 @@ func IsPaneViewed(pane string) bool {
 // `tagent name` (@pane_name) wins, anything else is passed through as a
 // tmux target (%12, sess:1.2, …).
 func ResolvePane(target string) string {
+	if id, err := ResolvePaneChecked(target); err == nil {
+		return id
+	}
+	return target
+}
+
+// ResolvePaneChecked is ResolvePane for a typed target: it errors on a name
+// that matches no pane or several panes, instead of passing it on to tmux.
+// %N and tmux targets (@3, sess:1.2) are passed through.
+func ResolvePaneChecked(target string) (string, error) {
 	out, ok := RunTmux("list-panes", "-a", "-F", "#{pane_id} #{"+PaneName+"}")
 	if !ok {
-		return target
+		return target, nil
 	}
+	var matches []string
 	for _, line := range strings.Split(out, "\n") {
 		id, name, _ := strings.Cut(line, " ")
 		if name != "" && name == target {
-			return id
+			matches = append(matches, id)
 		}
 	}
-	return target
+	switch {
+	case len(matches) == 1:
+		return matches[0], nil
+	case len(matches) > 1:
+		return "", fmt.Errorf("name %q is ambiguous: %s", target, strings.Join(matches, ", "))
+	case target == "" || strings.ContainsAny(target[:1], "%@${") || strings.ContainsAny(target, ":."):
+		return target, nil
+	}
+	return "", fmt.Errorf("no pane named %q (see tagent list)", target)
 }
 
 // TypeLine pastes text and submits it separately: TUIs can swallow Enter

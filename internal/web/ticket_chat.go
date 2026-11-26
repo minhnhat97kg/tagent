@@ -48,7 +48,7 @@ func (s *server) ticketChat(w http.ResponseWriter, r *http.Request) {
 		out.Pane, out.Harness, out.Status = p.PaneID, p.Agent, string(p.Status)
 		if !ticketChatHarness(p.Agent) {
 			out.Available = false
-			out.Reason = fmt.Sprintf("Chat needs a claude or pi agent, but %s runs %s.", p.PaneID, p.Agent)
+			out.Reason = fmt.Sprintf("Chat needs a claude or pi agent, but %s runs %s.", tmux.PaneLabel(p.PaneID), p.Agent)
 		}
 	}
 	if r.Method != http.MethodPost {

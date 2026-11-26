@@ -36,6 +36,7 @@ type Agent struct {
 type LivePane struct {
 	Role   string `json:"-"`
 	Pane   string `json:"pane"`
+	Name   string `json:"name"`
 	Status string `json:"status"`
 }
 
@@ -50,7 +51,7 @@ func LivePanes() []LivePane {
 					role = p.Name
 				}
 				if role != "" {
-					out = append(out, LivePane{Role: role, Pane: p.PaneID, Status: string(p.Status)})
+					out = append(out, LivePane{Role: role, Pane: p.PaneID, Name: p.Name, Status: string(p.Status)})
 				}
 			}
 		}

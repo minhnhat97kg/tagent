@@ -126,7 +126,7 @@ export function AgentsPage({ dir }: { dir: string }) {
           </div>
           <div className="px-3 pt-2 text-[12px]">
             <span className="font-medium">Live panes ({panes.length})</span>
-            <ul className="mt-1 space-y-0.5">{panes.map(p => <li key={p.pane}><a className="underline" href={`#/agent/${enc(p.pane)}`}>{p.pane} · {p.status}</a></li>)}</ul>
+            <ul className="mt-1 space-y-0.5">{panes.map(p => <li key={p.pane}><a className="underline" title={p.pane} href={`#/agent/${enc(p.pane)}`}>{p.name || p.pane} · {p.status}</a></li>)}</ul>
           </div>
           <div className="flex min-h-0 flex-1 flex-col p-3">
             <div className="mb-1 flex items-center gap-2 text-[12px] font-medium">

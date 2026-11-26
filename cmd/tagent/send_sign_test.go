@@ -93,7 +93,7 @@ func TestAgentSendIsSignedFromAgentPane(t *testing.T) {
 		t.Fatalf("cmdSend exit %d", code)
 	}
 	got := waitReceived(t, received, "hello planner")
-	if !strings.Contains(got, "[from fe; reply: tagent send "+fePane+" <text>] hello planner") {
+	if !strings.Contains(got, "[from fe; reply: tagent send fe <text>] hello planner") {
 		t.Fatalf("agent-to-agent send not signed: %s", got)
 	}
 }

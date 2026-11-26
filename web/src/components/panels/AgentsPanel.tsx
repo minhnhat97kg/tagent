@@ -91,7 +91,6 @@ export function AgentsPanel({ ordered, byTask, onToggleTask, onSelect, selPane, 
             >
               <StatusDot status={a.status} />
               <span className="min-w-0 flex-1 truncate font-medium @md:max-w-[40%] @md:flex-none @md:shrink-0">{agentLabel(a)}</span>
-              {/* An unnamed agent's label already is its harness. */}
               {a.name && <span title={a.agent} className="shrink-0 rounded border px-1 py-0.5 font-mono text-[10px] leading-none text-muted-foreground">{shortHarness(a.agent)}</span>}
               {a.hidden && <span title="Background agent" className="shrink-0 rounded bg-muted px-1 py-0.5 text-[10px] leading-none text-muted-foreground">bg</span>}
               <span

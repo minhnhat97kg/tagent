@@ -132,7 +132,12 @@ func sendPrompt(args []string, from string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, usage)
 		return exitUsage
 	}
-	pane, rest := tmux.ResolvePane(args[0]), args[1:]
+	pane, err := tmux.ResolvePaneChecked(args[0])
+	if err != nil {
+		fmt.Fprintln(stderr, "send:", err)
+		return exitFailure
+	}
+	rest := args[1:]
 	// Options sit between the pane and the text; the text itself may start
 	// with "-", so only these exact flags are consumed.
 	wait, now, waitArgs := false, false, []string{pane}
@@ -167,11 +172,8 @@ func sendPrompt(args []string, from string, stdout, stderr io.Writer) int {
 	// An agent sending to another agent signs the message so the receiver knows whom to answer.
 	// Slash commands (/clear, /model ...) stay unsigned: a prefix turns them into plain text.
 	if from != "" && from != pane && !strings.HasPrefix(text, "/") && tmux.GetPaneOptionValue(from, tmux.PaneStatusOpt) != "" {
-		name := tmux.GetPaneOptionValue(from, tmux.PaneName)
-		if name == "" {
-			name = from
-		}
-		text = fmt.Sprintf("[from %s; reply: tagent send %s <text>] %s", name, from, text)
+		name := tmux.PaneLabel(from)
+		text = fmt.Sprintf("[from %s; reply: tagent send %s <text>] %s", name, name, text)
 	}
 	awaitDone := func() int { return cmdWait(waitArgs, stdout, stderr) }
 	if reportFile != "" {
@@ -184,7 +186,7 @@ func sendPrompt(args []string, from string, stdout, stderr io.Writer) int {
 	if now && status == tmux.StatusWaiting {
 		// Typing into a pending approval dialog would answer it with
 		// whatever the text happens to start with.
-		fmt.Fprintf(stderr, "send: %s is waiting for approval; answer it first (or drop --now to queue)\n", pane)
+		fmt.Fprintf(stderr, "send: %s is waiting for approval; answer it first (or drop --now to queue)\n", tmux.PaneLabel(pane))
 		return exitFailure
 	}
 	if busy && !now {
@@ -290,7 +292,7 @@ func cmdQueue(args []string, stdout, stderr io.Writer) int {
 	n := 0
 	for _, p := range panes {
 		for i, m := range queue.List(p) {
-			fmt.Fprintf(stdout, "%s\t#%d\t%s\n", p, i+1, firstLineOf(m))
+			fmt.Fprintf(stdout, "%s\t#%d\t%s\n", tmux.PaneLabel(p), i+1, firstLineOf(m))
 			n++
 		}
 	}
@@ -361,10 +363,11 @@ func cmdWait(args []string, stdout, stderr io.Writer) int {
 	}
 
 	start := time.Now()
+	label := tmux.PaneLabel(pane) // read now: a pane that is gone has no name
 	sawActive := false
 	for {
 		if _, alive := tmux.PaneSessionName(pane); !alive {
-			fmt.Fprintf(stderr, "wait: pane %s is gone\n", pane)
+			fmt.Fprintf(stderr, "wait: pane %s is gone\n", label)
 			return exitFailure
 		}
 		status := tmux.ParsePaneStatus(tmux.GetPaneOptionValue(pane, tmux.PaneStatusOpt))
@@ -377,7 +380,7 @@ func cmdWait(args []string, stdout, stderr io.Writer) int {
 			return exitOK
 		}
 		if time.Since(start) > *timeout {
-			fmt.Fprintf(stderr, "wait: timed out, %s is %s\n", pane, status)
+			fmt.Fprintf(stderr, "wait: timed out, %s is %s\n", label, status)
 			return exitTimeout
 		}
 		time.Sleep(waitPoll)
@@ -400,7 +403,12 @@ func parsePaneArg(fs *flag.FlagSet, args []string, stderr io.Writer, usage strin
 		fmt.Fprintln(stderr, "usage: tagent", usage)
 		return "", false
 	}
-	return tmux.ResolvePane(pane), true
+	id, err := tmux.ResolvePaneChecked(pane)
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return "", false
+	}
+	return id, true
 }
 
 // selfPane is the pane this command runs in ($TMUX_PANE), "" outside tmux.
@@ -414,8 +422,8 @@ func cmdName(args []string, stderr io.Writer) int {
 	case 2:
 		pane, name = tmux.ResolvePane(args[0]), args[1]
 	}
-	if pane == "" || strings.ContainsAny(name, " \t|") {
-		fmt.Fprintln(stderr, "usage: tagent name [<pane>] <name>   (no spaces; \"\" clears)")
+	if pane == "" || strings.HasPrefix(name, "%") || strings.ContainsAny(name, " \t|") {
+		fmt.Fprintln(stderr, "usage: tagent name [<pane>] <name>   (no spaces or leading %; \"\" resets to a nickname)")
 		return exitUsage
 	}
 	if name == "" {
@@ -423,7 +431,7 @@ func cmdName(args []string, stderr io.Writer) int {
 		return exitOK
 	}
 	if owner := tmux.ResolvePane(name); owner != name && owner != pane {
-		fmt.Fprintf(stderr, "name: %q is already used by %s\n", name, owner)
+		fmt.Fprintf(stderr, "name: %q is already used by another pane (%s)\n", name, owner)
 		return exitFailure
 	}
 	tmux.SetPaneOption(pane, tmux.PaneName, name)
@@ -544,7 +552,13 @@ func cmdKill(args []string, stdout, stderr io.Writer) int {
 	}
 	code := exitOK
 	for _, target := range args {
-		pane := tmux.ResolvePane(target)
+		// Checked: tmux may answer an unknown target with the current pane.
+		pane, err := tmux.ResolvePaneChecked(target)
+		if err != nil {
+			fmt.Fprintln(stderr, "kill:", err)
+			code = exitFailure
+			continue
+		}
 		id := tmux.DisplayMessage(pane, "#{pane_id}")
 		switch {
 		case id == "":
@@ -558,6 +572,7 @@ func cmdKill(args []string, stdout, stderr io.Writer) int {
 			code = exitFailure
 		default:
 			window := tmux.DisplayMessage(id, "#{window_id}")
+			label := tmux.PaneLabel(id)
 			if _, err := tmux.RunTmuxCapture("kill-pane", "-t", id); err != nil {
 				fmt.Fprintf(stderr, "kill: %s: %v\n", target, err)
 				code = exitFailure
@@ -569,7 +584,7 @@ func cmdKill(args []string, stdout, stderr io.Writer) int {
 				fmt.Fprintf(stderr, "kill: agent pane closed, but couldn't close window %s\n", window)
 				code = exitFailure
 			}
-			fmt.Fprintf(stdout, "killed %s (%s)\n", target, id)
+			fmt.Fprintf(stdout, "killed %s (%s)\n", label, id)
 		}
 	}
 	return code
@@ -601,7 +616,11 @@ func cmdAnswer(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "usage: tagent answer <pane> <option>   (see the options with `tagent answer <pane> ?`)")
 		return exitUsage
 	}
-	pane := tmux.ResolvePane(args[0])
+	pane, err := tmux.ResolvePaneChecked(args[0])
+	if err != nil {
+		fmt.Fprintln(stderr, "answer:", err)
+		return exitFailure
+	}
 	screen, ok := tmux.RunTmux("capture-pane", "-p", "-t", pane)
 	if !ok {
 		fmt.Fprintf(stderr, "answer: no pane %q\n", args[0])
