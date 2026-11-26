@@ -24,16 +24,16 @@ export function Bubble({ who, children }: { who: "user" | "assistant" | "error";
   </div>
 }
 
-// Fold: a one-line card that opens to show details (tool calls, reasoning).
+// Fold: a quiet unframed line that opens to show details (tool calls, reasoning).
 export function Fold({ icon, title, end, open, className, children }: { icon?: ReactNode; title: ReactNode; end?: ReactNode; open?: boolean; className?: string; children: ReactNode }) {
-  return <details open={open} className={cn("group rounded-lg border bg-muted/30 text-xs", chatIndent, className)}>
-    <summary className="flex cursor-pointer list-none items-center gap-2 px-2.5 py-1 text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden">
+  return <details open={open} className={cn("group text-xs", chatIndent, className)}>
+    <summary className="flex cursor-pointer list-none items-center gap-1.5 py-0.5 text-muted-foreground/70 hover:text-foreground group-open:text-muted-foreground [&::-webkit-details-marker]:hidden">
       <ChevronRight className="size-3 shrink-0 transition-transform group-open:rotate-90" />
       {icon}
       <span className="min-w-0 truncate font-mono">{title}</span>
-      {end && <span className="ml-auto flex shrink-0 items-center">{end}</span>}
+      {end && <span className="flex shrink-0 items-center">{end}</span>}
     </summary>
-    <div className="space-y-1.5 border-t p-2.5 [&_pre]:max-h-64 [&_pre]:overflow-auto [&_pre]:whitespace-pre-wrap [&_pre]:font-mono">{children}</div>
+    <div className="ml-1.5 space-y-1.5 border-l py-1 pl-3 [&_pre]:max-h-64 [&_pre]:overflow-auto [&_pre]:whitespace-pre-wrap [&_pre]:font-mono">{children}</div>
   </details>
 }
 

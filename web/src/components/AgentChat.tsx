@@ -458,7 +458,7 @@ function toAsk(row: ToolRow): AskView | undefined {
   return { header: q.header, question: q.question, multi: q.multiSelect, options: (q.options ?? []).map((o, i) => ({ n: i + 1, label: o.label, description: o.description })) }
 }
 
-// Work: tool calls and reasoning with no message between them fold into one card.
+// Work: tool calls and reasoning with no message between them fold into one line.
 const isWork = (r: Row) => r.kind === "tool" ? !isQuestion(r) && !createdTask(r) : r.item.role === "thinking"
 
 // TaskCard: a ticket the agent just created, linked to its run page; title and status come from the board when it has it.
@@ -488,7 +488,7 @@ function segments(rows: Row[]): Row[][] {
 
 const rowIcon = (r: Row): ReactNode => r.kind === "msg" ? <Brain className="size-3.5 shrink-0" /> : toolIcon(r.call.tool?.name)
 const rowTitle = (r: Row) => r.kind === "msg" ? "Reasoning" : r.call.tool?.label
-const rowEnd = (r: Row) => r.kind === "msg" ? undefined : r.output === undefined ? <Loader2 className="size-3 animate-spin" aria-label="running" /> : <Check className="size-3 text-emerald-600" />
+const rowEnd = (r: Row) => r.kind === "msg" ? undefined : r.output === undefined ? <Loader2 className="size-3 animate-spin" aria-label="running" /> : undefined
 function RowBody({ row }: { row: Row }) {
   if (row.kind === "msg") return <p className="whitespace-pre-wrap text-muted-foreground">{row.item.text}</p>
   const input = row.call.tool?.input
@@ -507,9 +507,9 @@ function WorkGroup({ rows }: { rows: Row[] }) {
   for (const c of calls) { const n = c.call.tool?.name ?? "tool"; counts.set(n, (counts.get(n) ?? 0) + 1) }
   const running = calls.some(c => c.output === undefined)
   const title = one ? rowTitle(one) : [...counts].map(([n, k]) => k > 1 ? `${n} ×${k}` : n).join(" · ") || "Reasoning"
-  const end = one ? rowEnd(one) : calls.length ? (running ? <Loader2 className="size-3 animate-spin" aria-label="running" /> : <Check className="size-3 text-emerald-600" />) : undefined
+  const end = one ? rowEnd(one) : running ? <Loader2 className="size-3 animate-spin" aria-label="running" /> : undefined
   return <Fold icon={one ? rowIcon(one) : <Wrench className="size-3.5 shrink-0" />} title={title} end={end}>
-    {one ? <RowBody row={one} /> : <div className="-mx-1 space-y-1.5">
+    {one ? <RowBody row={one} /> : <div>
       {rows.map(r => <Fold key={rowKey(r)} className="ml-0" icon={rowIcon(r)} title={rowTitle(r)} end={rowEnd(r)}><RowBody row={r} /></Fold>)}
     </div>}
   </Fold>
