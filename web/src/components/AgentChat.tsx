@@ -1,4 +1,5 @@
 import { useLayoutEffect, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react"
+import { createPortal } from "react-dom"
 import { ArrowRight, ArrowUp, Brain, Bot, ImageIcon, ListTodo, Paperclip, Save, Workflow, X, Check, ChevronDown, Cpu, Gauge, ExternalLink, FileText, MessageCircleQuestion, Loader2, Pencil, Search, Terminal, Wrench } from "lucide-react"
 import { api, post } from "@/api"
 import { Button } from "@/components/ui/button"
@@ -20,7 +21,8 @@ const LIVE_MS = 1000 // while the agent is running, so new output shows within a
 
 // AgentChat renders the agent's harness transcript. The agent keeps running in tmux; this only reads it and sends text.
 // onSave, when given, offers each message a "Save to ticket" button (a ticket's Chat tab only).
-export function AgentChat({ pane, onOpenTerminal, onUnavailable, project, onSave }: { pane: string; onOpenTerminal: () => void; onUnavailable: () => void; project?: Project; onSave?: (text: string) => void }) {
+// headerSlot, when given, is where the status, effort and model controls render instead of a row of their own.
+export function AgentChat({ pane, onOpenTerminal, onUnavailable, project, onSave, headerSlot }: { pane: string; onOpenTerminal: () => void; onUnavailable: () => void; project?: Project; onSave?: (text: string) => void; headerSlot?: HTMLElement | null }) {
   const [items, setItems] = useState<Item[]>([])
   const [feed, setFeed] = useState<Feed>()
   const [draft, setDraft] = useState("")
@@ -217,31 +219,34 @@ export function AgentChat({ pane, onOpenTerminal, onUnavailable, project, onSave
   // Work rows (tool calls, reasoning) fold into WorkGroup; a message or a question is rendered as it is.
   const renderRow = (r: Row) => r.kind === "msg" ? <Message key={r.item.id} item={r.item} onSave={onSave} /> : createdTask(r) ? <TaskCard key={r.call.id} row={r} project={project} /> : <AskCard key={r.call.id} ask={toAsk(r)!} answer={r.output === undefined ? undefined : cleanAnswer(r.output)} actions={r.output === undefined ? actions : undefined} picked={r.output === undefined ? picked : undefined} />
   const renderSeg = (seg: Row[]) => isWork(seg[0]!) ? <WorkGroup key={rowKey(seg[0]!)} rows={seg} /> : renderRow(seg[0]!)
+  const inHeader = headerSlot !== undefined
+  const chevron = inHeader ? "@max-md:hidden" : undefined
+  const bar = <>
+    <p role="status" className={inHeader ? "sr-only" : "flex min-w-0 items-center gap-1.5 truncate text-xs text-muted-foreground"}>
+      {!inHeader && (feed?.status === "running" ? <Loader2 className="size-3 shrink-0 animate-spin" /> : <span className={`size-1.5 shrink-0 rounded-full ${feed?.status === "waiting" ? "bg-amber-500" : feed?.status === "error" ? "bg-destructive" : "bg-emerald-500"}`} />)}
+      <span className="truncate">{status}</span>
+    </p>
+    {!!feed?.queued.length && <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground" title={feed.queued.join("\n")}>{feed.queued.length} queued</span>}
+    {effort.length > 0 && <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button size="xs" variant="ghost" aria-label="Effort" className="ml-auto shrink-0 text-muted-foreground"><Gauge />{effortSet?.pane === pane ? effortSet.level : <span className={inHeader ? "@max-md:sr-only" : undefined}>effort</span>}<ChevronDown className={chevron} /></Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {effort.map(l => <DropdownMenuItem key={l} onSelect={() => void chooseEffort(l)}>{l}</DropdownMenuItem>)}
+      </DropdownMenuContent>
+    </DropdownMenu>}
+    {model && <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button size="xs" variant="ghost" aria-label={`Model: ${model}`} className={`${effort.length ? "" : "ml-auto "}min-w-0 shrink-0 font-mono text-muted-foreground ${inHeader ? "max-w-28 @md:max-w-48" : "max-sm:max-w-[40%]"}`}><Cpu /><span className={inHeader ? "truncate @max-[18rem]:sr-only" : "truncate"}>{inHeader ? model.replace(/^claude-/, "") : model}</span><ChevronDown className={chevron} /></Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {(state?.models?.[harness ?? ""] ?? []).map(m => <DropdownMenuItem key={m} onSelect={() => void chooseModel(m)}>{m}</DropdownMenuItem>)}
+        <DropdownMenuItem onSelect={() => void chooseModel()}>Pick in Terminal…</DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>}
+  </>
   return <div className="flex min-h-0 flex-1 flex-col">
-    <div className="flex shrink-0 items-center gap-2 border-b px-3 py-1">
-      <p role="status" className="flex min-w-0 items-center gap-1.5 truncate text-xs text-muted-foreground">
-        {feed?.status === "running" ? <Loader2 className="size-3 shrink-0 animate-spin" /> : <span className={`size-1.5 shrink-0 rounded-full ${feed?.status === "waiting" ? "bg-amber-500" : feed?.status === "error" ? "bg-destructive" : "bg-emerald-500"}`} />}
-        <span className="truncate">{status}</span>
-      </p>
-      {!!feed?.queued.length && <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground" title={feed.queued.join("\n")}>{feed.queued.length} queued</span>}
-      {effort.length > 0 && <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button size="xs" variant="ghost" aria-label="Effort" className="ml-auto shrink-0 text-muted-foreground"><Gauge />{effortSet?.pane === pane ? effortSet.level : "effort"}<ChevronDown /></Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          {effort.map(l => <DropdownMenuItem key={l} onSelect={() => void chooseEffort(l)}>{l}</DropdownMenuItem>)}
-        </DropdownMenuContent>
-      </DropdownMenu>}
-      {model && <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button size="xs" variant="ghost" aria-label={`Model: ${model}`} className={`${effort.length ? "" : "ml-auto "}min-w-0 shrink-0 font-mono text-muted-foreground max-sm:max-w-[40%]`}><Cpu /><span className="truncate">{model}</span><ChevronDown /></Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          {(state?.models?.[harness ?? ""] ?? []).map(m => <DropdownMenuItem key={m} onSelect={() => void chooseModel(m)}>{m}</DropdownMenuItem>)}
-          <DropdownMenuItem onSelect={() => void chooseModel()}>Pick in Terminal…</DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>}
-    </div>
+    {!inHeader ? <div className="flex shrink-0 items-center gap-2 border-b px-3 py-0.5">{bar}</div> : headerSlot && createPortal(bar, headerSlot)}
     <div ref={scroller} role="log" aria-label="Conversation" className="min-h-0 flex-1 overflow-y-auto"
       onScroll={e => { const el = e.currentTarget; atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48 }}>
       <div className={`${chatColumn} space-y-2 px-3 py-3`}>

@@ -1,11 +1,13 @@
-// Glyphs mirror the TUI dashboard. The class carries the color (from index.css tokens).
-export const STATUS_GLYPH: Record<string, { glyph: string; cls: string }> = {
-  running: { glyph: "●", cls: "text-emerald-500 animate-pulse" },
-  background: { glyph: "◌", cls: "text-emerald-500/70" },
-  waiting: { glyph: "!", cls: "font-bold text-amber-500" },
-  error: { glyph: "✖", cls: "text-red-500" },
-  done: { glyph: "✔", cls: "text-green-600" },
-  idle: { glyph: "●", cls: "text-zinc-300" },
+import { CircleDashed, Hand, LoaderCircle, MessageSquareDot, Moon, TriangleAlert, type LucideIcon } from "lucide-react"
+
+// One icon per state: working, background work, needs you, failed, finished (unread), asleep.
+export const STATUS_ICON: Record<string, { icon: LucideIcon; cls: string }> = {
+  running: { icon: LoaderCircle, cls: "text-emerald-500 animate-spin" },
+  background: { icon: CircleDashed, cls: "text-emerald-500/70" },
+  waiting: { icon: Hand, cls: "text-amber-500" },
+  error: { icon: TriangleAlert, cls: "text-red-500" },
+  done: { icon: MessageSquareDot, cls: "text-green-600" },
+  idle: { icon: Moon, cls: "text-zinc-400" },
 }
 
 export const isActive = (status: string) => status === "running" || status === "background"

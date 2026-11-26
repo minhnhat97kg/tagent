@@ -212,21 +212,21 @@ export default function App() {
     <TooltipProvider>
       <div className="app-viewport flex flex-col bg-sidebar">
         {/* viewport-fit=cover lets the page reach under the status bar and the window overlay; the bar's insets keep its content clear of them. */}
-        <header className="flex h-[calc(2.75rem+env(safe-area-inset-top))] shrink-0 items-center gap-1 border-b bg-card pt-[env(safe-area-inset-top)] pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] md:gap-2 md:pl-[max(0.75rem,env(safe-area-inset-left))] md:pr-[max(0.75rem,env(safe-area-inset-right))]">
-          {!home && <Button variant="ghost" size="icon-xs" className="max-sm:size-9" onClick={() => nav("/")} aria-label="Back to home" title="Back to home"><ArrowLeft /></Button>}
+        <header className="flex h-[calc(2.75rem+env(safe-area-inset-top))] max-md:h-[calc(2.5rem+env(safe-area-inset-top))] shrink-0 items-center gap-1 border-b bg-card pt-[env(safe-area-inset-top)] pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] md:gap-2 md:pl-[max(0.75rem,env(safe-area-inset-left))] md:pr-[max(0.75rem,env(safe-area-inset-right))]">
+          {!home && <Button variant="ghost" size="icon-xs" className="max-sm:size-8" onClick={() => nav("/")} aria-label="Back to home" title="Back to home"><ArrowLeft /></Button>}
           <a href="#/" className="flex shrink-0 items-center gap-1.5 text-[13px] font-semibold"><span className="flex size-6 items-center justify-center rounded-md bg-primary text-primary-foreground"><SquareTerminal className="size-3.5" /></span><span className="hidden sm:inline">tagent</span><span className="hidden font-normal text-muted-foreground lg:inline"> · {state?.host ?? ""}</span></a>
           <div className="min-w-0 flex-1 overflow-hidden [&_button]:max-w-full"><ProjectSelect value={dir} projects={state?.projects ?? []} onChange={(d) => { setDir(d); setPicked(undefined); nav("/") }} onAdd={() => setAddWorkspace(true)} /></div>
           <div className="ml-auto flex items-center gap-1">
             {panes.length > 0 && <a href="#/custom" className="max-md:hidden px-1.5 text-[13px] text-muted-foreground hover:text-foreground">Custom</a>}
             <PaneMenu shown={panesOf(shown)} exts={exts ?? []} onAdd={addToLayout} onChanged={extPoll.reload} />
             <Notifications items={notices} dir={dir ?? ''} onOpen={openNotice} />
-            <Button size="sm" className="max-sm:size-9" onClick={() => setNewOpen(true)}><Plus /> <span className="hidden sm:inline">New agent</span></Button>
+            <Button size="sm" className="max-sm:size-8" onClick={() => setNewOpen(true)}><Plus /> <span className="hidden sm:inline">New agent</span></Button>
             {canFull && <Button className="hidden sm:inline-flex" variant="ghost" size="icon-xs" aria-label={full ? "Exit full screen" : "Full screen"} title={full ? "Exit full screen" : "Full screen"} onClick={() => void toggleFull()}>{full ? <Minimize2 /> : <Maximize2 />}</Button>}
             <Button variant="ghost" size="icon-xs" className="max-sm:hidden" aria-label={`Web theme: ${webTheme}`} title={`Web theme: ${webTheme} (this browser only)`} onClick={() => setWebTheme(nextTheme[webTheme])}>{webTheme === "dark" ? <Moon /> : webTheme === "light" ? <Sun /> : <Monitor />}</Button>
             <Button variant="ghost" size="icon-xs" className="max-sm:hidden" aria-label="Settings" title="Settings" onClick={() => setSettings(true)}><Settings /></Button>
             {/* Below 768px (where the Workflows pane is not shown) the header keeps back, project, new agent and notifications; the rest lives here. */}
             <DropdownMenu>
-              <DropdownMenuTrigger asChild><Button variant="ghost" size="icon-xs" className="max-sm:size-9 md:hidden" aria-label="More" title="More"><MoreHorizontal /></Button></DropdownMenuTrigger>
+              <DropdownMenuTrigger asChild><Button variant="ghost" size="icon-xs" className="max-sm:size-8 md:hidden" aria-label="More" title="More"><MoreHorizontal /></Button></DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onSelect={() => nav('/agents')}>Agents</DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => nav('/workflows')}>Workflows</DropdownMenuItem>
@@ -238,7 +238,7 @@ export default function App() {
           </div>
         </header>
 
-        <div className={`flex min-h-0 flex-1 ${home && state?.compact ? "" : "p-2"}`}>
+        <div className={`flex min-h-0 flex-1 ${home && state?.compact ? "" : "p-2 max-md:p-1"}`}>
           <main className="flex min-h-0 min-w-0 flex-1 flex-col">{main}</main>
         </div>
       </div>

@@ -333,3 +333,13 @@ test("the thread shows a working indicator only while the agent runs, and messag
   await screen.findByText("Hi")
   expect(screen.queryByText("Working")).toBeNull()
 })
+
+test("puts the model control in the header slot when given one", async () => {
+  mocks.api.mockReset().mockResolvedValue(feed({ items: [{ id: "a.0", role: "assistant", text: "Hi", model: "claude-opus-5-5" }] }))
+  const slot = document.body.appendChild(document.createElement("div"))
+  render(<AgentChat pane="%1" onOpenTerminal={vi.fn()} onUnavailable={vi.fn()} headerSlot={slot} />)
+  const button = await screen.findByRole("button", { name: "Model: claude-opus-5-5" })
+  expect(slot.contains(button)).toBe(true)
+  expect(button.textContent).toBe("opus-5-5")
+  slot.remove()
+})

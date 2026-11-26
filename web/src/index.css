@@ -45,8 +45,8 @@
 
 .notification-popover { max-height: min(560px, calc(var(--app-height, 100dvh) - 60px)); }
 @media (max-width: 767px) {
-  [data-radix-popper-content-wrapper]:has(.notification-popover) { position: fixed !important; inset: calc(var(--app-top, 0px) + 44px) 0 auto !important; transform: none !important; width: 100vw; }
-  .notification-popover { width: 100vw; max-width: 100vw; max-height: calc(var(--app-height, 100dvh) - 44px); border-radius: 0 0 12px 12px; }
+  [data-radix-popper-content-wrapper]:has(.notification-popover) { position: fixed !important; inset: calc(var(--app-top, 0px) + 40px) 0 auto !important; transform: none !important; width: 100vw; }
+  .notification-popover { width: 100vw; max-width: 100vw; max-height: calc(var(--app-height, 100dvh) - 40px); border-radius: 0 0 12px 12px; }
 }
 
 @custom-variant dark (&:where(.dark, .dark *));
