@@ -746,7 +746,8 @@ type Model struct {
 	layoutEdit  bool
 	layoutSel   string
 	layoutDraft []paneBox
-	layoutDirty bool // enter saves only after a change, so an untouched layout stays auto-sized
+	layoutDirty bool      // enter saves only after a change, so an untouched layout stays auto-sized
+	drag        *paneDrag // a mouse drag in progress (pane_layout.go)
 	scrollX     int
 	scrollY     int
 
@@ -1618,6 +1619,19 @@ func (m Model) boardTaskAt(x, y int) (tasks.Task, bool) {
 // behaves like the o key; a click on a pane row selects it; the wheel moves
 // the cursor like j/k. Everything else is ignored.
 func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
+	if m.drag != nil { // a drag owns the mouse until its release
+		switch {
+		case msg.Action == tea.MouseActionRelease:
+			return m.endDrag(), nil
+		case msg.Action == tea.MouseActionMotion:
+			if m.dragOK() {
+				return m.dragTo(msg.X, msg.Y), nil
+			}
+			return m, nil
+		case msg.Button == tea.MouseButtonLeft && msg.Action == tea.MouseActionPress:
+			m = m.cancelDrag() // the release was lost: this press starts over
+		}
+	}
 	if m.dashboard && (m.boardMode || m.taskForm != "" || m.helpOpen) {
 		if m.boardMode && m.taskForm == "" && !m.helpOpen && !m.taskDelete {
 			if msg.Button == tea.MouseButtonWheelDown {
@@ -1656,6 +1670,9 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		}
 		if m.layoutEdit { // clicks do nothing while a layout is being edited
 			return m, nil
+		}
+		if canvas && inBody && !m.taskDelete && msg.Button == tea.MouseButtonLeft && msg.Action == tea.MouseActionPress {
+			m = m.startDrag(g, msg.X, msg.Y) // the click below still runs; the boxes are taken before it changes focus
 		}
 	}
 	if m.dashboard && msg.Button == tea.MouseButtonLeft && msg.Action == tea.MouseActionPress {

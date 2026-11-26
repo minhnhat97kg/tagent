@@ -120,7 +120,7 @@ var globalHints = []hint{
 	{"", "", "?", "help"}, {"", "", ",", "settings"}, {"", "", "B", "board config (default workflow, agents, triggers)"}, {"", "", "q", "quit"},
 	{"", "", "Tab S-Tab", "next / previous card: Agents, Usage, Tasks, Workflows"}, {"", "", "[ ]", "chart range (1 / 7 / 30 days)"},
 	{"", "", "o", "expand / collapse (prefix + A)"}, {"", "", "b", "board (from the Tasks card)"},
-	{"", "", "M", "move and resize the panes (saved per width)"},
+	{"", "", "M", "move and resize the panes (saved per width); or drag a pane's title row to move it, its bottom-right corner to resize"},
 }
 
 // globalKey is what every pane shares, tried after the focused pane.

@@ -164,7 +164,9 @@ The sidebar and zoomed dashboard use one view and one process. Narrow panes
 stack analytics, agents, tasks, and detail. Wide panes place agents and tasks
 side by side, with session history below.
 
-Press `M` on the dashboard to change the layout. Panes can overflow the
+Press `M` on the dashboard to change the layout, or drag with the mouse: press a
+pane's title row and move to move it, press its bottom-right corner and move to
+resize it. Releasing the mouse saves, like `enter`. Panes can overflow the
 terminal (the dashboard scrolls to the selected pane) or leave gaps. The layout
 is saved in `layout.json` next to `config.conf`, one for narrow (under 90
 columns) and one for wide, and survives restarts.

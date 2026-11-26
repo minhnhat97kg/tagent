@@ -137,7 +137,7 @@ func (m standaloneModel) rightX() int {
 // the help or another panel), so Enter/N/z are ours to take.
 func (m standaloneModel) listKeys() bool {
 	l := m.left
-	return l.focus == cardAgents && !l.boardMode && !l.helpOpen && l.taskForm == ""
+	return l.focus == cardAgents && !l.boardMode && !l.helpOpen && l.taskForm == "" && !l.layoutEdit
 }
 
 // rightSize is the area inside the agent's frame: the frame takes 2 columns and
@@ -284,7 +284,11 @@ func (m standaloneModel) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case tea.MouseMsg:
-		if m.layout != layoutDashboard && msg.X >= m.rightX() && msg.Y >= 0 {
+		if msg.Action == tea.MouseActionPress && m.left.drag != nil { // a press anywhere ends a drag whose release was lost
+			m.left = m.left.cancelDrag()
+		}
+		dragging := m.left.drag != nil && msg.Action != tea.MouseActionPress // a drag may cross into the right pane or the separator
+		if !dragging && m.layout != layoutDashboard && msg.X >= m.rightX() && msg.Y >= 0 {
 			if msg.Button == tea.MouseButtonLeft && msg.Action == tea.MouseActionPress && m.paneID != "" {
 				m.focusRight = true
 			}
@@ -296,7 +300,7 @@ func (m standaloneModel) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
-		if m.layout == layoutAgent || msg.X == m.leftWidth() { // the separator (or no list shown)
+		if !dragging && (m.layout == layoutAgent || msg.X == m.leftWidth()) { // the separator (or no list shown)
 			return m, nil
 		}
 		if msg.Button == tea.MouseButtonLeft && msg.Action == tea.MouseActionPress {

@@ -13,13 +13,19 @@ import (
 // startLayoutEdit enters the mode with the saved (or default) boxes; the
 // selection starts at the focused card.
 func (m Model) startLayoutEdit() Model {
+	m.layoutEdit, m.layoutDraft, m.layoutSel = true, m.editBoxes(), cardIDs[m.focus]
+	m.drag = nil
+	return m
+}
+
+// editBoxes is the boxes a layout edit starts from: the custom ones, else the default.
+func (m Model) editBoxes() []paneBox {
 	def := m.defaultGeometry()
 	boxes, ok := m.customBoxes(def)
 	if !ok {
 		boxes = mergeBoxes(boxesFrom(def), boxesFrom(def), minPaneH, "") // a short default can give a card fewer rows than its minimum
 	}
-	m.layoutEdit, m.layoutDraft, m.layoutSel = true, boxes, cardIDs[m.focus]
-	return m
+	return boxes
 }
 
 func layoutHints(Model) []hint {
@@ -38,14 +44,14 @@ func (m Model) layoutKey(key string) (Model, tea.Cmd, bool) {
 	case "q", "ctrl+c": // quit is not a layout key
 		return m, nil, false
 	case "esc":
-		m.layoutEdit, m.layoutDraft = false, nil
+		m.layoutEdit, m.layoutDraft, m.drag = false, nil, nil
 	case "enter", "0":
 		boxes := m.layoutDraft
 		if key == "0" {
 			boxes = nil
 		}
 		save := key == "0" || m.layoutDirty
-		m.layoutEdit, m.layoutDraft, m.layoutDirty = false, nil, false
+		m.layoutEdit, m.layoutDraft, m.layoutDirty, m.drag = false, nil, false, nil
 		if save {
 			m.layouts.set(m.wideLayout(), boxes)
 			if err := saveLayout(m.wideLayout(), boxes); err != nil {
@@ -91,9 +97,90 @@ func (m Model) layoutShown() []string {
 	return out
 }
 
-// nudgeSelected moves and resizes the selected box in units and rows, keeps it
-// within its limits, then moves the others out of its way.
+// nudgeSelected is placeSelected, then the selected pane comes into view.
 func (m Model) nudgeSelected(dx, dy, dw, dh int) Model {
+	m = m.placeSelected(dx, dy, dw, dh)
+	return m.followPane(m.layoutSel)
+}
+
+// paneDrag is a mouse drag on the dashboard: the pane under the press (its top
+// row moves it, its bottom-right corner resizes it), the canvas cell of the press
+// and the boxes at the press. Every motion recomputes from base.
+type paneDrag struct {
+	id     string
+	resize bool
+	x, y   int // canvas cell of the press
+	base   []paneBox
+}
+
+// startDrag grabs the pane under a press at canvas cell (x, y), if any.
+func (m Model) startDrag(g dashGeom, x, y int) Model {
+	rects := g.rects()
+	for _, id := range layoutIDs {
+		r := rects[id]
+		if r.h == 0 || x < r.x || x >= r.x+r.w || y < r.y || y >= r.y+r.h {
+			continue
+		}
+		resize := y == r.y+r.h-1 && x >= r.x+r.w-2
+		if y != r.y && !resize {
+			continue
+		}
+		m.scrollX, m.scrollY = g.clampScroll(m.scrollX, m.scrollY) // the canvas offset the press was translated with
+		m.drag = &paneDrag{id: id, resize: resize, x: x, y: y, base: m.editBoxes()}
+		return m
+	}
+	return m
+}
+
+// dragOK: a drag only moves panes on the plain dashboard.
+func (m Model) dragOK() bool {
+	return m.dashboard && !m.boardMode && m.taskForm == "" && !m.helpOpen && !m.taskDelete
+}
+
+// dragTo moves or resizes the dragged pane by the pointer's travel since the
+// press (screen cell (x, y)). A drag that changes no box leaves no edit behind.
+func (m Model) dragTo(x, y int) Model {
+	d := m.drag
+	dx, dy := x+m.scrollX-d.x, y+m.scrollY-d.y
+	ux := unitsOf(max(dx, -dx), m.defaultGeometry().bw) // unitsOf rounds negatives wrongly
+	if dx < 0 {
+		ux = -ux
+	}
+	m.layoutSel, m.layoutDraft = d.id, d.base
+	if d.resize {
+		m = m.placeSelected(0, 0, ux, dy)
+	} else {
+		m = m.placeSelected(ux, dy, 0, 0)
+	}
+	changed := !slices.Equal(m.layoutDraft, d.base)
+	m.layoutEdit, m.layoutDirty = changed, changed
+	if !changed {
+		m.layoutDraft = nil
+	}
+	return m
+}
+
+// endDrag is the release: a changed layout is saved as enter saves it.
+func (m Model) endDrag() Model {
+	if m.layoutEdit {
+		m, _, _ = m.layoutKey("enter")
+	}
+	m.drag = nil
+	return m
+}
+
+// cancelDrag is a press while a drag is open (its release was lost): the drag is discarded.
+func (m Model) cancelDrag() Model {
+	if m.layoutEdit {
+		m, _, _ = m.layoutKey("esc")
+	}
+	m.drag = nil
+	return m
+}
+
+// placeSelected moves and resizes the selected box in units and rows, keeps it
+// within its limits, then moves the others out of its way.
+func (m Model) placeSelected(dx, dy, dw, dh int) Model {
 	boxes := slices.Clone(m.layoutDraft)
 	for i := range boxes {
 		if boxes[i].ID == m.layoutSel {
@@ -113,7 +200,7 @@ func (m Model) nudgeSelected(dx, dy, dw, dh int) Model {
 	}
 	m.layoutDraft = append(placeBoxes(known, m.layoutSel), unknown...)
 	m.layoutDirty = true
-	return m.followPane(m.layoutSel)
+	return m
 }
 
 // followPane scrolls the canvas until the card is in view. The far edge comes
