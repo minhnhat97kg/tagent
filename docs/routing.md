@@ -113,9 +113,11 @@ The web UI edits the same file; the TUI does not.
 - **Agents page**: the Model control lists "Tier" (the account's tiers) and "Fixed"
   models. A tier role hides Harness, disables the context fields and offers every
   effort level. Choosing a fixed model switches the harness back to `claude`.
-- **Routing page** (`#/routing`, linked from Usage): one card per tier. Its
-  first line is the flow, e.g. `Claude opus until 70% -> Codex gpt-6.1-sol until
-  90% -> block`. Candidates are in priority order with the 5h and 7d quota bars;
+- **Routing page** (`#/routing`, linked from Usage): one card per tier. A node
+  chart at the top shows the flow as chips joined by arrows, e.g. `Claude opus
+  until 70%` → `Codex gpt-6.1-sol until 90%` → `block` (the end node is `run
+  first` when `when_exhausted` is `first`); the running candidate is highlighted.
+  Candidates are listed below in priority order, joined by a dashed spine, with the 5h and 7d quota bars;
   a tick marks the candidate's `Spill at %`, which is edited in place (empty
   means the provider limit). The candidate running now shows `Running now`; an
   exhausted one shows `Spilled - resets <time>`. Reorder by dragging the grip or

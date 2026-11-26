@@ -1,5 +1,5 @@
-import { useId, useRef, useState, type FormEvent } from "react"
-import { ArrowDown, ArrowUp, GripVertical, Plus, Trash2 } from "lucide-react"
+import { Fragment, useId, useRef, useState, type FormEvent } from "react"
+import { ArrowDown, ArrowRight, ArrowUp, GripVertical, Plus, Trash2 } from "lucide-react"
 import { api, send } from "@/api"
 import { Meter } from "@/components/panels/OverviewPanel"
 import { Button } from "@/components/ui/button"
@@ -97,7 +97,8 @@ export function RoutingPage({ dir }: { dir: string }) {
   </section>
 }
 
-// TierCard is one tier: its flow line, candidates in priority order (drag, buttons or remove), and the add form.
+// TierCard is one tier: a node chart of its flow, candidates in priority order (drag, buttons or remove), and the add form.
+// The flow text stays in the DOM for screen readers; the chart is decorative.
 function TierCard({ tier: t, view, busy, models, setRefs, onDelete }: {
   tier: RoutingTier; view: RoutingView; busy: boolean; models: Record<string, string[]> | null
   setRefs: (refs: string[]) => Promise<boolean>; onDelete: () => void
@@ -111,8 +112,20 @@ function TierCard({ tier: t, view, busy, models, setRefs, onDelete }: {
       <span className="min-w-0 truncate text-[11.5px] text-muted-foreground">used by {t.usedBy.length ? t.usedBy.join(", ") : "no role in this project"}</span>
       <Button size="icon-xs" variant="ghost" className="ml-auto" aria-label={`Delete tier ${t.name}`} disabled={busy} onClick={onDelete}><Trash2 /></Button>
     </header>
-    <p className="text-[12px] font-medium">{flow(t.candidates, view.when_exhausted)}</p>
-    <ol className="flex flex-col gap-1.5">
+    <p className="sr-only">{flow(t.candidates, view.when_exhausted)}</p>
+    <div aria-hidden className="flex flex-wrap items-center gap-1 text-[11px]">
+      {t.candidates.map((c, i) => <Fragment key={`${i}-${c.ref}`}>
+        {i > 0 && <ArrowRight className="size-3 shrink-0 text-muted-foreground" />}
+        <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-medium ${c.selected ? "border-brand bg-brand-soft text-brand-ink" : "bg-background"}`}>
+          <span className="size-1.5 rounded-full bg-current opacity-70" />
+          {candidateName(c.ref)}
+          {c.threshold !== null && <span className="font-normal text-muted-foreground">until {c.threshold}%</span>}
+        </span>
+      </Fragment>)}
+      <ArrowRight className="size-3 shrink-0 text-muted-foreground" />
+      <span className={`rounded-full border border-dashed px-2 py-0.5 ${view.when_exhausted === "first" ? "text-brand-ink" : "text-destructive"}`}>{view.when_exhausted === "first" ? "run first" : "block"}</span>
+    </div>
+    <ol className="relative flex flex-col gap-1.5 border-l-2 border-dashed border-border pl-3 ml-1.5">
       {t.candidates.map((c, i) => {
         const provider = view.providers.find(p => p.id === parseRef(c.ref).harness)
         return <li key={`${i}-${c.ref}`} aria-label={c.ref}
