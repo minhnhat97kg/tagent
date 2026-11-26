@@ -705,12 +705,15 @@ func (c *BoardConfig) addDeclared() {
 			}
 		}
 	}
-	rank := func(id string) int { // lane first, then the order the lane declares
+	// Rank each column once: the sort calls it per comparison, and every card
+	// builds its config per frame. Lane first, then the order the lane declares.
+	rank := make(map[string]int, len(c.Columns))
+	for _, id := range c.Columns {
 		at := slices.Index(c.LaneStatuses[c.Lane(id)], id)
 		if at < 0 {
 			at = 999
 		}
-		return slices.Index(c.Lanes(), c.Lane(id))*1000 + at
+		rank[id] = slices.Index(c.Lanes(), c.Lane(id))*1000 + at
 	}
-	slices.SortStableFunc(c.Columns, func(a, b string) int { return rank(a) - rank(b) })
+	slices.SortStableFunc(c.Columns, func(a, b string) int { return rank[a] - rank[b] })
 }

@@ -7,12 +7,14 @@ package sidebar
 import (
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/charmbracelet/bubbles/viewport"
@@ -35,6 +37,8 @@ import (
 const (
 	// refreshInterval is the cycle for rebuilding the list from tmux.QuerySessions().
 	refreshInterval = 3 * time.Second
+	// hiddenRefreshEvery: a hidden window refreshes once per this many ticks.
+	hiddenRefreshEvery = 10
 	// animInterval is the cycle for advancing the spinner frame, and also the
 	// debounce cadence for writing global options (cursor/repo filter) that
 	// changed locally.
@@ -770,6 +774,11 @@ type Model struct {
 	width     int
 	height    int
 	animFrame int
+	// animPaused is set while this sidebar's window is hidden: the 200ms tick
+	// chain stops (no re-render for nobody to see) and resumes on focus.
+	animPaused bool
+	// hiddenTicks counts refresh ticks while the window is hidden.
+	hiddenTicks int
 
 	// cursor is the index of the currently selected pane row (headers
 	// excluded) — see the "Cursor" comment above buildRows.
@@ -956,22 +965,42 @@ func selectPaneCmd(paneID, fromPane string) tea.Cmd {
 // bubbletea gives this Cmd).
 func refreshCmd() tea.Cmd {
 	return func() tea.Msg {
-		sessions := tmux.QuerySessions()
-		opts := tmux.GetAllGlobalOptions()
-
-		msg := RefreshMsg{
-			Sessions:   sessions,
-			Theme:      ThemeFromOptions(opts),
-			Icons:      IconsFromOptions(opts),
-			Avatar:     avatarConfigFromOptions(opts),
-			Compact:    opts["@agent_compact"] == "on",
-			Dialogs:    readDialogs(sessions),
-			SizeOwners: readSizeOwners(sessions),
-			Web:        opts["@agent_web_status"],
+		refreshMemo.Lock()
+		defer refreshMemo.Unlock()
+		if time.Since(refreshMemo.at) >= refreshMemoTTL {
+			sessions := tmux.QuerySessions()
+			opts := tmux.GetAllGlobalOptions()
+			refreshMemo.msg = RefreshMsg{
+				Sessions:   sessions,
+				Theme:      ThemeFromOptions(opts),
+				Icons:      IconsFromOptions(opts),
+				Avatar:     avatarConfigFromOptions(opts),
+				Compact:    opts["@agent_compact"] == "on",
+				Dialogs:    readDialogs(sessions),
+				SizeOwners: readSizeOwners(sessions),
+				Web:        opts["@agent_web_status"],
+			}
+			refreshMemo.at = time.Now()
 		}
+		msg := refreshMemo.msg
+		// Panes edit these maps in place (answered dialogs, web status), so each gets a copy.
+		msg.Dialogs = maps.Clone(msg.Dialogs)
+		msg.SizeOwners = maps.Clone(msg.SizeOwners)
 		return msg
 	}
 }
+
+// refreshMemo: every pane on a socket asks for the same tmux state, and the
+// shared server runs them in one process. One fetch serves all panes that ask
+// within refreshMemoTTL, instead of each pane forking tmux every 3s.
+// ponytail: a time memo, not one shared ticker; with pane ticks spread over 3s this still fetches about once a second.
+var refreshMemo struct {
+	sync.Mutex
+	at  time.Time
+	msg RefreshMsg
+}
+
+const refreshMemoTTL = time.Second
 
 // readDialogs captures the screen of every waiting agent and parses its
 // prompt, so the list can offer the answers inline.
@@ -1126,12 +1155,60 @@ func (m *Model) syncViewport() {
 // pane under the cursor (empty list, or cursor sitting on a header) — there
 // is nothing to ask for.
 func (m *Model) detailRefreshCmd() tea.Cmd {
+	if m.windowHidden() { // git and ticket reads for a pane nobody sees; the next visible refresh fetches them
+		return nil
+	}
 	id, ok := paneIDAt(m.rows, m.cursor)
 	if !ok {
 		return nil
 	}
 	info, _ := paneInfoByID(m.sessions, id)
 	return detailFetchCmd(id, info.Path)
+}
+
+// windowHidden reports whether this sidebar's tmux window is not the active
+// window of an attached session. A window missing from m.sessions counts as
+// visible, so an unknown state never freezes the animation.
+func (m Model) windowHidden() bool {
+	if m.standalone || m.windowID == "" {
+		return false
+	}
+	for _, s := range m.sessions {
+		for _, w := range s.Windows {
+			if w.WindowID == m.windowID {
+				return !(s.Attached && w.WindowActive)
+			}
+		}
+	}
+	return false
+}
+
+// hiddenPollMsg fires once a second while the animation is paused. The
+// refresh that would show a window as visible runs only every
+// hiddenRefreshEvery ticks, so the poll asks tmux directly.
+type hiddenPollMsg struct{}
+
+func hiddenPollCmd() tea.Cmd {
+	return tea.Tick(time.Second, func(time.Time) tea.Msg { return hiddenPollMsg{} })
+}
+
+// windowVisibleNow asks tmux whether windowID is the active window of an
+// attached session. A var so tests can stub it.
+var windowVisibleNow = func(windowID string) bool {
+	active, clients, _ := strings.Cut(tmux.DisplayMessage(windowID, "#{window_active}:#{session_attached}"), ":")
+	return active == "1" && clients != "" && clients != "0"
+}
+
+// resumeAnim restarts the paused animation tick once the window is visible
+// again. It is called from refresh messages (every few seconds) and from
+// SIGUSR1 refresh requests; the first render after the switch happens with
+// whichever message arrives.
+func (m *Model) resumeAnim() tea.Cmd {
+	if !m.animPaused || m.windowHidden() {
+		return nil
+	}
+	m.animPaused = false
+	return tickAnimCmd()
 }
 
 // applyDetailMsg applies the detailFetchCmd result to Model — ignored if the
@@ -1360,6 +1437,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.resizeViewport()
 		}
 		m.applyRows()
+		resume := m.resumeAnim()
 		// Follow focus: when the user switches to another agent pane in this
 		// window, the highlight moves to it (the cursor stays free for j/k
 		// until focus changes again).
@@ -1383,9 +1461,9 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.metricTick++
 		if m.dashboard && !m.metricBusy && (m.metricTick == 1 || m.metricTick%4 == 0) {
 			m.metricBusy = true
-			return m, tea.Batch(m.detailRefreshCmd(), avatarCmd, m.metricRefreshCmd())
+			return m, tea.Batch(m.detailRefreshCmd(), avatarCmd, resume, m.metricRefreshCmd())
 		}
-		return m, tea.Batch(m.detailRefreshCmd(), avatarCmd)
+		return m, tea.Batch(m.detailRefreshCmd(), avatarCmd, resume)
 
 	case metricMsg:
 		m.metricBusy = false
@@ -1398,10 +1476,19 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Steady tick: ask for fresh data AND schedule the next tick itself.
 		// Kept separate from refreshRequestMsg so a burst of SIGUSR1 doesn't
 		// double the number of ticks running.
+		// A hidden window refreshes only every hiddenRefreshEvery ticks: each
+		// refresh forks tmux and ps. Focus sends SIGUSR1, which refreshes at once.
+		if m.windowHidden() {
+			m.hiddenTicks++
+			if m.hiddenTicks%hiddenRefreshEvery != 0 {
+				return m, tickRefreshCmd()
+			}
+		}
 		return m, tea.Batch(refreshCmd(), tickRefreshCmd())
 
 	case refreshRequestMsg:
-		return m, refreshCmd()
+		resume := m.resumeAnim() // before returning m: it clears animPaused
+		return m, tea.Batch(refreshCmd(), resume)
 
 	case detailMsg:
 		m.applyDetailMsg(msg)
@@ -1472,7 +1559,21 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case hiddenPollMsg:
+		if !m.animPaused {
+			return m, nil
+		}
+		if !windowVisibleNow(m.windowID) {
+			return m, hiddenPollCmd()
+		}
+		m.animPaused = false
+		return m, tea.Batch(refreshCmd(), tickAnimCmd())
+
 	case AnimTickMsg:
+		if m.windowHidden() {
+			m.animPaused = true
+			return m, hiddenPollCmd()
+		}
 		m.animFrame++
 		// The bubble's height follows what the avatar says (bubbleRows),
 		// which can change between refreshes (the hour turns): keep the

@@ -12,7 +12,9 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"tagent/internal/apppath"
+	"time"
 )
 
 // Error is a parse failure tied to a 1-based source line (0 when none).
@@ -236,9 +238,31 @@ func GlobalDir() string {
 	}
 	return filepath.Join(apppath.Dir(base), "workflows")
 }
+
+// loadCache keeps the parsed result per file. The sidebar draws every card on
+// every frame, and each card resolves its workflow, so re-parsing the YAML each
+// time dominated the CPU. A file is re-parsed only when its mtime or size changes.
+// ponytail: stat-keyed cache, no inotify; a same-size rewrite within one mtime tick is missed.
+var loadCache sync.Map // file -> cachedWorkflow
+
+type cachedWorkflow struct {
+	mod  time.Time
+	size int64
+	w    Workflow
+}
+
 func Load(file string) Workflow {
-	b, e := os.ReadFile(file)
+	st, statErr := os.Stat(file)
+	if statErr == nil {
+		if v, ok := loadCache.Load(file); ok {
+			if c := v.(cachedWorkflow); c.mod.Equal(st.ModTime()) && c.size == st.Size() {
+				return c.w
+			}
+		}
+	}
+	b, readErr := os.ReadFile(file)
 	var w Workflow
+	e := readErr
 	if e == nil {
 		w, e = Parse(b)
 	}
@@ -247,14 +271,44 @@ func Load(file string) Workflow {
 	if w.Name == "" {
 		w.Name = strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
 	}
+	// Parse errors are a pure function of the bytes, so they are cached too.
+	if statErr == nil && readErr == nil {
+		loadCache.Store(file, cachedWorkflow{mod: st.ModTime(), size: st.Size(), w: w})
+	}
 	return w
 }
+
+// dirCache keeps each workflow dir's file list, keyed by the dir's mtime (adding,
+// removing or renaming a file changes it). Load still checks each file itself.
+// ponytail: a file added within the same mtime tick as the last glob is missed until the next change.
+var dirCache sync.Map // dir -> cachedDir
+
+type cachedDir struct {
+	mod   time.Time
+	files []string
+}
+
+func globWorkflows(dir string) []string {
+	st, err := os.Stat(dir)
+	if err == nil {
+		if v, ok := dirCache.Load(dir); ok {
+			if c := v.(cachedDir); c.mod.Equal(st.ModTime()) {
+				return c.files
+			}
+		}
+	}
+	files, _ := filepath.Glob(filepath.Join(dir, "*.y*ml"))
+	sort.Strings(files)
+	if err == nil {
+		dirCache.Store(dir, cachedDir{mod: st.ModTime(), files: files})
+	}
+	return files
+}
+
 func List(root string) []Workflow {
 	var out []Workflow
 	for i, dir := range []string{LocalDir(root), GlobalDir()} {
-		files, _ := filepath.Glob(filepath.Join(dir, "*.y*ml"))
-		sort.Strings(files)
-		for _, f := range files {
+		for _, f := range globWorkflows(dir) {
 			w := Load(f)
 			w.Global = i == 1
 			out = append(out, w)
