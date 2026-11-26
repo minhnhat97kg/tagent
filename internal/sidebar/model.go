@@ -661,7 +661,7 @@ type Model struct {
 	focus          int // the focused card (cardAgents...cardWorkflows)
 	workflowCursor int
 	workflowDelete string
-	agentsOpen     bool
+	agentsOpen     bool // the Agents card shows the Definitions tab (t)
 	agents         []agents.Agent
 	agentCursor    int
 	agentDelete    string
@@ -715,14 +715,12 @@ type Model struct {
 	attachmentsKey    string
 	notesScope        string
 	dashboard         bool
+	maximized         bool // the focused card fills the body (Z); esc or q restores
 	metricState       metrics.State
 	metricScope       string
 	metricBusy        bool
 	metricTick        int
-	boardMode         bool
-	flowFromDash      bool // the workflow view was opened from the dashboard card
-	boardDrawer       bool
-	detailFromDash    bool                // the ticket drawer was opened from the dashboard's Tasks card
+	boardDrawer       bool                // the ticket detail takes the body (enter)
 	boardWorkflows    []workflow.Workflow // listed under the board
 	boardFlow         bool                // workflow view: the configured statuses and who acts in each
 	boardConfigView   bool                // read-only board config summary (B)
@@ -1261,7 +1259,7 @@ func noticeSeconds() time.Duration {
 // keypresses do not stat files; it reloads when the selection or key changes.
 func (m Model) syncAttachments() Model {
 	key := ""
-	if m.boardMode && m.taskCursor >= 0 && m.taskCursor < len(m.notes) {
+	if (m.boardDrawer || m.taskForm == "attachments") && m.taskCursor >= 0 && m.taskCursor < len(m.notes) {
 		key = m.boardDir + "\x00" + m.notes[m.taskCursor].ID
 	}
 	if key == m.attachmentsKey {
@@ -1632,8 +1630,8 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 			m = m.cancelDrag() // the release was lost: this press starts over
 		}
 	}
-	if m.dashboard && (m.boardMode || m.taskForm != "" || m.helpOpen) {
-		if m.boardMode && m.taskForm == "" && !m.helpOpen && !m.taskDelete {
+	if m.dashboard && (m.subView() || m.taskForm != "" || m.helpOpen) {
+		if m.subView() && m.taskForm == "" && !m.helpOpen && !m.taskDelete { // a sub-view takes the wheel as j/k and no clicks
 			if msg.Button == tea.MouseButtonWheelDown {
 				return m.handleKey(tea.KeyMsg{Type: tea.KeyDown})
 			}
@@ -1641,29 +1639,16 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 				return m.handleKey(tea.KeyMsg{Type: tea.KeyUp})
 			}
 		}
-		if m.boardMode && m.taskForm == "" && !m.helpOpen && !m.boardDrawer && !m.boardFlow && msg.Button == tea.MouseButtonLeft && msg.Action == tea.MouseActionPress {
-			th, _ := m.boardSplit(m.height - 3)
-			if msg.Y >= 1 && msg.Y <= th {
-				m, _ = m.tasksCardClick(msg.X, msg.Y-1, m.width, th, 0)
-				m.focus = cardTasks
-			} else if msg.Y > th {
-				m.focus = cardWorkflows
-			}
-		}
 		return m, nil // Dashboard hit targets are not valid while an overlay replaces it.
 	}
 	if m.dashboard {
 		g := m.dashGeometry()
-		canvas := !(m.agentsOpen && m.agentDetail) // the Agents detail fills the pane unscrolled
-		sx, sy := 0, 0
-		if canvas {
-			sx, sy = g.clampScroll(m.scrollX, m.scrollY)
-		}
+		sx, sy := g.clampScroll(m.scrollX, m.scrollY)
 		inBody := msg.Y >= 1 && msg.Y < m.height-1 // top bar and footer are not canvas rows
-		if canvas && inBody {                      // body rows are canvas rows: undo the scroll once, for every hit test below
+		if inBody {                                // body rows are canvas rows: undo the scroll once, for every hit test below
 			msg.X, msg.Y = msg.X+sx, msg.Y+sy
 		}
-		if canvas && inBody && (msg.Button == tea.MouseButtonWheelUp || msg.Button == tea.MouseButtonWheelDown) {
+		if inBody && (msg.Button == tea.MouseButtonWheelUp || msg.Button == tea.MouseButtonWheelDown) {
 			if m.layoutEdit || !g.interior(msg.X, msg.Y) { // over empty canvas or a border: scroll the canvas
 				return m.scrollCanvas(g, map[bool]int{true: 3, false: -3}[msg.Button == tea.MouseButtonWheelDown]), nil
 			}
@@ -1671,7 +1656,7 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		if m.layoutEdit { // clicks do nothing while a layout is being edited
 			return m, nil
 		}
-		if canvas && inBody && !m.taskDelete && msg.Button == tea.MouseButtonLeft && msg.Action == tea.MouseActionPress {
+		if inBody && !m.taskDelete && msg.Button == tea.MouseButtonLeft && msg.Action == tea.MouseActionPress {
 			m = m.startDrag(g, msg.X, msg.Y) // the click below still runs; the boxes are taken before it changes focus
 		}
 	}
@@ -1685,7 +1670,25 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		}
 		switch {
 		case g.agents.contains(msg.X, msg.Y):
-			return focusCard(0), nil
+			wasFocused := m.focus == cardAgents
+			m = focusCard(0)
+			if msg.Y == g.agents.y { // the tab titles: Running, Definitions
+				_, spans := m.tabStrip([]string{"Running", "Definitions"}, b2i(m.agentsOpen), 3)
+				for i, sp := range spans {
+					if x := msg.X - g.agents.x; x >= sp.x0 && x < sp.x1 {
+						m.agentsOpen, m.agentDetail = i == 1, false
+						if m.agentsOpen {
+							m = m.loadAgents()
+						}
+					}
+				}
+			} else if m.agentsOpen && wasFocused && msg.Y < g.agents.y+g.agents.h-1 { // a definition row
+				start := max(0, m.agentCursor-max(1, g.agents.h-2)+1)
+				if idx := start + msg.Y - g.agents.y - 1; idx < len(m.agents) {
+					m.agentCursor = idx
+				}
+			}
+			return m, nil
 		case g.usage.contains(msg.X, msg.Y):
 			return focusCard(3), nil
 		case g.tasks.contains(msg.X, msg.Y):
@@ -1694,35 +1697,17 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 			var card bool
 			m, card = m.tasksCardClick(msg.X-g.tasks.x, msg.Y-g.tasks.y, g.tasks.w, g.tasks.h, paneNum(2))
 			if card && wasFocused {
-				m = m.openBoard()
-				m.detailFromDash = true // opened from this card: back returns here
-				m, cmd, _ := m.boardKey("enter")
+				m, cmd, _ := m.boardKey("enter") // the ticket detail opens over the card
 				return m, cmd
 			}
 			return m, nil
 		case g.wf.contains(msg.X, msg.Y):
 			wasFocused := m.focus == cardWorkflows
 			m = focusCard(4)
-			if msg.Y == g.wf.y {
-				name, w := m.cardName(paneNum(4), "")
-				_, spans := m.tabStrip([]string{"Workflows", "Agents"}, b2i(m.agentsOpen), 3+w)
-				for i, sp := range spans {
-					if x := msg.X - g.wf.x; x >= sp.x0 && x < sp.x1 {
-						_ = name
-						m.agentsOpen, m.agentDetail = i == 1, false
-						if m.agentsOpen {
-							m = m.loadAgents()
-						}
-					}
-				}
-			} else if listW, flowW := m.workflowCols(g.wf.w); wasFocused && msg.Y < g.wf.y+g.wf.h-1 && (flowW == 0 || msg.X-g.wf.x < 2+listW) {
-				cursor := &m.workflowCursor
-				if m.agentsOpen {
-					cursor = &m.agentCursor
-				}
-				start := max(0, *cursor-max(1, g.wf.h-2)+1)
-				if idx := start + msg.Y - g.wf.y - 1; idx < len(m.boardWorkflows) && !m.agentsOpen || idx < len(m.agents) && m.agentsOpen {
-					*cursor = idx
+			if listW, flowW := m.workflowCols(g.wf.w); wasFocused && msg.Y > g.wf.y && msg.Y < g.wf.y+g.wf.h-1 && (flowW == 0 || msg.X-g.wf.x < 2+listW) {
+				start := max(0, m.workflowCursor-max(1, g.wf.h-2)+1)
+				if idx := start + msg.Y - g.wf.y - 1; idx < len(m.boardWorkflows) {
+					m.workflowCursor = idx
 				}
 			}
 			return m, nil
@@ -1742,12 +1727,11 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		if down {
 			step = 1
 		}
-		if g := m.dashGeometry(); g.wf.contains(msg.X, msg.Y) {
-			if m.agentsOpen {
-				m.agentCursor = max(0, min(len(m.agents)-1, m.agentCursor+step))
-			} else {
-				m.workflowCursor = max(0, min(len(m.boardWorkflows)-1, m.workflowCursor+step))
-			}
+		if g := m.dashGeometry(); g.agents.contains(msg.X, msg.Y) && m.agentsOpen {
+			m.agentCursor = max(0, min(len(m.agents)-1, m.agentCursor+step))
+			return m, nil
+		} else if g.wf.contains(msg.X, msg.Y) {
+			m.workflowCursor = max(0, min(len(m.boardWorkflows)-1, m.workflowCursor+step))
 			return m, nil
 		} else if g.tasks.contains(msg.X, msg.Y) {
 			return m.laneStep(step), nil
@@ -1843,6 +1827,10 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	key := msg.String()
+	if m.maximized && !m.subView() && m.workflowDelete == "" && m.agentDelete == "" && (key == "esc" || key == "q") { // restore: the card goes back to its place
+		m.maximized = false
+		return m.followPane(cardIDs[m.focus]), nil
+	}
 	next, cmd, ok := panes[m.focused()].Key(m, key)
 	if !ok {
 		next, cmd, _ = m.globalKey(key)

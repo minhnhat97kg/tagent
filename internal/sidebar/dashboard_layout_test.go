@@ -19,7 +19,7 @@ import (
 
 func dashSample() Model {
 	m := boardTestModel()
-	m.boardMode, m.focus, m.taskCursor = false, cardAgents, 2
+	m.maximized, m.focus, m.taskCursor = false, cardAgents, 2
 	m.notesScope = "tagent-12345678"
 	m.notes = nil
 	for i, st := range []string{"todo", "todo", "doing", "review", "blocked", "done"} {
@@ -38,7 +38,7 @@ func dashSample() Model {
 func TestDashboardCardLinesHaveEqualWidth(t *testing.T) {
 	m := dashSample()
 	m.width, m.height = 140, 40
-	card := m.boardPanel("Agents", "1 of 3", m.agentRows(40-4, 10), 40, 12, false)
+	card := m.boardPanel("Running", "1 of 3", m.agentRows(40-4, 10), 40, 12, false)
 	for i, l := range strings.Split(card, "\n") {
 		if lipgloss.Width(l) != 40 {
 			t.Fatalf("line %d is %d cells, want 40: %q", i, lipgloss.Width(l), ansi.Strip(l))
@@ -96,7 +96,7 @@ func TestDashboardShowsLanesAtEveryWidth(t *testing.T) {
 			t.Fatalf("%v: raw status columns:\n%s", size, plain)
 		}
 		g := m.dashGeometry()
-		if g.wf.h == 0 || !strings.Contains(plain, "[Workflows]  Agents") {
+		if g.wf.h == 0 || !strings.Contains(plain, "Workflows") {
 			t.Fatalf("%v: no Workflows card", size)
 		}
 		next, card := m.tasksCardClick(5, 2, g.tasks.w, g.tasks.h, 4)
@@ -135,7 +135,7 @@ func TestLanesHeaderText(t *testing.T) {
 // Every card is always drawn with a full rounded border, the title inside the
 // top edge, equal widths; the set of cards never changes with focus.
 func TestDashboardCardSetIsStable(t *testing.T) {
-	titles := []string{"Agents", "▥ Usage", "☷ Tasks", "[Workflows]"}
+	titles := []string{"[Running]", "▥ Usage", "☷ Tasks", "Workflows"}
 	for _, size := range [][2]int{{140, 40}, {100, 30}, {60, 60}, {40, 60}, {60, 20}} {
 		for _, f := range focusOrder {
 			m := dashSample()
@@ -257,7 +257,7 @@ func TestNoAgentDefinitionsCardAndFourStops(t *testing.T) {
 	m := dashSample()
 	for _, size := range [][2]int{{50, 60}, {100, 40}} {
 		m.width, m.height = size[0], size[1]
-		if p := ansi.Strip(m.dashboardView()); strings.Contains(p, "efinitions") {
+		if p := ansi.Strip(m.dashboardView()); strings.Count(p, "Definitions") > 1 {
 			t.Fatalf("%v: definitions card still drawn:\n%s", size, p)
 		}
 	}
@@ -274,64 +274,60 @@ func TestClosingWorkflowViewReturnsToDashboard(t *testing.T) {
 	m.boardWorkflows = []workflow.Workflow{{Name: "a", File: "a.yaml"}}
 	next, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyEnter})
 	m = next.(Model)
-	if !m.boardMode || !m.boardFlow {
-		t.Fatalf("view not open: board %v flow %v", m.boardMode, m.boardFlow)
+	if !m.boardFlow {
+		t.Fatalf("view not open: flow %v", m.boardFlow)
 	}
 	next, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyEsc})
 	m = next.(Model)
-	if m.boardMode || m.boardFlow || m.focus != cardWorkflows {
+	if m.boardFlow || m.focus != cardWorkflows {
 		t.Fatalf("not back on dashboard: %+v", m.focus)
 	}
-	// opened from the board screen: stays on the board
+	// the view opened over a maximized card: esc closes the view and the card stays maximized
 	b := dashSample()
-	b.boardMode, b.boardFlow = true, true
+	b.maximized, b.boardFlow = true, true
 	next, _ = b.handleKey(tea.KeyMsg{Type: tea.KeyEsc})
-	if !next.(Model).boardMode {
-		t.Fatal("board screen left")
+	if n := next.(Model); n.boardFlow || !n.maximized {
+		t.Fatal("esc did not close the view over the maximized card")
 	}
 }
 
-// t swaps Workflows <-> Agents on the dashboard, and clicking a tab name does too.
+// t swaps the Agents card between Running and Definitions, and clicking a tab name does too.
 func TestDashboardWorkflowsAgentsTab(t *testing.T) {
 	dir := agentsTestDir(t)
 	m := dashSample()
 	m.boardDir, m.width, m.height = dir, 100, 40
-	m.focus = cardWorkflows
+	m.focus = cardAgents
 	next, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("t")})
 	m = next.(Model)
 	if !m.agentsOpen || len(m.agents) == 0 {
-		t.Fatal("t did not open Agents")
+		t.Fatal("t did not open Definitions")
 	}
-	if p := ansi.Strip(m.dashboardView()); !strings.Contains(p, "[Agents]") || !strings.Contains(p, "h/l workflows") || strings.Contains(p, "· local") {
-		t.Fatalf("agents tab render:\n%s", p)
+	if p := ansi.Strip(m.dashboardView()); !strings.Contains(p, "[Definitions]") || !strings.Contains(p, "t running") || strings.Contains(p, "· local") {
+		t.Fatalf("definitions tab render:\n%s", p)
 	}
-	next, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("h")})
+	next, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("t")})
 	if next.(Model).agentsOpen {
-		t.Fatal("h did not swap back to Workflows")
+		t.Fatal("t did not swap back to Running")
 	}
+	next, _ = next.(Model).handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("t")})
+	m = next.(Model)
 	next, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
 	m = next.(Model)
 	if m.agentCursor != 1 {
 		t.Fatalf("j not routed to agents: %d", m.agentCursor)
 	}
-	next, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("t")})
-	m = next.(Model)
-	if m.agentsOpen {
-		t.Fatal("t did not return to Workflows")
-	}
 	g := m.dashGeometry()
-	_, spans := m.tabStrip([]string{"Workflows", "Agents"}, 0, 3)
 	click := func(m Model, x int) Model {
-		n, _ := m.handleMouse(tea.MouseMsg{X: g.wf.x + x, Y: g.wf.y, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress})
+		n, _ := m.handleMouse(tea.MouseMsg{X: g.agents.x + x, Y: g.agents.y, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress})
 		return n.(Model)
 	}
-	m = click(m, spans[1].x0)
-	if !m.agentsOpen {
-		t.Fatal("click on Agents tab did nothing")
-	}
-	_, spans = m.tabStrip([]string{"Workflows", "Agents"}, 1, 3)
+	_, spans := m.tabStrip([]string{"Running", "Definitions"}, 1, 3)
 	if m = click(m, spans[0].x0); m.agentsOpen {
-		t.Fatal("click on Workflows tab did nothing")
+		t.Fatal("click on Running tab did nothing")
+	}
+	_, spans = m.tabStrip([]string{"Running", "Definitions"}, 0, 3)
+	if m = click(m, spans[1].x0); !m.agentsOpen {
+		t.Fatal("click on Definitions tab did nothing")
 	}
 }
 

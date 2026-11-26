@@ -25,7 +25,7 @@ func TestClosedTicketIsNotMovedByHL(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	panel := boardTestModel()
 	panel.repoDir = t.TempDir()
-	panel.boardMode = false
+	panel.maximized = false
 	panel = panel.boardContext()
 	scope := tasks.Scope(panel.repoDir)
 	task, err := tasks.Add(scope, "dropped", nil)

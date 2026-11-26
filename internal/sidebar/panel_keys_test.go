@@ -11,10 +11,10 @@ func TestPanelUsesBoardActions(t *testing.T) {
 		t.Run(key, func(t *testing.T) {
 			panel := boardTestModel()
 			panel.repoDir = t.TempDir()
-			panel.boardMode = false
+			panel.maximized = false
 			panel = panel.boardContext()
 			board := panel
-			board.boardMode = true
+			board.maximized = true
 			p, pc := boardPress(panel, key)
 			b, bc := boardPress(board, key)
 			if p.taskForm != b.taskForm || p.taskStep != b.taskStep || p.boardDrawer != b.boardDrawer || p.taskDelete != b.taskDelete || (pc == nil) != (bc == nil) {

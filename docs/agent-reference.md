@@ -144,4 +144,4 @@ notifications exist, say so and check when asked; do not simulate them with slee
 
 Tasks panel and board share ticket controls: `s` workflow start picker,
 `enter` detail, `e` edit, `C` comment, `H`/`L` status, `x` delete with confirmation,
-`w` workflow, `?` help. Dashboard `Tab` changes focus; `b` opens the board.
+`w` workflow, `?` help. Dashboard `Tab` changes focus; `Z` maximizes the focused card (`b` on Tasks too), `esc` restores.

@@ -15,7 +15,7 @@ var meterRe = regexp.MustCompile("[▰▱]{5} (?:[0-9]+%|–) *")
 
 var brailleRe = regexp.MustCompile("[\u2800-\u28ff]")
 
-// TestLayoutGolden pins the dashboard and board screens at the sizes that
+// TestLayoutGolden pins the dashboard and its maximized views at the sizes that
 // matter, for every focused card. UPDATE_GOLDEN=1 rewrites testdata/layout.golden.
 func TestLayoutGolden(t *testing.T) {
 	var b strings.Builder
@@ -25,10 +25,18 @@ func TestLayoutGolden(t *testing.T) {
 			m.width, m.height, m.focus = s[0], s[1], focus
 			fmt.Fprintf(&b, "=== dash %dx%d focus %d\n%s\n", s[0], s[1], focus, ansi.Strip(m.dashboardView()))
 		}
-		for _, wf := range []bool{false, true} {
+		for _, view := range []string{"tasks", "workflows", "detail", "flow"} { // maximized cards and their sub-views
 			m := boardTestModel()
-			m.width, m.height, m.focus = s[0], s[1], map[bool]int{true: cardWorkflows, false: cardTasks}[wf]
-			fmt.Fprintf(&b, "=== board %dx%d wf %v\n%s\n", s[0], s[1], wf, ansi.Strip(m.boardView()))
+			m.width, m.height = s[0], s[1]
+			switch view {
+			case "workflows":
+				m.focus = cardWorkflows
+			case "detail":
+				m.boardDrawer = true
+			case "flow":
+				m.boardFlow = true
+			}
+			fmt.Fprintf(&b, "=== max %s %dx%d\n%s\n", view, s[0], s[1], ansi.Strip(m.dashboardView()))
 		}
 	}
 	out := meterRe.ReplaceAllString(brailleRe.ReplaceAllString(b.String(), "~"), "~ ") // the companion avatar animates, quota meters are live

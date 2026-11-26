@@ -1,6 +1,6 @@
 === dash 32x22 focus 0
 tagent · tagent
-┏━ Agents ━━━━━━━━━━━━━━━━━━━━┓
+┏━ [Running]  Definitions ━━━━┓
 ┃ ▌ claude-main     main   ┃
 ┃   codex-fix              ▲  ┃
 ┃   plain                     ┃
@@ -16,14 +16,14 @@ tagent · tagent
 │ ○ todo 2  ▶ doing 2         │
 │ ! blocked 1  ✓ done 1       │
 ╰─────────────────────────────╯
-╭─ [Workflows]  Agents ───────╮
+╭─ Workflows ─────────────────╮
 │ No workflows · tagent work… │
 │                             │
 ╰─────────────────────────────╯
 Tab/S-Tab panel  ↑↓ select  en…
 === dash 32x22 focus 3
 tagent · tagent
-╭─ Agents ────────────────────╮
+╭─ [Running]  Definitions ────╮
 │ 3 agents · 1 running · 1    │
 │ waiting · 1 other           │
 ╰──────────────────── 1 of 3 ─╯
@@ -39,14 +39,14 @@ tagent · tagent
 │ ○ todo 2  ▶ doing 2         │
 │ ! blocked 1  ✓ done 1       │
 ╰─────────────────────────────╯
-╭─ [Workflows]  Agents ───────╮
+╭─ Workflows ─────────────────╮
 │ No workflows · tagent work… │
 │                             │
 ╰─────────────────────────────╯
 h/l or [ ] range  Tab/S-Tab pa…
 === dash 32x22 focus 2
 tagent · tagent
-╭─ Agents ────────────────────╮
+╭─ [Running]  Definitions ────╮
 │ 3 agents · 1 running · 1    │
 │ waiting · 1 other           │
 ╰──────────────────── 1 of 3 ─╯
@@ -61,7 +61,7 @@ tagent · tagent
 ┃   Ticket number 4 with a l… ┃
 ┃   ● review #4 builder       ┃
 ┗━━━━━━━━━━━━━━━━━━━━ 1 of 2 ━┛
-╭─ [Workflows]  Agents ───────╮
+╭─ Workflows ─────────────────╮
 │ No workflows · tagent work… │
 │                             │
 │                             │
@@ -69,7 +69,7 @@ tagent · tagent
 h/l lane  j/k card  n new  s s…
 === dash 32x22 focus 4
 tagent · tagent
-╭─ Agents ────────────────────╮
+╭─ [Running]  Definitions ────╮
 │ 3 agents · 1 running · 1    │
 │ waiting · 1 other           │
 ╰──────────────────── 1 of 3 ─╯
@@ -81,7 +81,7 @@ tagent · tagent
 │ ○ todo 2  ▶ doing 2         │
 │ ! blocked 1  ✓ done 1       │
 ╰─────────────────────────────╯
-┏━ [Workflows]  Agents ━━━━━━━┓
+┏━ Workflows ━━━━━━━━━━━━━━━━━┓
 ┃ No workflows · tagent work… ┃
 ┃                             ┃
 ┃                             ┃
@@ -89,12 +89,83 @@ tagent · tagent
 ┃                             ┃
 ┃                             ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-h/l agents  enter view  a add …
-=== board 32x22 wf false
-Board · kanban                  
-┏━ ☷ Tasks  [todo 2]  ▶0  !0 …┓
-┃ ▌ ● #1 First card            ┃
-┃   ● #2 Second card           ┃
+enter view  a add  B board con…
+=== max tasks 32x22
+tagent · kanban
+┏━ ☷ Tasks  [todo 2]  ▶0  !0…┓
+┃ ▌ ● #1 First card           ┃
+┃   ● #2 Second card          ┃
+┃                             ┃
+┃                             ┃
+┃                             ┃
+┃                             ┃
+┃                             ┃
+┃                             ┃
+┃                             ┃
+┃                             ┃
+┃                             ┃
+┃                             ┃
+┃                             ┃
+┃                             ┃
+┃                             ┃
+┃                             ┃
+┃                             ┃
+┃                             ┃
+┗━━━━━━━━━━━━━━━━━━━━ 1 of 2 ━┛
+esc restore  h/l lane  j/k car…
+=== max workflows 32x22
+tagent · kanban
+┏━ Workflows ━━━━━━━━━━━━━━━━━┓
+┃ No workflows · tagent work… ┃
+┃                             ┃
+┃                             ┃
+┃                             ┃
+┃                             ┃
+┃                             ┃
+┃                             ┃
+┃                             ┃
+┃                             ┃
+┃                             ┃
+┃                             ┃
+┃                             ┃
+┃                             ┃
+┃                             ┃
+┃                             ┃
+┃                             ┃
+┃                             ┃
+┃                             ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+esc restore  enter view  a add…
+=== max detail 32x22
+tagent · kanban
+┏━ [Details]  Chat  Activity  …┓
+┃ ╭─ #1  ○ todo  type none …─╮ ┃
+┃ │ First card               │ ┃
+┃ │ Assignee   builder · @   │ ┃
+┃ │            assign        │ ┃
+┃ │ Due        2020-12-01 ·  │ ┃
+┃ │            overdue       │ ┃
+┃ │ Auto-start off · U on    │ ┃
+┃ │ Created    — · updated — │ ┃
+┃ ╰──────────────────────────╯ ┃
+┃                              ┃
+┃ ╭─ Description · e edit ───╮ ┃
+┃ │ Description              │ ┃
+┃ ╰──────────────────────────╯ ┃
+┃ ╭─ Attachments 0 · a view…─╮ ┃
+┃ │ None                     │ ┃
+┃ ╰──────────────────────────╯ ┃
+┃ ╭─ Dependencies 0 · D edi…─╮ ┃
+┃ ↓ 2 more                     ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+esc close  tab/1-4 tabs  j/k s…
+=== max flow 32x22
+tagent · kanban
+┏━ Workflow · .tasks/board.yam…┓
+┃ ○ todo  you move it  (2)     ┃
+┃       → any status           ┃
+┃ ✓ done  finished  (1)        ┃
+┃       end                    ┃
 ┃                              ┃
 ┃                              ┃
 ┃                              ┃
@@ -104,41 +175,16 @@ Board · kanban
 ┃                              ┃
 ┃                              ┃
 ┃                              ┃
-┃                              ┃
-┃                              ┃
-┃                              ┃
-┗━━━━━━━━━━━━━━━━━━━━━ 1 of 2 ━┛
-╭─ [Workflows]  Agents ────────╮
-│ No workflows · tagent workf… │
-╰──────────────────────────────╯
-h/l lane  j/k card  n new  s sta
-                                
-=== board 32x22 wf true
-Board · kanban                  
-╭─ ☷ Tasks  [todo 2]  ▶0  !0 …╮
-│ ▌ ● #1 First card            │
-│   ● #2 Second card           │
-│                              │
-│                              │
-│                              │
-│                              │
-│                              │
-│                              │
-│                              │
-╰───────────────────── 1 of 2 ─╯
-┏━ [Workflows]  Agents ━━━━━━━━┓
-┃ No workflows · tagent workf… ┃
 ┃                              ┃
 ┃                              ┃
 ┃                              ┃
 ┃                              ┃
 ┃                              ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-enter view  a add  e edit  x del
-                                
+esc close  [/] browse  e edit …
 === dash 60x40 focus 0
 tagent · tagent                         ? help · , settings
-┏━ Agents ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┏━ [Running]  Definitions ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃ ▌ claude-main                                 main   ┃
 ┃   codex-fix                                          ▲  ┃
 ┃   plain                                                 ┃
@@ -163,7 +209,7 @@ tagent · tagent                         ? help · , settings
 │                                                         │
 │                                                         │
 ╰──────────────────────────────────────────────── 1 of 2 ─╯
-╭─ [Workflows]  Agents ───────────────────────────────────╮
+╭─ Workflows ─────────────────────────────────────────────╮
 │ No workflows · tagent workflow new <name>               │
 │                                                         │
 │                                                         │
@@ -179,7 +225,7 @@ tagent · tagent                         ? help · , settings
 Tab/S-Tab panel  ↑↓ select  enter open  N new agent  l log…
 === dash 60x40 focus 3
 tagent · tagent                         ? help · , settings
-╭─ Agents ────────────────────────────────────────────────╮
+╭─ [Running]  Definitions ────────────────────────────────╮
 │ ▌ claude-main                                 main   │
 │   codex-fix                                          ▲  │
 │   plain                                                 │
@@ -204,7 +250,7 @@ tagent · tagent                         ? help · , settings
 │                                                         │
 │                                                         │
 ╰──────────────────────────────────────────────── 1 of 2 ─╯
-╭─ [Workflows]  Agents ───────────────────────────────────╮
+╭─ Workflows ─────────────────────────────────────────────╮
 │ No workflows · tagent workflow new <name>               │
 │                                                         │
 │                                                         │
@@ -220,7 +266,7 @@ tagent · tagent                         ? help · , settings
 h/l or [ ] range  Tab/S-Tab panel  ? help                 …
 === dash 60x40 focus 2
 tagent · tagent                         ? help · , settings
-╭─ Agents ────────────────────────────────────────────────╮
+╭─ [Running]  Definitions ────────────────────────────────╮
 │ claude-main                                 main     │
 │ codex-fix                                          ▲    │
 │ plain                                                   │
@@ -245,7 +291,7 @@ tagent · tagent                         ? help · , settings
 ┃                                                         ┃
 ┃                                                         ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1 of 2 ━┛
-╭─ [Workflows]  Agents ───────────────────────────────────╮
+╭─ Workflows ─────────────────────────────────────────────╮
 │ No workflows · tagent workflow new <name>               │
 │                                                         │
 │                                                         │
@@ -261,7 +307,7 @@ tagent · tagent                         ? help · , settings
 h/l lane  j/k card  n new  s start  T type  enter detail  …
 === dash 60x40 focus 4
 tagent · tagent                         ? help · , settings
-╭─ Agents ────────────────────────────────────────────────╮
+╭─ [Running]  Definitions ────────────────────────────────╮
 │ ▌ claude-main                                 main   │
 │   codex-fix                                          ▲  │
 │   plain                                                 │
@@ -286,7 +332,7 @@ tagent · tagent                         ? help · , settings
 │                                                         │
 │                                                         │
 ╰──────────────────────────────────────────────── 1 of 2 ─╯
-┏━ [Workflows]  Agents ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┏━ Workflows ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃ No workflows · tagent workflow new <name>               ┃
 ┃                                                         ┃
 ┃                                                         ┃
@@ -299,12 +345,109 @@ tagent · tagent                         ? help · , settings
 │ ~~~~~~~~~~~~~~ call me if you need anything             │
 │ ~~~~~~~~~~~~~~                                          │
 ╰─────────────────────────────────────────────────────────╯
-h/l agents  enter view  a add  B board config  Tab focus  …
-=== board 60x40 wf false
-Board · kanban                                              
-┏━ ☷ Tasks  [todo 2]  ▶0  !0  ✓1  ⊘0 ━━━━━━━━━━━━━━━━━━━━━┓
-┃ ▌ ● #1 First card                                        ┃
-┃   ● #2 Second card                                       ┃
+enter view  a add  B board config  Tab focus  ? help      …
+=== max tasks 60x40
+tagent · kanban                         ? help · , settings
+┏━ ☷ Tasks  [todo 2]  ▶0  !0  ✓1  ⊘0 ━━━━━━━━━━━━━━━━━━━━┓
+┃ ▌ ● #1 First card                                       ┃
+┃   ● #2 Second card                                      ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1 of 2 ━┛
+esc restore  h/l lane  j/k card  n new  s start  T type  e…
+=== max workflows 60x40
+tagent · kanban                         ? help · , settings
+┏━ Workflows ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ No workflows · tagent workflow new <name>               ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+esc restore  enter view  a add  B board config  Tab focus …
+=== max detail 60x40
+tagent · kanban                         ? help · , settings
+┏━ [Details]  Chat  Activity  Run ━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ ╭─ #1  ○ todo  type none  m move · H/L ────────────────╮ ┃
+┃ │ First card                                           │ ┃
+┃ │ Assignee   builder · @ assign                        │ ┃
+┃ │ Due        2020-12-01 · overdue                      │ ┃
+┃ │ Auto-start off · U on                                │ ┃
+┃ │ Created    — · updated —                             │ ┃
+┃ ╰──────────────────────────────────────────────────────╯ ┃
+┃                                                          ┃
+┃ ╭─ Description · e edit ───────────────────────────────╮ ┃
+┃ │ Description                                          │ ┃
+┃ ╰──────────────────────────────────────────────────────╯ ┃
+┃ ╭─ Attachments 0 · a view · A attach ──────────────────╮ ┃
+┃ │ None                                                 │ ┃
+┃ ╰──────────────────────────────────────────────────────╯ ┃
+┃ ╭─ Dependencies 0 · D edit ────────────────────────────╮ ┃
+┃ │ None                                                 │ ┃
+┃ ╰──────────────────────────────────────────────────────╯ ┃
 ┃                                                          ┃
 ┃                                                          ┃
 ┃                                                          ┃
@@ -319,72 +462,57 @@ Board · kanban
 ┃                                                          ┃
 ┃                                                          ┃
 ┃                                                          ┃
-┃                                                          ┃
-┃                                                          ┃
-┃                                                          ┃
-┃                                                          ┃
-┃                                                          ┃
-┃                                                          ┃
-┃                                                          ┃
-┃                                                          ┃
-┃                                                          ┃
-┃                                                          ┃
-┃                                                          ┃
-┃                                                          ┃
-┃                                                          ┃
-┃                                                          ┃
-┃                                                          ┃
-┃                                                          ┃
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1 of 2 ━┛
-╭─ [Workflows]  Agents ────────────────────────────────────╮
-│ No workflows · tagent workflow new <name>                │
-╰──────────────────────────────────────────────────────────╯
-h/l lane  j/k card  n new  s start  T type  enter detail  B 
-                                                            
-=== board 60x40 wf true
-Board · kanban                                              
-╭─ ☷ Tasks  [todo 2]  ▶0  !0  ✓1  ⊘0 ─────────────────────╮
-│ ▌ ● #1 First card                                        │
-│   ● #2 Second card                                       │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-╰───────────────────────────────────────────────── 1 of 2 ─╯
-┏━ [Workflows]  Agents ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ No workflows · tagent workflow new <name>                ┃
 ┃                                                          ┃
 ┃                                                          ┃
 ┃                                                          ┃
 ┃                                                          ┃
 ┃                                                          ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-enter view  a add  e edit  x delete  t agents  B config  Tab
-                                                            
+esc close  tab/1-4 tabs  j/k scroll  e edit  c comment  ? …
+=== max flow 60x40
+tagent · kanban                         ? help · , settings
+┏━ Workflow · .tasks/board.yaml ━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ ○ todo  you move it  (2)                                 ┃
+┃       → any status                                       ┃
+┃ ✓ done  finished  (1)                                    ┃
+┃       end                                                ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+esc close  [/] browse  e edit  ? help                     …
 === dash 60x55 focus 0
 tagent · tagent                         ? help · , settings
-┏━ Agents ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┏━ [Running]  Definitions ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃ ▌ claude-main                                 main   ┃
 ┃   codex-fix                                          ▲  ┃
 ┃   plain                                                 ┃
@@ -424,7 +552,7 @@ tagent · tagent                         ? help · , settings
 │                                                         │
 │                                                         │
 ╰──────────────────────────────────────────────── 1 of 2 ─╯
-╭─ [Workflows]  Agents ───────────────────────────────────╮
+╭─ Workflows ─────────────────────────────────────────────╮
 │ No workflows · tagent workflow new <name>               │
 │                                                         │
 │                                                         │
@@ -440,7 +568,7 @@ tagent · tagent                         ? help · , settings
 Tab/S-Tab panel  ↑↓ select  enter open  N new agent  l log…
 === dash 60x55 focus 3
 tagent · tagent                         ? help · , settings
-╭─ Agents ────────────────────────────────────────────────╮
+╭─ [Running]  Definitions ────────────────────────────────╮
 │ ▌ claude-main                                 main   │
 │   codex-fix                                          ▲  │
 │   plain                                                 │
@@ -480,7 +608,7 @@ tagent · tagent                         ? help · , settings
 │                                                         │
 │                                                         │
 ╰──────────────────────────────────────────────── 1 of 2 ─╯
-╭─ [Workflows]  Agents ───────────────────────────────────╮
+╭─ Workflows ─────────────────────────────────────────────╮
 │ No workflows · tagent workflow new <name>               │
 │                                                         │
 │                                                         │
@@ -496,7 +624,7 @@ tagent · tagent                         ? help · , settings
 h/l or [ ] range  Tab/S-Tab panel  ? help                 …
 === dash 60x55 focus 2
 tagent · tagent                         ? help · , settings
-╭─ Agents ────────────────────────────────────────────────╮
+╭─ [Running]  Definitions ────────────────────────────────╮
 │ claude-main                                 main     │
 │ codex-fix                                          ▲    │
 │ plain                                                   │
@@ -536,7 +664,7 @@ tagent · tagent                         ? help · , settings
 ┃                                                         ┃
 ┃                                                         ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1 of 2 ━┛
-╭─ [Workflows]  Agents ───────────────────────────────────╮
+╭─ Workflows ─────────────────────────────────────────────╮
 │ No workflows · tagent workflow new <name>               │
 │                                                         │
 │                                                         │
@@ -552,7 +680,7 @@ tagent · tagent                         ? help · , settings
 h/l lane  j/k card  n new  s start  T type  enter detail  …
 === dash 60x55 focus 4
 tagent · tagent                         ? help · , settings
-╭─ Agents ────────────────────────────────────────────────╮
+╭─ [Running]  Definitions ────────────────────────────────╮
 │ ▌ claude-main                                 main   │
 │   codex-fix                                          ▲  │
 │   plain                                                 │
@@ -592,7 +720,7 @@ tagent · tagent                         ? help · , settings
 │                                                         │
 │                                                         │
 ╰──────────────────────────────────────────────── 1 of 2 ─╯
-┏━ [Workflows]  Agents ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┏━ Workflows ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃ No workflows · tagent workflow new <name>               ┃
 ┃                                                         ┃
 ┃                                                         ┃
@@ -605,12 +733,139 @@ tagent · tagent                         ? help · , settings
 │ ~~~~~~~~~~~~~~ call me if you need anything             │
 │ ~~~~~~~~~~~~~~                                          │
 ╰─────────────────────────────────────────────────────────╯
-h/l agents  enter view  a add  B board config  Tab focus  …
-=== board 60x55 wf false
-Board · kanban                                              
-┏━ ☷ Tasks  [todo 2]  ▶0  !0  ✓1  ⊘0 ━━━━━━━━━━━━━━━━━━━━━┓
-┃ ▌ ● #1 First card                                        ┃
-┃   ● #2 Second card                                       ┃
+enter view  a add  B board config  Tab focus  ? help      …
+=== max tasks 60x55
+tagent · kanban                         ? help · , settings
+┏━ ☷ Tasks  [todo 2]  ▶0  !0  ✓1  ⊘0 ━━━━━━━━━━━━━━━━━━━━┓
+┃ ▌ ● #1 First card                                       ┃
+┃   ● #2 Second card                                      ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1 of 2 ━┛
+esc restore  h/l lane  j/k card  n new  s start  T type  e…
+=== max workflows 60x55
+tagent · kanban                         ? help · , settings
+┏━ Workflows ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ No workflows · tagent workflow new <name>               ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┃                                                         ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+esc restore  enter view  a add  B board config  Tab focus …
+=== max detail 60x55
+tagent · kanban                         ? help · , settings
+┏━ [Details]  Chat  Activity  Run ━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ ╭─ #1  ○ todo  type none  m move · H/L ────────────────╮ ┃
+┃ │ First card                                           │ ┃
+┃ │ Assignee   builder · @ assign                        │ ┃
+┃ │ Due        2020-12-01 · overdue                      │ ┃
+┃ │ Auto-start off · U on                                │ ┃
+┃ │ Created    — · updated —                             │ ┃
+┃ ╰──────────────────────────────────────────────────────╯ ┃
+┃                                                          ┃
+┃ ╭─ Description · e edit ───────────────────────────────╮ ┃
+┃ │ Description                                          │ ┃
+┃ ╰──────────────────────────────────────────────────────╯ ┃
+┃ ╭─ Attachments 0 · a view · A attach ──────────────────╮ ┃
+┃ │ None                                                 │ ┃
+┃ ╰──────────────────────────────────────────────────────╯ ┃
+┃ ╭─ Dependencies 0 · D edit ────────────────────────────╮ ┃
+┃ │ None                                                 │ ┃
+┃ ╰──────────────────────────────────────────────────────╯ ┃
 ┃                                                          ┃
 ┃                                                          ┃
 ┃                                                          ┃
@@ -640,87 +895,72 @@ Board · kanban
 ┃                                                          ┃
 ┃                                                          ┃
 ┃                                                          ┃
-┃                                                          ┃
-┃                                                          ┃
-┃                                                          ┃
-┃                                                          ┃
-┃                                                          ┃
-┃                                                          ┃
-┃                                                          ┃
-┃                                                          ┃
-┃                                                          ┃
-┃                                                          ┃
-┃                                                          ┃
-┃                                                          ┃
-┃                                                          ┃
-┃                                                          ┃
-┃                                                          ┃
-┃                                                          ┃
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1 of 2 ━┛
-╭─ [Workflows]  Agents ────────────────────────────────────╮
-│ No workflows · tagent workflow new <name>                │
-╰──────────────────────────────────────────────────────────╯
-h/l lane  j/k card  n new  s start  T type  enter detail  B 
-                                                            
-=== board 60x55 wf true
-Board · kanban                                              
-╭─ ☷ Tasks  [todo 2]  ▶0  !0  ✓1  ⊘0 ─────────────────────╮
-│ ▌ ● #1 First card                                        │
-│   ● #2 Second card                                       │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-│                                                          │
-╰───────────────────────────────────────────────── 1 of 2 ─╯
-┏━ [Workflows]  Agents ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ No workflows · tagent workflow new <name>                ┃
 ┃                                                          ┃
 ┃                                                          ┃
 ┃                                                          ┃
 ┃                                                          ┃
 ┃                                                          ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-enter view  a add  e edit  x delete  t agents  B config  Tab
-                                                            
+esc close  tab/1-4 tabs  j/k scroll  e edit  c comment  ? …
+=== max flow 60x55
+tagent · kanban                         ? help · , settings
+┏━ Workflow · .tasks/board.yaml ━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ ○ todo  you move it  (2)                                 ┃
+┃       → any status                                       ┃
+┃ ✓ done  finished  (1)                                    ┃
+┃       end                                                ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+esc close  [/] browse  e edit  ? help                     …
 === dash 130x45 focus 0
 tagent · tagent                                                                                               ? help · , settings
-┏━ Agents ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭─ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1  closed 0 ────────────────────────╮
+┏━ [Running]  Definitions ━━━━━━━━━━━━━━━━━┓╭─ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1  closed 0 ────────────────────────╮
 ┃ ▌ claude-main                  main   ┃│ ▌ Ticket number 3 with a longer title   │ ╭─ #3  ◐ doing  type none · in progr…─╮ │
 ┃   codex-fix                           ▲  ┃│   ● doing #3 builder 1                 │ │ Ticket number 3 with a longer title │ │
 ┃   plain                                  ┃│   Ticket number 4 with a longer title   │ │ Assignee   builder · @ assign       │ │
@@ -755,7 +995,7 @@ tagent · tagent                                                                
 │         5h      7d                       ││                                         │                                         │
 │ Claude  ○  –  ○  –                       ││                                         │                                         │
 │ Codex   ○  –  ○  –                       │╰────────────────────────────────────────────────────────────────────────── 1 of 2 ─╯
-│ Tokens today 0                           │╭─ [Workflows]  Agents ─────────────────────────────────────────────────────────────╮
+│ Tokens today 0                           │╭─ Workflows ───────────────────────────────────────────────────────────────────────╮
 │  ·······  0 in 7d                        ││ No workflows · tagent workflow new <name>                                         │
 ╰──────────────────────────────────────────╯│                                                                                   │
 ╭─ ◈ Companion ────────────────────────────╮│                                                                                   │
@@ -763,10 +1003,10 @@ tagent · tagent                                                                
 │ ~~~~~~~~~~~~~~ call me if you need       ││                                                                                   │
 │ ~~~~~~~~~~~~~~ anything                  ││                                                                                   │
 ╰──────────────────────────────────────────╯╰───────────────────────────────────────────────────────────────────────────────────╯
-Tab/S-Tab panel  ↑↓ select  enter open  N new agent  l log  i prompt  f handoff  ? help                                         …
+Tab/S-Tab panel  ↑↓ select  enter open  N new agent  l log  i prompt  f handoff  t definitions  ? help                          …
 === dash 130x45 focus 3
 tagent · tagent                                                                                               ? help · , settings
-╭─ Agents ─────────────────────────────────╮╭─ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1  closed 0 ────────────────────────╮
+╭─ [Running]  Definitions ─────────────────╮╭─ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1  closed 0 ────────────────────────╮
 │ ▌ claude-main                  main   ││ ▌ Ticket number 3 with a longer title   │ ╭─ #3  ◐ doing  type none · in progr…─╮ │
 │   codex-fix                           ▲  ││   ● doing #3 builder 1                 │ │ Ticket number 3 with a longer title │ │
 │   plain                                  ││   Ticket number 4 with a longer title   │ │ Assignee   builder · @ assign       │ │
@@ -801,7 +1041,7 @@ tagent · tagent                                                                
 ┃         5h      7d                       ┃│                                         │                                         │
 ┃ Claude  ○  –  ○  –                       ┃│                                         │                                         │
 ┃ Codex   ○  –  ○  –                       ┃╰────────────────────────────────────────────────────────────────────────── 1 of 2 ─╯
-┃ Tokens today 0                           ┃╭─ [Workflows]  Agents ─────────────────────────────────────────────────────────────╮
+┃ Tokens today 0                           ┃╭─ Workflows ───────────────────────────────────────────────────────────────────────╮
 ┃  ·······  0 in 7d                        ┃│ No workflows · tagent workflow new <name>                                         │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛│                                                                                   │
 ╭─ ◈ Companion ────────────────────────────╮│                                                                                   │
@@ -812,7 +1052,7 @@ tagent · tagent                                                                
 h/l or [ ] range  Tab/S-Tab panel  ? help                                                                                       …
 === dash 130x45 focus 2
 tagent · tagent                                                                                               ? help · , settings
-╭─ Agents ─────────────────────────────────╮┏━ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1  closed 0 ━━━━━━━━━━━━━━━━━━━━━━━━┓
+╭─ [Running]  Definitions ─────────────────╮┏━ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1  closed 0 ━━━━━━━━━━━━━━━━━━━━━━━━┓
 │ claude-main                  main     │┃ ▌ Ticket number 3 with a longer title   │ ╭─ #3  ◐ doing  type none · in progr…─╮ ┃
 │ codex-fix                           ▲    │┃   ● doing #3 builder 1                 │ │ Ticket number 3 with a longer title │ ┃
 │ plain                                    │┃   Ticket number 4 with a longer title   │ │ Assignee   builder · @ assign       │ ┃
@@ -847,7 +1087,7 @@ tagent · tagent                                                                
 │         5h      7d                       │┃                                         │                                         ┃
 │ Claude  ○  –  ○  –                       │┃                                         │                                         ┃
 │ Codex   ○  –  ○  –                       │┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1 of 2 ━┛
-│ Tokens today 0                           │╭─ [Workflows]  Agents ─────────────────────────────────────────────────────────────╮
+│ Tokens today 0                           │╭─ Workflows ───────────────────────────────────────────────────────────────────────╮
 │  ·······  0 in 7d                        ││ No workflows · tagent workflow new <name>                                         │
 ╰──────────────────────────────────────────╯│                                                                                   │
 ╭─ ◈ Companion ────────────────────────────╮│                                                                                   │
@@ -858,7 +1098,7 @@ tagent · tagent                                                                
 h/l lane  j/k card  n new  s start  T type  enter detail  B config  p priority  D deps  e edit  C comment  H/L status  m move  @…
 === dash 130x45 focus 4
 tagent · tagent                                                                                               ? help · , settings
-╭─ Agents ─────────────────────────────────╮╭─ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1  closed 0 ────────────────────────╮
+╭─ [Running]  Definitions ─────────────────╮╭─ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1  closed 0 ────────────────────────╮
 │ ▌ claude-main                  main   ││ ▌ Ticket number 3 with a longer title   │ ╭─ #3  ◐ doing  type none · in progr…─╮ │
 │   codex-fix                           ▲  ││   ● doing #3 builder 1                 │ │ Ticket number 3 with a longer title │ │
 │   plain                                  ││   Ticket number 4 with a longer title   │ │ Assignee   builder · @ assign       │ │
@@ -893,7 +1133,7 @@ tagent · tagent                                                                
 │         5h      7d                       ││                                         │                                         │
 │ Claude  ○  –  ○  –                       ││                                         │                                         │
 │ Codex   ○  –  ○  –                       │╰────────────────────────────────────────────────────────────────────────── 1 of 2 ─╯
-│ Tokens today 0                           │┏━ [Workflows]  Agents ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+│ Tokens today 0                           │┏━ Workflows ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 │  ·······  0 in 7d                        │┃ No workflows · tagent workflow new <name>                                         ┃
 ╰──────────────────────────────────────────╯┃                                                                                   ┃
 ╭─ ◈ Companion ────────────────────────────╮┃                                                                                   ┃
@@ -901,13 +1141,152 @@ tagent · tagent                                                                
 │ ~~~~~~~~~~~~~~ call me if you need       │┃                                                                                   ┃
 │ ~~~~~~~~~~~~~~ anything                  │┃                                                                                   ┃
 ╰──────────────────────────────────────────╯┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-h/l agents  enter view  a add  B board config  Tab focus  ? help                                                                …
-=== board 130x45 wf false
-Board · kanban                                                                                                                    
-┏━ ☷ Tasks  [todo 2]  doing 0  blocked 0  done 1  closed 0 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ [todo 2]                       doing 0                        blocked 0                      done 1                            ┃
-┃ ▌ ● #1 First card                                                                              ● #3 Third card                 ┃
-┃   ● #2 Second card                                                                                                             ┃
+enter view  a add  B board config  Tab focus  ? help                                                                            …
+=== max tasks 130x45
+tagent · kanban                                                                                               ? help · , settings
+┏━ ☷ Tasks  [todo 2]  doing 0  blocked 0  done 1  closed 0 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ [todo 2]                       doing 0                        blocked 0                      done 1                           ┃
+┃ ▌ ● #1 First card                                                                              ● #3 Third card                ┃
+┃   ● #2 Second card                                                                                                            ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1 of 2 ━┛
+esc restore  h/l lane  j/k card  n new  s start  T type  enter detail  B config  p priority  D deps  e edit  C comment  H/L stat…
+=== max workflows 130x45
+tagent · kanban                                                                                               ? help · , settings
+┏━ Workflows ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ No workflows · tagent workflow new <name>                                                                                     ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┃                                                                                                                               ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+esc restore  enter view  a add  B board config  Tab focus  ? help                                                               …
+=== max detail 130x45
+tagent · kanban                                                                                               ? help · , settings
+╭─ ☷ Tasks  [todo 2]  doing 0  blocked 0  done 1  closed 0 ─────────────────╮┏━ [Details]  Chat  Activity  Run ━━━━━━━━━━━━━━━━━┓
+│ ▌ ● #1 First card                                                          │┃ ╭─ #1  ○ todo  type none  m move · H/L ────────╮ ┃
+│   ● #2 Second card                                                         │┃ │ First card                                   │ ┃
+│                                                                            │┃ │ Assignee   builder · @ assign                │ ┃
+│                                                                            │┃ │ Due        2020-12-01 · overdue              │ ┃
+│                                                                            │┃ │ Auto-start off · U on                        │ ┃
+│                                                                            │┃ │ Created    — · updated —                     │ ┃
+│                                                                            │┃ ╰──────────────────────────────────────────────╯ ┃
+│                                                                            │┃                                                  ┃
+│                                                                            │┃ ╭─ Description · e edit ───────────────────────╮ ┃
+│                                                                            │┃ │ Description                                  │ ┃
+│                                                                            │┃ ╰──────────────────────────────────────────────╯ ┃
+│                                                                            │┃ ╭─ Attachments 0 · a view · A attach ──────────╮ ┃
+│                                                                            │┃ │ None                                         │ ┃
+│                                                                            │┃ ╰──────────────────────────────────────────────╯ ┃
+│                                                                            │┃ ╭─ Dependencies 0 · D edit ────────────────────╮ ┃
+│                                                                            │┃ │ None                                         │ ┃
+│                                                                            │┃ ╰──────────────────────────────────────────────╯ ┃
+│                                                                            │┃                                                  ┃
+│                                                                            │┃                                                  ┃
+│                                                                            │┃                                                  ┃
+│                                                                            │┃                                                  ┃
+│                                                                            │┃                                                  ┃
+│                                                                            │┃                                                  ┃
+│                                                                            │┃                                                  ┃
+│                                                                            │┃                                                  ┃
+│                                                                            │┃                                                  ┃
+│                                                                            │┃                                                  ┃
+│                                                                            │┃                                                  ┃
+│                                                                            │┃                                                  ┃
+│                                                                            │┃                                                  ┃
+│                                                                            │┃                                                  ┃
+│                                                                            │┃                                                  ┃
+│                                                                            │┃                                                  ┃
+│                                                                            │┃                                                  ┃
+│                                                                            │┃                                                  ┃
+│                                                                            │┃                                                  ┃
+│                                                                            │┃                                                  ┃
+│                                                                            │┃                                                  ┃
+│                                                                            │┃                                                  ┃
+│                                                                            │┃                                                  ┃
+│                                                                            │┃                                                  ┃
+╰─────────────────────────────────────────────────────────────────── 1 of 2 ─╯┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+esc close  tab/1-4 tabs  j/k scroll  e edit  c comment  ? help                                                                  …
+=== max flow 130x45
+tagent · kanban                                                                                               ? help · , settings
+┏━ Workflow · .tasks/board.yaml ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ ○ todo  you move it  (2)                                                                                                       ┃
+┃       → any status                                                                                                             ┃
+┃ ✓ done  finished  (1)                                                                                                          ┃
+┃       end                                                                                                                      ┃
 ┃                                                                                                                                ┃
 ┃                                                                                                                                ┃
 ┃                                                                                                                                ┃
@@ -940,57 +1319,10 @@ Board · kanban
 ┃                                                                                                                                ┃
 ┃                                                                                                                                ┃
 ┃                                                                                                                                ┃
-┃                                                                                                                                ┃
-┃                                                                                                                                ┃
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1 of 2 ━┛
-╭─ [Workflows]  Agents ──────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-│ No workflows · tagent workflow new <name>                                                                                      │
-╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-h/l lane  j/k card  n new  s start  T type  enter detail  B config  p priority  D deps  e edit  C comment  H/L status  m move  @ a
-                                                                                                                                  
-=== board 130x45 wf true
-Board · kanban                                                                                                                    
-╭─ ☷ Tasks  [todo 2]  doing 0  blocked 0  done 1  closed 0 ─────────────────────────────────────────────────────────────────────╮
-│ [todo 2]                       doing 0                        blocked 0                      done 1                            │
-│ ▌ ● #1 First card                                                                              ● #3 Third card                 │
-│   ● #2 Second card                                                                                                             │
-│                                                                                                                                │
-│                                                                                                                                │
-│                                                                                                                                │
-│                                                                                                                                │
-│                                                                                                                                │
-│                                                                                                                                │
-│                                                                                                                                │
-│                                                                                                                                │
-│                                                                                                                                │
-│                                                                                                                                │
-│                                                                                                                                │
-│                                                                                                                                │
-│                                                                                                                                │
-│                                                                                                                                │
-│                                                                                                                                │
-│                                                                                                                                │
-│                                                                                                                                │
-│                                                                                                                                │
-│                                                                                                                                │
-│                                                                                                                                │
-│                                                                                                                                │
-│                                                                                                                                │
-│                                                                                                                                │
-│                                                                                                                                │
-│                                                                                                                                │
-│                                                                                                                                │
-│                                                                                                                                │
-│                                                                                                                                │
-│                                                                                                                                │
-╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── 1 of 2 ─╯
-┏━ [Workflows]  Agents ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ No workflows · tagent workflow new <name>                                                                                      ┃
 ┃                                                                                                                                ┃
 ┃                                                                                                                                ┃
 ┃                                                                                                                                ┃
 ┃                                                                                                                                ┃
 ┃                                                                                                                                ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-enter view  a add  e edit  x delete  t agents  B config  Tab tickets  ? help                                                      
-                                                                                                                                  
+esc close  [/] browse  e edit  ? help                                                                                           …

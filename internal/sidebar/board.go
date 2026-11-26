@@ -23,12 +23,6 @@ type boardConfigMsg struct {
 	err    error
 }
 
-func (m Model) openBoard() Model {
-	m.boardMode, m.focus = true, cardTasks
-	m.boardDrawer, m.detailFromDash = false, false
-	return m.boardContext()
-}
-
 func (m Model) boardContext() Model {
 	oldDir := m.boardDir
 	m.boardDir = m.repoDir
@@ -824,7 +818,7 @@ func (m Model) flowLines(width int) []string {
 
 // boardConfigMaxScroll is the last scroll position of the config view.
 func (m Model) boardConfigMaxScroll() int {
-	return max(0, len(m.boardConfigLines(m.width-4))-max(0, m.height-5))
+	return max(0, len(m.boardConfigLines(m.width-4))-max(0, m.height-4))
 }
 
 // boardConfigLines is the read-only config summary (B): the same
@@ -886,12 +880,9 @@ func boardFit(line string, width int) string {
 
 // boardPanel draws a card with exact dimensions even in a short split: the
 // title (already styled, tabs included) sits inside the top border, pos
-// ("3 of 32") on the bottom border. Dashboard and board use their own colours.
+// ("3 of 32") on the bottom border.
 func (m Model) boardPanel(title, pos string, lines []string, width, height int, focused bool) string {
 	focus, idle := m.theme.BorderFocus, m.theme.Border
-	if m.boardMode {
-		focus, idle = m.theme.Accent, m.theme.TextDim
-	}
 	color := idle
 	if focused {
 		color = focus
@@ -919,19 +910,11 @@ func (m Model) boardPanel(title, pos string, lines []string, width, height int, 
 	return strings.Join(append(out, bottom), "\n")
 }
 
-// boardSplit is the board screen's Tasks and Workflows card heights.
-func (m Model) boardSplit(h int) (tasksH, wfH int) {
-	// Only terminal size and focus decide card heights, never ticket counts:
-	// Workflows rests at 3 rows and grows to 8 when focused; tickets take the rest.
-	hs := split(h, Fill(1).AtLeast(6), Fixed(3+5*b2i(m.focus == cardWorkflows)).AtLeast(3))
-	return hs[0], hs[1]
-}
-
 // workflowCols are the Workflows card's list and job-flow widths. The flow shows
 // from width 80 with a workflow to draw; flowW 0 means the list alone.
 func (m Model) workflowCols(width int) (listW, flowW int) {
 	inner := width - 4
-	if m.agentsOpen || width < 80 || len(m.boardWorkflows) == 0 {
+	if width < 80 || len(m.boardWorkflows) == 0 {
 		return inner, 0
 	}
 	sep := ansi.StringWidth(paneColSep)
@@ -973,37 +956,19 @@ func (m Model) jobFlowLines(width, rows int) []string {
 	return lines
 }
 
-// workflowCard is the Workflows / Agents card (lazygit-style tabs, "t" swaps),
-// windowed around its cursor, with the selected workflow's job flow beside the
-// list when there is room (workflowCols). num is the Tab-order number (0: none).
+// workflowCard is the Workflows card, windowed around its cursor, with the
+// selected workflow's job flow beside the list when there is room (workflowCols).
+// num is the Tab-order number (0: none).
 func (m Model) workflowCard(width, height, num int) string {
 	listW, flowW := m.workflowCols(width)
-	lines, cursor, n := m.stripPanel(listW)
-	name, w := m.cardName(num, "")
-	tabs, _ := m.tabStrip([]string{"Workflows", "Agents"}, b2i(m.agentsOpen), 3+w)
-	if m.agentsOpen && m.agentDetail { // the detail fills the card and scrolls
-		rows := max(1, height-2)
-		off := min(max(0, m.detailScroll), max(0, len(lines)-rows))
-		view := slices.Clone(lines[off:min(len(lines), off+rows)])
-		if below := len(lines) - off - rows; below > 0 { // the last row says how much is hidden
-			view[len(view)-1] = m.boardStyle(m.theme.TextDim).Render(fmt.Sprintf("↓ %d more · j/k scroll", below+1))
-		}
-		return m.boardPanel(name+tabs, "", view, width, height, m.focus == cardWorkflows)
-	}
-	start := max(0, cursor-max(1, height-2)+1)
+	lines := m.workflowLines(listW)
+	name, _ := m.cardName(num, "Workflows")
+	start := max(0, m.workflowCursor-max(1, height-2)+1)
 	body := lines[min(start, len(lines)):]
 	if flowW > 0 {
 		body = joinCols([][]string{body, m.jobFlowLines(flowW, max(0, height-2))}, []int{listW, flowW}, paneColSep, max(0, height-2))
 	}
-	return m.boardPanel(name+tabs, position(cursor, n), body, width, height, m.focus == cardWorkflows)
-}
-
-func (m Model) boardHeader() string {
-	header := "Board · " + m.notesScope
-	if m.boardConfig.DefaultWorkflow != "" {
-		header += " · default: " + m.boardConfig.DefaultWorkflow
-	}
-	return header
+	return m.boardPanel(name, position(m.workflowCursor, len(m.boardWorkflows)), body, width, height, m.focus == cardWorkflows)
 }
 
 func b2i(b bool) int {
@@ -1011,86 +976,6 @@ func b2i(b bool) int {
 		return 1
 	}
 	return 0
-}
-
-func (m Model) boardView() string {
-	if m.height <= 0 {
-		return ""
-	}
-	if m.width < 20 || m.height < 6 {
-		lines := make([]string, m.height)
-		lines[0] = m.boardHeader()
-		if m.height > 3 {
-			lines[1] = "too small — widen the pane"
-		}
-		if m.height >= 3 {
-			lines[m.height-2] = m.keyHints("esc back")
-			lines[m.height-1] = m.taskNotice
-		}
-		for i := range lines {
-			lines[i] = boardFit(lines[i], m.width)
-		}
-		return strings.Join(lines, "\n")
-	}
-	h := m.height - 3
-	var body string
-	if m.boardConfigView {
-		lines := m.boardConfigLines(m.width - 4)
-		rows := max(0, h-2)
-		start := min(m.boardConfigScroll, max(0, len(lines)-rows))
-		body = m.boardPanel("Board config · .tasks/board.yaml", "B", lines[start:], m.width, h, true)
-	} else if m.boardFlow {
-		label := ".tasks/board.yaml"
-		if m.flowWorkflow != "" {
-			label = m.flowWorkflow
-		} else if len(m.notes) > 0 && m.notes[m.taskCursor].Workflow != "" {
-			label = m.notes[m.taskCursor].Workflow
-		}
-		body = m.boardPanel("Workflow · "+label, "", m.flowLines(m.width-4), m.width, h, true)
-	} else if m.boardDrawer && m.width >= 100 {
-		// Wide panes: the ticket panel is a right pane beside the tickets.
-		dw := m.width * 2 / 5
-		left := m.tasksCardAt(min(tasksSizeFor(m.width-dw, h), sizeList), m.width-dw, h, 0, false)
-		right := m.boardPanel(m.detailTabTitle(), "", m.boardDetail(dw-4, h-2), dw, h, true)
-		body = lipgloss.JoinHorizontal(lipgloss.Top, left, right)
-	} else if m.boardDrawer {
-		body = m.boardPanel(m.detailTabTitle(), "", m.boardDetail(m.width-4, h-2), m.width, h, true)
-	} else if m.agentsOpen && m.agentDetail { // the agent detail takes the whole pane
-		body = m.workflowCard(m.width, h, 0)
-	} else {
-		th, wh := m.boardSplit(h)
-		body = m.tasksCard(m.width, th, 0, m.focus != cardWorkflows) + "\n" + m.workflowCard(m.width, wh, 0)
-	}
-	hint := m.footerHints()
-	if m.workflowDelete != "" {
-		hint = "Delete workflow " + m.workflowDelete + "? y / n"
-	} else if m.agentDelete != "" {
-		hint = "Delete agent " + m.agentDelete + "? y / n"
-	}
-	if m.taskDelete {
-		hint = "Delete task? y confirm · n cancel"
-	}
-	triggers := m.taskNotice
-	if triggers != "" {
-		color := m.theme.Accent
-		if strings.HasPrefix(triggers, "!") {
-			color = m.theme.StatusError
-		} else if strings.HasPrefix(triggers, "✓") {
-			color = m.theme.StatusDone
-		}
-		triggers = m.boardStyle(color).Render(triggers)
-	}
-	// Panel rendering must never push either footer row below the viewport.
-	bodyLines := strings.Split(body, "\n")
-	for len(bodyLines) < h {
-		bodyLines = append(bodyLines, "")
-	}
-	out := []string{boardFit(m.boardHeader(), m.width)}
-	for _, line := range bodyLines[:h] {
-		out = append(out, boardFit(line, m.width))
-	}
-	out = append(out, boardFit(hint, m.width), boardFit(triggers, m.width))
-	return strings.Join(out, "\n")
 }
 
 func detailRelativeTime(at, now time.Time) string {
@@ -1206,7 +1091,7 @@ func (m Model) detailMaxScroll() int {
 	if len(m.notes) == 0 {
 		return 0
 	}
-	w, rows := m.width-4, max(0, m.height-5)
+	w, rows := m.width-4, max(0, m.height-4)
 	if m.commentBox && rows >= 8 {
 		rows -= len(m.commentBoxLines(w))
 	}

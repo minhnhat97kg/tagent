@@ -88,14 +88,13 @@ func TestDragResizeClampsAtMinimum(t *testing.T) {
 	}
 }
 
-func TestDragPressOnWorkflowsTabSwitchesWithoutSaving(t *testing.T) {
+func TestDragPressOnAgentsTabSwitchesWithoutSaving(t *testing.T) {
 	m := layoutModel(t)
-	wf := m.dashGeometry().wf
-	_, w := m.cardName(paneNum(4), "")
-	_, spans := m.tabStrip([]string{"Workflows", "Agents"}, b2i(m.agentsOpen), 3+w)
-	x := wf.x + spans[1].x0 + 1
-	m = mouseSend(m, dragEvent(x, wf.y, tea.MouseActionPress))
-	m = mouseSend(m, dragEvent(x, wf.y, tea.MouseActionRelease))
+	ag := m.dashGeometry().agents
+	_, spans := m.tabStrip([]string{"Running", "Definitions"}, b2i(m.agentsOpen), 3)
+	x := ag.x + spans[1].x0 + 1
+	m = mouseSend(m, dragEvent(x, ag.y, tea.MouseActionPress))
+	m = mouseSend(m, dragEvent(x, ag.y, tea.MouseActionRelease))
 	if !m.agentsOpen {
 		t.Fatal("the Agents tab did not open")
 	}

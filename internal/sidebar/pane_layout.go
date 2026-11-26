@@ -134,7 +134,7 @@ func (m Model) startDrag(g dashGeom, x, y int) Model {
 
 // dragOK: a drag only moves panes on the plain dashboard.
 func (m Model) dragOK() bool {
-	return m.dashboard && !m.boardMode && m.taskForm == "" && !m.helpOpen && !m.taskDelete
+	return m.dashboard && !m.maximized && !m.subView() && m.taskForm == "" && !m.helpOpen && !m.taskDelete
 }
 
 // dragTo moves or resizes the dragged pane by the pointer's travel since the

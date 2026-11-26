@@ -23,33 +23,25 @@ const (
 	paneUsage
 	paneTasks // dashboard card
 	paneWorkflows
-	paneAgentsTab // the Workflows card swapped to agents
-	paneBoardTickets
-	paneBoardWorkflows
-	paneBoardAgents
+	paneAgentDefs // the Agents card on its Definitions tab
 	paneWorkflowView
 	paneBoardConfig
 	paneTaskDetail
 	paneLayoutEdit
 )
 
-// focused derives the pane that gets the keys from the screen and focus flags.
+// focused derives the pane that gets the keys from the sub-views and focus flags.
 func (m Model) focused() paneID {
 	if m.layoutEdit {
 		return paneLayoutEdit
 	}
-	if m.boardMode {
-		switch {
-		case m.boardDrawer:
-			return paneTaskDetail
-		case m.boardFlow && m.boardConfigView:
-			return paneBoardConfig
-		case m.boardFlow:
-			return paneWorkflowView
-		case m.focus == cardWorkflows || m.workflowDelete != "":
-			return map[bool]paneID{true: paneBoardAgents, false: paneBoardWorkflows}[m.agentsOpen]
-		}
-		return paneBoardTickets
+	switch {
+	case m.boardDrawer:
+		return paneTaskDetail
+	case m.boardFlow && m.boardConfigView:
+		return paneBoardConfig
+	case m.boardFlow:
+		return paneWorkflowView
 	}
 	if !m.dashboard {
 		return paneAgents
@@ -60,7 +52,9 @@ func (m Model) focused() paneID {
 	case m.focus == cardUsage:
 		return paneUsage
 	case m.focus == cardWorkflows:
-		return map[bool]paneID{true: paneAgentsTab, false: paneWorkflows}[m.agentsOpen]
+		return paneWorkflows
+	case m.agentsOpen:
+		return paneAgentDefs
 	}
 	return paneAgents
 }
@@ -79,18 +73,15 @@ func (p simplePane) Hints(m Model) []hint                           { return p.h
 func (p simplePane) Key(m Model, key string) (Model, tea.Cmd, bool) { return p.key(m, key) }
 
 var panes = map[paneID]pane{
-	paneAgents:         simplePane{"Agents", Model.agentsHints, Model.agentsKey},
-	paneUsage:          simplePane{"Usage", Model.usageHints, Model.usageKey},
-	paneTasks:          simplePane{"Tasks", Model.tasksCardHints, Model.tasksCardKey},
-	paneWorkflows:      simplePane{"Workflows", Model.dashWorkflowsHints, Model.dashWorkflowsKey},
-	paneAgentsTab:      simplePane{"Workflows · Agents", Model.dashWorkflowsHints, Model.dashWorkflowsKey},
-	paneBoardTickets:   simplePane{"Board · Tickets", Model.boardTicketsHints, Model.ticketsKey},
-	paneBoardWorkflows: simplePane{"Board · Workflows", Model.boardWorkflowsHints, Model.workflowPanelKey},
-	paneBoardAgents:    simplePane{"Board · Agents", Model.boardAgentsHints, Model.workflowPanelKey},
-	paneWorkflowView:   simplePane{"Board · Workflow view", Model.flowHints, Model.flowKey},
-	paneBoardConfig:    simplePane{"Board · Config view", Model.configHints, Model.configKey},
-	paneTaskDetail:     simplePane{"Board · Task detail", Model.detailHints, Model.detailKey},
-	paneLayoutEdit:     simplePane{"Layout", layoutHints, Model.layoutKey},
+	paneAgents:       simplePane{"Agents", Model.agentsHints, Model.agentsKey},
+	paneUsage:        simplePane{"Usage", Model.usageHints, Model.usageKey},
+	paneTasks:        simplePane{"Tasks", Model.tasksCardHints, Model.tasksCardKey},
+	paneWorkflows:    simplePane{"Workflows", Model.workflowsHints, Model.workflowPanelKey},
+	paneAgentDefs:    simplePane{"Agents · Definitions", Model.agentDefsHints, Model.agentDefsKey},
+	paneWorkflowView: simplePane{"Workflow view", Model.flowHints, Model.flowKey},
+	paneBoardConfig:  simplePane{"Board config", Model.configHints, Model.configKey},
+	paneTaskDetail:   simplePane{"Task detail", Model.detailHints, Model.detailKey},
+	paneLayoutEdit:   simplePane{"Layout", layoutHints, Model.layoutKey},
 }
 
 // hint is one key of a pane. Keys and Foot show in the footer line ("j/k card";
@@ -107,6 +98,9 @@ func (m Model) footerHints() string {
 		return m.keyHints("j/k select", "enter view", "esc cancel")
 	}
 	var pairs []string
+	if m.maximized && !m.subView() {
+		pairs = append(pairs, "esc restore")
+	}
 	for _, h := range panes[m.focused()].Hints(m) {
 		if h.Keys != "" && h.Foot != "" {
 			pairs = append(pairs, h.Keys+" "+h.Foot)
@@ -119,8 +113,15 @@ func (m Model) footerHints() string {
 var globalHints = []hint{
 	{"", "", "?", "help"}, {"", "", ",", "settings"}, {"", "", "B", "board config (default workflow, agents, triggers)"}, {"", "", "q", "quit"},
 	{"", "", "Tab S-Tab", "next / previous card: Agents, Usage, Tasks, Workflows"}, {"", "", "[ ]", "chart range (1 / 7 / 30 days)"},
-	{"", "", "o", "expand / collapse (prefix + A)"}, {"", "", "b", "board (from the Tasks card)"},
+	{"", "", "o", "expand / collapse (prefix + A)"},
+	{"", "", "Z", "maximize the focused card (esc or q restores)"},
 	{"", "", "M", "move and resize the panes (saved per width); or drag a pane's title row to move it, its bottom-right corner to resize"},
+}
+
+// subView is a view that takes the whole body whatever maximized is: the ticket
+// drawer, the workflow view, the board config or an agent's detail.
+func (m Model) subView() bool {
+	return m.boardDrawer || m.boardFlow || m.agentsOpen && m.agentDetail
 }
 
 // globalKey is what every pane shares, tried after the focused pane.
@@ -149,7 +150,7 @@ func (m Model) globalKey(key string) (Model, tea.Cmd, bool) {
 		}
 		return m, expand, true
 	}
-	if !m.dashboard || m.boardMode {
+	if !m.dashboard || m.subView() { // a sub-view takes its keys and ignores Tab, B, Z, M, [ and ]
 		return m, nil, false
 	}
 	switch key {
@@ -160,14 +161,17 @@ func (m Model) globalKey(key string) (Model, tea.Cmd, bool) {
 		}
 		m.focus = focusOrder[(slices.Index(focusOrder, m.focus)+step)%len(focusOrder)]
 		return m.followPane(cardIDs[m.focus]), nil, true
-	case "B": // board config, from any dashboard card; esc returns here
-		m.boardMode, m.boardFlow, m.boardConfigView, m.boardDrawer = true, true, true, false
-		m.flowWorkflow, m.boardConfigScroll, m.flowFromDash = "", 0, true
+	case "B": // board config, from any card; esc closes it
+		m.boardFlow, m.boardConfigView, m.boardDrawer = true, true, false
+		m.flowWorkflow, m.boardConfigScroll = "", 0
 		return m, nil, true
 	case "[", "]": // chart range, from any card
 		return m.chartStep(key == "]"), nil, true
-	case "M": // move and resize the panes (pane_layout.go); not from the full-pane detail
-		if m.boardMode || (m.agentsOpen && m.agentDetail) {
+	case "Z": // maximize the focused card (dashGeometry)
+		m.maximized = !m.maximized
+		return m.followPane(cardIDs[m.focus]), nil, true
+	case "M": // move and resize the panes (pane_layout.go); not while maximized
+		if m.maximized {
 			return m, nil, false
 		}
 		return m.startLayoutEdit(), nil, true

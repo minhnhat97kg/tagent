@@ -424,7 +424,7 @@ func TestTaskDetailRightPane(t *testing.T) {
 // Back (esc, or i toggling the drawer) from a ticket detail opened on the
 // dashboard's Tasks card must land on the dashboard with the same ticket
 // selected, never on the board.
-func TestTaskDetailBackFromDashboardReturnsHome(t *testing.T) {
+func TestTaskDetailBackToDashboardReturnsHome(t *testing.T) {
 	open := map[string]func(*testing.T) Model{
 		"enter": func(t *testing.T) Model {
 			m := dashCardModel(t)
@@ -442,14 +442,11 @@ func TestTaskDetailBackFromDashboardReturnsHome(t *testing.T) {
 		for name, openDetail := range open {
 			t.Run(back+"/"+name, func(t *testing.T) {
 				m := openDetail(t)
-				if !m.boardMode || !m.boardDrawer {
-					t.Fatalf("the Tasks card did not open the detail: boardMode=%v drawer=%v", m.boardMode, m.boardDrawer)
+				if !m.boardDrawer {
+					t.Fatalf("the Tasks card did not open the detail: drawer=%v", m.boardDrawer)
 				}
 				selected := m.taskCursor
 				m, _ = boardPress(m, back)
-				if m.boardMode {
-					t.Fatalf("%s from the detail rendered the board, want the dashboard:\n%s", back, ansi.Strip(m.View()))
-				}
 				if m.boardDrawer {
 					t.Fatalf("%s left the detail drawer open", back)
 				}
@@ -457,9 +454,6 @@ func TestTaskDetailBackFromDashboardReturnsHome(t *testing.T) {
 					t.Fatalf("selection moved to %d, want %d", m.taskCursor, selected)
 				}
 				view := ansi.Strip(m.View())
-				if strings.Contains(view, "Board · ") {
-					t.Fatalf("%s rendered the board header:\n%s", back, view)
-				}
 				if !strings.Contains(view, "Tasks") || !strings.Contains(view, "Ticket number "+fmt.Sprint(selected+1)) {
 					t.Fatalf("%s did not render the dashboard with the selected ticket:\n%s", back, view)
 				}

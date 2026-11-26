@@ -17,7 +17,7 @@ import (
 )
 
 func boardTestModel() Model {
-	return Model{icons: DefaultIcons(), dashboard: true, boardMode: true, focus: cardTasks,
+	return Model{icons: DefaultIcons(), dashboard: true, maximized: true, focus: cardTasks,
 		width: 160, height: 40, theme: DefaultTheme(), notesScope: "kanban",
 		boardConfig: tasks.BoardConfig{Columns: []string{"todo", "done"}},
 		notes: []tasks.Task{
@@ -51,7 +51,7 @@ func TestBoardScreenUsesColumnsAtEveryWidth(t *testing.T) {
 		if size[0] == 60 { // too narrow for words: inactive tabs shrink to glyphs
 			want = "[todo 2]  ▶1  !1  ✓1  ⊘0"
 		}
-		if !strings.Contains(view, want) || !strings.Contains(view, "[Workflows]  Agents") {
+		if !strings.Contains(view, want) {
 			t.Errorf("%v: no columns/workflows card:\n%s", size, view)
 		}
 		for i, l := range lines {
@@ -82,17 +82,17 @@ func TestBoardPaneBounds(t *testing.T) {
 						t.Fatalf("overflow: %q", line)
 					}
 				}
-				if maxWidth != m.width {
-					t.Fatalf("max line width %d, want %d", maxWidth, m.width)
+				if maxWidth != m.width-b2i(!drawer) {
+					t.Fatalf("max line width %d, want %d", maxWidth, m.width-b2i(!drawer))
 				}
-				if !strings.HasPrefix(lines[0], "Board ·") || (!strings.Contains(lines[m.height-2], "enter") && !strings.Contains(lines[m.height-2], "esc")) || strings.Contains(lines[m.height-1], "Triggers:") {
+				if !strings.HasPrefix(lines[0], "tagent ·") || (!strings.Contains(lines[m.height-1], "enter") && !strings.Contains(lines[m.height-1], "esc")) || strings.Contains(lines[m.height-1], "Triggers:") {
 					t.Fatalf("header or footers lost: %v", lines)
 				}
 				if m.width < 20 {
 					return
 				}
 				// The body, not just padded footer text, must span the entire pane.
-				if !(strings.HasSuffix(lines[1], "╮") || strings.HasSuffix(lines[1], "┓")) || !(strings.HasSuffix(lines[m.height-3], "╯") || strings.HasSuffix(lines[m.height-3], "┛")) {
+				if !(strings.HasSuffix(lines[1], "╮") || strings.HasSuffix(lines[1], "┓")) || !(strings.HasSuffix(lines[m.height-2], "╯") || strings.HasSuffix(lines[m.height-2], "┛")) {
 					t.Fatalf("box does not span the full width: %v", lines)
 				}
 			})
@@ -117,12 +117,12 @@ func TestBoardDetailDrawerAndFields(t *testing.T) {
 			t.Fatalf("missing activity tab: %s", view)
 		}
 		closed, _ := boardPress(next, "esc")
-		if closed.boardDrawer || !closed.boardMode {
+		if closed.boardDrawer || !closed.maximized {
 			t.Fatal("Esc did not return to Board")
 		}
 		// Enter belongs to the description now; i and Esc close the drawer.
 		closed, _ = boardPress(next, "i")
-		if closed.boardDrawer || !closed.boardMode {
+		if closed.boardDrawer || !closed.maximized {
 			t.Fatal("i did not toggle drawer closed")
 		}
 	}
@@ -141,13 +141,13 @@ func TestBoardEntryExitAndTaskForms(t *testing.T) {
 	dir := t.TempDir()
 	m := boardTestModel()
 	m.width = 70
-	m.boardMode, m.repoDir = false, dir
+	m.maximized, m.repoDir = false, dir
 	if !strings.Contains(ansi.Strip(m.View()), "n new") {
 		t.Fatal("Tasks footer lacks board")
 	}
 	m, _ = boardPress(m, "b")
-	if !m.boardMode {
-		t.Fatal("b did not enter board")
+	if !m.maximized {
+		t.Fatal("b did not maximize the Tasks card")
 	}
 	for _, key := range []string{"s"} {
 		next, _ := boardPress(m, key)
@@ -162,7 +162,7 @@ func TestBoardEntryExitAndTaskForms(t *testing.T) {
 			t.Fatal("edit did not use selected card")
 		}
 		next, _ = boardPress(next, "esc")
-		if !next.boardMode || next.taskForm != "" {
+		if !next.maximized || next.taskForm != "" {
 			t.Fatal("form did not return to Board")
 		}
 	}
@@ -172,20 +172,19 @@ func TestBoardEntryExitAndTaskForms(t *testing.T) {
 	}
 	for _, key := range []string{"q", "b", "esc"} {
 		next, cmd := boardPress(m, key)
-		if next.boardMode || cmd != nil {
+		if next.maximized || cmd != nil {
 			t.Fatalf("%s did not return to dashboard", key)
 		}
 	}
-	m.boardMode = false
-	m, _ = boardPress(m, "k") // select the Tasks title
+	m.maximized = false
 	m, _ = boardPress(m, "enter")
-	if !m.boardMode {
-		t.Fatal("Enter on title did not enter Board")
+	if !m.boardDrawer {
+		t.Fatal("Enter on the Tasks card did not open the ticket detail")
 	}
-	m.boardMode, m.notes = false, nil
+	m.boardDrawer, m.notes = false, nil
 	m, _ = boardPress(m, "enter")
-	if !m.boardMode {
-		t.Fatal("Enter on empty Tasks did not enter Board")
+	if !m.boardDrawer {
+		t.Fatal("Enter on empty Tasks did not open the ticket detail")
 	}
 }
 
@@ -204,6 +203,8 @@ func TestBoardMoveAndSelection(t *testing.T) {
 	}
 	m := boardTestModel()
 	m.width = 70
+	d := t.TempDir()
+	m.boardDir, m.repoDir = d, d // same scope: the Tasks card does not reload the tickets
 	m.notes = tasks.List("kanban")
 	m, _ = boardPress(m, "l")
 	if m.notes[m.taskCursor].ID != second.ID {
@@ -254,7 +255,7 @@ func TestBoardDetailScrollAndWorker(t *testing.T) {
 	for _, size := range [][2]int{{95, 22}, {95, 40}, {150, 40}} {
 		m.width, m.height = size[0], size[1]
 		m.detailScroll = 0
-		top := ansi.Strip(strings.Join(m.boardDetail(m.width-4, m.height-5), "\n"))
+		top := ansi.Strip(strings.Join(m.boardDetail(m.width-4, m.height-4), "\n"))
 		if !strings.Contains(top, "Assignee   builder") || !strings.Contains(top, "● builder running") || strings.Contains(top, "LAST COMMENT LINE") {
 			t.Fatal(top)
 		}
@@ -263,7 +264,7 @@ func TestBoardDetailScrollAndWorker(t *testing.T) {
 			t.Fatal("j did not scroll")
 		}
 		m, _ = boardPress(m, "G")
-		lines := m.boardDetail(m.width-4, m.height-5)
+		lines := m.boardDetail(m.width-4, m.height-4)
 		if !strings.Contains(ansi.Strip(strings.Join(lines, "\n")), "LAST COMMENT LINE") {
 			t.Fatal("G missed last comment")
 		}
@@ -414,6 +415,8 @@ func TestBoardScrollAndRecentComments(t *testing.T) {
 
 func TestBoardWorkflowView(t *testing.T) {
 	m := boardTestModel()
+	d := t.TempDir()
+	m.boardDir, m.repoDir = d, d
 	cfg, err := tasks.ParseBoardConfig([]byte(`roles:
   planner: {agent: pi, model: gpt}
 statuses:
@@ -435,8 +438,8 @@ statuses:
 		}
 	}
 	m, _ = boardPress(m, "esc")
-	if m.boardFlow || !m.boardMode {
-		t.Fatal("esc did not return to the board list")
+	if m.boardFlow || !m.maximized {
+		t.Fatal("esc did not return to the Tasks card")
 	}
 }
 
@@ -463,7 +466,7 @@ func TestBoardListsWorkflowsBelow(t *testing.T) {
 	for _, w := range []int{160, 45} {
 		m.width = w
 		view := ansi.Strip(m.View())
-		for _, want := range []string{"[Workflows]  Agents", "1 of 2", "❯ research", "local · 1 jobs", "● 1 running", "▸ deploy", "global · 3 jobs"} {
+		for _, want := range []string{"Workflows", "1 of 2", "❯ research", "local · 1 jobs", "● 1 running", "▸ deploy", "global · 3 jobs"} {
 			if !strings.Contains(view, want) {
 				t.Errorf("width %d lacks %q:\n%s", w, want, view)
 			}
@@ -536,8 +539,8 @@ triggers:
 		}
 	}
 	m, _ = boardPress(m, "esc")
-	if m.boardFlow || m.boardConfigView || !m.boardMode {
-		t.Fatal("esc did not return to the board list")
+	if m.boardFlow || m.boardConfigView || !m.maximized {
+		t.Fatal("esc did not return to the Tasks card")
 	}
 }
 
@@ -562,10 +565,10 @@ func TestBoardConfigPicksDefaultWorkflow(t *testing.T) {
 	}
 	m := boardTestModel()
 	m.boardDir, m.boardConfig, m.boardWorkflows = dir, cfg, workflow.List(tasks.MainRoot(dir))
-	if view := ansi.Strip(m.View()); !strings.Contains(view, "default: feature") {
-		t.Fatalf("board header lacks the default:\n%s", view)
-	}
 	m, _ = boardPress(m, "B")
+	if view := ansi.Strip(m.View()); !strings.Contains(view, "Default workflow  feature") {
+		t.Fatalf("board config lacks the default:\n%s", view)
+	}
 	m, _ = boardPress(m, "enter")
 	if m.taskForm != "default" {
 		t.Fatalf("enter did not open the default picker: %q", m.taskForm)

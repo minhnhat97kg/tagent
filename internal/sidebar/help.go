@@ -13,7 +13,7 @@ type shortcutSection struct {
 }
 
 // helpOrder is the order of the sections in the full list.
-var helpOrder = []paneID{paneAgents, paneUsage, paneTasks, paneWorkflows, paneAgentsTab, paneBoardTickets, paneBoardAgents, paneBoardWorkflows, paneWorkflowView, paneBoardConfig, paneTaskDetail}
+var helpOrder = []paneID{paneAgents, paneAgentDefs, paneUsage, paneTasks, paneWorkflows, paneWorkflowView, paneBoardConfig, paneTaskDetail}
 
 // helpNotes and helpStandalone are the sections that are not a pane's keys.
 var (
@@ -53,9 +53,9 @@ func (m Model) helpSections() []shortcutSection {
 // helpSection is the focused pane's section.
 func (m Model) helpSection() shortcutSection {
 	switch {
-	case m.standalone && !m.dashboard && !m.boardMode:
+	case m.standalone && !m.dashboard:
 		return helpStandalone
-	case m.taskForm != "" && !m.boardMode:
+	case m.taskForm != "":
 		return m.paneSection(paneTasks)
 	}
 	return m.paneSection(m.focused())

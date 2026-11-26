@@ -176,7 +176,7 @@ func TestAgentDetailIgnoresCanvasScroll(t *testing.T) {
 // M is a dashboard key: on the board it does nothing (no invisible layout mode).
 func TestLayoutNotFromBoardMode(t *testing.T) {
 	m := layoutModel(t)
-	m.boardMode = true
+	m.maximized = true
 	m = layoutPress(m, "M")
 	if m.layoutEdit {
 		t.Fatal("M from board mode opened the layout mode")

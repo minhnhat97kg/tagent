@@ -12,7 +12,7 @@ import (
 	"tagent/internal/workflow"
 )
 
-// ticketsKey is the ticket lanes, on the board screen and (through
+// ticketsKey is the ticket keys, on the Tasks card and (through
 // tasksCardKey) on the dashboard's Tasks card.
 func (m Model) ticketsKey(key string) (Model, tea.Cmd, bool) {
 	if len(m.notes) > 0 && (key == "a" || key == "A") {
@@ -25,56 +25,19 @@ func (m Model) ticketsKey(key string) (Model, tea.Cmd, bool) {
 		m.attachmentsKey = ""
 		return m.syncAttachments(), nil, true
 	}
-	if key == "tab" || key == "shift+tab" {
-		if m.boardMode && !m.boardDrawer {
-			m.focus = cardWorkflows
-			return m, nil, true
-		}
-	}
 	switch key {
-	case "t":
-		m.boardMode = true
-		m.agentsOpen = !m.agentsOpen
-		m.agentDetail, m.agentCursor = false, 0
-		m.focus = cardTasks
-		if m.agentsOpen {
-			m.focus = cardWorkflows
-		}
-		if m.agentsOpen {
-			m = m.loadAgents()
-		}
-		return m, nil, true
 	case "w":
-		m.boardMode = true
 		m.boardFlow, m.boardConfigView, m.boardDrawer = true, false, false
 		m.flowWorkflow = ""
 		return m, nil, true
-	case "B": // read-only board config summary; E edits, like the workflow view
-		m.boardMode = true
-		m.boardFlow, m.boardConfigView, m.boardDrawer = true, true, false
-		m.flowWorkflow, m.boardConfigScroll = "", 0
-		return m, nil, true
 	case "enter", "i":
-		if !m.boardMode { // opened on the dashboard's Tasks card: back goes there
-			m.detailFromDash = true
-		}
-		m.boardMode = true
 		m.boardDrawer = !m.boardDrawer
-		if !m.boardDrawer {
-			m = m.closeDetail()
-		}
 		m.detailScroll = 0
 		m.detailTab = detailTabDetails
 		m.detailDescOpen, m.detailSysOpen = false, false
 		return m, nil, true
-	case "esc":
-		if m.boardDrawer {
-			return m.closeDetail(), nil, true
-		}
-		m.boardMode = false
-		return m, nil, true
-	case "q", "b":
-		m.boardMode, m.boardDrawer, m.detailFromDash = false, false, false
+	case "esc", "q", "b": // closes the ticket detail; the card itself is restored by handleKey
+		m.boardDrawer = false
 		return m, nil, true
 	case "c", "C": // comment on the selected ticket (a blocked one prefills the @role)
 		if len(m.notes) > 0 {
@@ -190,30 +153,21 @@ func (m Model) ticketsKey(key string) (Model, tea.Cmd, bool) {
 	return m.laneStep(step), nil, true
 }
 
-// closeDetail closes the ticket drawer. A drawer opened from the dashboard's
-// Tasks card goes back to that card (the ticket stays selected); one opened on
-// the board stays on the board.
-func (m Model) closeDetail() Model {
-	m.boardDrawer = false
-	if m.detailFromDash {
-		m.boardMode, m.detailFromDash = false, false
-	}
-	return m
-}
-
-// tasksCardKey is the dashboard Tasks card: the ticket keys without leaving
-// the dashboard; b opens the board.
+// tasksCardKey is the Tasks card: the ticket keys; b maximizes the card (esc restores).
 func (m Model) tasksCardKey(key string) (Model, tea.Cmd, bool) {
 	switch key {
-	case "tab", "shift+tab", "q", "ctrl+c", ",", "o", "B", "[", "]", "M":
+	case "tab", "shift+tab", "q", "ctrl+c", ",", "o", "B", "[", "]", "M", "Z":
 		return m, nil, false
 	case "b":
-		return m.openBoard(), nil, true
+		m.maximized = !m.maximized
+		if m.maximized {
+			m = m.boardContext()
+		}
+		return m.followPane(cardIDs[cardTasks]), nil, true
 	}
 	if m.boardDir == "" || m.boardDir != m.repoDir && m.repoDir != "" {
 		m = m.boardContext()
 	}
-	m.boardDrawer, m.boardFlow = false, false
 	m, cmd, _ := m.ticketsKey(key)
 	return m, cmd, true
 }
@@ -248,7 +202,6 @@ func ticketHints(nav hint) []hint {
 		{"x", "delete", "x", "delete (confirm)"},
 		{"U", "auto-start", "U", "toggle auto-start: start when the last dependency is done"},
 		{"w", "workflow", "w", "workflow view"},
-		{"", "", "t", "swap Workflows / Agents tab (and back)"},
 		{"", "", "E", "edit .tasks/board.yaml"},
 		{"", "", "?", "help"},
 		nav,
@@ -256,11 +209,7 @@ func ticketHints(nav hint) []hint {
 }
 
 func (m Model) tasksCardHints() []hint {
-	return ticketHints(hint{"", "", "Tab / b", "focus next panel / open board"})
-}
-
-func (m Model) boardTicketsHints() []hint {
-	return ticketHints(hint{"", "", "Tab / esc", "focus workflows / back"})
+	return ticketHints(hint{"", "", "Tab / b", "focus next card / maximize this card (esc restores)"})
 }
 
 // moveTask moves the selected ticket to status and ends its metrics run when it

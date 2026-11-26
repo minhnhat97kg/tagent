@@ -14,7 +14,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-// The agents panel shares the board's bottom strip with workflows (t toggles it).
+// The Agents card has two tabs: Running (the live panes) and Definitions (t swaps).
 // Changes go through agents.Save, so the TUI and web write the same files.
 
 type agentsEditedMsg struct{ err error }
@@ -108,7 +108,7 @@ func (m Model) agentStripLines(width int) []string {
 	var lines []string
 	for i, a := range m.agents {
 		mark := "  "
-		if m.focus == cardWorkflows && i == m.agentCursor {
+		if m.focus == cardAgents && i == m.agentCursor {
 			mark = "❯ "
 		}
 		model := short(a)
@@ -137,12 +137,21 @@ func agentReadOnly(a agents.Agent) bool {
 	return a.Source == "global" || a.Source == "legacy"
 }
 
-// stripPanel is the bottom card's body: workflows, or agents while the agents panel is open.
-func (m Model) stripPanel(width int) (lines []string, cursor, n int) {
-	if m.agentsOpen {
-		return m.agentStripLines(width), m.agentCursor, len(m.agents)
+// agentDefsLines is the Definitions body at height rows: the agent list windowed
+// around its cursor, or the selected agent's detail, which scrolls (j/k).
+func (m Model) agentDefsLines(width, height int) []string {
+	lines := m.agentStripLines(width)
+	rows := max(1, height)
+	if m.agentDetail {
+		off := min(max(0, m.detailScroll), max(0, len(lines)-rows))
+		view := slices.Clone(lines[off:min(len(lines), off+rows)])
+		if below := len(lines) - off - rows; below > 0 { // the last row says how much is hidden
+			view[len(view)-1] = m.boardStyle(m.theme.TextDim).Render(fmt.Sprintf("↓ %d more · j/k scroll", below+1))
+		}
+		return view
 	}
-	return m.workflowLines(width), m.workflowCursor, len(m.boardWorkflows)
+	start := max(0, m.agentCursor-rows+1)
+	return lines[min(start, len(lines)):]
 }
 
 func (m Model) agentPanelKey(key string) (Model, tea.Cmd, bool) {
@@ -158,8 +167,6 @@ func (m Model) agentPanelKey(key string) (Model, tea.Cmd, bool) {
 		return m, nil, true
 	}
 	switch key {
-	case "tab", "shift+tab":
-		m.focus, m.agentsOpen, m.agentDetail = cardTasks, false, false
 	case "j", "down", "k", "up", "pgdown", "ctrl+d", "pgup", "ctrl+u", "g", "G":
 		if m.agentDetail { // the open detail scrolls its instructions
 			total := len(m.agentStripLines(max(1, m.width-4)))
@@ -173,15 +180,6 @@ func (m Model) agentPanelKey(key string) (Model, tea.Cmd, bool) {
 		m.agentDetail, m.detailScroll = !m.agentDetail, 0
 	case "a":
 		m.taskForm, m.taskInput = "agent-new", ""
-	case "t":
-		m.agentsOpen, m.focus, m.agentDetail = false, cardTasks, false
-	case "esc", "q", "b":
-		if m.agentDetail {
-			m.agentDetail = false
-			return m, nil, true
-		}
-		m.focus, m.agentsOpen = cardTasks, false
-		m.boardMode = false
 	case "m", "e", "x":
 		a, ok := m.selectedAgent()
 		if !ok {
@@ -260,4 +258,40 @@ func (m Model) selectedAgentName() string {
 		return a.Name
 	}
 	return ""
+}
+
+// agentDefsKey is the Agents card's Definitions tab: t swaps back to Running;
+// esc closes an open detail, else goes back to Running; q closes an open detail,
+// else quits (global). The rest is the agent panel (agentPanelKey).
+func (m Model) agentDefsKey(key string) (Model, tea.Cmd, bool) {
+	if m.agentDelete == "" {
+		switch key {
+		case "t":
+			m.agentsOpen, m.agentDetail = false, false
+			return m, nil, true
+		case "esc", "q":
+			if m.agentDetail {
+				m.agentDetail = false
+				return m, nil, true
+			}
+			if key == "esc" {
+				m.agentsOpen = false
+				return m, nil, true
+			}
+		}
+	}
+	return m.agentPanelKey(key)
+}
+
+func (m Model) agentDefsHints() []hint {
+	if m.agentDetail { // the detail replaces the list: the way back is the first hint
+		return []hint{
+			{"esc", "back", "esc", "back to the agent list"}, {"m", "model", "m", "model (new panes only)"}, {"e", "edit", "e", "edit instructions in $EDITOR"},
+			{"", "", "j k ↑ ↓", "scroll the instructions"}, {"", "", "t", "back to Running"},
+		}
+	}
+	return []hint{
+		{"t", "running", "t", "back to the running agents"}, {"enter", "detail", "enter", "show detail"}, {"m", "model", "m", "model (new panes only)"}, {"a", "add", "a", "new agent"},
+		{"Tab", "focus", "", ""}, {"", "", "j k ↑ ↓", "select agent"}, {"", "", "e", "edit instructions in $EDITOR"}, {"", "", "x", "delete agent (y/n confirm)"}, {"", "", "esc", "back to Running"},
+	}
 }

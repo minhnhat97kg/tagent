@@ -55,9 +55,6 @@ func createWorkflowFile(root, name string) (string, error) {
 	return path, e
 }
 func (m Model) workflowPanelKey(key string) (Model, tea.Cmd, bool) {
-	if m.agentsOpen {
-		return m.agentPanelKey(key)
-	}
 	if m.workflowDelete != "" {
 		switch key {
 		case "y":
@@ -70,7 +67,7 @@ func (m Model) workflowPanelKey(key string) (Model, tea.Cmd, bool) {
 		return m, nil, true
 	}
 	switch key {
-	case "tab", "shift+tab":
+	case "esc":
 		m.focus = cardTasks
 	case "j", "down":
 		m.workflowCursor = min(max(0, len(m.boardWorkflows)-1), m.workflowCursor+1)
@@ -79,16 +76,6 @@ func (m Model) workflowPanelKey(key string) (Model, tea.Cmd, bool) {
 	case "a":
 		m.taskForm = "workflow-new"
 		m.taskInput = ""
-	case "t": // swap this card for agents (same as t from the tickets)
-		m.agentsOpen, m.agentDetail, m.agentCursor = true, false, 0
-		m = m.loadAgents()
-	case "B": // board config summary (same view as the board's B key)
-		m.focus = cardTasks
-		m.boardFlow, m.boardConfigView = true, true
-		m.flowWorkflow, m.boardConfigScroll = "", 0
-	case "esc", "q", "b":
-		m.focus = cardTasks
-		m.boardMode = false
 	case "enter", "w", "e", "x":
 		if len(m.boardWorkflows) == 0 {
 			return m, nil, true

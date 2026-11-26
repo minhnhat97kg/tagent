@@ -8,10 +8,10 @@ import (
 
 func TestTasksPanelEnterOpensBoardDrawer(t *testing.T) {
 	m := boardTestModel()
-	m.boardMode = false
+	m.maximized = false
 	m.boardDir, m.repoDir = t.TempDir(), ""
 	next, _ := boardPress(m, "enter")
-	if !next.boardMode || !next.boardDrawer {
+	if !next.boardDrawer {
 		t.Fatal("enter did not open board detail")
 	}
 	detail := ansi.Strip(strings.Join(next.boardDetail(70, 25), "\n"))

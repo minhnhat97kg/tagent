@@ -45,9 +45,6 @@ func (m Model) dashboardView() string {
 	if m.taskForm != "" {
 		return m.taskFormView()
 	}
-	if m.boardMode {
-		return m.boardView()
-	}
 	w, h := m.width, m.height
 	if w <= 0 {
 		w = fallbackWidth
@@ -75,16 +72,11 @@ func (m Model) dashboardView() string {
 	focus := func(f int) bool { return m.focus == f }
 	usageName, uw := m.cardName(paneNum(3), "▥ Usage")
 	rng, _ := m.tabStrip([]string{"1d", "7d", "30d"}, slices.Index([]int{1, 7, 30}, m.chartDaysOrDefault()), 3+uw+2)
-	agentsName, _ := m.cardName(paneNum(0), "Agents")
-	agentsPos := position(m.cursor, paneRowCount(m.rows))
-	if slices.Contains(slices.Collect(maps.Values(m.sizeOwners)), true) {
-		agentsPos += " · f handoff"
-	}
 	card := func(r rect, title, pos string, lines []string, focused bool) string {
 		return m.boardPanel(title, pos, lines, r.w, r.h, focused)
 	}
 	cards := map[string]string{
-		"agents":    card(g.agents, agentsName, agentsPos, m.agentRows(g.agents.w-4, g.agents.h-2), focus(0)),
+		"agents":    m.agentsCard(g.agents.w, g.agents.h, focus(0)),
 		"usage":     card(g.usage, usageName+"  "+rng, "", g.usageLines, focus(3)),
 		"tasks":     m.tasksCard(g.tasks.w, g.tasks.h, paneNum(2), focus(2)),
 		"workflows": m.workflowCard(g.wf.w, g.wf.h, paneNum(4)),
@@ -94,17 +86,22 @@ func (m Model) dashboardView() string {
 		cards["comp"] = card(g.comp, m.boardStyle(m.theme.TextPrimary).Bold(true).Render("◈ Companion"), "", avatar, m.layoutEdit && m.layoutSel == "comp")
 	}
 	var body string
-	if m.agentsOpen && m.agentDetail { // like the task detail: the whole pane
-		body = m.workflowCard(w, max(3, h-2), 0)
+	if m.subView() {
+		body = m.subViewBody(w, max(3, h-2))
 	} else {
 		body = strings.Join(composite(g.rects(), cards, sx, sy, g.bw, g.bh), "\n")
 	}
 	help := m.footerHints()
-	if m.taskDelete {
-		help = " Delete task?  y confirm · n cancel"
-	}
 	if m.taskNotice != "" {
 		help = " " + m.taskNotice
+	}
+	switch { // a confirm prompt is never hidden by a notice
+	case m.workflowDelete != "":
+		help = "Delete workflow " + m.workflowDelete + "? y / n"
+	case m.agentDelete != "":
+		help = "Delete agent " + m.agentDelete + "? y / n"
+	case m.taskDelete:
+		help = " Delete task?  y confirm · n cancel"
 	}
 	footer := lipgloss.NewStyle().Foreground(m.theme.Accent).Bold(true).Render(fitLine(help, max(6, w-1)))
 	result := strings.Split(bar+"\n"+body, "\n")
@@ -114,6 +111,53 @@ func (m Model) dashboardView() string {
 	}
 	result = append(result, footer)
 	return strings.Join(result, "\n")
+}
+
+// subViewBody is a sub-view's body (subView), w columns by h rows: the board
+// config, the workflow view, the ticket detail (beside the tickets when wide) or
+// an agent's detail.
+func (m Model) subViewBody(w, h int) string {
+	switch {
+	case m.boardConfigView:
+		lines := m.boardConfigLines(w - 4)
+		rows := max(0, h-2)
+		start := min(m.boardConfigScroll, max(0, len(lines)-rows))
+		return m.boardPanel("Board config · .tasks/board.yaml", "B", lines[start:], w, h, true)
+	case m.boardFlow:
+		label := ".tasks/board.yaml"
+		if m.flowWorkflow != "" {
+			label = m.flowWorkflow
+		} else if len(m.notes) > 0 && m.notes[m.taskCursor].Workflow != "" {
+			label = m.notes[m.taskCursor].Workflow
+		}
+		return m.boardPanel("Workflow · "+label, "", m.flowLines(w-4), w, h, true)
+	case m.boardDrawer && w >= 100:
+		dw := w * 2 / 5
+		left := m.tasksCardAt(min(tasksSizeFor(w-dw, h), sizeList), w-dw, h, 0, false)
+		right := m.boardPanel(m.detailTabTitle(), "", m.boardDetail(dw-4, h-2), dw, h, true)
+		return lipgloss.JoinHorizontal(lipgloss.Top, left, right)
+	case m.boardDrawer:
+		return m.boardPanel(m.detailTabTitle(), "", m.boardDetail(w-4, h-2), w, h, true)
+	}
+	return m.agentsCard(w, h, true) // the agent detail
+}
+
+// agentsCard is the Agents card at width x height: the Running agents, or the
+// Definitions tab (t swaps; the detail takes the whole body, see subView).
+func (m Model) agentsCard(width, height int, focused bool) string {
+	tabs, _ := m.tabStrip([]string{"Running", "Definitions"}, b2i(m.agentsOpen), 3)
+	if m.agentsOpen {
+		pos := position(m.agentCursor, len(m.agents))
+		if m.agentDetail {
+			pos = ""
+		}
+		return m.boardPanel(tabs, pos, m.agentDefsLines(width-4, height-2), width, height, focused)
+	}
+	pos := position(m.cursor, paneRowCount(m.rows))
+	if slices.Contains(slices.Collect(maps.Values(m.sizeOwners)), true) {
+		pos += " · f handoff"
+	}
+	return m.boardPanel(tabs, pos, m.agentRows(width-4, height-2), width, height, focused)
 }
 
 // topBar is the one-line header: "tagent · repo" left, key hints right.
@@ -459,6 +503,22 @@ const (
 // (defaultGeometry).
 func (m Model) dashGeometry() dashGeom {
 	def := m.defaultGeometry()
+	if m.maximized { // the focused card fills the body; the others and the companion are hidden
+		g := dashGeom{wide: def.wide, bw: def.bw, bh: def.bh}
+		full := rect{0, 1, def.bw, def.bh}
+		switch m.focus {
+		case cardAgents:
+			g.agents = full
+		case cardUsage:
+			g.usage = full
+		case cardTasks:
+			g.tasks = full
+		case cardWorkflows:
+			g.wf = full
+		}
+		g.usageLines = m.usageLines(g.usage.w-4, g.usage.h-2)
+		return g
+	}
 	if boxes, ok := m.customBoxes(def); ok {
 		return m.geometryFrom(boxes, def)
 	}
@@ -504,9 +564,6 @@ func (m Model) defaultGeometry() dashGeom {
 	usageC := func(n int) constraint { return last(Fixed(n).AtLeast(minUsageH), 3) }
 	tasksC := last(Fill(1).AtLeast(minTasksH), 2)
 	wfC := last(Fixed(minWfH), 4)
-	if m.agentsOpen && m.agentDetail { // the detail replaces the list: it takes the room Tasks would use
-		wfC = Fill(4).AtLeast(minWfH).Last(true)
-	}
 	set := func(rs []rect, dst ...*rect) {
 		for i, d := range dst {
 			*d = rs[i]

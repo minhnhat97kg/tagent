@@ -39,6 +39,15 @@ func (m Model) agentsKey(key string) (Model, tea.Cmd, bool) {
 	}
 
 	switch key {
+	case "t": // the agent definitions: the Definitions tab of this card (dashboard only)
+		if !m.dashboard {
+			return m, nil, false
+		}
+		if m.boardDir == "" {
+			m = m.boardContext()
+		}
+		m.agentsOpen, m.agentDetail, m.agentCursor = true, false, 0
+		return m.loadAgents(), nil, true
 	case "N":
 		// The web's New agent fields (new_agent.go): repo-agent, harness,
 		// model, worktree.
@@ -239,7 +248,7 @@ func (m Model) agentsKey(key string) (Model, tea.Cmd, bool) {
 }
 
 func (m Model) agentsHints() []hint {
-	return []hint{
+	hs := []hint{
 		{"Tab/S-Tab", "panel", "", ""},
 		{"↑↓", "select", "j k ↑ ↓", "select agent"},
 		{"enter", "open", "enter", "on ! row: answers; again: jump to pane"},
@@ -250,4 +259,8 @@ func (m Model) agentsHints() []hint {
 		{"", "", "1-9", "jump to window"}, {"", "", "/", "filter"}, {"", "", "r", "switch repo"}, {"", "", "p", "pin"},
 		{"f", "handoff", "f", "handoff sizing to this terminal (web-owned rows only)"}, {"", "", "v x", "select / delete worktrees"}, {"", "", "S", "clear subagents"}, {"", "", "u", "undo"},
 	}
+	if m.dashboard { // the Definitions tab is on the dashboard card only
+		hs = append(hs, hint{"t", "definitions", "t", "agent definitions (Running / Definitions tabs)"})
+	}
+	return hs
 }

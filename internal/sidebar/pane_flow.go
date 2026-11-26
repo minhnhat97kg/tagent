@@ -12,10 +12,6 @@ func (m Model) configKey(key string) (Model, tea.Cmd, bool) {
 	switch key {
 	case "esc", "w", "q", "b", "B":
 		m.boardFlow, m.boardConfigView = false, false
-		if m.flowFromDash { // back to the dashboard's Workflows card
-			m.flowFromDash, m.boardMode = false, false
-			m.focus = cardWorkflows
-		}
 	case "j", "down":
 		m.boardConfigScroll = min(m.boardConfigScroll+1, m.boardConfigMaxScroll())
 	case "k", "up":
@@ -85,10 +81,6 @@ func (m Model) flowKey(key string) (Model, tea.Cmd, bool) {
 		return m, editBoardConfig(m.boardDir, m.tmuxPane), true
 	case "esc", "w", "q":
 		m.boardFlow = false
-		if m.flowFromDash { // back to the dashboard's Workflows card
-			m.flowFromDash, m.boardMode = false, false
-			m.focus = cardWorkflows
-		}
 	default:
 		return m, nil, false
 	}
@@ -104,6 +96,6 @@ func (m Model) flowHints() []hint {
 func (m Model) configHints() []hint {
 	return []hint{
 		{"esc", "close", "esc w q B", "close"}, {"enter", "default", "enter", "pick the default workflow (saved to board.yaml)"}, {"j/k", "scroll", "j k ↑ ↓", "scroll default workflow, roles, triggers"},
-		{"E", "edit", "e E", "edit .tasks/board.yaml in $EDITOR"}, {"", "", "g G", "top / bottom"}, {"", "", "B", "open from the board"},
+		{"E", "edit", "e E", "edit .tasks/board.yaml in $EDITOR"}, {"", "", "g G", "top / bottom"}, {"", "", "B", "open from any card"},
 	}
 }

@@ -96,7 +96,7 @@ func hintCases(t *testing.T) []hintCase {
 	dash := func(focus int, mod func(*Model)) func() Model {
 		return func() Model {
 			m := base()
-			m.boardMode, m.focus, m.chartDays = false, focus, 7
+			m.maximized, m.focus, m.chartDays = false, focus, 7
 			if mod != nil {
 				mod(&m)
 			}
@@ -107,7 +107,6 @@ func hintCases(t *testing.T) []hintCase {
 		return func() Model { m := base(); mod(&m); return m }
 	}
 	dashHint := func(m Model) string { return lastLines(m.dashboardView(), 1) }
-	boardHint := func(m Model) string { return lastLines(m.boardView(), 2) }
 	// Documented no-ops: keys that need a live pane row, or content to scroll or browse
 	// (the fixture has no workflow files and a one-screen ticket). f also needs a row the
 	// web sizes, and the fixture has no web-owned pane.
@@ -119,13 +118,13 @@ func hintCases(t *testing.T) []hintCase {
 		{"dashboard workflows", dash(4, nil), dashHint, nil},
 		{"dashboard layout", dash(0, func(m *Model) { *m = m.startLayoutEdit() }), dashHint, nil},
 		{"dashboard agents tab", dash(4, func(m *Model) { m.agentsOpen = true }), dashHint, nil},
-		{"board tickets", board(func(m *Model) {}), boardHint, nil},
-		{"board workflows", board(func(m *Model) { m.focus = cardWorkflows }), boardHint, nil},
-		{"board agents", board(func(m *Model) { m.focus, m.agentsOpen = cardWorkflows, true }), boardHint, nil},
-		{"workflow view", board(func(m *Model) { m.boardFlow, m.flowWorkflow = true, "x.yml" }), boardHint, []string{"["}},
-		{"board config", board(func(m *Model) { m.boardFlow, m.boardConfigView = true, true }), boardHint, []string{"j"}},
-		{"drawer details", board(func(m *Model) { m.boardDrawer = true }), boardHint, []string{"j"}},
-		{"drawer activity", board(func(m *Model) { m.boardDrawer, m.detailTab = true, detailTabActivity }), boardHint, []string{"j"}},
+		{"board tickets", board(func(m *Model) {}), dashHint, nil},
+		{"board workflows", board(func(m *Model) { m.focus = cardWorkflows }), dashHint, nil},
+		{"board agents", board(func(m *Model) { m.focus, m.agentsOpen = cardWorkflows, true }), dashHint, nil},
+		{"workflow view", board(func(m *Model) { m.boardFlow, m.flowWorkflow = true, "x.yml" }), dashHint, []string{"["}},
+		{"board config", board(func(m *Model) { m.boardFlow, m.boardConfigView = true, true }), dashHint, []string{"j"}},
+		{"drawer details", board(func(m *Model) { m.boardDrawer = true }), dashHint, []string{"j"}},
+		{"drawer activity", board(func(m *Model) { m.boardDrawer, m.detailTab = true, detailTabActivity }), dashHint, []string{"j"}},
 	}
 }
 
@@ -219,13 +218,10 @@ func TestFocusedPane(t *testing.T) {
 		{Model{dashboard: true, focus: cardUsage}, paneUsage},
 		{Model{dashboard: true, focus: cardTasks}, paneTasks},
 		{Model{dashboard: true, focus: cardWorkflows}, paneWorkflows},
-		{Model{dashboard: true, focus: cardWorkflows, agentsOpen: true}, paneAgentsTab},
-		{Model{dashboard: true, boardMode: true}, paneBoardTickets},
-		{Model{dashboard: true, boardMode: true, focus: cardWorkflows}, paneBoardWorkflows},
-		{Model{dashboard: true, boardMode: true, focus: cardWorkflows, agentsOpen: true}, paneBoardAgents},
-		{Model{dashboard: true, boardMode: true, boardFlow: true}, paneWorkflowView},
-		{Model{dashboard: true, boardMode: true, boardFlow: true, boardConfigView: true}, paneBoardConfig},
-		{Model{dashboard: true, boardMode: true, boardDrawer: true}, paneTaskDetail},
+		{Model{dashboard: true, focus: cardAgents, agentsOpen: true}, paneAgentDefs},
+		{Model{dashboard: true, maximized: true, boardFlow: true}, paneWorkflowView},
+		{Model{dashboard: true, maximized: true, boardFlow: true, boardConfigView: true}, paneBoardConfig},
+		{Model{dashboard: true, maximized: true, boardDrawer: true}, paneTaskDetail},
 	} {
 		if got := c.m.focused(); got != c.want {
 			t.Errorf("%+v: focused %d, want %d", c.m, got, c.want)

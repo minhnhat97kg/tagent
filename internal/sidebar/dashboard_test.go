@@ -36,7 +36,7 @@ func TestDashboardFitsBothWidthsAndKeepsTaskSelection(t *testing.T) {
 				t.Fatalf("line %d exceeds %d cells: %q", i, m.width, line)
 			}
 		}
-		for _, want := range []string{"Usage", "Tasks", "Agents"} {
+		for _, want := range []string{"Usage", "Tasks", "Running"} {
 			if !strings.Contains(view, want) {
 				t.Fatalf("%dx%d dashboard misses %q", m.width, m.height, want)
 			}

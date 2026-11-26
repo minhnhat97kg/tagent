@@ -60,7 +60,7 @@ type chatStartedMsg struct {
 // missing or older than its TTL. It returns nil when nothing needs reading, so
 // the 1s refresh tick stays free of file I/O on the other tabs.
 func (m Model) chatLoadCmd() (Model, tea.Cmd) {
-	if !m.boardMode || !m.boardDrawer || len(m.notes) == 0 || m.boardDir == "" {
+	if !m.boardDrawer || len(m.notes) == 0 || m.boardDir == "" {
 		return m, nil
 	}
 	t := m.notes[max(0, min(m.taskCursor, len(m.notes)-1))]

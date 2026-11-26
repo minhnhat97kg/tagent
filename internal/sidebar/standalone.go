@@ -137,7 +137,7 @@ func (m standaloneModel) rightX() int {
 // the help or another panel), so Enter/N/z are ours to take.
 func (m standaloneModel) listKeys() bool {
 	l := m.left
-	return l.focus == cardAgents && !l.boardMode && !l.helpOpen && l.taskForm == "" && !l.layoutEdit
+	return l.focus == cardAgents && !l.boardDrawer && !l.boardFlow && !l.helpOpen && l.taskForm == "" && !l.layoutEdit
 }
 
 // rightSize is the area inside the agent's frame: the frame takes 2 columns and
@@ -264,7 +264,7 @@ func (m standaloneModel) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "enter":
 			// A pending approval keeps its own Enter (reveal the answers).
-			if _, pending := m.left.dialogs[m.selected()]; !pending || m.left.dialogOpen[m.selected()] {
+			if _, pending := m.left.dialogs[m.selected()]; (!pending || m.left.dialogOpen[m.selected()]) && !m.left.agentsOpen { // the Definitions tab takes Enter for its detail
 				if m.paneID != "" {
 					if m.layout == layoutDashboard {
 						m.layout = layoutSplit

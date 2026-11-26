@@ -24,7 +24,7 @@ func TestAttachmentSelectorAndAttach(t *testing.T) {
 	m.notes = []tasks.Task{ticket}
 	m.taskCursor = 0
 	m.boardDrawer = true
-	m.boardMode = true
+	m.maximized = true
 	m, _, handled := m.boardKey("A")
 	if !handled || m.taskForm != "attach" {
 		t.Fatal("attach key")
