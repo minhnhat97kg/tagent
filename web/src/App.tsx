@@ -1,6 +1,6 @@
 import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { bindVisualViewport } from '@/lib/touchViewport'
-import { ArrowLeft, Maximize2, Minimize2, Monitor, Moon, MoreHorizontal, Plus, Settings, SquareTerminal, Sun } from "lucide-react"
+import { ArrowLeft, Maximize2, Menu, Minimize2, Monitor, Moon, Plus, Settings, SquareTerminal, Sun } from "lucide-react"
 import { nextTheme, useWebTheme } from "@/lib/theme"
 import { SettingsDialog } from "@/components/SettingsDialog"
 import { api } from "@/api"
@@ -228,11 +228,10 @@ export default function App() {
             <Button variant="ghost" size="icon-xs" className="max-sm:hidden" aria-label="Settings" title="Settings" onClick={() => setSettings(true)}><Settings /></Button>
             {/* Below 768px (where the Workflows pane is not shown) the header keeps back, project, new agent and notifications; the rest lives here. */}
             <DropdownMenu>
-              <DropdownMenuTrigger asChild><Button variant="ghost" size="icon-xs" className="max-sm:size-8 md:hidden" aria-label="More" title="More"><MoreHorizontal /></Button></DropdownMenuTrigger>
+              <DropdownMenuTrigger asChild><Button variant="ghost" size="icon-xs" className="max-sm:size-8 md:hidden" aria-label="More" title="More"><Menu /></Button></DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onSelect={() => nav('/agents')}>Agents</DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => nav('/workflows')}>Workflows</DropdownMenuItem>
-                {panes.map(n => <DropdownMenuItem key={n} onSelect={() => { setPhoneTab(extId(n)); nav("/") }}>{n}</DropdownMenuItem>)}
                 <DropdownMenuItem onSelect={() => setWebTheme(nextTheme[webTheme])}>Theme: {webTheme}</DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => setSettings(true)}>Settings</DropdownMenuItem>
               </DropdownMenuContent>

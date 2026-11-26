@@ -1,7 +1,8 @@
 import { Fragment, useCallback, useEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from "react"
 import { createPortal } from "react-dom"
-import { Bot, GripVertical, ListTodo, MessageSquare } from "lucide-react"
+import { Bot, GripVertical, ListTodo, MessageSquare, MoreHorizontal } from "lucide-react"
 import { PaneChromeContext } from "@/lib/paneChrome"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { SplitPane } from "@/components/SplitPane"
 import { buttonHolder, cells, DEFAULT_LAYOUT, defaultSizes, dropAt, extName, fits, nodeAt, paneRect, paneTitle, panesOf, reopen, replace, settle, shutIndex, step, type Drop, type Layout, type PaneId, type Path, type Rect } from "@/lib/paneLayout"
 import { useMedia } from "@/hooks/useMedia"
@@ -35,16 +36,24 @@ type Props = {
 }
 
 // HomeLayout is the home view. On desktop it is a tree of split panes (Desktop). A phone shows one of Agents,
-// Chat and Tasks, picked by icon tabs, or a custom pane picked from the header's More menu.
+// Chat and Tasks, picked by icon tabs, or a custom pane picked from the list behind the dots tab.
 export function HomeLayout(props: Props) {
   const { onTab, panes, tabSlot } = props
   if (useMedia("(min-width: 768px)")) return <Desktop {...props} />
 
-  const custom = extName(props.tab) !== undefined && props.tab in panes
+  const customs = Object.keys(panes).filter(id => extName(id))
+  const custom = customs.includes(props.tab)
   const tab = custom || TABS.some(t => t.id === props.tab) ? props.tab : "agents" // a deleted pane's tab falls back
+  const look = (on: boolean) => cn("flex h-7 w-8 items-center justify-center rounded-md", on ? "bg-accent" : "text-muted-foreground")
   const bar = <div role="tablist" aria-label="Home panes" className="flex shrink-0 gap-0.5 rounded-lg border p-0.5">
     {TABS.map(({ id, label, Icon }) => <button key={id} type="button" role="tab" aria-selected={tab === id} aria-label={label} title={label} onClick={() => onTab(id)}
-      className={cn("flex h-7 w-8 items-center justify-center rounded-md", tab === id ? "bg-accent" : "text-muted-foreground")}><Icon className="size-4" /></button>)}
+      className={look(tab === id)}><Icon className="size-4" /></button>)}
+    {customs.length > 0 && <DropdownMenu>
+      <DropdownMenuTrigger asChild><button type="button" role="tab" aria-selected={custom} aria-label="Custom panes" title={custom ? paneTitle(tab) : "Custom panes"} className={look(custom)}><MoreHorizontal className="size-4" /></button></DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {customs.map(id => <DropdownMenuItem key={id} aria-current={tab === id ? "page" : undefined} className={tab === id ? "bg-accent" : undefined} onSelect={() => onTab(id)}>{paneTitle(id)}</DropdownMenuItem>)}
+      </DropdownMenuContent>
+    </DropdownMenu>}
   </div>
   return <div className="flex min-h-0 flex-1 flex-col gap-1">
     {tabSlot === undefined ? bar : tabSlot && createPortal(bar, tabSlot)}
