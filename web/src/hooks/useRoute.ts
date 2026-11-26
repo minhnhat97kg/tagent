@@ -13,6 +13,7 @@ export const nav = (path: string) => {
 export type Route =
   | { page: "home"; agent?: string } // agent: the pane id of /agent/<pane>, selected in the chat pane
   | { page: "routing" | "boardConfig" }
+  | { page: "settings"; tab: "general" | "workspaces" | "device" } // the settings tabs without a page of their own
   | { page: "pane"; pane: string } // usage, tasks, chat, or a custom pane's id ("ext:<name>")
   | { page: "agents" } // the Agents definitions page
   | { page: "custom"; name?: string } // a custom pane (#/custom/<name>); no name = the first one
@@ -30,6 +31,9 @@ export function parseRoute(route: string): Route {
   }
   const [a, b, c] = parts
   switch (a) {
+    case "settings":
+      if (parts.length === 1) return { page: "settings", tab: "general" }
+      return (b === "workspaces" || b === "device") && parts.length === 2 ? { page: "settings", tab: b } : { page: "home" }
     case "routing": return parts.length === 1 ? { page: "routing" } : { page: "home" }
     case "board": return b === "config" && parts.length === 2 ? { page: "boardConfig" } : { page: "home" }
     case "pane":

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest"
 import { cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { AddWorkspaceDialog } from "./AddWorkspaceDialog"
-import { SettingsDialog } from "./SettingsDialog"
+import { WorkspaceSettings } from "./SettingsPage"
 import { ProjectSelect } from "./ProjectSelect"
 import { api, post } from "@/api"
 
@@ -16,7 +16,6 @@ const listings: Record<string, { path: string; parent: string; dirs: string[] }>
 beforeEach(() => {
   Element.prototype.scrollIntoView = vi.fn() // jsdom has none; Radix Select calls it
   vi.mocked(api).mockReset().mockImplementation(async (p: string) => {
-    if (p === "/api/config") return []
     const q = decodeURIComponent(p.slice(p.indexOf("=") + 1))
     return listings[q || "/home/u"] // no path means $HOME
   })
@@ -42,7 +41,7 @@ test("picker descends, goes up, and adds the chosen folder", async () => {
 
 test("Settings lists workspaces, removes one and opens the picker", async () => {
   const onAddWorkspace = vi.fn()
-  render(<SettingsDialog open onOpenChange={() => {}} onResetLayout={() => {}} onAddWorkspace={onAddWorkspace} />)
+  render(<WorkspaceSettings onAddWorkspace={onAddWorkspace} />)
   fireEvent.click(await screen.findByRole("button", { name: "Remove a" }))
   await vi.waitFor(() => expect(api).toHaveBeenCalledWith("/api/workspaces?dir=%2Fhome%2Fu%2Fa", { method: "DELETE" }))
   fireEvent.click(screen.getByRole("button", { name: /Add workspace/ }))

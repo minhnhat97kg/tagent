@@ -26,6 +26,13 @@ const desktop = () => {
   window.matchMedia = ((q: string) => ({ matches: q.includes("min-width: 768px"), media: q, addEventListener: () => {}, removeEventListener: () => {} })) as unknown as typeof window.matchMedia
 }
 const pane = (name: string) => screen.getByRole("separator", { name })
+// Reset layout lives on the Settings "This device" tab and returns home.
+const resetLayout = async () => {
+  fireEvent.click(screen.getByRole("button", { name: "Settings" }))
+  fireEvent.click(await screen.findByRole("link", { name: "This device" }))
+  fireEvent.click(await screen.findByRole("button", { name: "Reset layout" }))
+  await waitFor(() => expect(document.querySelector("[data-pane]")).toBeTruthy())
+}
 const agent = (pane: string, name: string) => ({ pane, name, path: "/p", agent: "claude", status: "idle", project: "p", prompt: "" })
 
 beforeEach(() => {
@@ -83,6 +90,15 @@ test("#/routing is a page of its own, with no pane", () => {
   expect(document.querySelector("[data-max]")).toBeNull()
 })
 
+test("every settings page sits under the same tabs, and a tab asks before dropping a draft", () => {
+  for (const [hash, tab] of [["#/settings", "General"], ["#/agents", "Agents"], ["#/routing", "Routing"], ["#/workflows", "Workflows"], ["#/board/config", "Board"], ["#/settings/workspaces", "Workspaces"], ["#/settings/device", "This device"]]) {
+    cleanup()
+    location.hash = hash
+    render(<App />)
+    expect(screen.getByRole("navigation", { name: "Settings" }).querySelector('[aria-current="page"]')?.textContent, hash).toBe(tab)
+  }
+})
+
 test("the rail and the Board page are gone; #/board lands on home", () => {
   desktop()
   location.hash = "#/board"
@@ -93,7 +109,7 @@ test("the rail and the Board page are gone; #/board lands on home", () => {
   expect(screen.getByRole("heading", { name: "Tasks" })).toBeTruthy()
 })
 
-test("a saved layout is applied after a remount, and Reset layout restores the default", () => {
+test("a saved layout is applied after a remount, and Reset layout restores the default", async () => {
   desktop()
   localStorage.setItem("tagent.panes", JSON.stringify({ v: 2, cols: [0.3, 0.4, 0.3], left: [0.5, 0.5] }))
   const { unmount } = render(<App />)
@@ -102,20 +118,18 @@ test("a saved layout is applied after a remount, and Reset layout restores the d
 
   render(<App />)
   expect(pane("Agents and Chat").getAttribute("aria-valuenow")).toBe("30")
-  fireEvent.click(screen.getByRole("button", { name: "Settings" }))
-  fireEvent.click(screen.getByRole("button", { name: "Reset layout" }))
+  await resetLayout()
   expect(localStorage.getItem("tagent.panes")).toBeNull()
   expect(pane("Agents and Chat").getAttribute("aria-valuenow")).toBe("22")
 })
 
-test("desktop panes have a move grip; a saved order applies and Reset layout restores the default", () => {
+test("desktop panes have a move grip; a saved order applies and Reset layout restores the default", async () => {
   desktop()
   localStorage.setItem("tagent.panes", JSON.stringify({ v: 2, cols: [0.3, 0.4, 0.3], left: [0.5, 0.5], order: ["tasks", "chat", "usage", "agents"] }))
   render(<App />)
   const placed = () => Array.from(document.querySelectorAll("[data-pane-slot]"), s => s.querySelector('button[aria-label^="Move "]')?.getAttribute("aria-label")?.split(" ")[1])
   expect(placed()).toEqual(["tasks", "chat", "usage", "agents"])
-  fireEvent.click(screen.getByRole("button", { name: "Settings" }))
-  fireEvent.click(screen.getByRole("button", { name: "Reset layout" }))
+  await resetLayout()
   expect(placed()).toEqual(["agents", "usage", "chat", "tasks"])
 })
 
