@@ -79,7 +79,7 @@ export function SettingsDialog({ open, onOpenChange, onResetLayout, onAddWorkspa
           </select><span />
         </div>
         <div className="mt-2 grid grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)_24px] items-center gap-4 rounded-xl border bg-muted/50 px-4 py-3">
-          <div className="min-w-0"><div className="text-[12.5px] font-medium">Panel layout</div><div className="text-[11px] leading-snug text-muted-foreground">Drag a pane header or its corner; saved on this device</div></div>
+          <div className="min-w-0"><div className="text-[12.5px] font-medium">Panel layout</div><div className="text-[11px] leading-snug text-muted-foreground">Drag the dividers; saved on this device</div></div>
           <button type="button" className="h-9 rounded-lg border bg-card px-2.5 text-[12.5px] hover:bg-accent" onClick={onResetLayout}>Reset layout</button><span />
         </div>
       </section>

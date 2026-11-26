@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 
 // Hash routes. Ids are encoded with enc(). Old links keep working; /pane/<id> opens one pane maximized.
+// /agent/<pane> and /agents/<pane> open home with that agent selected.
 const read = () => location.hash.slice(1) || "/"
 
 export const enc = encodeURIComponent
@@ -9,9 +10,10 @@ export const nav = (path: string) => {
 }
 
 export type Route =
-  | { page: "home" | "routing" | "boardConfig" }
-  | { page: "pane"; pane: "usage" | "tasks" }
-  | { page: "agents"; agent?: string } // agent: the pane id of /agent/<pane>; none = the Agents page
+  | { page: "home"; agent?: string } // agent: the pane id of /agent/<pane>, selected in the chat pane
+  | { page: "routing" | "boardConfig" }
+  | { page: "pane"; pane: "usage" | "tasks" | "chat" }
+  | { page: "agents" } // the Agents definitions page
   | { page: "flows"; name: string } // "" = no workflow chosen
   | { page: "run"; ticket: string; dir: string | null }
 
@@ -29,12 +31,14 @@ export function parseRoute(route: string): Route {
     case "routing": return parts.length === 1 ? { page: "routing" } : { page: "home" }
     case "board": return b === "config" && parts.length === 2 ? { page: "boardConfig" } : { page: "home" }
     case "pane":
-      if (b === "usage" || b === "tasks") return { page: "pane", pane: b }
+      if (b === "usage" || b === "tasks" || b === "chat") return { page: "pane", pane: b }
       if (b === "agents") return { page: "agents" }
       if (b === "workflows") return { page: "flows", name: "" }
       return { page: "home" }
-    case "agent": return b ? { page: "agents", agent: b } : { page: "home" }
-    case "agents": return parts.length === 1 ? { page: "agents" } : { page: "home" }
+    case "agent": return b ? { page: "home", agent: b } : { page: "home" }
+    case "agents":
+      if (parts.length === 1) return { page: "agents" }
+      return b && parts.length === 2 ? { page: "home", agent: b } : { page: "home" }
     case "workflows":
       if (c) return { page: "run", ticket: c, dir }
       return { page: "flows", name: b ?? "" }

@@ -3,62 +3,70 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { TasksPane } from "./TasksPane"
 import type { Project } from "@/types"
 
-vi.mock("@/components/Board", () => ({ Board: () => <div data-testid="board" />, TaskDrawer: () => null, TaskDetail: ({ id }: { id?: string }) => (id ? <div data-testid="detail" /> : null) }))
+// The real board and drawer run here.
+vi.mock("@/api", () => ({ api: vi.fn().mockResolvedValue(undefined), post: vi.fn(), act: (p: Promise<unknown>) => p.catch(() => {}) }))
 
 let width = 899
-let resized = () => {}
-let desktop = true
-const proj = { statuses: [{ id: "todo", role: "", run: "" }], tasks: [{ id: "1", title: "Alpha", text: "Alpha", status: "todo", assignees: null, created: "", updated: "", comments: null }], roles: [], dir: "/p" } as unknown as Project
+let resized: (() => void)[] = []
+const proj = { statuses: [{ id: "todo", role: "", run: "" }], tasks: [{ id: "1", title: "Alpha", text: "Alpha", status: "todo", assignees: null, created: "", updated: "", comments: [] }], roles: [], workflows: [], dir: "/p" } as unknown as Project
 
 beforeEach(() => {
+  resized = []
   globalThis.ResizeObserver = class {
-    constructor(cb: () => void) { resized = cb }
+    constructor(cb: () => void) { resized.push(cb) }
     observe() {}
     unobserve() {}
     disconnect() {}
   } as unknown as typeof ResizeObserver
-  window.matchMedia = ((q: string) => ({ matches: desktop, media: q, addEventListener: () => {}, removeEventListener: () => {} })) as unknown as typeof window.matchMedia
+  window.matchMedia = ((q: string) => ({ matches: true, media: q, addEventListener: () => {}, removeEventListener: () => {} })) as unknown as typeof window.matchMedia
+  vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => [] })))
   vi.spyOn(Element.prototype, "clientWidth", "get").mockImplementation(() => width)
-  desktop = true
 })
-afterEach(() => { cleanup(); vi.restoreAllMocks() })
+afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
-const at = (w: number) => { width = w; act(() => resized()) }
-const tier = () => (screen.queryByTestId("board") ? "board" : document.querySelector("[data-ticket-detail]") ? "split" : "list")
+const at = (w: number) => { width = w; act(() => resized.forEach(f => f())) }
+const board = () => !!document.querySelector("section.task-board")
+const view = () => render(<><TasksPane proj={proj} dir="/p" reload={() => {}} /><div data-pane="chat"><textarea aria-label="Agent terminal" /></div></>)
+const openFromList = () => fireEvent.click(screen.getByRole("button", { name: "#1 todo: Alpha" }))
 
-test("the list below 480px, the list with the ticket beside it from 480, the board from 900, and back", () => {
-  width = 479
-  render(<TasksPane proj={proj} dir="/p" reload={() => {}} />)
+test("the list below 900px, the board from 900, and back", () => {
+  width = 899
+  view()
   expect(screen.getByRole("heading", { name: "Tasks" })).toBeTruthy()
-  expect(tier()).toBe("list")
-  at(480)
-  expect(tier()).toBe("split")
-  expect(screen.getByRole("heading", { name: "Tasks" })).toBeTruthy()
-  at(899)
-  expect(tier()).toBe("split")
+  expect(board()).toBe(false)
   at(900)
-  expect(tier()).toBe("board")
+  expect(board()).toBe(true)
   expect(screen.queryByRole("heading", { name: "Tasks" })).toBeNull()
   at(899)
-  expect(tier()).toBe("split")
-  at(479)
-  expect(tier()).toBe("list")
+  expect(board()).toBe(false)
 })
 
-test("a ticket opened in the split tier stays open when the pane goes back to the list", () => {
+test("clicking a ticket in the list opens the drawer, which stays open from list to board and back", () => {
   width = 600
-  render(<TasksPane proj={proj} dir="/p" reload={() => {}} />)
-  fireEvent.click(screen.getByRole("button", { name: "#1 todo: Alpha" }))
-  expect(screen.getByTestId("detail")).toBeTruthy()
-  at(479)
-  expect(tier()).toBe("list")
+  view()
+  openFromList()
+  expect(screen.getByRole("dialog")).toBeTruthy()
+  expect(document.querySelector("[data-ticket-detail]")).toBeNull()
+  at(900)
+  expect(board()).toBe(true)
+  expect(screen.getAllByRole("dialog")).toHaveLength(1)
   at(600)
-  expect(screen.getByTestId("detail")).toBeTruthy()
+  expect(screen.getAllByRole("dialog")).toHaveLength(1)
 })
 
-test("a phone keeps the list at any width below 900px", () => {
-  desktop = false
+test("a board card opens the same drawer", () => {
+  width = 900
+  view()
+  fireEvent.click(screen.getByRole("button", { name: "#1: Alpha" }))
+  expect(screen.getByRole("dialog")).toBeTruthy()
+})
+
+test("Escape in the chat pane leaves the drawer open; Escape elsewhere closes it", () => {
   width = 600
-  render(<TasksPane proj={proj} dir="/p" reload={() => {}} />)
-  expect(tier()).toBe("list")
+  view()
+  openFromList()
+  fireEvent.keyDown(screen.getByLabelText("Agent terminal"), { key: "Escape" })
+  expect(screen.getByRole("dialog")).toBeTruthy()
+  fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" })
+  expect(screen.queryByRole("dialog")).toBeNull()
 })

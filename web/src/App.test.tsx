@@ -7,7 +7,7 @@ vi.mock("@/api", () => ({ api: vi.fn().mockResolvedValue(undefined), act: vi.fn(
 const st = vi.hoisted(() => ({ state: { host: "box", projects: ["/p"], agents: [] as Record<string, unknown>[], statuses: {} } }))
 vi.mock("@/state", () => ({ useAppState: () => ({ state: st.state, error: undefined }) }))
 vi.mock("@/components/Board", () => ({ Board: () => <div data-testid="board" />, TaskDrawer: () => null, TaskDetail: () => null }))
-vi.mock("@/components/AgentView", () => ({ AgentView: () => null }))
+vi.mock("@/components/AgentView", () => ({ AgentView: ({ agent }: { agent: { pane: string } }) => <div data-testid="agent-view">{agent.pane}</div> }))
 
 // Some modules (the terminal) read matchMedia at import time; jsdom has none. Tests default to a phone width.
 const phoneMedia = vi.hoisted(() => {
@@ -16,13 +16,14 @@ const phoneMedia = vi.hoisted(() => {
   window.matchMedia = fake as unknown as typeof window.matchMedia
   return fake
 })
-// The pane grid observes its size; jsdom has no ResizeObserver.
+// The home split observes its size; jsdom has no ResizeObserver.
 globalThis.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} } as unknown as typeof ResizeObserver
 
 const desktop = () => {
   window.matchMedia = ((q: string) => ({ matches: q.includes("min-width: 768px"), media: q, addEventListener: () => {}, removeEventListener: () => {} })) as unknown as typeof window.matchMedia
 }
-const pane = (id: string) => document.querySelector<HTMLElement>(`[data-pane="${id}"]`)
+const pane = (name: string) => screen.getByRole("separator", { name })
+const agent = (pane: string, name: string) => ({ pane, name, path: "/p", agent: "claude", status: "idle", project: "p", prompt: "" })
 
 beforeEach(() => {
   localStorage.clear()
@@ -34,26 +35,31 @@ beforeEach(() => {
 })
 afterEach(() => {
   cleanup()
+  vi.restoreAllMocks()
   window.matchMedia = phoneMedia as unknown as typeof window.matchMedia
 })
 
-test("home shows the usage, agents and tasks panes", () => {
+test("a phone home shows the agents tab: usage over the agents; Tasks is its own tab", () => {
   render(<App />)
   expect(screen.getAllByRole("heading", { name: "Usage" })).toHaveLength(1)
   expect(screen.getByRole("heading", { name: "Agents" })).toBeTruthy()
+  expect(screen.queryByRole("heading", { name: "Tasks" })).toBeNull()
+  fireEvent.click(screen.getByRole("tab", { name: "Tasks" }))
   expect(screen.getByRole("heading", { name: "Tasks" })).toBeTruthy()
 })
 
-test("desktop home has four panes, and the header has no Agents or Workflows buttons", () => {
+test("desktop home has the agents, usage, chat and tasks panes, and the header has no Agents or Workflows buttons", () => {
   desktop()
   render(<App />)
-  expect(Array.from(document.querySelectorAll("[data-pane]"), p => p.getAttribute("data-pane"))).toEqual(["usage", "agents", "workflows", "tasks"])
+  expect(Array.from(document.querySelectorAll("[data-pane]"), p => p.getAttribute("data-pane"))).toEqual(["agents", "usage", "chat"])
+  expect(screen.getByRole("tablist", { name: "Tasks or workflows" })).toBeTruthy()
+  expect(screen.getByText("Pick an agent")).toBeTruthy()
   expect(screen.queryByRole("button", { name: "Agents" })).toBeNull()
   expect(screen.queryByRole("button", { name: "Workflows" })).toBeNull()
 })
 
-test("an old link opens its pane maximized, and a new #/pane link does too", () => {
-  for (const [hash, pane] of [["#/pane/usage", "usage"], ["#/pane/tasks", "tasks"], ["#/pane/agents", "agents"], ["#/agents", "agents"], ["#/agent/%251", "agents"], ["#/pane/workflows", "workflows"], ["#/workflows", "workflows"], ["#/board/config", "workflows"]] as const) {
+test("an old link opens its page maximized, and a new #/pane link does too", () => {
+  for (const [hash, pane] of [["#/pane/usage", "usage"], ["#/pane/tasks", "tasks"], ["#/pane/chat", "chat"], ["#/pane/agents", "agents"], ["#/agents", "agents"], ["#/pane/workflows", "workflows"], ["#/workflows", "workflows"], ["#/board/config", "workflows"]] as const) {
     cleanup()
     location.hash = hash
     render(<App />)
@@ -74,6 +80,7 @@ test("#/routing is a page of its own, with no pane", () => {
 })
 
 test("the rail and the Board page are gone; #/board lands on home", () => {
+  desktop()
   location.hash = "#/board"
   render(<App />)
   expect(location.hash).toBe("#/")
@@ -84,22 +91,65 @@ test("the rail and the Board page are gone; #/board lands on home", () => {
 
 test("a saved layout is applied after a remount, and Reset layout restores the default", () => {
   desktop()
-  const saved = [
-    { id: "usage", x: 0, y: 5, w: 3, h: 10 },
-    { id: "agents", x: 0, y: 15, w: 3, h: 14 },
-    { id: "tasks", x: 3, y: 0, w: 9, h: 24 },
-  ]
-  localStorage.setItem("tagent.panes", JSON.stringify({ v: 1, boxes: saved }))
+  localStorage.setItem("tagent.panes", JSON.stringify({ v: 2, cols: [0.3, 0.4, 0.3], left: [0.5, 0.5] }))
   const { unmount } = render(<App />)
-  expect(pane("usage")!.style.gridRow).toBe("6 / span 10")
+  expect(pane("Agents and Chat").getAttribute("aria-valuenow")).toBe("30")
   unmount()
 
   render(<App />)
-  expect(pane("usage")!.style.gridRow).toBe("6 / span 10")
+  expect(pane("Agents and Chat").getAttribute("aria-valuenow")).toBe("30")
   fireEvent.click(screen.getByRole("button", { name: "Settings" }))
   fireEvent.click(screen.getByRole("button", { name: "Reset layout" }))
   expect(localStorage.getItem("tagent.panes")).toBeNull()
-  expect(pane("usage")!.style.gridRow).toBe("1 / span 10")
+  expect(pane("Agents and Chat").getAttribute("aria-valuenow")).toBe("22")
+})
+
+test("the saved grid layout (v:1) is ignored, and the default layout shows", () => {
+  desktop()
+  localStorage.setItem("tagent.panes", JSON.stringify({ v: 1, boxes: [{ id: "usage", x: 0, y: 5, w: 3, h: 10 }] }))
+  render(<App />)
+  expect(pane("Agents and Chat").getAttribute("aria-valuenow")).toBe("22")
+})
+
+test("desktop: clicking an agent shows it in the chat pane, and the route does not change", () => {
+  desktop()
+  st.state.agents = [agent("%1", "alpha")]
+  render(<App />)
+  fireEvent.click(screen.getByRole("button", { name: /alpha/ }))
+  expect(screen.getByTestId("agent-view").textContent).toBe("%1")
+  expect(screen.getByTestId("agent-view").closest('[data-pane="chat"]')).toBeTruthy()
+  expect(location.hash).toBe("")
+})
+
+test("an old agent link opens the one-page layout with that agent in the chat pane", () => {
+  desktop()
+  st.state.agents = [agent("%1", "alpha")]
+  for (const hash of ["#/agent/%251", "#/agents/%251"]) {
+    cleanup()
+    location.hash = hash
+    render(<App />)
+    expect(document.querySelector("[data-max]"), hash).toBeNull()
+    expect(screen.getByTestId("agent-view").textContent).toBe("%1")
+    expect(pane("Agents and Chat")).toBeTruthy()
+  }
+})
+
+test("phone: selecting an agent switches to the Chat tab", () => {
+  st.state.agents = [agent("%1", "alpha")]
+  render(<App />)
+  fireEvent.click(screen.getByRole("button", { name: /alpha/ }))
+  expect(screen.getByRole("tab", { name: "Chat" }).getAttribute("aria-selected")).toBe("true")
+  expect(screen.getByTestId("agent-view").textContent).toBe("%1")
+})
+
+test("a wide Tasks column renders the board; its Workflows tab replaces it", () => {
+  desktop()
+  vi.spyOn(Element.prototype, "clientWidth", "get").mockReturnValue(1400)
+  render(<App />)
+  expect(screen.getByTestId("board")).toBeTruthy()
+  fireEvent.click(screen.getByRole("tab", { name: "workflows" }))
+  expect(screen.queryByTestId("board")).toBeNull()
+  expect(screen.getByRole("tab", { name: "workflows" }).getAttribute("aria-selected")).toBe("true")
 })
 
 test("opening an agent makes its project the remembered one", () => {

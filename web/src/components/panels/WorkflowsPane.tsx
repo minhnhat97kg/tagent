@@ -10,12 +10,12 @@ import { useSize } from "@/hooks/useSize"
 // The editor needs about 900px of pane width; a narrower pane lists the workflows and opens them maximized.
 const EDITOR_MIN_WIDTH = 900
 
-// WorkflowsPane is the Workflows pane on home. A dirty editor stays up, so a resize never drops a draft.
-export function WorkflowsPane({ dir, compact }: { dir: string; compact?: boolean }) {
+// WorkflowsPane is the Workflows tab of the Tasks column. A dirty editor stays up, so a resize never drops a draft.
+export function WorkflowsPane({ dir }: { dir: string }) {
   const [ref, { w }] = useSize()
   const [dirty, setDirty] = useState(false)
   return <div ref={ref} className="flex min-h-0 flex-1 flex-col">
-    {(w >= EDITOR_MIN_WIDTH && !compact) || dirty ?  <WorkflowsPage dir={dir} onDirty={setDirty} /> : <WorkflowList dir={dir} />}
+    {w >= EDITOR_MIN_WIDTH || dirty ? <WorkflowsPage dir={dir} onDirty={setDirty} /> : <WorkflowList dir={dir} />}
   </div>
 }
 

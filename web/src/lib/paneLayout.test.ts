@@ -1,59 +1,40 @@
-import { readFileSync } from "node:fs"
-import path from "node:path"
 import { beforeEach, expect, test, vi } from "vitest"
-import { defaultPanes, loadPanes, mergeBoxes, packBoxes, placeBoxes, savePanes, type PaneBox } from "./paneLayout"
-
-// The same cases run in internal/sidebar/panegrid_test.go.
-const cases: {
-  name: string; minH?: number; saved: PaneBox[]; defaults?: PaneBox[]; moved?: string; pack?: Record<string, number>; want: PaneBox[]
-}[] = JSON.parse(readFileSync(path.resolve(import.meta.dirname, "../../../testdata/pane-layout.json"), "utf8"))
-
-test.each(cases)("fixture: $name", c => {
-  const got = c.pack ? packBoxes(c.saved, c.pack) : mergeBoxes(c.saved, c.defaults!, c.minH!, c.moved!)
-  expect(got).toEqual(c.want)
-})
-
-test("a saved three-box layout gains workflows in the visible rows, and the saved boxes do not move", () => {
-  const saved = defaultPanes(24).filter(b => b.id !== "workflows")
-  const out = mergeBoxes(saved, defaultPanes(24), 4, "")
-  expect(out.filter(b => b.id !== "workflows")).toEqual(saved)
-  expect(out.find(b => b.id === "workflows")).toMatchObject({ x: 0, y: 16, w: 3, h: 8 })
-})
-
-test("placeBoxes does not change its input", () => {
-  const boxes = [{ id: "a", x: 0, y: 0, w: 6, h: 4 }, { id: "b", x: 3, y: 0, w: 6, h: 4 }]
-  const copy = structuredClone(boxes)
-  placeBoxes(boxes, "a")
-  expect(boxes).toEqual(copy)
-})
+import { DEFAULT_PANES, loadPanes, savePanes } from "./paneLayout"
 
 beforeEach(() => localStorage.clear())
 
 test("a saved layout round-trips and undefined removes it", () => {
-  const boxes = defaultPanes(30)
-  savePanes(boxes)
-  expect(loadPanes()).toEqual(boxes)
+  const sizes = { cols: [0.3, 0.4, 0.3], left: [0.5, 0.5] }
+  savePanes(sizes)
+  expect(loadPanes()).toEqual(sizes)
   savePanes(undefined)
   expect(loadPanes()).toBeUndefined()
 })
 
 test.each([
   "{bad",
-  '{"v":2,"boxes":[]}',
-  '{"v":1,"boxes":{}}',
-  '{"v":1,"boxes":[{"id":"usage","x":0,"y":0,"w":3}]}',
-  '{"v":1,"boxes":[{"x":0,"y":0,"w":3,"h":3}]}',
-  '{"v":1,"boxes":[{"id":"usage","x":0.5,"y":0,"w":3,"h":3}]}',
   "5",
-])("corrupt value %s gives no layout", raw => {
+  '{"v":1,"boxes":[{"id":"usage","x":0,"y":0,"w":3,"h":3}]}', // the old grid boxes: defaults
+  '{"v":3,"cols":[0.22,0.43,0.35],"left":[0.65,0.35]}',
+  '{"v":2,"cols":[0.5,0.5],"left":[0.65,0.35]}',
+  '{"v":2,"cols":[0.22,0.43,0.35],"left":[0.65]}',
+  '{"v":2,"cols":[0.9,0.9,0.9],"left":[0.65,0.35]}', // does not add up to 1
+  '{"v":2,"cols":["a",0.5,0.5],"left":[0.65,0.35]}',
+  '{"v":2,"cols":[0.22,0.43,0.35],"left":null}',
+])("corrupt or old value %s gives no layout", raw => {
   localStorage.setItem("tagent.panes", raw)
   expect(loadPanes()).toBeUndefined()
+})
+
+test("the defaults add up to 1 in each split", () => {
+  expect(DEFAULT_PANES.cols.reduce((s, v) => s + v, 0)).toBeCloseTo(1)
+  expect(DEFAULT_PANES.left.reduce((s, v) => s + v, 0)).toBeCloseTo(1)
 })
 
 test("throwing storage is ignored", () => {
   vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("quota") })
   vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => { throw new Error("denied") })
-  expect(() => savePanes(defaultPanes(24))).not.toThrow()
+  expect(() => savePanes(DEFAULT_PANES)).not.toThrow()
   expect(loadPanes()).toBeUndefined()
   vi.restoreAllMocks()
 })

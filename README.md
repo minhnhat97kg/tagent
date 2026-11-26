@@ -172,10 +172,10 @@ is saved in `layout.json` next to `config.conf`, one for narrow (under 90
 columns) and one for wide, and survives restarts.
 
 The `Compact panes` setting (`@agent_compact`, in the settings screen and the
-web Settings dialog) collapses the panes to small rows and packs them upward,
-in the TUI and on the web home. The saved layout is kept. While it is on, `M`,
-mouse drag and the web move and resize handles do nothing, and nothing is saved.
-Turn it off to get the saved layout back.
+web Settings dialog) collapses the TUI panes to small rows and packs them upward.
+The saved layout is kept. While it is on, `M` and mouse drag do nothing, and
+nothing is saved. Turn it off to get the saved layout back. On the web home it
+only tightens spacing.
 
 Each pane picks what to show from its own size, so a pane that is shrunk
 changes too, whatever the terminal width. Tasks: under 6 rows, lane counts;
@@ -284,17 +284,22 @@ to the ticket as a comment, so what the conversation settled stays on the board.
 The tab is disabled with the reason when its pane runs a harness Chat cannot
 read.
 
-The web dashboard opens on a pane grid: usage, agents, workflows and tasks. Drag a
-pane by its header, or its corner to resize, or use the handles with the arrow
-keys; the layout is saved per device (`tagent.panes` in local storage). Settings >
-Reset layout restores the default. The corner link at the bottom left maximizes a
-pane (`#/pane/usage`, `#/pane/agents`, `#/pane/tasks`, `#/pane/workflows`); the old
-links (`#/agent/<pane>`, `#/workflows`, `#/board/config`) still work. Sizes
-change what a pane shows: Tasks lists tickets under 480px, lists them with the
-open ticket beside them from 480px, and shows the board from 900px. Workflows
-lists them under 900px and edits them from 900px. Agents show only counts under
-120px of height, and usage hides its token spend under 200px. Phones stack usage,
-agents and tasks without editing and show the list only.
+The web dashboard is one page with three columns: Agents over Usage, the selected
+agent's Terminal/Chat, and Tasks. Drag a divider to resize, or focus it and use
+the arrow keys; double-click resets it. Usage can be dragged shut, and its
+**Usage** button reopens it. The sizes are saved per device (`tagent.panes` in
+local storage; layouts saved by the older pane grid are ignored) and Settings >
+Reset layout restores the default. Clicking an agent shows it in place. The Tasks
+column has **Tasks** and **Workflows** tabs, and a ticket opens in a side panel.
+The corner link at the bottom left maximizes a pane (`#/pane/usage`,
+`#/pane/agents`, `#/pane/chat`, `#/pane/tasks`, `#/pane/workflows`); the old
+links (`#/agent/<pane>`, `#/workflows`, `#/board/config`) still work, and an agent
+link selects that agent. Size changes what a pane shows: Tasks is a list under
+900px and the board from 900px (dragging gets there on windows about 1372px or
+wider; `#/pane/tasks` works on narrower ones). Workflows lists them under 900px
+and edits them from 900px. Agents show only counts under 120px of height, and
+usage hides its token spend under 200px. Phones have **Agents** (with usage),
+**Chat** and **Tasks** tabs; selecting an agent opens Chat.
 
 Press `?` in the sidebar or dashboard for contextual help.
 

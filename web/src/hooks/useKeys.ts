@@ -1,15 +1,14 @@
 import { useEffect, useRef } from "react"
-import { enc, nav } from "@/hooks/useRoute"
 import type { Agent } from "@/types"
 
-// Keys do nothing while typing, inside the pane's terminal, in a dialog or an open ticket, or on a pane handle (arrows move the pane).
-const SKIP = "input, textarea, select, [contenteditable], [data-terminal], [role=dialog], [data-pane-handle], [data-ticket-detail]"
+// Keys do nothing while typing, inside the pane's terminal, in a dialog or an open ticket, or on a pane divider (arrows move it).
+const SKIP = "input, textarea, select, [contenteditable], [data-terminal], [role=dialog], [data-pane-handle]"
 
 // useKeys binds the dashboard shortcuts: j/k move, n jumps to the next agent that needs you,
 // Enter focuses the terminal. Ctrl+Shift+F6 returns focus to the agent header.
-export function useKeys(order: Agent[], selPane: string | undefined, onNext?: () => void) {
-  const latest = useRef({ order, selPane, onNext })
-  latest.current = { order, selPane, onNext }
+export function useKeys(order: Agent[], selPane: string | undefined, onSelect: (pane: string) => void, onNext?: () => void) {
+  const latest = useRef({ order, selPane, onSelect, onNext })
+  latest.current = { order, selPane, onSelect, onNext }
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -21,10 +20,10 @@ export function useKeys(order: Agent[], selPane: string | undefined, onNext?: ()
         return
       }
       if (e.metaKey || e.ctrlKey || e.altKey || t?.closest?.(SKIP)) return
-      const { order, selPane, onNext } = latest.current
+      const { order, selPane, onSelect, onNext } = latest.current
       const n = order.length
       const i = order.findIndex((a) => a.pane === selPane)
-      const go = (idx: number) => nav("/agent/" + enc(order[(idx + n) % n]!.pane))
+      const go = (idx: number) => onSelect(order[(idx + n) % n]!.pane)
       switch (e.key) {
         case "j":
         case "ArrowDown":
@@ -42,7 +41,7 @@ export function useKeys(order: Agent[], selPane: string | undefined, onNext?: ()
           if (onNext) { e.preventDefault(); onNext(); return }
           const next = order.map((a, idx) => ({ a, idx })).filter((x) => x.a.status === "waiting")
           const pick = next.find((x) => x.idx > i) ?? next[0]
-          if (pick) nav("/agent/" + enc(pick.a.pane))
+          if (pick) onSelect(pick.a.pane)
           return
         }
         case "Enter":

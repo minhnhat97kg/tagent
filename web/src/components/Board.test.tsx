@@ -9,14 +9,14 @@ vi.hoisted(() => {
 })
 
 test("a project with no tasks gets one empty state, not four empty columns", () => {
-  render(<Board dir="/p/tagent" proj={{ tasks: [], statuses: [] } as unknown as Project} reload={() => {}} />)
+  render(<Board dir="/p/tagent" proj={{ tasks: [], statuses: [] } as unknown as Project} reload={() => {}} onSelect={() => {}} />)
   expect(screen.getByText("No tasks in tagent.")).toBeTruthy()
   expect(screen.queryAllByRole("section", { name: /column$/ })).toHaveLength(0)
 })
 
 test("the closed lane is collapsed until shown, and purge asks twice", () => {
   const task = { id: "7", title: "Dropped idea", text: "Dropped idea", status: "closed", needs: [] }
-  render(<Board dir="/p/tagent" proj={{ tasks: [task], statuses: [{ id: "closed" }] } as unknown as Project} reload={() => {}} />)
+  render(<Board dir="/p/tagent" proj={{ tasks: [task], statuses: [{ id: "closed" }] } as unknown as Project} reload={() => {}} onSelect={() => {}} />)
   const lane = screen.getByLabelText("closed column")
   expect(within(lane).queryByText("Dropped idea")).toBeNull()
   fireEvent.click(within(lane).getByRole("button", { name: "Show" }))

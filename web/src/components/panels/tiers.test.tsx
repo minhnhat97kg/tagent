@@ -16,7 +16,7 @@ const agents = [
   { pane: "%1", name: "a", agent: "claude", status: "running", session: "", window: "", path: "/p", project: "p", prompt: "one" },
   { pane: "%2", name: "b", agent: "claude", status: "waiting", session: "", window: "", path: "/p", project: "p", prompt: "two" },
 ] as Agent[]
-const list = () => <AgentsPanel ordered={agents} byTask={false} onToggleTask={() => {}} />
+const list = () => <AgentsPanel ordered={agents} byTask={false} onToggleTask={() => {}} onSelect={() => {}} />
 
 test("agents: under 120px only the counts show; from 120px the list does", () => {
   height(119)
@@ -49,21 +49,10 @@ test("usage: under 200px the quota meters stay and the token spend goes", () => 
   expect(screen.getByText("Tokens today")).toBeTruthy()
 })
 
-// Compact mode: the home Tasks and Workflows panes are the list, however wide they are.
-test("compact: a wide Tasks pane stays the list, and a wide Workflows pane stays the list", async () => {
+// The Tasks pane follows its own width: a wide one is the board.
+test("a wide Tasks pane renders the board", async () => {
   vi.spyOn(Element.prototype, "clientWidth", "get").mockReturnValue(1200)
   const { TasksPane } = await import("./TasksPane")
-  const { WorkflowsPane } = await import("./WorkflowsPane")
-  const { unmount } = render(<TasksPane dir="/p" reload={() => {}} />)
-  expect(document.querySelector("section.task-board")).toBeTruthy() // the board tier
-  unmount()
-  render(<TasksPane dir="/p" reload={() => {}} compact />)
-  expect(document.querySelector("section.task-board")).toBeNull()
-  cleanup()
-  render(<WorkflowsPane dir="/p" />)
-  expect(screen.getByRole("navigation", { name: "Workflow list" })).toBeTruthy() // the editor
-  cleanup()
-  render(<WorkflowsPane dir="/p" compact />)
-  expect(screen.queryByRole("navigation", { name: "Workflow list" })).toBeNull()
-  expect(screen.getByText("Workflows")).toBeTruthy()
+  render(<TasksPane dir="/p" reload={() => {}} />)
+  expect(document.querySelector("section.task-board")).toBeTruthy()
 })

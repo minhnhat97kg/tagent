@@ -1,4 +1,4 @@
-import { useRef, useState } from "react"
+import { useState } from "react"
 import { KanbanSquare, MessageSquare, Search, Settings } from "lucide-react"
 import { toast } from "sonner"
 import { Avatar, BoardDrawer, needState, priorityMark, priorityRank, shortId, statusColor, title } from "./BoardDrawer"
@@ -27,7 +27,8 @@ export function TaskDrawer({ proj, dir, reload, id, onClose, onOpen, origin, ini
   // Desktop: docked beside the board, non-modal (no overlay, the board stays clickable). Phones keep the full-screen modal.
   const docked = useMedia("(min-width: 768px)")
   return <Dialog modal={!docked} open={!!selected} onOpenChange={open => { if (!open) onClose() }}>
-    <DialogContent className="board-drawer translate-x-0 translate-y-0 sm:max-w-none" onInteractOutside={e => { if (docked) e.preventDefault() }} onOpenAutoFocus={e => { e.preventDefault(); (e.currentTarget as HTMLElement).focus() }} onCloseAutoFocus={e => { e.preventDefault(); if (origin.current?.isConnected) origin.current.focus() }}>
+    {/* Radix dismisses on Escape even when non-modal: Escape typed to the agent in the chat pane must leave the ticket open. */}
+    <DialogContent className="board-drawer translate-x-0 translate-y-0 sm:max-w-none" onEscapeKeyDown={e => { if ((e.target as Element | null)?.closest?.('[data-pane="chat"], [data-max="chat"]')) e.preventDefault() }} onInteractOutside={e => { if (docked) e.preventDefault() }} onOpenAutoFocus={e => { e.preventDefault(); (e.currentTarget as HTMLElement).focus() }} onCloseAutoFocus={e => { e.preventDefault(); if (origin.current?.isConnected) origin.current.focus() }}>
       <TaskDetail proj={proj} dir={dir} reload={reload} id={id} onOpen={onOpen} initialReply={initialReply} />
     </DialogContent>
   </Dialog>
@@ -36,12 +37,11 @@ export function TaskDrawer({ proj, dir, reload, id, onClose, onOpen, origin, ini
 const LANES = ["todo", "in progress", "blocked", "done", "closed"]
 const laneOf = (status: string) => (status === "todo" || status === "blocked" || status === "done" || status === "closed" ? status : "in progress")
 
-export function Board({ dir, proj, reload }: { dir: string; proj?: Project; reload: () => void }) {
+// Board is the lanes only: the caller owns the open ticket (selectedID) and shows its TaskDrawer.
+export function Board({ dir, proj, reload, selectedID, onSelect }: { dir: string; proj?: Project; reload: () => void; selectedID?: string; onSelect: (id: string, from: HTMLElement) => void }) {
   const [query, setQuery] = useState("")
   const [role, setRole] = useState("")
-  const [selectedID, setSelectedID] = useState<string>()
   const [over, setOver] = useState("")
-  const origin = useRef<HTMLElement | null>(null)
   const statuses = proj?.statuses ?? []
   const taskRole = (t: Task) => proj?.workers?.[t.id]?.role || statuses.find(s => s.id === t.status)?.role || t.assignees?.[0] || ""
   const roles = Array.from(new Set([...(proj?.roles ?? []), ...(proj?.tasks ?? []).map(taskRole)])).filter(Boolean)
@@ -95,7 +95,7 @@ export function Board({ dir, proj, reload }: { dir: string; proj?: Project; relo
           const working = proj?.workers?.[t.id]?.live
           const state = needState(t, all)
           return <button type="button" key={t.id} draggable onDragStart={e => { e.dataTransfer.setData("text/task", t.id); e.dataTransfer.effectAllowed = "move" }} onDragEnd={() => setOver("")}
-            onClick={e => { origin.current = e.currentTarget; setSelectedID(t.id) }} aria-label={`${shortId(t.id)}: ${title(t)}`} className={`board-card ${t.status === "blocked" ? "is-blocked" : ""}`}>
+            onClick={e => onSelect(t.id, e.currentTarget)} aria-label={`${shortId(t.id)}: ${title(t)}`} className={`board-card ${t.status === "blocked" ? "is-blocked" : ""}`}>
             <span className="card-title">{title(t)}</span>
             {t.status === "blocked" && <span className="blocked-reason">{proj?.blockedReasons?.[t.id] || t.note || "Awaiting a decision"}</span>}
             <span className="card-meta">
@@ -114,6 +114,5 @@ export function Board({ dir, proj, reload }: { dir: string; proj?: Project; relo
       </section>
     })}</div>
     </>}
-    <TaskDrawer proj={proj} dir={dir} reload={reload} id={selectedID} onClose={() => setSelectedID(undefined)} onOpen={setSelectedID} origin={origin} />
   </section>
 }

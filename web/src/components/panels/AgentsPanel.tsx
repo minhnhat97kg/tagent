@@ -3,7 +3,6 @@ import { Bot } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Panel } from "@/components/Panel"
 import { StatusDot } from "@/components/StatusDot"
-import { enc, nav } from "@/hooks/useRoute"
 import { useMedia } from "@/hooks/useMedia"
 import { useSize } from "@/hooks/useSize"
 import { ago, agentLabel, baseName, isActive, shortPrompt, taskOf } from "@/lib/status"
@@ -15,7 +14,7 @@ const projOf = (a: Agent) => a.project || baseName(a.path)
 
 // AgentsPanel lists agents in the order useKeys walks them (grouped by project).
 // Under 120px of height (five rows) it shows only the counts; the height tier is desktop only.
-export function AgentsPanel({ ordered, byTask, onToggleTask, selPane, className }: { ordered: Agent[]; byTask: boolean; onToggleTask: () => void; selPane?: string; className?: string }) {
+export function AgentsPanel({ ordered, byTask, onToggleTask, onSelect, selPane, className }: { ordered: Agent[]; byTask: boolean; onToggleTask: () => void; onSelect: (pane: string) => void; selPane?: string; className?: string }) {
   const [open, setOpen] = useState<string | null>(null)
   const multi = new Set(ordered.map(projOf)).size > 1
   const [ref, { h }] = useSize()
@@ -56,7 +55,7 @@ export function AgentsPanel({ ordered, byTask, onToggleTask, selPane, className 
                 selPane === a.pane && "bg-accent",
               )}
               onClick={() => {
-                nav("/agent/" + enc(a.pane))
+                onSelect(a.pane)
                 if (waitingDialog) setOpen(isOpen ? null : a.pane)
               }}
               onKeyDown={(e) => {
