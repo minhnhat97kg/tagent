@@ -62,14 +62,25 @@ func TestMCPToolsRoundTrip(t *testing.T) {
 	}
 
 	tools := resp[1]["result"].(map[string]any)["tools"].([]any)
-	if len(tools) != 6 {
-		t.Fatalf("%d tools, want <= 6", len(tools))
+	if len(tools) != 14 {
+		t.Fatalf("%d tools, want 14 (6 task + 8 memory)", len(tools))
 	}
+	var sawMemory bool
 	for _, tl := range tools {
 		s := tl.(map[string]any)
+		name := s["name"].(string)
 		if s["description"] == "" || s["inputSchema"].(map[string]any)["required"] == nil {
 			t.Fatalf("tool lacks description or required: %v", s)
 		}
+		if strings.HasPrefix(name, "memory_") {
+			sawMemory = true
+		}
+		if strings.Contains(name, "delete") || strings.Contains(name, "rm") {
+			t.Fatalf("agent-facing delete tool exposed: %s", name)
+		}
+	}
+	if !sawMemory {
+		t.Fatal("memory tools missing from tools/list")
 	}
 
 	if got := text(2); got != "1" {

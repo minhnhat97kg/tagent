@@ -44,6 +44,9 @@ not to running ones. Instructions are plain markdown in `.tasks/agents/<role>.md
 on every harness.
 An optional memory file, `.tasks/memory/<role>.md`, is prepended to every dispatch
 prompt; it is hand-edited and never listed as a role.
+Linked knowledge lives in the memory graph (`tagent memory`, or the `memory_*` MCP tools). It is
+not added to dispatch prompts; agents fetch nodes on demand with `search`, `show` and `related`.
+Roles with a custom tool allowlist must list `mcp__tagent__memory_*` to use it.
 The scraper dispatches (`@agent_scrape` on); `board run` runs in the foreground.
 Edit the board from the web Tasks header (Settings, `#/board/config`) or the TUI
 board: `B` shows the default workflow, roles and triggers, `E` opens `$EDITOR`. Saves are

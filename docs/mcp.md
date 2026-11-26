@@ -12,12 +12,24 @@ with tools than with a CLI guide:
 | `task_add` | `text` | `to`, `priority` (enum high/normal/low), `workflow` | `tasks.Add` |
 | `pane_add` | `name`, `html` | | Same as `tagent pane add NAME --file PATH`: writes `<config dir>/ui/<name>.html` ([custom panes](../README.md#custom-panes)) |
 | `pane_list` | | | Same as `tagent pane ls`: each pane, and whether the user or an agent made it |
+| `memory_search` | `query` | `limit` (1-50), `scope` (repo/shared; default both) | `tagent memory search` |
+| `memory_show` | `id` | `scope` | `tagent memory show` (full node, `broken_ref` flag) |
+| `memory_related` | `id` | `depth` (1-3), `limit` (default 20), `scope` | `tagent memory related` |
+| `memory_add_node` | `label`, `kind` | `content`, `ref`, `lang`, `tags`, `scope` | `tagent memory add-node` |
+| `memory_add_link` | `from`, `to`, `label` | `scope` | `tagent memory add-link` |
+| `memory_edit_node` | `id` | `label`, `content`, `ref`, `lang`, `tags`, `scope` | `tagent memory edit-node` (your own nodes only) |
+| `memory_edit_link` | `id`, `label` | `scope` | `tagent memory edit-link` (your own links only) |
+| `memory_check` | | `scope` | `tagent memory check` (corrupt records, broken refs, dangling links) |
+
+The memory tools use the graph described in [board.md](board.md#memory-graph). An agent can
+search and edit only what it created; the user can edit or delete anything. An MCP call from a
+tmux pane with no resolvable role is treated as an agent.
 
 A pane an agent adds is **read-only** in the web UI: its frame may only `GET`, plus read and write its own
 `/api/ext/<name>/data`. The user can add it to the layout and choose **Allow actions**; any later change to
 its HTML (including your own update) revokes that. You can only change a pane you created, never one the user wrote. Names are letters, digits, `-` and `_`; HTML is limited to 256 KiB.
 
-There is no delete tool. The server reads the working directory at start, so
+There is no delete tool, for tasks or memory. Deleting a memory node or link is user-only (`tagent memory rm-node|rm-link`). The server reads the working directory at start, so
 start it from the repository (or worktree) that holds the board.
 
 ## Register it

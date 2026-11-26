@@ -454,6 +454,17 @@ When a role starts a pane, its instructions are included in the dispatch prompt 
 every harness. A legacy file in the running harness's own directory is the only
 case where the harness already loads the same file natively; it is not sent twice.
 
+### Memory graph
+
+`tagent memory` keeps knowledge as nodes and links, stored as one JSON file per record.
+Two scopes exist: the **repo** graph at `<repo>/.tasks/graph/` (ignored by git with the rest of `.tasks/`)
+and one **shared** graph at `~/.config/tagent/graph/` for all repos. Node kinds: `text`, `markdown`,
+`code`, `json`, `yaml` (validated), `url`, `file` (a repo path or absolute path, never copied; flagged
+`broken_ref` when missing) and `image` (copied into `blobs/`, png/jpg/gif/webp, 5 MiB max).
+Writes take a lock on `.lock`, so concurrent writers lose nothing. Agents create, search and edit only
+their own records and cannot delete; the user can edit or delete any record, and a user edit makes the
+record the user's. Dispatch prompts are unchanged: a graph is never injected whole.
+
 A role's memory file, `.tasks/memory/<role>.md`, is optional and is prepended to the
 dispatch prompt on every dispatch, including a reused long-lived pane, so the role
 carries over what it learned. A missing file adds nothing. It is never listed as a

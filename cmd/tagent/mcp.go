@@ -132,12 +132,19 @@ func findTool(name string) (mcpTool, bool) {
 }
 
 func schema(required []string, props map[string]any) map[string]any {
+	if required == nil {
+		required = []string{}
+	}
 	return map[string]any{"type": "object", "properties": props, "required": required}
 }
 
 func str(desc string) map[string]any { return map[string]any{"type": "string", "description": desc} }
 
 func mcpTools() []mcpTool {
+	return append(taskMCPTools(), memoryMCPTools()...)
+}
+
+func taskMCPTools() []mcpTool {
 	return []mcpTool{
 		{
 			Name:        "task_show",
