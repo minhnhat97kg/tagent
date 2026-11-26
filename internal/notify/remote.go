@@ -17,13 +17,18 @@ const notifyURLOption = "@agent_notify_url"
 
 var remoteClient = &http.Client{Timeout: 3 * time.Second}
 
-// Send posts a best-effort notification. Push failures must never break a hook.
-func Send(title, body string) {
-	target, ok := tmux.GetOption(notifyURLOption)
-	if !ok || strings.TrimSpace(target) == "" {
-		return
+// Send posts a best-effort notification to the ntfy/webhook URL and to the
+// Telegram chats. pane, when given, is the agent the notification is about
+// (Telegram adds answer buttons for it). Push failures must never break a hook.
+func Send(title, body string, pane ...string) {
+	if target, ok := tmux.GetOption(notifyURLOption); ok && strings.TrimSpace(target) != "" {
+		postRemote(target, title, body)
 	}
-	postRemote(target, title, body)
+	p := ""
+	if len(pane) > 0 {
+		p = pane[0]
+	}
+	notifyTelegram(title, body, p)
 }
 
 func postRemote(target, title, body string) error {

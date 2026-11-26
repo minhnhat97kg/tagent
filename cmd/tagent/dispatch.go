@@ -10,6 +10,7 @@ import (
 	"tagent/internal/config"
 	"tagent/internal/hook"
 	"tagent/internal/install"
+	"tagent/internal/notify"
 	"tagent/internal/roles"
 	"tagent/internal/scrape"
 	"tagent/internal/setup"
@@ -175,6 +176,12 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return cmdDiscard(rest, stdout, stderr)
 	case "answer":
 		return cmdAnswer(rest, stdout, stderr)
+	case "telegram-alert": // hidden: detached child of a hook's Telegram alert
+		if len(rest) != 3 {
+			return exitUsage
+		}
+		notify.SendTelegramAlert(rest[0], rest[1], rest[2])
+		return exitOK
 	case "next":
 		return cmdNext(stdout)
 	case "kill":

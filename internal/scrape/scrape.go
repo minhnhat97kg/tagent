@@ -16,7 +16,9 @@ import (
 	"strings"
 	"time"
 
+	"tagent/internal/board"
 	"tagent/internal/hook"
+	"tagent/internal/notify"
 	"tagent/internal/process"
 	"tagent/internal/queue"
 	"tagent/internal/schedule"
@@ -137,6 +139,7 @@ func Run() int {
 		}
 		wd.maybeRun(time.Now())
 		schedule.MaybeRun(time.Now())
+		notify.PollTelegram(board.Registered)
 		time.Sleep(interval)
 	}
 }
