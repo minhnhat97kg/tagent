@@ -29,7 +29,10 @@ func TestRenameKey(t *testing.T) {
 	if !strings.Contains(ansi.Strip(m.View()), "Rename "+old) {
 		t.Fatal("the narrow sidebar does not show the form")
 	}
-	m.taskInput = "boss"
+	for _, key := range []tea.KeyMsg{{Type: tea.KeyCtrlU}, {Type: tea.KeyRunes, Runes: []rune("boss")}} {
+		next, _ := m.handleTaskForm(key)
+		m = next.(Model)
+	}
 	_, cmd := m.handleTaskForm(tea.KeyMsg{Type: tea.KeyEnter})
 	cmd()
 	if got := tmux.GetPaneOptionValue(id, tmux.PaneName); got != "boss" {

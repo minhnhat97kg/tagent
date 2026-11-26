@@ -186,7 +186,7 @@ func (m Model) handleTaskForm(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.saveChatInput()
 	}
 	switch key.Type {
-	case tea.KeyBackspace, tea.KeyDelete, tea.KeyRunes, tea.KeySpace:
+	case tea.KeyBackspace, tea.KeyDelete, tea.KeyRunes, tea.KeySpace, tea.KeyCtrlU:
 		m.taskInput, _ = editText(m.taskInput, key)
 	case tea.KeyEnter:
 		mode, input := m.taskForm, strings.TrimSpace(m.taskInput)
@@ -369,7 +369,7 @@ func (m Model) taskFormView() string {
 	case "i":
 		title, hint = "Send prompt to "+m.paneName(m.promptPane), m.keyHints("enter send", "esc cancel")
 	case "rename":
-		title, sub, hint = "Rename "+m.paneName(m.promptPane), "empty gives a new nickname", m.keyHints("enter save", "esc cancel")
+		title, sub, hint = "Rename "+m.paneName(m.promptPane), "empty gives a new nickname", m.keyHints("enter save", "ctrl+u clear", "esc cancel")
 	case "chat":
 		title, hint = "Message the chat", m.keyHints("enter send", "ctrl+s save to ticket", "esc cancel")
 

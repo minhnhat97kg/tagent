@@ -334,7 +334,7 @@ func (m model) previewBox(w, h int) []string {
 	if el := elapsed(a); el != "" {
 		status += m.fg(m.theme.TextDim).Render(" " + el)
 	}
-	info := m.theme.AgentStyle(a.Agent).Render(string(a.Agent)) + " · " + a.Where
+	info := m.theme.AgentStyle(a.Agent).Render(string(a.Agent)) + " · " + a.Where + " · " + a.PaneID
 	return m.box(label(a.PaneInfo), info, status, body, w, h, false)
 }
 
@@ -413,9 +413,6 @@ func (m model) footer() []string {
 		if a, ok := m.selectedAgent(); ok && m.mode == inputSend {
 			prompt = "send to " + label(a.PaneInfo) + " ❯ "
 		}
-		if m.mode == inputRename {
-			prompt = "rename ❯ "
-		}
 		return []string{fit(" "+key.Render(prompt)+m.input.View(), m.width),
 			fit(" "+key.Render("enter")+dim.Render(" submit  ")+key.Render("esc")+dim.Render(" cancel"), m.width)}
 	}
@@ -426,7 +423,7 @@ func (m model) footer() []string {
 	var hints []string
 	switch m.focus { // only the keys that do something in this panel
 	case focusAgents:
-		hints = []string{"j/k", "select", "enter", "jump", "s", "send prompt", "R", "rename"}
+		hints = []string{"j/k", "select", "enter", "jump", "s", "send prompt"}
 	case focusNotes:
 		hints = []string{"j/k", "select", "a", "add task", "s", "assign", "space", "status", "b", "block", "d", "delete"}
 	case focusRoles:

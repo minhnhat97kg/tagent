@@ -102,7 +102,6 @@ const (
 	inputTask
 	inputAssign
 	inputSend
-	inputRename
 )
 
 // agentRow is one agent, flattened out of the session tree.
@@ -181,7 +180,6 @@ type model struct {
 	cursor                  [4]int
 	mode                    inputMode
 	input                   textinput.Model
-	renaming                string // pane of the rename input (R)
 	flash                   string
 	boardScope, boardTaskID string // optional task selected from the sidebar
 }
@@ -601,13 +599,6 @@ func (m model) updateKeys(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.input.SetValue("")
 			return m, m.input.Focus()
 		}
-	case "R":
-		if a, ok := m.selectedAgent(); ok && m.focus == focusAgents {
-			m.mode, m.renaming = inputRename, a.PaneID
-			m.input.Placeholder = "new name for " + label(a.PaneInfo) + " (empty: new nickname)"
-			m.input.SetValue(a.Name)
-			return m, m.input.Focus()
-		}
 	case "e":
 		if m.focus == focusRoles && len(m.roles) > 0 {
 			return m, editRole(m.repoDir, m.roles[m.cursor[focusRoles]])
@@ -660,14 +651,8 @@ func (m model) updateInput(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		mode := m.mode
 		m.mode = inputNone
 		m.input.Blur()
-		if text == "" && mode != inputAssign && mode != inputRename {
+		if text == "" && mode != inputAssign {
 			return m, nil
-		}
-		if mode == inputRename {
-			if err := tmux.RenamePane(m.renaming, text); err != nil {
-				m.flash = err.Error()
-			}
-			return m, m.poll()
 		}
 		if mode == inputTask {
 			if _, err := tasks.Add(m.scope, text, nil); err != nil {
