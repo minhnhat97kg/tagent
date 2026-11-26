@@ -23,6 +23,9 @@ export function ago(epochSec: number) {
   return s < 60 ? `${Math.floor(s)}s` : s < 3600 ? `${Math.floor(s / 60)}m` : `${Math.floor(s / 3600)}h`
 }
 
+const HARNESS_SHORT: Record<string, string> = { claude: "cc", "claude-api": "api", codex: "cx", opencode: "oc", antigravity: "ag" }
+export const shortHarness = (harness: string) => HARNESS_SHORT[harness] ?? harness
+
 export const agentLabel = (a: { name: string; agent: string }) => a.name || a.agent
 
 // taskOf is the ticket a board agent works on: its pane is named "<role>-<ticket>" (or "<role>#<ticket>"); "" for any other agent.

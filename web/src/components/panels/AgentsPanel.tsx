@@ -5,7 +5,7 @@ import { Panel } from "@/components/Panel"
 import { StatusDot } from "@/components/StatusDot"
 import { useMedia } from "@/hooks/useMedia"
 import { useSize } from "@/hooks/useSize"
-import { ago, agentLabel, baseName, isActive, shortPrompt, taskOf } from "@/lib/status"
+import { ago, agentLabel, baseName, isActive, shortHarness, shortPrompt, taskOf } from "@/lib/status"
 import { cn } from "@/lib/utils"
 import { useState, Fragment } from "react"
 import type { Agent } from "@/types"
@@ -51,7 +51,8 @@ export function AgentsPanel({ ordered, byTask, onToggleTask, onSelect, selPane, 
               role="button"
               tabIndex={0}
               className={cn(
-                "flex h-8 cursor-pointer items-center gap-2 px-2.5 text-[12.5px] hover:bg-accent",
+                // A narrow pane gives the name the whole line and puts the prompt under it.
+                "flex min-h-8 cursor-pointer flex-wrap items-center gap-x-2 px-2.5 py-1 text-[12.5px] hover:bg-accent @md:h-8 @md:flex-nowrap @md:py-0",
                 selPane === a.pane && "bg-accent",
               )}
               onClick={() => {
@@ -63,11 +64,13 @@ export function AgentsPanel({ ordered, byTask, onToggleTask, onSelect, selPane, 
               }}
             >
               <StatusDot status={a.status} />
-              <span className="max-w-[40%] shrink-0 truncate font-medium">{agentLabel(a)}</span>
+              <span className="min-w-0 flex-1 truncate font-medium @md:max-w-[40%] @md:flex-none @md:shrink-0">{agentLabel(a)}</span>
+              {/* An unnamed agent's label already is its harness. */}
+              {a.name && <span title={a.agent} className="shrink-0 rounded border px-1 py-0.5 font-mono text-[10px] leading-none text-muted-foreground">{shortHarness(a.agent)}</span>}
               {a.hidden && <span title="Background agent" className="shrink-0 rounded bg-muted px-1 py-0.5 text-[10px] leading-none text-muted-foreground">bg</span>}
               <span
                 className={cn(
-                  "min-w-0 flex-1 truncate text-[12px]",
+                  "order-last min-w-0 basis-full truncate pl-5.5 text-[12px] @md:order-none @md:flex-1 @md:basis-0 @md:pl-0",
                   waitingDialog ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground",
                 )}
               >
