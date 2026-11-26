@@ -64,6 +64,7 @@ export default function App() {
   // The agent in the chat pane: picked in place, or named by an old link (#/agent/<pane>).
   const [picked, setPicked] = useState<string>()
   const [phoneTab, setPhoneTab] = useState<PhoneTab>("agents")
+  const [tabSlot, setTabSlot] = useState<HTMLDivElement | null>(null) // the phone tabs, in the header
   // Custom panes (<config dir>/ui/*.html); the header and More menu show "Custom" only when there are some.
   const extPoll = usePoll<ExtInfo[]>(() => api<ExtInfo[]>("/api/ext").then(l => (Array.isArray(l) ? l : [])), 5000)
   const exts = extPoll.data
@@ -197,7 +198,7 @@ export default function App() {
 
   let main
   const extPanes = Object.fromEntries((exts ?? []).map(e => [extId(e.name), <CustomPane key={e.name} info={e} reload={() => void extPoll.reload()} />]))
-  if (home) main = <HomeLayout saved={shown} onChange={changePanes} onRemove={removeFromLayout} compact={state?.compact} tab={phoneTab} onTab={setPhoneTab}
+  if (home) main = <HomeLayout saved={shown} onChange={changePanes} onRemove={removeFromLayout} compact={state?.compact} tab={phoneTab} onTab={setPhoneTab} tabSlot={tabSlot}
     panes={{ agents: agentsPane, usage: usagePane, chat: chatPane, tasks: tasksPane, ...extPanes }} />
   else if (route.page === "pane") main = maxed(route.pane, extName(route.pane) ? extPanes[route.pane] ?? <div className="p-6 text-sm text-muted-foreground">{exts ? "No custom pane by that name." : null}</div> : route.pane === "usage" ? usagePane : route.pane === "chat" ? chatPane : tasksPane)
   else if (route.page === "agents") main = withAgents(minimizable("agents", <AgentsPage key={dir} dir={dir} />))
@@ -214,8 +215,9 @@ export default function App() {
         {/* viewport-fit=cover lets the page reach under the status bar and the window overlay; the bar's insets keep its content clear of them. */}
         <header className="flex h-[calc(2.75rem+env(safe-area-inset-top))] max-md:h-[calc(2.5rem+env(safe-area-inset-top))] shrink-0 items-center gap-1 border-b bg-card pt-[env(safe-area-inset-top)] pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] md:gap-2 md:pl-[max(0.75rem,env(safe-area-inset-left))] md:pr-[max(0.75rem,env(safe-area-inset-right))]">
           {!home && <Button variant="ghost" size="icon-xs" className="max-sm:size-8" onClick={() => nav("/")} aria-label="Back to home" title="Back to home"><ArrowLeft /></Button>}
-          <a href="#/" className="flex shrink-0 items-center gap-1.5 text-[13px] font-semibold"><span className="flex size-6 items-center justify-center rounded-md bg-primary text-primary-foreground"><SquareTerminal className="size-3.5" /></span><span className="hidden sm:inline">tagent</span><span className="hidden font-normal text-muted-foreground lg:inline"> · {state?.host ?? ""}</span></a>
+          <a href="#/" className="flex shrink-0 items-center gap-1.5 text-[13px] font-semibold max-md:hidden"><span className="flex size-6 items-center justify-center rounded-md bg-primary text-primary-foreground"><SquareTerminal className="size-3.5" /></span><span className="hidden sm:inline">tagent</span><span className="hidden font-normal text-muted-foreground lg:inline"> · {state?.host ?? ""}</span></a>
           <div className="min-w-0 flex-1 overflow-hidden [&_button]:max-w-full"><ProjectSelect value={dir} projects={state?.projects ?? []} onChange={(d) => { setDir(d); setPicked(undefined); nav("/") }} onAdd={() => setAddWorkspace(true)} /></div>
+          <div ref={setTabSlot} className="flex shrink-0 md:hidden" />
           <div className="ml-auto flex items-center gap-1">
             {panes.length > 0 && <a href="#/custom" className="max-md:hidden px-1.5 text-[13px] text-muted-foreground hover:text-foreground">Custom</a>}
             <PaneMenu shown={panesOf(shown)} exts={exts ?? []} onAdd={addToLayout} onChanged={extPoll.reload} />
@@ -230,7 +232,7 @@ export default function App() {
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onSelect={() => nav('/agents')}>Agents</DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => nav('/workflows')}>Workflows</DropdownMenuItem>
-                {panes.length > 0 && <DropdownMenuItem onSelect={() => nav('/custom')}>Custom</DropdownMenuItem>}
+                {panes.map(n => <DropdownMenuItem key={n} onSelect={() => { setPhoneTab(extId(n)); nav("/") }}>{n}</DropdownMenuItem>)}
                 <DropdownMenuItem onSelect={() => setWebTheme(nextTheme[webTheme])}>Theme: {webTheme}</DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => setSettings(true)}>Settings</DropdownMenuItem>
               </DropdownMenuContent>

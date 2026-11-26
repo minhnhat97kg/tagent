@@ -47,6 +47,7 @@ test("a phone home shows the agents tab: usage over the agents; Tasks is its own
   expect(screen.getAllByRole("heading", { name: "Usage" })).toHaveLength(1)
   expect(screen.getByRole("heading", { name: "Agents" })).toBeTruthy()
   expect(screen.queryByRole("heading", { name: "Tasks" })).toBeNull()
+  expect(screen.getByRole("tab", { name: "Tasks" }).closest("header")).toBeTruthy() // the tabs sit in the app header
   fireEvent.click(screen.getByRole("tab", { name: "Tasks" }))
   expect(screen.getByRole("heading", { name: "Tasks" })).toBeTruthy()
 })

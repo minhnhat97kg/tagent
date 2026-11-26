@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from "react"
 import { createPortal } from "react-dom"
-import { GripVertical } from "lucide-react"
+import { Bot, GripVertical, ListTodo, MessageSquare } from "lucide-react"
 import { PaneChromeContext } from "@/lib/paneChrome"
 import { SplitPane } from "@/components/SplitPane"
 import { buttonHolder, cells, DEFAULT_LAYOUT, defaultSizes, dropAt, extName, fits, nodeAt, paneRect, paneTitle, panesOf, reopen, replace, settle, shutIndex, step, type Drop, type Layout, type PaneId, type Path, type Rect } from "@/lib/paneLayout"
@@ -9,7 +9,7 @@ import { useSize } from "@/hooks/useSize"
 import { cn } from "@/lib/utils"
 
 export type PhoneTab = string // agents, chat, tasks, or a custom pane's id
-const TABS: { id: PhoneTab; label: string }[] = [{ id: "agents", label: "Agents" }, { id: "chat", label: "Chat" }, { id: "tasks", label: "Tasks" }]
+const TABS = [{ id: "agents", label: "Agents", Icon: Bot }, { id: "chat", label: "Chat", Icon: MessageSquare }, { id: "tasks", label: "Tasks", Icon: ListTodo }]
 // A press on one of these in a header is a click or typing, never the start of a drag. The grip is the exception.
 const NO_DRAG = "button, a, input, select, textarea, label, summary, [contenteditable], [role=button], [role=tab], [role^=menu]"
 const DRAG_PX = 6 // a press that moves less is a click
@@ -31,28 +31,30 @@ type Props = {
   onTab: (tab: PhoneTab) => void
   panes: Record<PaneId, ReactNode> // the built-in panes and every custom pane, "ext:<name>"
   onRemove?: (id: PaneId) => void // shows each pane's remove button
+  tabSlot?: HTMLElement | null // where a phone's tabs render (the app header); above the pane without it
 }
 
 // HomeLayout is the home view. On desktop it is a tree of split panes (Desktop). A phone shows one of Agents,
-// Chat and Tasks as tabs, then a tab for each custom pane.
+// Chat and Tasks, picked by icon tabs, or a custom pane picked from the header's More menu.
 export function HomeLayout(props: Props) {
-  const { onTab, panes } = props
+  const { onTab, panes, tabSlot } = props
   if (useMedia("(min-width: 768px)")) return <Desktop {...props} />
 
-  const tabs = [...TABS, ...Object.keys(panes).filter(id => extName(id)).map(id => ({ id, label: paneTitle(id) }))]
-  const tab = tabs.some(t => t.id === props.tab) ? props.tab : "agents" // a deleted pane's tab falls back
+  const custom = extName(props.tab) !== undefined && props.tab in panes
+  const tab = custom || TABS.some(t => t.id === props.tab) ? props.tab : "agents" // a deleted pane's tab falls back
+  const bar = <div role="tablist" aria-label="Home panes" className="flex shrink-0 gap-0.5 rounded-lg border p-0.5">
+    {TABS.map(({ id, label, Icon }) => <button key={id} type="button" role="tab" aria-selected={tab === id} aria-label={label} title={label} onClick={() => onTab(id)}
+      className={cn("flex h-7 w-8 items-center justify-center rounded-md", tab === id ? "bg-accent" : "text-muted-foreground")}><Icon className="size-4" /></button>)}
+  </div>
   return <div className="flex min-h-0 flex-1 flex-col gap-1">
-    <div role="tablist" aria-label="Home panes" className="flex shrink-0 gap-1 overflow-x-auto rounded-lg border bg-card p-0.5">
-      {tabs.map(t => <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} onClick={() => onTab(t.id)}
-        className={cn("h-7 flex-1 rounded-md px-2 text-[12.5px] font-medium whitespace-nowrap", tab === t.id ? "bg-accent" : "text-muted-foreground")}>{t.label}</button>)}
-    </div>
+    {tabSlot === undefined ? bar : tabSlot && createPortal(bar, tabSlot)}
     {tab === "agents" && <>
       <div className="max-h-[30%] min-h-0 overflow-y-auto">{panes.usage}</div>
       <div className="flex min-h-0 flex-1 flex-col">{panes.agents}</div>
     </>}
     {tab === "chat" && <div className="flex min-h-0 flex-1 flex-col">{panes.chat}</div>}
     {tab === "tasks" && <div className="flex min-h-0 flex-1 flex-col">{panes.tasks}</div>}
-    {extName(tab) && <div key={tab} className="flex min-h-0 flex-1 flex-col">{panes[tab]}</div>}
+    {custom && <div key={tab} className="flex min-h-0 flex-1 flex-col">{panes[tab]}</div>}
   </div>
 }
 

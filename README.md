@@ -620,6 +620,7 @@ Add your own pane without rebuilding: drop an HTML file into `~/.config/tagent/u
 
 ```sh
 make build && tagent reload   # build + reload the running sidebars/scraper
+scripts/ship.sh "message"     # verify, commit all changes, build, restart web + reload
 make test
 make update-frames                # re-capture the sidebar's golden frames (check them by eye first)
 ```

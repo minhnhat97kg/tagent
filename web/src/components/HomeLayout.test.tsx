@@ -393,13 +393,13 @@ test("a layout that names a pane with no content still renders the rest", () => 
   expect(screen.getByLabelText("draft")).toBeTruthy()
 })
 
-test("a phone has a tab for each custom pane, and a tab for a deleted pane falls back to Agents", () => {
+test("a phone shows a custom pane without a tab for it, and a deleted one falls back to Agents", () => {
   window.matchMedia = ((q: string) => ({ matches: false, media: q, addEventListener: () => {}, removeEventListener: () => {} })) as unknown as typeof window.matchMedia
   const onTab = vi.fn()
   const all = { ...panes(), "ext:notes": <p>Notes pane</p> }
   const { rerender } = render(<HomeLayout onChange={vi.fn()} tab="ext:notes" onTab={onTab} panes={all} />)
   expect(screen.getByText("Notes pane")).toBeTruthy()
-  expect(screen.getByRole("tab", { name: "notes", selected: true })).toBeTruthy()
+  expect(screen.queryByRole("tab", { name: "notes" })).toBeNull()
   fireEvent.click(screen.getByRole("tab", { name: "Chat" }))
   expect(onTab).toHaveBeenCalledWith("chat")
   rerender(<HomeLayout onChange={vi.fn()} tab="ext:notes" onTab={onTab} panes={panes()} />)
