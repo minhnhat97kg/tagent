@@ -9,6 +9,7 @@ describe("roles helpers", () => {
     expect(effortLevels("claude")).not.toContain("off")
     expect(effortLevels("codex")).toContain("none")
     expect(effortLevels("opencode")).toEqual([])
+    expect(effortLevels("tier")).toEqual(expect.arrayContaining(["off", "max"]))
   })
   it("suggests each model once, sorted", () => {
     expect(modelsIn([role({ model: "b" }), role({ model: "a" }), role({ model: "b" }), role({})])).toEqual(["a", "b"])
@@ -20,6 +21,7 @@ describe("roles helpers", () => {
   it("compares only what the user edits", () => {
     expect(editableKey(role({ running: 2, usedBy: ["status plan"] }))).toBe(editableKey(role({})))
     expect(editableKey(role({ model: "n" }))).not.toBe(editableKey(role({})))
+    expect(editableKey(role({ tier: "fast" }))).not.toBe(editableKey(role({})))
   })
   it("treats context edits as dirty and parses context text", () => {
     expect(editableKey(role({ mcp: ["tagent"] }))).not.toBe(editableKey(role({})))

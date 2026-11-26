@@ -17,6 +17,7 @@ import { AgentsPanel } from "@/components/panels/AgentsPanel"
 import { WorkflowsPage } from "@/components/WorkflowsPage"
 import { RunPage } from "@/components/RunPage"
 import { AgentsPage } from "@/components/AgentsPage"
+import { RoutingPage } from "@/components/RoutingPage"
 import { OverviewPanel } from "@/components/panels/OverviewPanel"
 import { TasksPanel } from "@/components/panels/TasksPanel"
 import { Button } from "@/components/ui/button"
@@ -137,7 +138,8 @@ export default function App() {
   // Old ticket links (/workflows/<wf>/<ticket>) open the run page, not the editor.
   const runRoute = runMatch ?? /^\/workflows\/[^/]+\/([^/]+)$/.exec(route)
   const agentsRoute = route === "/agents"
-  const home = !sel && !boardRoute && !boardConfigRoute && !flowRoute && !runRoute && !agentsRoute
+  const routingRoute = route === "/routing"
+  const home = !sel && !boardRoute && !boardConfigRoute && !flowRoute && !runRoute && !agentsRoute && !routingRoute
   const board = <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border bg-card"><Board dir={dir} proj={proj} reload={projPoll.reload} /></section>
   const tasks = <TasksPanel proj={proj} dir={dir} reload={projPoll.reload} className="min-h-0 flex-1" />
 
@@ -178,6 +180,7 @@ export default function App() {
   else if (runRoute) main = <RunPage key={(runDir ?? dir) + runRoute[1]} dir={runDir ?? dir} id={decodeURIComponent(runRoute[1]!)} />
   else if (flowRoute) main = <WorkflowsPage key={dir + route} dir={dir} initial={decodeURIComponent(flowRoute[1] ?? '')} />
   else if (agentsRoute) main = <AgentsPage key={dir} dir={dir} />
+  else if (routingRoute) main = <RoutingPage key={dir} dir={dir} />
   else if (agent) main = <AgentView key={agent.pane} agent={agent} project={proj} />
   else if (sel) main = state ? <div className="p-6 text-muted-foreground">Agent not found. <a href="#/" className="text-foreground underline">Home</a></div> : null
   else main = <>

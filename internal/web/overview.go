@@ -32,6 +32,13 @@ func validDir(dir string) error {
 	}
 	return nil
 }
+func (s *server) quota() quota.Snapshot {
+	if s.deps.quota != nil {
+		return s.deps.quota()
+	}
+	return quota.Get()
+}
+
 func (s *server) overview(w http.ResponseWriter, r *http.Request) {
 	dir := s.projectDir(r)
 	if e := validDir(dir); e != nil {
@@ -58,11 +65,7 @@ func (s *server) overview(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	attention, now := metrics.OverviewFacts(panes, tasks.List(scope), state)
-	get := s.deps.quota
-	if get == nil {
-		get = quota.Get
-	}
-	q := get()
+	q := s.quota()
 	type provider struct {
 		Name  string   `json:"name"`
 		Used  *float64 `json:"usedPercent"`

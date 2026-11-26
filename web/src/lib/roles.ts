@@ -6,6 +6,8 @@ export function effortLevels(harness: string): string[] {
     case "pi": return ["off", "minimal", "low", "medium", "high", "xhigh", "max"]
     case "claude": return ["low", "medium", "high", "xhigh", "max"]
     case "codex": return ["none", "minimal", "low", "medium", "high", "xhigh", "max"]
+    // A tier's harness is chosen at dispatch, so any level may be set; the chosen harness drops what it lacks.
+    case "tier": return ["off", "none", "minimal", "low", "medium", "high", "xhigh", "max"]
     default: return []
   }
 }
@@ -26,7 +28,7 @@ export const roleTemplate = (name: string) => `# ${name}\n\nDescribe how this ag
 export const readOnlySource = (source: string) => source === "legacy"
 
 // What the user edits: harness, model, effort and instructions. Live fields (running, usedBy) are left out.
-export const editableKey = (r: Role) => JSON.stringify([r.harness, r.model, r.effort, r.instructions, r.skills, r.mcp, r.tools, r.allow, r.deny])
+export const editableKey = (r: Role) => JSON.stringify([r.harness, r.tier ?? "", r.model, r.effort, r.instructions, r.skills, r.mcp, r.tools, r.allow, r.deny])
 
 // Context text to list. Skills and MCP: empty is the harness default, "none" is no items.
 // Tools, allow and deny: empty is no items.

@@ -35,6 +35,7 @@ export interface Role {
   running: number
   panes: { pane: string; status: string }[] | null
   usedBy: string[] | null
+  tier?: string // harness and model come from routing.yaml; harness is ""
   // Context: undefined keeps the harness default; [] means none (skills, mcp only).
   skills?: string[]
   mcp?: string[]
@@ -82,6 +83,18 @@ export interface Project {
 }
 
 
+// RoutingView is /api/routing: the account's routing.yaml with quota and selection computed by the server.
+export interface RoutingWindow { usedPercent: number | null; resetsAt: string | null }
+export interface RoutingCandidate { ref: string; state: string; why: string }
+export interface RoutingTier { name: string; usedBy: string[]; candidates: RoutingCandidate[]; selected: string; reason: string }
+export interface RoutingView {
+  path: string
+  error?: string
+  limits: Record<string, number>
+  when_exhausted: string
+  providers: { id: string; name: string; five: RoutingWindow; week: RoutingWindow; stale: boolean }[]
+  tiers: RoutingTier[]
+}
 export interface Overview { dir: string; project: string; attention: { needed: boolean; text: string; items?: {kind: string; text: string; pane: string | null; count: number}[] }; providers: {name: string; usedPercent: number | null; weeklyPercent: number | null; stale: boolean}[]; tokens: {today: number; total7d: number; sparkline: string; days: {date: string; tokens: number}[]} }
 export interface Workflow { name: string; description: string; global: boolean; file: string; error: string; jobs: { id: string; status: string; agent: string; run: string }[] }
 
@@ -101,6 +114,8 @@ export interface RunEntry {
   harness?: string
   model?: string
   effort?: string
+  tier?: string
+  route?: string
   pane?: string
   pane_name?: string
   prompt?: string

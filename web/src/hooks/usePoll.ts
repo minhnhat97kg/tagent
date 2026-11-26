@@ -9,14 +9,20 @@ export function usePoll<T>(fn: () => Promise<T>, ms: number, key: unknown = "") 
   useEffect(() => {
     fnRef.current = fn
   })
+  // A response older than the last one applied is dropped, so a poll in flight during a save cannot restore old data.
+  const sent = useRef(0)
+  const applied = useRef(0)
   const reload = useCallback(() => {
-    fnRef.current().then(
+    const n = ++sent.current
+    return fnRef.current().then(
       (d) => {
+        if (n < applied.current) return
+        applied.current = n
         const json = JSON.stringify(d) ?? ""
         if (json !== last.current) { last.current = json; setData(d) }
         setError(undefined)
       },
-      (e: Error) => setError(e),
+      (e: Error) => { if (n >= applied.current) setError(e) },
     )
   }, [])
   useEffect(() => {

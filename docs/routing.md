@@ -25,6 +25,7 @@ tiers:
 - `limits` defaults to 90 per provider. Unknown providers are rejected.
 - `$XDG_CONFIG_HOME/tagent/routing.yaml` (default `~/.config/tagent/routing.yaml`).
   A missing file is an empty config. Unknown keys are an error.
+- Tier names match `^[A-Za-z0-9][A-Za-z0-9_-]*$`; a file with another name does not load.
 
 Board role:
 
@@ -67,14 +68,31 @@ is audited as `suppressed: ...` and the ticket does not move.
 Manual `tagent new --role dev` on a tier role with no `--agent`/`--model` starts
 on the first candidate, since a one-shot CLI has no quota reading.
 
+## Web
+
+The web UI edits the same file; the TUI does not.
+
+- **Agents page**: the Model control lists "Tier" (the account's tiers) and "Fixed"
+  models. A tier role hides Harness, disables the context fields and offers every
+  effort level. Choosing a fixed model switches the harness back to `claude`.
+- **Routing page** (`#/routing`, linked from Usage): quota per provider, the
+  `Exhausted at` threshold, `when_exhausted`, and each tier's candidates (add,
+  reorder, remove, create and delete tiers). Each action saves at once and
+  shows the candidate the server selects now; it polls every 3 s.
+- API: `GET` and `PUT /api/routing?dir=`. The server computes candidate state and
+  the selection; the page only displays them. PUT takes `{limits, when_exhausted, tiers}`,
+  refuses a file that does not load (409), and refuses a body without `tiers` (400).
+- A web save rewrites the file: YAML comments are lost, and `limits` and
+  `when_exhausted` are written explicitly. Last write wins between two tabs.
+- Deleting a tier used by a role blocks that role's tickets with `unknown tier`
+  at dispatch. The "used by" list covers only the current project.
+
 ## Assumptions and limits
 
 - Quota is read in the dispatcher's background refresh (about once a minute).
   A fresh dispatcher has no reading, so its first dispatches use the first candidate.
 - Routed panes that no longer match stay running (they may be busy). Done closes them all, unless the ticket's worktree is kept for uncommitted changes.
 - Not included: retry at reset time, switching candidates mid-step after a
-  rate limit, quota for other pi providers, editing routing in the TUI or web,
-  an LLM proxy.
+  rate limit, quota for other pi providers, editing routing in the TUI, an LLM proxy.
 - A binary older than this change rejects `tier` in board.yaml (strict parsing).
   Reinstall and restart the dispatcher before adding tiers.
-- Until the web Agents page supports tiers, edit board.yaml by hand.

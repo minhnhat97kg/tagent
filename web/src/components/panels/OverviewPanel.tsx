@@ -5,7 +5,7 @@ const compact = (n: number) => Intl.NumberFormat("en", { notation: "compact", ma
 // A quota bar is neutral: a full bar is normal use, not an alert. Red is reserved for a real block (none is reported here).
 const level = (n: number | null) => (n === null ? "bg-muted-foreground/30" : "bg-foreground/60")
 
-function Meter({ label, value }: { label: string; value: number | null }) {
+export function Meter({ label, value }: { label: string; value: number | null }) {
   const v = value === null ? 0 : Math.max(0, Math.min(100, value))
   return <div className="flex min-w-0 flex-1 items-center gap-1.5" title={`${label}: ${value === null ? "unknown" : `${Math.round(value)}% used`}`}>
     <span className="w-5 shrink-0 text-[10.5px] text-muted-foreground">{label}</span>
@@ -30,6 +30,7 @@ export function OverviewPanel({ overview, className, days = 7, onDays }: { overv
     <header className="flex h-8 items-center gap-1.5 border-b px-2.5">
       <span className="flex size-5 items-center justify-center rounded-md bg-muted"><Gauge className="size-3.5 text-brand" /></span>
       <h2 className="mr-auto text-[12.5px] font-semibold">Usage</h2>
+      <a href="#/routing" className="text-[11px] text-muted-foreground underline">Routing →</a>
       <div className="flex rounded-md bg-muted p-0.5 text-[10.5px]" role="group" aria-label="Range">
         {[1, 7, 30].map(d => <button key={d} aria-pressed={days === d} onClick={() => onDays?.(d)}
           className={`rounded px-1.5 py-px tabular-nums ${days === d ? "bg-card font-semibold shadow-sm" : "text-muted-foreground"}`}>{d}d</button>)}

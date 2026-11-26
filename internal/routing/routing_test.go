@@ -116,3 +116,31 @@ func TestLoadRejectsBadConfig(t *testing.T) {
 		t.Fatalf("got %+v %v", c, err)
 	}
 }
+
+func TestSaveRoundTripAndRejects(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	good := Config{Limits: map[string]float64{"claude": 80}, WhenExhausted: "first",
+		Tiers: map[string][]string{"fast": {"claude:haiku", "pi:openai-codex/gpt-6-luna"}}}
+	if err := Save(good); err != nil {
+		t.Fatal(err)
+	}
+	c, err := Load()
+	if err != nil || c.Limits["claude"] != 80 || c.WhenExhausted != "first" || c.Tiers["fast"][1] != "pi:openai-codex/gpt-6-luna" {
+		t.Fatalf("got %+v %v", c, err)
+	}
+	before, _ := os.ReadFile(Path())
+	for _, bad := range []Config{
+		{Tiers: map[string][]string{"my.tier": {"claude:haiku"}}},
+		{Tiers: map[string][]string{"-x": {"claude:haiku"}}},
+		{Tiers: map[string][]string{"fast": {}}},
+		{Tiers: map[string][]string{"fast": {"haiku"}}},
+	} {
+		if err := Save(bad); err == nil {
+			t.Fatalf("want error for %+v", bad)
+		}
+	}
+	if after, _ := os.ReadFile(Path()); string(after) != string(before) {
+		t.Fatal("rejected save changed the file")
+	}
+}

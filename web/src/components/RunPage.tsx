@@ -110,6 +110,7 @@ function Entry({ e, prev, live, clock, attachment, open, openButton }: {
       {(e.role || e.harness) && <span className="inline-flex min-w-0 items-center gap-1 text-[11.5px] text-muted-foreground"><Avatar role={e.role ?? ""} /><span className="truncate">{[e.role, e.harness, e.model].filter(Boolean).join(" · ")}</span></span>}
       <span className="ml-auto shrink-0 text-[11px] tabular-nums text-muted-foreground" title={`${clock(e.start)} → ${e.end ? clock(e.end) : "now"}`}>{clock(e.start)} · {formatDuration(e.duration)}</span>
     </div>
+    {(e.route || e.tier) && <p className="mt-1 text-[11.5px] text-muted-foreground">{e.route === "step model" && e.tier ? `tier ${e.tier} · step model` : e.route || `tier ${e.tier}`}</p>}
     {e.pane && <p className="mt-1 text-[11.5px] text-muted-foreground">pane {live ? <a href={`#/agent/${enc(e.pane)}`} className="text-teal-700 underline-offset-2 hover:underline dark:text-teal-400">{e.pane_name || e.pane}</a> : <span>{e.pane_name || e.pane} · closed</span>}</p>}
     {e.reason && e.loop > 1 && <p className="mt-1 line-clamp-3 whitespace-pre-wrap text-[11.5px] text-amber-700 dark:text-amber-400">{e.reason}</p>}
     {ciLog ? <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11.5px]">CI exit <b className={e.exit_code === 0 ? "text-emerald-600" : "text-red-600"}>{e.exit_code}</b>{openButton(ciLog, "ci.log")}</p> : null}

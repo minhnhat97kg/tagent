@@ -9,12 +9,14 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
 
 	"tagent/internal/apppath"
 	"tagent/internal/quota"
+	"tagent/internal/tasks"
 
 	"gopkg.in/yaml.v3"
 )
@@ -41,6 +43,8 @@ type Choice struct {
 
 const defaultLimit = 90
 
+var tierName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]*$`)
+
 var harnesses = []string{"claude", "pi", "codex"}
 
 // Path is the routing config file.
@@ -61,10 +65,26 @@ func Load() (Config, error) {
 	if err := d.Decode(&c); err != nil && err != io.EOF {
 		return c, fmt.Errorf("%s: %w", Path(), err)
 	}
-	return c, c.validate()
+	return c, c.Validate()
 }
 
-func (c Config) validate() error {
+// Save validates c and writes it to Path. ponytail: last write wins; YAML comments are not preserved.
+func Save(c Config) error {
+	if err := c.Validate(); err != nil {
+		return err
+	}
+	b, err := yaml.Marshal(c)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(Path()), 0700); err != nil {
+		return err
+	}
+	return tasks.AtomicWrite(Path(), b)
+}
+
+// Validate reports why c cannot be saved or dispatched.
+func (c Config) Validate() error {
 	for p, v := range c.Limits {
 		if p != "claude" && p != "codex" {
 			return fmt.Errorf("limits: unknown provider %q (claude or codex)", p)
@@ -77,6 +97,9 @@ func (c Config) validate() error {
 		return fmt.Errorf("when_exhausted %q: use block or first", c.WhenExhausted)
 	}
 	for tier, list := range c.Tiers {
+		if !tierName.MatchString(tier) {
+			return fmt.Errorf("tier %q: use letters, digits, - and _, starting with a letter or digit", tier)
+		}
 		if len(list) == 0 {
 			return fmt.Errorf("tier %s: no candidates", tier)
 		}
@@ -108,7 +131,8 @@ func provider(harness, model string) string {
 	return ""
 }
 
-func (c Config) limit(provider string) float64 {
+// Limit is the percent used that counts as exhausted for provider.
+func (c Config) Limit(provider string) float64 {
 	if v, ok := c.Limits[provider]; ok {
 		return v
 	}
@@ -150,7 +174,7 @@ func (c Config) Candidates(tier string, snap quota.Snapshot) ([]Candidate, error
 					continue
 				}
 				counted = true
-				if *w.win.Used >= c.limit(name) {
+				if *w.win.Used >= c.Limit(name) {
 					parts = append(parts, fmt.Sprintf("%s %s %.0f%%", label, w.name, *w.win.Used))
 					if at.After(cd.Reset) {
 						cd.Reset = at
