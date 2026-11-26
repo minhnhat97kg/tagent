@@ -33,7 +33,11 @@ import { usePoll } from "@/hooks/usePoll"
 import { useProjectDir } from "@/hooks/useProjectDir"
 import { enc, nav, parseRoute, useRoute } from "@/hooks/useRoute"
 import { baseName, byTaskOrder } from "@/lib/status"
-import { loadPanes, savePanes, type Layout } from "@/lib/paneLayout"
+import { CustomPane } from "@/components/CustomPane"
+import { PaneMenu } from "@/components/PaneMenu"
+import type { ExtInfo } from "@/lib/ext"
+import { addPane, DEFAULT_LAYOUT, extId, extName, loadPanes, panesOf, prune, removePane, savePanes, type Layout } from "@/lib/paneLayout"
+import { toast } from "sonner"
 import { useAppState } from "@/state"
 import type { Agent, Overview, Project } from "@/types"
 
@@ -60,9 +64,28 @@ export default function App() {
   // The agent in the chat pane: picked in place, or named by an old link (#/agent/<pane>).
   const [picked, setPicked] = useState<string>()
   const [phoneTab, setPhoneTab] = useState<PhoneTab>("agents")
-  // Custom panes (<config dir>/ui/*.html), listed once per load; the header and More menu show "Custom" only when there are some.
-  const [panes, setPanes] = useState<string[]>([])
-  useEffect(() => { api<string[]>("/api/ext").then(l => setPanes(Array.isArray(l) ? l : []), () => {}) }, [])
+  // Custom panes (<config dir>/ui/*.html); the header and More menu show "Custom" only when there are some.
+  const extPoll = usePoll<ExtInfo[]>(() => api<ExtInfo[]>("/api/ext").then(l => (Array.isArray(l) ? l : [])), 5000)
+  const exts = extPoll.data
+  const panes = useMemo(() => (exts ?? []).map(e => e.name), [exts])
+  // The layout without custom panes that no longer exist (a saved one may name a deleted pane); kept as saved until the list is known.
+  const shown = useMemo(() => {
+    const now = layout ?? DEFAULT_LAYOUT
+    return (exts && prune(now, id => { const n = extName(id); return !n || panes.includes(n) })) || now
+  }, [layout, exts, panes])
+  const addToLayout = (id: string) => changePanes(addPane(shown, id))
+  const removeFromLayout = (id: string) => { const next = removePane(shown, id); if (next) changePanes(next) }
+  // A pane an agent adds while the app is open is offered, never added.
+  const known = useRef<Set<string>>(undefined)
+  const addRef = useRef(addToLayout)
+  addRef.current = addToLayout
+  useEffect(() => {
+    if (!exts) return
+    for (const e of exts) if (known.current && !known.current.has(e.name) && e.agent) {
+      toast(`Agent added pane ${e.name}`, { duration: 20000, action: { label: "Add", onClick: () => addRef.current(extId(e.name)) } })
+    }
+    known.current = new Set(exts.map(e => e.name))
+  }, [exts])
   // Whole app full screen (browser chrome hidden). iPhone Safari has no Fullscreen API, so the button hides there.
   const [full, setFull] = useState(false)
   useEffect(() => {
@@ -173,9 +196,10 @@ export default function App() {
     : <ChatEmpty className="flex min-h-0 flex-1 items-center justify-center rounded-lg border bg-card text-sm text-muted-foreground">Pick an agent</ChatEmpty>
 
   let main
-  if (home) main = <HomeLayout saved={layout} onChange={changePanes} compact={state?.compact} tab={phoneTab} onTab={setPhoneTab}
-    panes={{ agents: agentsPane, usage: usagePane, chat: chatPane, tasks: tasksPane }} />
-  else if (route.page === "pane") main = maxed(route.pane, route.pane === "usage" ? usagePane : route.pane === "chat" ? chatPane : tasksPane)
+  const extPanes = Object.fromEntries((exts ?? []).map(e => [extId(e.name), <CustomPane key={e.name} info={e} reload={() => void extPoll.reload()} />]))
+  if (home) main = <HomeLayout saved={shown} onChange={changePanes} onRemove={removeFromLayout} compact={state?.compact} tab={phoneTab} onTab={setPhoneTab}
+    panes={{ agents: agentsPane, usage: usagePane, chat: chatPane, tasks: tasksPane, ...extPanes }} />
+  else if (route.page === "pane") main = maxed(route.pane, extName(route.pane) ? extPanes[route.pane] ?? <div className="p-6 text-sm text-muted-foreground">{exts ? "No custom pane by that name." : null}</div> : route.pane === "usage" ? usagePane : route.pane === "chat" ? chatPane : tasksPane)
   else if (route.page === "agents") main = withAgents(minimizable("agents", <AgentsPage key={dir} dir={dir} />))
   else if (route.page === "flows") main = maxed("workflows", <WorkflowsPage key={dir + rawRoute} dir={dir} initial={route.name} />)
   else if (route.page === "run") main = maxed("workflows", <RunPage key={(runDir ?? dir) + route.ticket} dir={runDir ?? dir} id={route.ticket} />)
@@ -194,6 +218,7 @@ export default function App() {
           <div className="min-w-0 flex-1 overflow-hidden [&_button]:max-w-full"><ProjectSelect value={dir} projects={state?.projects ?? []} onChange={(d) => { setDir(d); setPicked(undefined); nav("/") }} onAdd={() => setAddWorkspace(true)} /></div>
           <div className="ml-auto flex items-center gap-1">
             {panes.length > 0 && <a href="#/custom" className="max-md:hidden px-1.5 text-[13px] text-muted-foreground hover:text-foreground">Custom</a>}
+            <PaneMenu shown={panesOf(shown)} exts={exts ?? []} onAdd={addToLayout} onChanged={extPoll.reload} />
             <Notifications items={notices} dir={dir ?? ''} onOpen={openNotice} />
             <Button size="sm" className="max-sm:size-9" onClick={() => setNewOpen(true)}><Plus /> <span className="hidden sm:inline">New agent</span></Button>
             {canFull && <Button className="hidden sm:inline-flex" variant="ghost" size="icon-xs" aria-label={full ? "Exit full screen" : "Full screen"} title={full ? "Exit full screen" : "Full screen"} onClick={() => void toggleFull()}>{full ? <Minimize2 /> : <Maximize2 />}</Button>}

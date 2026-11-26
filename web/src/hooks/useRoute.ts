@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { extName } from "@/lib/paneLayout"
 
 // Hash routes. Ids are encoded with enc(). Old links keep working; /pane/<id> opens one pane maximized.
 // /agent/<pane> and /agents/<pane> open home with that agent selected.
@@ -12,7 +13,7 @@ export const nav = (path: string) => {
 export type Route =
   | { page: "home"; agent?: string } // agent: the pane id of /agent/<pane>, selected in the chat pane
   | { page: "routing" | "boardConfig" }
-  | { page: "pane"; pane: "usage" | "tasks" | "chat" }
+  | { page: "pane"; pane: string } // usage, tasks, chat, or a custom pane's id ("ext:<name>")
   | { page: "agents" } // the Agents definitions page
   | { page: "custom"; name?: string } // a custom pane (#/custom/<name>); no name = the first one
   | { page: "flows"; name: string } // "" = no workflow chosen
@@ -32,7 +33,7 @@ export function parseRoute(route: string): Route {
     case "routing": return parts.length === 1 ? { page: "routing" } : { page: "home" }
     case "board": return b === "config" && parts.length === 2 ? { page: "boardConfig" } : { page: "home" }
     case "pane":
-      if (b === "usage" || b === "tasks" || b === "chat") return { page: "pane", pane: b }
+      if (b === "usage" || b === "tasks" || b === "chat" || (b !== undefined && extName(b))) return { page: "pane", pane: b }
       if (b === "agents") return { page: "agents" }
       if (b === "workflows") return { page: "flows", name: "" }
       return { page: "home" }

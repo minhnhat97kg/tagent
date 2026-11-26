@@ -3,10 +3,13 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
+	"tagent/internal/panes"
 	"tagent/internal/tasks"
 )
 
@@ -59,7 +62,7 @@ func TestMCPToolsRoundTrip(t *testing.T) {
 	}
 
 	tools := resp[1]["result"].(map[string]any)["tools"].([]any)
-	if len(tools) > 6 {
+	if len(tools) != 6 {
 		t.Fatalf("%d tools, want <= 6", len(tools))
 	}
 	for _, tl := range tools {
@@ -97,5 +100,59 @@ func TestMCPToolsRoundTrip(t *testing.T) {
 	}
 	if resp[8]["error"] == nil || resp[9]["error"] == nil {
 		t.Fatalf("expected JSON-RPC errors for unknown method and bad JSON: %v %v", resp[8], resp[9])
+	}
+}
+
+func TestMCPPaneTools(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("TMUX_PANE", "")
+	call := func(name string, args map[string]any) (string, bool) {
+		b, _ := json.Marshal(args)
+		resp := handleMCP(".", mcpRequest{ID: json.RawMessage("1"), Method: "tools/call", Params: json.RawMessage(`{"name":"` + name + `","arguments":` + string(b) + `}`)})
+		res := resp.Result.(map[string]any)
+		return res["content"].([]map[string]any)[0]["text"].(string), res["isError"].(bool)
+	}
+	if out, bad := call("pane_add", map[string]any{"name": "dash", "html": "<p>hi</p>"}); bad || !strings.Contains(out, "read-only") {
+		t.Fatalf("pane_add: %v %q", bad, out)
+	}
+	if out, bad := call("pane_list", map[string]any{}); bad || out != "dash\tagent, read-only\n" {
+		t.Fatalf("pane_list: %v %q", bad, out)
+	}
+	if _, bad := call("pane_add", map[string]any{"name": "../dash", "html": "x"}); !bad {
+		t.Fatal("bad name accepted")
+	}
+	os.WriteFile(filepath.Join(panes.Dir(), "mine.html"), []byte("user"), 0o644)
+	if out, bad := call("pane_add", map[string]any{"name": "mine", "html": "x"}); !bad || !strings.Contains(out, "not created") {
+		t.Fatalf("overwrote a user pane: %v %q", bad, out)
+	}
+	if _, bad := call("pane_add", map[string]any{"name": "big", "html": strings.Repeat("a", panes.MaxHTML+1)}); !bad {
+		t.Fatal("oversize accepted")
+	}
+	if out, _ := call("pane_list", map[string]any{}); !strings.Contains(out, "mine\tuser") {
+		t.Fatalf("list: %q", out)
+	}
+}
+
+func TestPaneCLI(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("TMUX_PANE", "")
+	f := filepath.Join(t.TempDir(), "p.html")
+	os.WriteFile(f, []byte("<p>cli</p>"), 0o644)
+	var out, errb bytes.Buffer
+	if code := cmdPane([]string{"add", "cli", "--file", f}, &out, &errb); code != exitOK {
+		t.Fatalf("add: %d %s", code, errb.String())
+	}
+	out.Reset()
+	if cmdPane([]string{"ls"}, &out, &errb); out.String() != "cli\tagent, read-only\n" {
+		t.Fatalf("ls: %q", out.String())
+	}
+	if code := cmdPane([]string{"add", "../x", "--file", f}, &out, &errb); code != exitFailure {
+		t.Fatalf("bad name: %d", code)
+	}
+	if code := cmdPane([]string{"add", "x"}, &out, &errb); code != exitUsage {
+		t.Fatalf("usage: %d", code)
+	}
+	if code := cmdPane([]string{"add", "x", "--file", filepath.Join(t.TempDir(), "none")}, &out, &errb); code != exitFailure {
+		t.Fatalf("missing file: %d", code)
 	}
 }

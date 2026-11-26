@@ -1,5 +1,5 @@
 import { beforeEach, expect, test, vi } from "vitest"
-import { DEFAULT_LAYOUT, dock, dropAt, fits, loadPanes, normalize, paneRect, pathOf, reopen, savePanes, settle, shape, step, type Layout, type PaneId, type Split, type Zone } from "./paneLayout"
+import { addPane, DEFAULT_LAYOUT, dock, dropAt, fits, loadPanes, normalize, paneRect, pathOf, prune, removePane, reopen, savePanes, settle, shape, step, type Layout, type PaneId, type Split, type Zone } from "./paneLayout"
 
 beforeEach(() => localStorage.clear())
 
@@ -224,11 +224,9 @@ test.each([
   v3([{ ...columns[0], heights: [0, 1] }, columns[1], columns[2]]), // only Usage shuts
   { v: 5, root: good },
   v4(null),
-  v4("chat"),
   v4({ axis: "z", sizes: good.sizes, children: good.children }),
   v4({ ...good, sizes: [0.5, 0.5] }),
   v4({ ...good, sizes: [0.9, 0.9, 0.9] }),
-  v4({ ...good, children: good.children.slice(1), sizes: [0.5, 0.5] }),
   v4({ ...good, children: [good.children[0], "chat", "chat"] }),
   v4({ ...good, children: [good.children[0], "chat", "nope"] }),
   v4({ ...good, children: [good.children[0], "chat", { axis: "y", sizes: [], children: [] }] }),
@@ -251,4 +249,65 @@ test("throwing storage is ignored", () => {
   expect(() => savePanes(DEFAULT_LAYOUT)).not.toThrow()
   expect(loadPanes()).toBeUndefined()
   vi.restoreAllMocks()
+})
+
+const ids = (n: Layout) => {
+  const out: string[] = []
+  const walk = (l: Layout) => (typeof l === "string" ? out.push(l) : l.children.forEach(walk))
+  walk(n)
+  return out.sort()
+}
+
+test("addPane puts a pane in a new column; a fifth column wraps into a row", () => {
+  const next = addPane(DEFAULT_LAYOUT, "ext:notes") as Split
+  expect(next.axis).toBe("x")
+  expect(next.children.at(-1)).toBe("ext:notes")
+  expect(sum(next.sizes)).toBeCloseTo(1)
+  expect(next.sizes.at(-1)).toBeCloseTo(0.2)
+  expect(addPane(next, "ext:notes")).toBe(next) // already there
+  const more = addPane(next, "ext:more") as Split // four columns already
+  expect(more.axis).toBe("y")
+  expect(ids(more)).toEqual(["agents", "chat", "ext:more", "ext:notes", "tasks", "usage"])
+  expect(addPane("chat", "agents")).toEqual({ axis: "x", sizes: [0.5, 0.5], children: ["chat", "agents"] })
+})
+
+test("removePane gives the room to the neighbours, keeps the last pane, and a removed built-in can be added back", () => {
+  const next = removePane(DEFAULT_LAYOUT, "chat") as Split
+  expect(ids(next)).toEqual(["agents", "tasks", "usage"])
+  expect(sum(next.sizes)).toBeCloseTo(1)
+  const two = removePane(removePane(DEFAULT_LAYOUT, "agents")!, "usage") as Split
+  expect(shape(two)).toBe("x(chat tasks)")
+  expect(two.sizes[0]).toBeCloseTo(0.43 / 0.78)
+  expect(removePane("chat", "chat")).toBeUndefined()
+  expect(removePane(DEFAULT_LAYOUT, "ext:none")).toBeUndefined()
+  expect(ids(addPane(next, "chat"))).toEqual(["agents", "chat", "tasks", "usage"])
+  const stacked = removePane(y([0.5, 0.5], "agents", "usage"), "usage")
+  expect(stacked).toBe("agents")
+})
+
+test("prune drops panes that are gone and keeps the rest", () => {
+  const l = addPane(addPane(DEFAULT_LAYOUT, "ext:a"), "ext:b")
+  expect(ids(prune(l, id => id !== "ext:a")!)).toEqual(["agents", "chat", "ext:b", "tasks", "usage"])
+  expect(prune(l, () => true)).toBe(l)
+  expect(prune(l, () => false)).toBeUndefined()
+})
+
+test("a saved layout with custom panes, or without some built-ins, loads; duplicates and bad names do not", () => {
+  const l = addPane(removePane(DEFAULT_LAYOUT, "usage")!, "ext:notes")
+  savePanes(l)
+  expect(loadPanes()).toEqual(l)
+  expect(saved(v4("chat"))).toBe("chat")
+  expect(saved(v4(x([0.5, 0.5], "chat", "chat")))).toBeUndefined()
+  expect(saved(v4(x([0.5, 0.5], "chat", "ext:../x")))).toBeUndefined()
+  expect(saved(v4(x([0.5, 0.5], "chat", "ext:")))).toBeUndefined()
+  expect(saved(v4(x([0.5, 0.5], "chat", "ext:a b")))).toBeUndefined()
+  expect(saved(v4(x([0.5, 0.5], "chat", "other")))).toBeUndefined()
+  expect(saved(v4(x([0.5, 0.5], "chat", "new")))).toBeUndefined()
+})
+
+test("the older kinds of layout are still converted, and only with all four built-ins", () => {
+  expect(saved({ v: 3, columns })).toEqual(DEFAULT_LAYOUT)
+  expect(saved({ v: 3, columns: [{ width: 1, panes: ["chat"], heights: [1] }] })).toBeUndefined()
+  expect(saved({ v: 3, columns: [...columns.slice(0, 2), { width: 0.35, panes: ["ext:a"], heights: [1] }] })).toBeUndefined()
+  expect(v2({})).toEqual(x([0.3, 0.4, 0.3], y([0.5, 0.5], "agents", "usage"), "chat", "tasks"))
 })

@@ -400,7 +400,7 @@ completed; an uncertain reservation may already have sent work, so retry can
 duplicate side effects. Retry preserves hourly limits and workflow loop caps.
 See the
 [Workflows guide](docs/board.md#workflows) for trusted inputs, outputs and live resolution.
-Agents that work better with typed tools can use `tagent mcp`, a stdio MCP server with `task_show`, `task_move`, `task_comment` and `task_add`; see [docs/mcp.md](docs/mcp.md).
+Agents that work better with typed tools can use `tagent mcp`, a stdio MCP server with `task_show`, `task_move`, `task_comment`, `task_add`, `pane_add` and `pane_list`; see [docs/mcp.md](docs/mcp.md).
 
 See [docs/board.md](docs/board.md) for schema, migration and delivery guarantees.
 
@@ -595,7 +595,7 @@ A key missing from the file falls back to the tmux option. Prefer the file for t
 
 ### Custom panes
 
-Add your own pane without rebuilding: drop an HTML file into `~/.config/tagent/ui/` (next to `config.conf`), reload the web UI, and it appears under **Custom**. Each file is `<name>.html` (letters, digits, `-` and `_`).
+Add your own pane without rebuilding: drop an HTML file into `~/.config/tagent/ui/` (next to `config.conf`), or use **Add pane → New custom pane…** in the web header (a name and HTML, prefilled with a small working template). Each file is `<name>.html` (letters, digits, `-` and `_`, up to 64; at most 256 KiB when written from the UI or by an agent).
 
 ```html
 <!doctype html><meta charset="utf-8"><pre id="out"></pre>
@@ -606,10 +606,13 @@ Add your own pane without rebuilding: drop an HTML file into `~/.config/tagent/u
 </script>
 ```
 
+- A custom pane is a normal pane of the home layout (desktop and iPad): **Add pane** in the header lists the panes that are not shown (built-in and custom), and every pane has a remove (×) button in its header. Panes drag, dock, resize, maximize and persist like the others; **Reset layout** in Settings restores the default. A saved layout that names a deleted pane still loads, without it. **Delete <name>…** in the Add pane menu removes the file (after a confirmation). On a phone each custom pane is a tab. The older **Custom** page (`#/custom`) still lists them. Moving a pane in the layout reloads its frame, so keep state in `/api/ext/<name>/data`.
 - The pane runs in a sandboxed iframe (`sandbox="allow-scripts"`): it cannot read the app page, `localStorage` or the access cookie. It calls the API only through `tagent.api(path, {method, body})`.
-- `GET`/`PUT /api/ext/<name>/data` keeps JSON state in `<name>.json` next to the HTML, for the pane to save its own data.
-- **A pane is trusted code.** Through the bridge it can call any `/api/*` route, including starting agents and typing into terminals. Only add panes you wrote or have read. Panes are not isolated from each other, and can reach the network.
-- Panes are read from this folder only, never from a repo. Reload the web UI after adding or changing a pane; `location.reload()` inside a pane does not work, so reload the app instead.
+- `GET`/`PUT /api/ext/<name>/data` keeps JSON state in `<name>.json` next to the HTML, for the pane to save its own data. No pane can reach another pane's data, or the pane management and grant routes (`/api/ext…`); the app checks the path after decoding it (encoded characters, dot segments, repeated slashes, backslashes).
+- **A pane you wrote is trusted code.** Through the bridge it can call any `/api/*` route, including starting agents and typing into terminals. Only add panes you wrote or have read. Panes can reach the network.
+- **Panes agents add are read-only.** An agent adds a pane with the MCP tool `pane_add` or `tagent pane add <name> --file <path|->` (`tagent pane ls` lists them; see [docs/mcp.md](docs/mcp.md)). It is written atomically into the `ui` folder only, and an agent can change only a pane it created. The pane gets a sidecar `<name>.meta.json` (its creator, and a grant). Such a pane may only `GET` through the bridge, plus use its own data; the header shows an `agent · read-only` badge. **Allow actions** in the pane header lets it write too; the server stores that grant bound to a hash of the HTML, so any change to the file revokes it. Files without a sidecar (hand-written, or created in the UI) keep full access, so an agent that can run shell commands can still write a file there directly: only the MCP tool and CLI are fenced.
+- While the web UI is open, a new agent-made pane shows a toast, "Agent added pane X", with an **Add** button; it is never added to the layout by itself.
+- Panes are read from this folder only, never from a repo. Reload the web UI after changing a pane's HTML; `location.reload()` inside a pane does not work, so reload the app instead.
 
 ## Development
 

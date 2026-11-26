@@ -2,7 +2,10 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest"
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import App from "./App"
 import { api } from "@/api"
+import { toast } from "sonner"
+import { savePanes } from "@/lib/paneLayout"
 
+vi.mock("sonner", async o => ({ ...(await o<object>()), toast: vi.fn() }))
 vi.mock("@/api", () => ({ api: vi.fn().mockResolvedValue(undefined), act: vi.fn(), post: vi.fn() }))
 const st = vi.hoisted(() => ({ state: { host: "box", projects: ["/p"], agents: [] as Record<string, unknown>[], statuses: {} } }))
 vi.mock("@/state", () => ({ useAppState: () => ({ state: st.state, error: undefined }) }))
@@ -234,7 +237,7 @@ test("a run that fails to load names the project and offers the board", async ()
 
 test("the header shows Custom only when a custom pane exists", async () => {
   desktop()
-  vi.mocked(api).mockImplementation(async p => (p === "/api/ext" ? ["hello"] : undefined))
+  vi.mocked(api).mockImplementation(async p => (p === "/api/ext" ? [{ name: "hello", agent: false, actions: false }] : undefined))
   render(<App />)
   expect(await screen.findByRole("link", { name: "Custom" })).toBeTruthy()
 })
@@ -244,4 +247,94 @@ test("no custom panes, no Custom link", async () => {
   render(<App />)
   await waitFor(() => expect(vi.mocked(api)).toHaveBeenCalledWith("/api/ext"))
   expect(screen.queryByRole("link", { name: "Custom" })).toBeNull()
+})
+
+const exts = (...e: { name: string; agent?: boolean; actions?: boolean }[]) => {
+  const list = e.map(x => ({ agent: false, actions: false, ...x }))
+  vi.mocked(api).mockImplementation(async p => (p === "/api/ext" ? list : undefined))
+  return list
+}
+test("a custom pane in the saved layout is a home pane with its header; the Add pane menu offers one that is not", async () => {
+  desktop()
+  exts({ name: "notes" }, { name: "bot", agent: true })
+  savePanes({ axis: "x", sizes: [0.5, 0.5], children: ["chat", "ext:notes"] })
+  render(<App />)
+  expect(await screen.findByTitle("notes")).toBeTruthy()
+  expect(screen.queryByTitle("bot")).toBeNull()
+  expect(screen.getByRole("heading", { name: "notes" })).toBeTruthy()
+  fireEvent.keyDown(screen.getByRole("button", { name: "Add pane" }), { key: "Enter" })
+  expect(await screen.findByRole("menuitem", { name: /^bot/ })).toBeTruthy()
+  expect(screen.getByRole("menuitem", { name: "Agents" })).toBeTruthy()
+  expect(screen.queryByRole("menuitem", { name: "notes" })).toBeNull()
+  fireEvent.click(screen.getByRole("menuitem", { name: /^bot/ }))
+  expect(await screen.findByTitle("bot")).toBeTruthy()
+  expect(JSON.stringify(JSON.parse(localStorage.getItem("tagent.panes")!).root)).toContain("ext:bot")
+})
+
+test("a saved layout that names a deleted pane still loads, without it", async () => {
+  desktop()
+  exts({ name: "notes" })
+  savePanes({ axis: "x", sizes: [0.4, 0.3, 0.3], children: ["chat", "ext:gone", "ext:notes"] })
+  render(<App />)
+  expect(await screen.findByTitle("notes")).toBeTruthy()
+  expect(screen.queryByTitle("gone")).toBeNull()
+  expect(screen.getByText("Pick an agent")).toBeTruthy()
+})
+
+test("removing a pane from its header takes it out of the layout and the menu offers it again", async () => {
+  desktop()
+  exts({ name: "notes" })
+  savePanes({ axis: "x", sizes: [0.5, 0.5], children: ["chat", "ext:notes"] })
+  render(<App />)
+  await screen.findByTitle("notes")
+  fireEvent.click(screen.getByRole("button", { name: "Remove ext:notes pane" }))
+  expect(screen.queryByTitle("notes")).toBeNull()
+  expect(localStorage.getItem("tagent.panes")).not.toContain("ext:notes")
+  fireEvent.keyDown(screen.getByRole("button", { name: "Add pane" }), { key: "Enter" })
+  expect(await screen.findByRole("menuitem", { name: "notes" })).toBeTruthy()
+})
+
+test("an agent-made pane shows its badge and a switch for actions", async () => {
+  desktop()
+  exts({ name: "bot", agent: true }, { name: "bot2", agent: true, actions: true })
+  savePanes({ axis: "x", sizes: [0.4, 0.3, 0.3], children: ["chat", "ext:bot", "ext:bot2"] })
+  render(<App />)
+  await screen.findByTitle("bot")
+  expect(screen.getByText("agent · read-only")).toBeTruthy()
+  expect(screen.getByText("agent · actions allowed")).toBeTruthy()
+  expect(screen.getByRole("button", { name: "Allow actions" })).toBeTruthy()
+  expect(screen.getByRole("button", { name: "Revoke" })).toBeTruthy()
+})
+
+test("a new agent-made pane while the app is open is offered in a toast, not added", async () => {
+  desktop()
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  try {
+    exts({ name: "old", agent: true })
+    render(<App />)
+    await waitFor(() => expect(vi.mocked(api)).toHaveBeenCalledWith("/api/ext"))
+    await vi.advanceTimersByTimeAsync(10)
+    expect(toast).not.toHaveBeenCalled() // the first list is the baseline
+    exts({ name: "old", agent: true }, { name: "fresh", agent: true }, { name: "mine" })
+    await vi.advanceTimersByTimeAsync(5100)
+    await waitFor(() => expect(toast).toHaveBeenCalledTimes(1))
+    expect(vi.mocked(toast).mock.calls[0]![0]).toBe("Agent added pane fresh")
+    expect(screen.queryByTitle("fresh")).toBeNull()
+    expect(localStorage.getItem("tagent.panes")).toBeNull()
+    const action = (vi.mocked(toast).mock.calls[0]![1] as { action: { label: string; onClick: () => void } }).action
+    expect(action.label).toBe("Add")
+    action.onClick()
+    expect(await screen.findByTitle("fresh")).toBeTruthy()
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
+test("#/pane/ext:<name> opens a custom pane maximized", async () => {
+  exts({ name: "notes" })
+  location.hash = "#/pane/ext:notes"
+  render(<App />)
+  expect(await screen.findByTitle("notes")).toBeTruthy()
+  expect(document.querySelector('[data-max="ext:notes"]')).toBeTruthy()
+  expect(screen.getByRole("link", { name: "Minimize ext:notes pane" }).getAttribute("href")).toBe("#/")
 })

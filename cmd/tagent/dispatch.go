@@ -113,6 +113,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return cmdTask(rest, stdout, stderr)
 	case "mcp":
 		return cmdMCP(stdout, stderr)
+	case "pane":
+		return cmdPane(rest, stdout, stderr)
 	case "sessions":
 		return cmdSessions(rest, stdout, stderr)
 	case "web":

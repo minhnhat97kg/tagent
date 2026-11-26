@@ -11,11 +11,9 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"regexp"
-	"sort"
 	"strings"
 
-	"tagent/internal/settings"
+	"tagent/internal/panes"
 )
 
 //go:embed ext_sdk.js
@@ -26,42 +24,49 @@ const (
 	maxPaneData = 1 << 20
 )
 
-var paneName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$`)
+// uiDir and paneFile are the pane store's folder and a pane's HTML file (internal/panes).
+func uiDir() string               { return panes.Dir() }
+func paneFile(name string) string { return panes.File(name) }
 
-// uiDir is the folder of pane files, next to config.conf. A relative path (a relative XDG_CONFIG_HOME would
-// resolve against the working directory, maybe a repo) means no panes.
-func uiDir() string {
-	d := filepath.Dir(settings.Path())
-	if !filepath.IsAbs(d) {
-		return ""
+// extList is GET /api/ext: the panes, sorted, each with whether an agent made it and may act (see internal/panes).
+func (s *server) extList(w http.ResponseWriter, r *http.Request) { writeJSON(w, panes.List()) }
+
+// extCreate is POST /api/ext {name, html}: a pane the user writes in the UI (full access).
+func (s *server) extCreate(w http.ResponseWriter, r *http.Request) {
+	var in struct{ Name, HTML string }
+	if err := json.NewDecoder(io.LimitReader(r.Body, panes.MaxHTML+4096)).Decode(&in); err != nil {
+		fail(w, err)
+		return
 	}
-	return filepath.Join(d, "ui")
+	if err := panes.Create(in.Name, in.HTML); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	writeJSON(w, map[string]string{"name": in.Name})
 }
 
-// paneFile is the HTML file of a valid pane name, or "" when there is no such pane.
-func paneFile(name string) string {
-	dir := uiDir()
-	if dir == "" || !paneName.MatchString(name) {
-		return ""
+// extDelete is DELETE /api/ext/{name}.
+func (s *server) extDelete(w http.ResponseWriter, r *http.Request) {
+	if err := panes.Delete(r.PathValue("name")); err != nil {
+		http.NotFound(w, r)
+		return
 	}
-	f := filepath.Join(dir, name+".html")
-	if fi, err := os.Stat(f); err != nil || fi.IsDir() {
-		return ""
-	}
-	return f
+	w.Write([]byte("{}"))
 }
 
-// extList is GET /api/ext: the names of the panes, sorted.
-func (s *server) extList(w http.ResponseWriter, r *http.Request) {
-	names := []string{}
-	entries, _ := os.ReadDir(uiDir()) // a missing folder lists nothing
-	for _, e := range entries {
-		if name, ok := strings.CutSuffix(e.Name(), ".html"); ok && paneFile(name) != "" {
-			names = append(names, name)
-		}
+// extGrant is PUT /api/ext/{name}/grant {allow}: lets an agent's pane act, or takes that back. Only this user
+// action sets it, and it is bound to the HTML as it is now.
+func (s *server) extGrant(w http.ResponseWriter, r *http.Request) {
+	var in struct{ Allow bool }
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1024)).Decode(&in); err != nil {
+		fail(w, err)
+		return
 	}
-	sort.Strings(names)
-	writeJSON(w, names)
+	if err := panes.Grant(r.PathValue("name"), in.Allow); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	w.Write([]byte("{}"))
 }
 
 // extPane is GET /ext/{file}: only <name>.html. The CSP keeps the pane sandboxed even when its URL is opened on its own.

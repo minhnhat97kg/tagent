@@ -1,7 +1,7 @@
 # tagent MCP server
 
 `tagent mcp` runs a stdio MCP server (newline-delimited JSON-RPC 2.0, no extra
-dependencies). It exposes four typed ticket tools for agents that work better
+dependencies). It exposes four typed ticket tools and two web-pane tools for agents that work better
 with tools than with a CLI guide:
 
 | Tool | Required params | Optional params | Wraps |
@@ -10,6 +10,12 @@ with tools than with a CLI guide:
 | `task_move` | `id`, `to` | `comment`, `outputs` (object of string values) | `tasks.Move` + dispatcher registration |
 | `task_comment` | `id`, `text` | | `tasks.Comment` |
 | `task_add` | `text` | `to`, `priority` (enum high/normal/low), `workflow` | `tasks.Add` |
+| `pane_add` | `name`, `html` | | Same as `tagent pane add NAME --file PATH`: writes `<config dir>/ui/<name>.html` ([custom panes](../README.md#custom-panes)) |
+| `pane_list` | | | Same as `tagent pane ls`: each pane, and whether the user or an agent made it |
+
+A pane an agent adds is **read-only** in the web UI: its frame may only `GET`, plus read and write its own
+`/api/ext/<name>/data`. The user can add it to the layout and choose **Allow actions**; any later change to
+its HTML (including your own update) revokes that. You can only change a pane you created, never one the user wrote. Names are letters, digits, `-` and `_`; HTML is limited to 256 KiB.
 
 There is no delete tool. The server reads the working directory at start, so
 start it from the repository (or worktree) that holds the board.

@@ -1,6 +1,6 @@
 package main
 
-// `tagent mcp`: a stdio MCP server with four typed ticket tools for harnesses
+// `tagent mcp`: a stdio MCP server with typed ticket and pane tools for harnesses
 // and small models. Each tool calls the same internal/tasks code as the CLI;
 // nothing shells out. Newline-delimited JSON-RPC 2.0, stdlib only.
 
@@ -222,6 +222,23 @@ func mcpTools() []mcpTool {
 				}
 				return t.ID, nil
 			},
+		},
+		{
+			Name:        "pane_add",
+			Description: "Add or update a web pane (one HTML file) the user can put in the web UI layout. It is read-only (GET) until the user allows actions; you can only change a pane you created.",
+			InputSchema: schema([]string{"name", "html"}, map[string]any{
+				"name": str("Letters, digits, - and _, up to 64"),
+				"html": str("A complete HTML document; it may load /ext/sdk.js and call tagent.api(path)"),
+			}),
+			run: func(wd string, a map[string]any) (string, error) {
+				return paneAdd(argStr(a, "name"), argStr(a, "html"))
+			},
+		},
+		{
+			Name:        "pane_list",
+			Description: "List the web panes: name and who made it (user, or agent with its access).",
+			InputSchema: schema([]string{}, map[string]any{}),
+			run:         func(wd string, a map[string]any) (string, error) { return paneList(), nil },
 		},
 	}
 }

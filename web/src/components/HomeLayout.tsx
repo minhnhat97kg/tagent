@@ -3,14 +3,13 @@ import { createPortal } from "react-dom"
 import { GripVertical } from "lucide-react"
 import { PaneChromeContext } from "@/lib/paneChrome"
 import { SplitPane } from "@/components/SplitPane"
-import { buttonHolder, cells, DEFAULT_LAYOUT, defaultSizes, dropAt, fits, nodeAt, paneRect, PANES, panesOf, reopen, replace, settle, shutIndex, step, type Drop, type Layout, type PaneId, type Path, type Rect } from "@/lib/paneLayout"
+import { buttonHolder, cells, DEFAULT_LAYOUT, defaultSizes, dropAt, extName, fits, nodeAt, paneRect, paneTitle, panesOf, reopen, replace, settle, shutIndex, step, type Drop, type Layout, type PaneId, type Path, type Rect } from "@/lib/paneLayout"
 import { useMedia } from "@/hooks/useMedia"
 import { useSize } from "@/hooks/useSize"
 import { cn } from "@/lib/utils"
 
-export type PhoneTab = "agents" | "chat" | "tasks"
+export type PhoneTab = string // agents, chat, tasks, or a custom pane's id
 const TABS: { id: PhoneTab; label: string }[] = [{ id: "agents", label: "Agents" }, { id: "chat", label: "Chat" }, { id: "tasks", label: "Tasks" }]
-const NAMES: Record<PaneId, string> = { agents: "Agents", usage: "Usage", chat: "Chat", tasks: "Tasks" }
 // A press on one of these in a header is a click or typing, never the start of a drag. The grip is the exception.
 const NO_DRAG = "button, a, input, select, textarea, label, summary, [contenteditable], [role=button], [role=tab], [role^=menu]"
 const DRAG_PX = 6 // a press that moves less is a click
@@ -18,7 +17,7 @@ const DRAG_PX = 6 // a press that moves less is a click
 const SIDES = { above: "Above", below: "Below", left: "Left of", right: "Right of" }
 // dropLabel says where a drop lands: beside or in place of a pane, beside a group, or along the whole layout.
 function dropLabel({ zone, path }: Drop, layout: Layout, id: PaneId) {
-  const names = panesOf(nodeAt(layout, path)).filter(p => p !== id).map(p => NAMES[p]).join(" + ")
+  const names = panesOf(nodeAt(layout, path)).filter(p => p !== id).map(paneTitle).join(" + ")
   if (zone === "swap") return `Swap with ${names}`
   if (!path.length) return zone === "left" || zone === "right" ? `Full height ${zone}` : `Full width ${zone}`
   return `${SIDES[zone]} ${names}`
@@ -30,19 +29,22 @@ type Props = {
   onChange: (layout: Layout) => void
   tab: PhoneTab
   onTab: (tab: PhoneTab) => void
-  panes: Record<PaneId, ReactNode>
+  panes: Record<PaneId, ReactNode> // the built-in panes and every custom pane, "ext:<name>"
+  onRemove?: (id: PaneId) => void // shows each pane's remove button
 }
 
 // HomeLayout is the home view. On desktop it is a tree of split panes (Desktop). A phone shows one of Agents,
-// Chat and Tasks as tabs.
+// Chat and Tasks as tabs, then a tab for each custom pane.
 export function HomeLayout(props: Props) {
-  const { tab, onTab, panes } = props
+  const { onTab, panes } = props
   if (useMedia("(min-width: 768px)")) return <Desktop {...props} />
 
+  const tabs = [...TABS, ...Object.keys(panes).filter(id => extName(id)).map(id => ({ id, label: paneTitle(id) }))]
+  const tab = tabs.some(t => t.id === props.tab) ? props.tab : "agents" // a deleted pane's tab falls back
   return <div className="flex min-h-0 flex-1 flex-col gap-2">
-    <div role="tablist" aria-label="Home panes" className="flex shrink-0 gap-1 rounded-lg border bg-card p-0.5">
-      {TABS.map(t => <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} onClick={() => onTab(t.id)}
-        className={cn("h-8 flex-1 rounded-md text-[12.5px] font-medium", tab === t.id ? "bg-accent" : "text-muted-foreground")}>{t.label}</button>)}
+    <div role="tablist" aria-label="Home panes" className="flex shrink-0 gap-1 overflow-x-auto rounded-lg border bg-card p-0.5">
+      {tabs.map(t => <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} onClick={() => onTab(t.id)}
+        className={cn("h-8 flex-1 rounded-md px-2 text-[12.5px] font-medium whitespace-nowrap", tab === t.id ? "bg-accent" : "text-muted-foreground")}>{t.label}</button>)}
     </div>
     {tab === "agents" && <>
       <div className="max-h-[30%] min-h-0 overflow-y-auto">{panes.usage}</div>
@@ -50,20 +52,25 @@ export function HomeLayout(props: Props) {
     </>}
     {tab === "chat" && <div className="flex min-h-0 flex-1 flex-col">{panes.chat}</div>}
     {tab === "tasks" && <div className="flex min-h-0 flex-1 flex-col">{panes.tasks}</div>}
+    {extName(tab) && <div key={tab} className="flex min-h-0 flex-1 flex-col">{panes[tab]}</div>}
   </div>
 }
 
 // Desktop lays the panes out in nested rows and stacks, split by dividers that are dragged or moved with the
 // arrow keys. Dragging a pane's header docks it beside a pane, a group or the whole layout, or swaps two panes;
 // arrow keys on its grip move it.
-function Desktop({ saved, onChange, compact, panes }: Props) {
+function Desktop({ saved, onChange, onRemove, compact, panes }: Props) {
   const layout = saved ?? DEFAULT_LAYOUT
   const coarse = useMedia("(pointer: coarse)")
   const gap = compact ? (coarse ? 8 : 4) : (coarse ? 12 : 8) // the width SplitPane gives a divider
   const [root, { w, h }] = useSize()
   // Each pane renders into its own element, which moves between places. So a move never remounts a pane:
   // a chat draft and a terminal connection survive it.
-  const [hosts] = useState(() => Object.fromEntries(PANES.map(id => [id, Object.assign(document.createElement("div"), { className: "flex min-h-0 min-w-0 flex-1 flex-col" })])) as Record<PaneId, HTMLDivElement>)
+  const [hosts] = useState(() => new Map<PaneId, HTMLDivElement>())
+  const hostOf = (id: PaneId) => {
+    if (!hosts.has(id)) hosts.set(id, Object.assign(document.createElement("div"), { className: "flex min-h-0 min-w-0 flex-1 flex-col" }))
+    return hosts.get(id)!
+  }
   const [dragging, setDragging] = useState<{ id: PaneId; x: number; y: number; drop?: { label: string; rect: Rect } }>()
   const endDrag = useRef<(() => void) | undefined>(undefined)
   useEffect(() => () => endDrag.current?.(), [])
@@ -138,15 +145,15 @@ function Desktop({ saved, onChange, compact, panes }: Props) {
   }
 
   const render = (node: Layout, path: Path, area: Rect): ReactNode => {
-    if (typeof node === "string") return <Position key={node} id={node} host={hosts[node]} from={dragging?.id === node} />
+    if (typeof node === "string") return <Position key={node} id={node} host={hostOf(node)} from={dragging?.id === node} />
     const list = cells(node, area, gap)
     const shut = shutIndex(node)
     const open = node.children.flatMap((_, i) => (i === shut ? [] : [i]))
     const usage = node.axis === "y" ? open.findIndex(i => node.children[i] === "usage") : -1
-    const first = (i: number) => NAMES[panesOf(node.children[i]!)[0]!]
+    const first = (i: number) => paneTitle(panesOf(node.children[i]!)[0]!)
     // A shut Usage has no height, so its reopen button sits where it was, on a neighbour.
     const button = (where: string) => <button type="button" aria-label="Show usage" title="Show usage" onClick={() => onChange(reopen(layout))}
-      className={cn("h-8 shrink-0 px-2.5 text-left text-[12.5px] font-semibold hover:bg-accent", where)}>{NAMES.usage}</button>
+      className={cn("h-8 shrink-0 px-2.5 text-left text-[12.5px] font-semibold hover:bg-accent", where)}>{paneTitle("usage")}</button>
     return <SplitPane key={panesOf(node).join()} axis={node.axis} compact={compact} sizes={open.map(i => node.sizes[i]!)} defaults={defaultSizes(node.axis, open.length)}
       mins={open.map((i, k) => (k === usage ? 0 : list[i]!.min))} collapsible={usage < 0 ? undefined : usage}
       labels={open.slice(1).map((i, k) => `${first(open[k]!)} ${node.axis === "x" ? "and" : "over"} ${first(i)}`)}
@@ -171,18 +178,19 @@ function Desktop({ saved, onChange, compact, panes }: Props) {
       </div>}
     </div>
     {/* After the split, so each element is in the document before its pane's effects run. */}
-    {PANES.map(id => {
+    {panesOf(layout).map((id, _, all) => {
+      const single = all.length < 2 // the last pane stays
       const grip = <button type="button" data-pane-handle aria-label={`Move ${id} pane`} title="Drag to move, or use the arrow keys" onKeyDown={e => key(id, e)}
         className="-ml-1.5 flex h-6 w-5 shrink-0 cursor-grab items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground pointer-coarse:h-8">
         <GripVertical className="size-3.5" />
       </button>
-      return createPortal(<PaneChromeContext.Provider value={{ id, grip, onPointerDown: e => drag(id, e) }}>
+      return createPortal(<PaneChromeContext.Provider value={{ id, grip, onPointerDown: e => drag(id, e), onRemove: single || !onRemove ? undefined : () => onRemove(id) }}>
         {id === "tasks" ? panes.tasks : <Slot id={id}>{panes[id]}</Slot>}
-      </PaneChromeContext.Provider>, hosts[id], id)
+      </PaneChromeContext.Provider>, hostOf(id), id)
     })}
     {/* Above the pointer, so a finger does not cover it. */}
     {dragging && <div aria-hidden data-pane-chip style={{ left: dragging.x + 12, top: Math.max(4, dragging.y - 40) }}
-      className="pointer-events-none fixed z-50 rounded-md border bg-popover px-2 py-1 text-xs font-semibold text-popover-foreground shadow-md">{NAMES[dragging.id]}</div>}
+      className="pointer-events-none fixed z-50 rounded-md border bg-popover px-2 py-1 text-xs font-semibold text-popover-foreground shadow-md">{paneTitle(dragging.id)}</div>}
   </>
 }
 

@@ -346,3 +346,63 @@ test("minimum widths follow the panes in a column", () => {
   const min = (id: PaneId) => (slot(id).closest('[style*="min-width: "]') as HTMLElement).style.minWidth
   expect([min("usage"), min("chat"), min("agents")]).toEqual(["280px", "220px", "220px"])
 })
+
+// A custom pane in the layout: it moves, docks and is removed like the built-in ones.
+let extMounts = 0
+function Notes() {
+  const [text, setText] = useState("")
+  useEffect(() => { extMounts++ }, [])
+  return <Panel title="notes"><textarea aria-label="notes draft" value={text} onChange={e => setText(e.target.value)} /></Panel>
+}
+function LiveExt({ first, onRemove }: { first: Layout; onRemove: (id: PaneId) => void }) {
+  const [saved, setSaved] = useState(first)
+  return <HomeLayout saved={saved} onChange={setSaved} onRemove={onRemove} tab="agents" onTab={() => {}} panes={{ ...titled(), "ext:notes": <Notes /> }} />
+}
+const withNotes: Layout = { axis: "x", sizes: [0.22, 0.43, 0.35], children: [{ axis: "y", sizes: [0.65, 0.35], children: ["agents", "usage"] }, "chat", "ext:notes"] }
+
+test("a custom pane has its own header with a remove button, a grip and a maximize link", () => {
+  const onRemove = vi.fn()
+  render(<LiveExt first={withNotes} onRemove={onRemove} />)
+  expect(screen.getByRole("link", { name: "Maximize ext:notes pane" }).getAttribute("href")).toBe("#/pane/ext:notes")
+  fireEvent.click(screen.getByRole("button", { name: "Remove ext:notes pane" }))
+  expect(onRemove).toHaveBeenCalledWith("ext:notes")
+  expect(screen.getAllByRole("button", { name: /^Remove / })).toHaveLength(5 - 1) // every pane, tasks is not in this layout
+})
+
+test("the last pane has no remove button, and without onRemove none has", () => {
+  const { unmount } = render(<HomeLayout saved="chat" onChange={vi.fn()} onRemove={vi.fn()} tab="agents" onTab={() => {}} panes={titled()} />)
+  expect(screen.queryByRole("button", { name: /^Remove / })).toBeNull()
+  unmount()
+  view()
+  expect(screen.queryByRole("button", { name: /^Remove / })).toBeNull()
+})
+
+test("moving a custom pane keeps its component state", () => {
+  extMounts = 0
+  render(<LiveExt first={withNotes} onRemove={vi.fn()} />)
+  fireEvent.change(screen.getByLabelText("notes draft"), { target: { value: "keep me" } })
+  grip("ext:notes").focus()
+  fireEvent.keyDown(grip("ext:notes"), { key: "ArrowLeft" })
+  expect(shown()).not.toBe("x(y(agents usage) chat ext:notes)")
+  expect((screen.getByLabelText("notes draft") as HTMLTextAreaElement).value).toBe("keep me")
+  expect(extMounts).toBe(1)
+})
+
+test("a layout that names a pane with no content still renders the rest", () => {
+  render(<HomeLayout saved={{ axis: "x", sizes: [0.5, 0.5], children: ["chat", "ext:gone"] }} onChange={vi.fn()} tab="agents" onTab={() => {}} panes={titled()} />)
+  expect(screen.getByLabelText("draft")).toBeTruthy()
+})
+
+test("a phone has a tab for each custom pane, and a tab for a deleted pane falls back to Agents", () => {
+  window.matchMedia = ((q: string) => ({ matches: false, media: q, addEventListener: () => {}, removeEventListener: () => {} })) as unknown as typeof window.matchMedia
+  const onTab = vi.fn()
+  const all = { ...panes(), "ext:notes": <p>Notes pane</p> }
+  const { rerender } = render(<HomeLayout onChange={vi.fn()} tab="ext:notes" onTab={onTab} panes={all} />)
+  expect(screen.getByText("Notes pane")).toBeTruthy()
+  expect(screen.getByRole("tab", { name: "notes", selected: true })).toBeTruthy()
+  fireEvent.click(screen.getByRole("tab", { name: "Chat" }))
+  expect(onTab).toHaveBeenCalledWith("chat")
+  rerender(<HomeLayout onChange={vi.fn()} tab="ext:notes" onTab={onTab} panes={panes()} />)
+  expect(screen.getByText("Agents pane")).toBeTruthy()
+  expect(screen.getByRole("tab", { name: "Agents", selected: true })).toBeTruthy()
+})

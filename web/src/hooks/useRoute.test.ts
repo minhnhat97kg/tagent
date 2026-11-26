@@ -32,3 +32,10 @@ test.each([
 ])("%s", (route, want) => {
   expect(parseRoute(route)).toEqual(want)
 })
+
+test("a custom pane maximizes at #/pane/ext:<name>; a bad name is home", () => {
+  expect(parseRoute("/pane/ext:notes")).toEqual({ page: "pane", pane: "ext:notes" })
+  expect(parseRoute("/pane/ext%3Anotes")).toEqual({ page: "pane", pane: "ext:notes" })
+  expect(parseRoute("/pane/ext:../x")).toEqual({ page: "home" })
+  expect(parseRoute("/pane/ext:")).toEqual({ page: "home" })
+})

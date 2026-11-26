@@ -49,7 +49,8 @@ task move id status [--output k=v]... [comment]  Handoff along configured transi
   workplace prune [--dry-run|--yes]  Remove clean, merged ticket worktrees of done or deleted tickets (dry run unless --yes)
   task rm id                   Delete a task
   task [ls] from a chat pane   Listing is read-only; a chat pane may only change its own ticket
-  mcp                          stdio MCP server for small models: task_show, task_move, task_comment, task_add (docs/mcp.md)
+  mcp                          stdio MCP server for small models: task_show, task_move, task_comment, task_add, pane_add, pane_list (docs/mcp.md)
+  pane add NAME --file PATH|-  Add or update your web pane (read-only until the user allows actions); pane ls lists panes
   stats [ls|clear]             View or clear Claude/Codex/OpenCode/Pi usage
   ctx [--global] ...           Share notes (ls, add, rm, clear, scope)
   ask [--role name] text       Delegate to an idle agent or start one

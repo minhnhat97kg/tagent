@@ -1,5 +1,5 @@
 import { useContext, type ReactNode } from "react"
-import { Maximize2, Minimize2 } from "lucide-react"
+import { Maximize2, Minimize2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { PaneChromeContext } from "@/lib/paneChrome"
 import { cn } from "@/lib/utils"
@@ -15,6 +15,8 @@ export function PaneHeader({ as: Tag = "header", pane, className, children }: { 
     className={cn("flex items-center gap-1.5", chrome?.onPointerDown && "cursor-grab touch-none select-none [-webkit-touch-callout:none]", className)}>
     {chrome?.grip}
     {children}
+    {chrome?.onRemove && !max && <Button variant="ghost" size="icon-xs" aria-label={`Remove ${id} pane`} title="Remove from the layout" onClick={chrome.onRemove}
+      className="pointer-coarse:size-8 pointer-fine:opacity-0 pointer-fine:group-focus-within/pane:opacity-100 pointer-fine:group-hover/pane:opacity-100"><X /></Button>}
     {chrome && <Button asChild variant="ghost" size="icon-xs"
       // A mouse sees the maximize link on hover or focus; touch and the way back always show.
       className={cn("pointer-coarse:size-8", !max && "pointer-fine:opacity-0 pointer-fine:group-focus-within/pane:opacity-100 pointer-fine:group-hover/pane:opacity-100")}>

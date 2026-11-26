@@ -2,8 +2,11 @@
 // fractions of it. Every pane appears exactly once, a split has at least two children, and none has the axis of
 // its parent. Saved per device. The older v:2 and v:3 layouts are converted; anything else reads as none (the
 // default). The operations here are pure.
+//
+// A pane is one of the four built-in ones or a custom pane, "ext:<name>". A layout holds any of them, at least
+// one; a built-in that is not in it can be added back.
 
-export type PaneId = "agents" | "usage" | "chat" | "tasks"
+export type PaneId = string
 export type Axis = "x" | "y"
 export type Split = { axis: Axis; sizes: number[]; children: Layout[] }
 export type Layout = PaneId | Split
@@ -15,11 +18,17 @@ export type Rect = { left: number; top: number; width: number; height: number }
 export type Path = number[]
 
 export const PANES: PaneId[] = ["agents", "usage", "chat", "tasks"]
+export const TITLES: Record<string, string> = { agents: "Agents", usage: "Usage", chat: "Chat", tasks: "Tasks" }
+export const extId = (name: string) => `ext:${name}`
+// extName is the custom pane's name, or undefined for a built-in (or anything else).
+export const extName = (id: PaneId) => (/^ext:[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/.test(id) ? id.slice(4) : undefined)
+export const paneTitle = (id: PaneId) => TITLES[id] ?? extName(id) ?? id
 export const DEFAULT_LAYOUT: Split = {
   axis: "x", sizes: [0.22, 0.43, 0.35],
   children: [{ axis: "y", sizes: [0.65, 0.35], children: ["agents", "usage"] }, "chat", "tasks"],
 }
-export const MIN_WIDTH: Record<PaneId, number> = { agents: 220, usage: 220, chat: 220, tasks: 280 }
+const MIN_WIDTH: Record<string, number> = { agents: 220, usage: 220, chat: 220, tasks: 280 }
+const minWidth = (id: PaneId) => MIN_WIDTH[id] ?? 220
 export const MIN_HEIGHT = 128
 export const SHUT_HEIGHT = 32 // the reopen button of a shut Usage
 const EDGE = 0.25 // this share of a pane's width or height, from each side, docks beside it
@@ -51,6 +60,25 @@ export function replace(root: Layout, path: Path, node: Layout): Layout {
   return { ...split, children: split.children.map((c, k) => (k === i ? replace(c, rest, node) : c)) }
 }
 
+// removePane takes a pane out; its neighbours share its room. The last pane stays: undefined.
+export function removePane(root: Layout, id: PaneId): Layout | undefined {
+  const rest = panesOf(root).includes(id) ? without(root, id) : undefined
+  return rest && normalize(rest)
+}
+
+// prune drops the panes keep refuses, e.g. custom panes that are gone. All gone: undefined (the default).
+export function prune(root: Layout, keep: (id: PaneId) => boolean): Layout | undefined {
+  return panesOf(root).filter(id => !keep(id)).reduce<Layout | undefined>((l, id) => l && removePane(l, id), root)
+}
+
+// addPane puts a pane that is not in the layout beside the rest, in a new column (a fifth to a half of the width), or in a new row when the layout already has four columns.
+export function addPane(root: Layout, id: PaneId): Layout {
+  if (panesOf(root).includes(id)) return root
+  const rows = typeof root !== "string" && root.axis === "x" && root.children.length >= 4
+  const share = rows ? 0.3 : Math.max(0.2, 1 / (panesOf(root).length + 1))
+  return normalize({ axis: rows ? "y" : "x", sizes: [1 - share, share], children: [root, id] })
+}
+
 // shutIndex is where a split holds a shut Usage, or -1. Only Usage shuts, and only when it is stacked.
 export const shutIndex = (s: Split) => (s.axis === "y" ? s.children.findIndex((c, i) => c === "usage" && s.sizes[i] === 0) : -1)
 // buttonHolder is the child that carries the reopen button: the one above the shut pane, else the one below it.
@@ -80,7 +108,7 @@ export function reopen(node: Layout): Layout {
   return { ...node, sizes, children: node.children.map(reopen) }
 }
 
-const NEW = "new" as PaneId // holds the moved pane's place until its old one is gone
+const NEW: PaneId = "new" // holds the moved pane's place until its old one is gone
 const without = (node: Layout, id: PaneId): Layout | undefined => {
   if (typeof node === "string") return node === id ? undefined : node
   const kept = node.children.flatMap((c, i) => { const n = without(c, id); return n ? [[n, node.sizes[i]!] as const] : [] })
@@ -205,7 +233,7 @@ export function dropAt(root: Layout, id: PaneId, target: PaneId, x: number, y: n
 
 // minSize is the smallest width and height that hold every pane of a node at its minimum, with gap px per divider.
 export function minSize(node: Layout, gap: number): { width: number; height: number } {
-  if (typeof node === "string") return { width: MIN_WIDTH[node], height: MIN_HEIGHT }
+  if (typeof node === "string") return { width: minWidth(node), height: MIN_HEIGHT }
   const shut = shutIndex(node)
   const open = node.children.filter((_, i) => i !== shut).map(c => minSize(c, gap))
   const gaps = gap * (open.length - 1)
@@ -293,12 +321,14 @@ const isPanes = (v: unknown): v is PaneId[] => Array.isArray(v) && v.length === 
 
 // A saved node is usable when only a stacked Usage has no size.
 function isNode(v: unknown): v is Layout {
-  if (typeof v === "string") return PANES.includes(v as PaneId)
+  if (typeof v === "string") return PANES.includes(v) || extName(v) !== undefined
   const s = v as Split | null
   return (s?.axis === "x" || s?.axis === "y") && Array.isArray(s.children) && s.children.length > 0 && isFractions(s.sizes, s.children.length)
     && s.children.every((c, i) => isNode(c) && (s.sizes[i]! > 0 || (s.axis === "y" && c === "usage")))
 }
-const usable = (v: unknown): Layout | undefined => (isNode(v) && isPanes(panesOf(v)) ? normalize(v) : undefined)
+// Panes appear once each. A v:4 layout may lack built-in panes or hold custom ones; the older kinds hold all four.
+const once = (ids: PaneId[]) => new Set(ids).size === ids.length
+const usable = (v: unknown, all = true): Layout | undefined => (isNode(v) && (all ? isPanes(panesOf(v)) : once(panesOf(v))) ? normalize(v) : undefined)
 
 // v:3 was a row of columns, each a stack of panes.
 function fromColumns(columns: unknown): Layout | undefined {
@@ -326,7 +356,7 @@ function fromV2(s: { cols?: unknown; left?: unknown; order?: unknown }): Layout 
 export function loadPanes(): Layout | undefined {
   try {
     const s = JSON.parse(localStorage.getItem(KEY) ?? "null")
-    return s?.v === 4 ? usable(s.root) : s?.v === 3 ? fromColumns(s.columns) : s?.v === 2 ? fromV2(s) : undefined
+    return s?.v === 4 ? usable(s.root, false) : s?.v === 3 ? fromColumns(s.columns) : s?.v === 2 ? fromV2(s) : undefined
   } catch {
     return undefined
   }
