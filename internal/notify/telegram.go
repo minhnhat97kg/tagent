@@ -51,7 +51,7 @@ const (
 	maxChunks     = 3    // longest reply sent, in messages; the end is kept
 	maxUnits      = 3800 // Telegram caps a message at 4096 UTF-16 units; the rest is wrappers
 	nameRunes     = 40
-	alertDedupe   = time.Minute
+	alertDedupe   = 15 * time.Minute // one card per open dialog; answering releases it
 	replyTimeout  = 11 * time.Minute // tagent send waits up to 10m
 	exitTimeout   = 124              // tagent wait's timeout exit code
 	pollSeconds   = 25
@@ -66,10 +66,11 @@ var (
 	detachAlert = spawnAlert                 // seam: tests run the alert inline
 	envPath     = defaultEnvPath             // seam: tests point at a temp file
 	polling     atomic.Bool
+	commandsFor atomic.Value // the token whose command menu is registered
 
 	nameRe = regexp.MustCompile(`^%?[\w.\-/]+$`)
 	paneRe = regexp.MustCompile(`^%\d+$`)
-	keyRe  = regexp.MustCompile(`^[0-9yn]$`) // ponytail: one-digit keys only, menus with 10+ options cannot be tapped; follow-up ticket
+	keyRe  = regexp.MustCompile(`^([0-9]{1,2}|y|n)$`)
 
 	ignoredMu sync.Mutex
 	ignored   = map[int64]bool{}
@@ -235,6 +236,13 @@ func claimAlert(chat int64, pane, hash string) bool {
 	return claimed
 }
 
+// releaseAlert forgets a claim: the send failed, or the dialog was answered.
+func releaseAlert(chat int64, pane string) {
+	updateState(func(st *tgState) { delete(st.Alerts, strconv.FormatInt(chat, 10)+"|"+pane) })
+}
+
+func testingBinary() bool { return testing.Testing() }
+
 // ── Telegram API ──────────────────────────────────────────────────────────
 
 // tgCall posts one Bot API method. Errors never contain the token: net/http
@@ -298,7 +306,7 @@ type callback struct {
 }
 
 // sendMsg posts HTML text. A non-zero agent makes the message a reply route to it.
-func sendMsg(ctx context.Context, token string, chat int64, text string, markup any, a agentPane) {
+func sendMsg(ctx context.Context, token string, chat int64, text string, markup any, a agentPane) error {
 	params := map[string]any{"chat_id": chat, "text": text, "parse_mode": "HTML", "disable_web_page_preview": true}
 	if markup != nil {
 		params["reply_markup"] = markup
@@ -307,12 +315,12 @@ func sendMsg(ctx context.Context, token string, chat int64, text string, markup 
 		ID int64 `json:"message_id"`
 	}
 	if err := tgCall(ctx, token, "sendMessage", params, &sent); err != nil {
-		// ponytail: the error is dropped, so a failed alert keeps its dedupe claim for 60 s; return it and release the claim, follow-up ticket
-		return
+		return err
 	}
 	if a.ID != "" {
 		rememberMessage(chat, sent.ID, a)
 	}
+	return nil
 }
 
 func say(cfg tgConfig, chat int64, text string) {
@@ -324,7 +332,7 @@ func say(cfg tgConfig, chat int64, text string) {
 func sayAbout(cfg tgConfig, chat int64, a agentPane, text string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	sendMsg(ctx, cfg.token, chat, firstPiece(text), nil, a)
+	_ = sendMsg(ctx, cfg.token, chat, firstPiece(text), nil, a)
 }
 
 // ── outbound: Send and alerts ─────────────────────────────────────────────
@@ -364,49 +372,72 @@ func SendTelegramAlert(pane, title, body string) {
 	}
 }
 
-// alert sends title and body to chat. With a pane it adds one button per
-// dialog option; a tap answers through the same `tagent answer` path.
+// alert sends title and body to chat as a card. For a pane with an open dialog
+// it adds one button per option; a tap answers through the same `tagent answer`
+// path.
 func alert(ctx context.Context, token string, chat int64, title, body string, a agentPane) {
-	raw := title + "\n" + body
 	if a.ID == "" {
-		sendMsg(ctx, token, chat, firstPiece(raw), nil, agentPane{})
+		text, markup := noticeCard(title, body)
+		_ = sendMsg(ctx, token, chat, text, markup, agentPane{})
 		return
 	}
-	opts := dialogOpts(ctx, a.ID)
-	// A hook can fire before the dialog is drawn: retry briefly while waiting.
-	for i := 0; len(opts) == 0 && i < 3 && isWaiting(a.ID); i++ {
+	permission := isPermission(body)
+	question, opts := readDialog(ctx, a.ID)
+	// A hook can fire before the dialog is drawn: retry briefly.
+	for i := 0; len(opts) == 0 && i < 3 && (permission || isWaiting(a.ID)); i++ {
 		time.Sleep(300 * time.Millisecond)
-		opts = dialogOpts(ctx, a.ID)
+		question, opts = readDialog(ctx, a.ID)
+	}
+	// Auto mode reports permission checks that never ask anyone: no dialog and
+	// not waiting means there is nothing for the user to do.
+	if permission && len(opts) == 0 && !isWaiting(a.ID) {
+		return
 	}
 	hash := dialogHash(a.ID, opts)
+	if len(opts) == 0 && permission {
+		hash = "waiting" // an unparsed screen keeps changing; still one card
+	}
 	if !claimAlert(chat, a.ID, hash) {
 		return
 	}
-	var markup any
+	var rows [][]button
+	screen := ""
 	if len(opts) > 0 {
-		var rows [][]map[string]string
 		for _, o := range opts {
-			rows = append(rows, []map[string]string{{"text": trunc(o.Key+"  "+o.Label, 40), "callback_data": "a|" + a.ID + "|" + o.Key + "|" + hash}})
+			rows = append(rows, []button{btn(trunc(o.Key+"  "+o.Label, 40), "a|"+a.ID+"|"+o.Key+"|"+dialogHash(a.ID, opts))})
 		}
-		markup = map[string]any{"inline_keyboard": rows}
+		out, _ := tmux.CaptureTail(a.ID, 40)
+		screen = dialogContext(out, question, opts)
 	}
-	sendMsg(ctx, token, chat, firstPiece(raw), markup, a)
+	rows = append(rows, []button{btn("👀 Screen", "s|"+a.ID), btn("💬 Chat", "u|"+a.label())})
+	if len(opts) == 0 {
+		question = ""
+	}
+	text := alertCard(a, paneContext(ctx, a.ID), title, body, question, screen)
+	if sendMsg(ctx, token, chat, text, keyboard(rows...), a) != nil {
+		releaseAlert(chat, a.ID)
+	}
 }
 
 type dialogOpt struct{ Key, Label string }
 
-// dialogOpts reads the open dialog's options with `tagent answer <pane> ?`.
-func dialogOpts(ctx context.Context, pane string) []dialogOpt {
+// readDialog reads the open dialog's question and options with `tagent answer <pane> ?`.
+func readDialog(ctx context.Context, pane string) (question string, opts []dialogOpt) {
 	out, _, code := runTagent(ctx, "answer", pane, "?")
 	if code != 0 {
-		return nil
+		return "", nil
 	}
-	var opts []dialogOpt
-	for _, l := range strings.Split(strings.TrimSpace(out), "\n")[1:] { // line 0 is the question
+	lines := strings.Split(strings.TrimSpace(out), "\n")
+	for _, l := range lines[1:] {
 		if f := strings.Fields(l); len(f) >= 2 {
 			opts = append(opts, dialogOpt{Key: f[0], Label: strings.Join(f[1:], " ")})
 		}
 	}
+	return strings.TrimSpace(lines[0]), opts
+}
+
+func dialogOpts(ctx context.Context, pane string) []dialogOpt {
+	_, opts := readDialog(ctx, pane)
 	return opts
 }
 
@@ -577,6 +608,13 @@ func PollTelegram(dirs func() []string) {
 			return
 		}
 		defer unlock()
+		if commandsFor.Load() != cfg.token {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			if registerCommands(ctx, cfg.token) == nil {
+				commandsFor.Store(cfg.token)
+			}
+			cancel()
+		}
 		if err := pollOnce(cfg, dirs); err != nil {
 			time.Sleep(5 * time.Second)
 		}
@@ -712,10 +750,13 @@ func handleMessage(cfg tgConfig, m message, dirs func() []string) {
 		say(cfg, chat, "target: "+arg)
 		return
 	case "/agents":
-		sendAgents(cfg, chat, "")
+		sendView(cfg, dirs, chat, "agents")
 		return
-	case "/start", "/help":
-		sendAgents(cfg, chat, helpText)
+	case "/tickets":
+		sendView(cfg, dirs, chat, "tickets")
+		return
+	case "/start", "/help", "/status":
+		sendView(cfg, dirs, chat, "home")
 		return
 	}
 	if !forwardable(text) {
@@ -724,7 +765,7 @@ func handleMessage(cfg tgConfig, m message, dirs func() []string) {
 	}
 	target, _ := loadState().Targets[strconv.FormatInt(chat, 10)]
 	if target == "" { // nothing chosen yet: explain instead of guessing
-		sendAgents(cfg, chat, helpText)
+		sendView(cfg, dirs, chat, "home")
 		return
 	}
 	background(func() { deliver(cfg, dirs, chat, target, text, true) })
@@ -737,7 +778,8 @@ const helpText = `Pick an agent first, then send plain text to it.
 @name text    one message to another agent
 /agents       list agents
 /help         this message
-Reply to a bot message to answer that agent.`
+Reply to a bot message to answer that agent.
+/tickets      open tickets`
 
 // forwardable: "/" would run harness commands (/clear, /exit) and "!" is a
 // shell escape that skips permission prompts.
@@ -745,34 +787,22 @@ func forwardable(text string) bool {
 	return !strings.HasPrefix(text, "/") && !strings.HasPrefix(text, "!")
 }
 
-// sendAgents lists agent panes with status under header, one button per agent
-// to /use it.
-func sendAgents(cfg tgConfig, chat int64, header string) {
-	var b strings.Builder
-	if header != "" {
-		b.WriteString(header + "\n\n")
-	}
-	var rows [][]map[string]string
-	button := func(name string) {
-		if nameRe.MatchString(name) && len("u|"+name) <= 64 { // Telegram callback_data cap
-			rows = append(rows, []map[string]string{{"text": trunc(name, 40), "callback_data": "u|" + name}})
-		}
-	}
-	for _, a := range listAgents() {
-		fmt.Fprintf(&b, "%s  %s\n", a.label(), a.Status)
-		button(a.label())
-	}
-	if _, ok := matchAgent(cfg.defaultAgent); !ok {
-		fmt.Fprintf(&b, "%s  not running (default)\n", cfg.defaultAgent)
-		button(cfg.defaultAgent)
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+// sendView sends a menu page as a new message.
+func sendView(cfg tgConfig, dirs func() []string, chat int64, page string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	var markup any
-	if len(rows) > 0 {
-		markup = map[string]any{"inline_keyboard": rows}
+	text, markup := view(ctx, cfg, dirs, page, strconv.FormatInt(chat, 10))
+	_ = sendMsg(ctx, cfg.token, chat, text, markup, agentPane{})
+}
+
+// registerCommands fills the bot's command menu.
+func registerCommands(ctx context.Context, token string) error {
+	cmd := func(name, what string) map[string]string {
+		return map[string]string{"command": name, "description": what}
 	}
-	sendMsg(ctx, cfg.token, chat, firstPiece(strings.TrimRight(b.String(), "\n")), markup, agentPane{})
+	return tgCall(ctx, token, "setMyCommands", map[string]any{"commands": []map[string]string{
+		cmd("start", "Overview"), cmd("agents", "Agents and who to chat with"), cmd("tickets", "Open tickets"), cmd("help", "How to talk to agents"),
+	}}, nil)
 }
 
 // deliver resolves target (starting it if needed) and sends text. With
@@ -839,9 +869,9 @@ func reply(ctx context.Context, token string, chat int64, a agentPane) {
 			text = "<pre>" + text + "</pre>"
 		}
 		if i == 0 {
-			text = "<b>" + html.EscapeString(trunc(a.label(), nameRunes)) + "</b>\n" + text
+			text = "💬 <b>" + html.EscapeString(trunc(a.label(), nameRunes)) + "</b>\n" + rule + "\n" + text
 		}
-		sendMsg(ctx, token, chat, text, nil, a)
+		_ = sendMsg(ctx, token, chat, text, nil, a)
 	}
 }
 
@@ -924,7 +954,8 @@ func lockTarget(key string) func() {
 }
 
 // handleCallback: "a|<pane>|<key>|<hash>" answers a dialog if it is still the
-// one that was alerted; "u|<name>" sets the chat's target.
+// one that was alerted; "u|<name>" sets the chat's target; "n|<page>" shows a
+// menu page in place; "s|<pane>" sends the pane's screen.
 func handleCallback(cfg tgConfig, cb callback, dirs func() []string) {
 	chat := cb.Message.Chat.ID
 	ctx, cancel := context.WithTimeout(context.Background(), replyTimeout)
@@ -933,12 +964,35 @@ func handleCallback(cfg tgConfig, cb callback, dirs func() []string) {
 		_ = tgCall(ctx, cfg.token, "answerCallbackQuery", map[string]any{"callback_query_id": cb.ID, "text": text}, nil)
 	}
 	parts := strings.Split(cb.Data, "|")
+	// buttons replaces the tapped message's keyboard with one line saying what happened.
+	outcome := func(text string) {
+		_ = tgCall(ctx, cfg.token, "editMessageReplyMarkup", map[string]any{"chat_id": chat, "message_id": cb.Message.ID,
+			"reply_markup": keyboard([]button{btn(trunc(text, 60), "x")})}, nil)
+	}
 	switch {
+	case len(parts) == 2 && parts[0] == "n" && (parts[1] == "home" || parts[1] == "agents" || parts[1] == "tickets"):
+		text, markup := view(ctx, cfg, dirs, parts[1], strconv.FormatInt(chat, 10))
+		_ = tgCall(ctx, cfg.token, "editMessageText", map[string]any{"chat_id": chat, "message_id": cb.Message.ID,
+			"text": text, "parse_mode": "HTML", "reply_markup": markup}, nil)
+		answer("")
+	case len(parts) == 2 && parts[0] == "s" && paneRe.MatchString(parts[1]):
+		a, ok := matchAgent(parts[1])
+		if !ok {
+			answer("that agent is gone")
+			return
+		}
+		screen, _ := tmux.CaptureTail(a.ID, 30)
+		text := card("👀", a.label()+" · "+a.ID, nil, "<pre>"+esc(strings.TrimRight(screen, "\n "), bodyUnits)+"</pre>")
+		_ = sendMsg(ctx, cfg.token, chat, text, keyboard([]button{btn("💬 Chat", "u|"+a.label())}), a)
+		answer("")
 	case len(parts) == 4 && parts[0] == "a" && paneRe.MatchString(parts[1]) && keyRe.MatchString(parts[2]):
 		pane, key, hash := parts[1], parts[2], parts[3]
 		a, ok := matchAgent(pane)
-		if !ok || a.Status != tmux.StatusWaiting || dialogHash(pane, dialogOpts(ctx, pane)) != hash {
+		opts := dialogOpts(ctx, pane)
+		if !ok || a.Status != tmux.StatusWaiting || dialogHash(pane, opts) != hash {
 			answer("dialog changed")
+			outcome("⌛ Dialog closed")
+			releaseAlert(chat, pane)
 			if ok && a.Status == tmux.StatusWaiting {
 				alert(ctx, cfg.token, chat, a.label(), "is still waiting", a)
 			}
@@ -949,6 +1003,14 @@ func handleCallback(cfg tgConfig, cb callback, dirs func() []string) {
 			return
 		}
 		answer("sent " + key)
+		label := key
+		for _, o := range opts {
+			if o.Key == key {
+				label += "  " + o.Label
+			}
+		}
+		outcome("✅ Answered: " + label)
+		releaseAlert(chat, pane)
 	case len(parts) == 2 && parts[0] == "u" && nameRe.MatchString(parts[1]):
 		updateState(func(st *tgState) {
 			if st.Targets == nil {

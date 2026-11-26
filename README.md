@@ -577,6 +577,12 @@ Set options with `set -g …` before loading the plugin, or use `tagent config`.
 | `@agent_telegram_agent` | `receptionist` | offered in the agent list; a chosen target that is gone falls back here. Until `/use` picks a target, plain text is answered with help (also `/start`, `/help`) |
 | `@agent_theme` | `light` | `dark` / `light`; `@agent_color_<token>`, `@agent_icon_<token>` override single colors/icons |
 
+Messages are cards: who (agent, pane), where (ticket, project, branch) and what is asked,
+with one button per dialog option plus **Screen** and **Chat**. A tapped dialog shows its
+outcome in place of the buttons. `/start` (overview), `/agents` and `/tickets` open a menu
+that updates in place, and the same commands appear in the bot's command menu. Permission
+checks that open no dialog (auto mode) are not sent.
+
 Put the settings in `~/.config/tagent/telegram.env` (tagent keeps it `0600`):
 
 ```
