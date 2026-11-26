@@ -147,7 +147,7 @@
 .comment-form input[type=file] { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
 
 /* Docked drawer: the board keeps room beside it when its Tasks pane is wide; a narrower pane lets the drawer overlay. */
-@container (min-width: 1420px) { .task-board.has-drawer { padding-right: 520px; } }
+@container (min-width: 1000px) { .task-board.has-drawer { padding-right: 520px; } }
 .tasks-pane { container-type: inline-size; }
 
 /* Tabs: Details / Activity / Run. The strip sits under the ticket's own
