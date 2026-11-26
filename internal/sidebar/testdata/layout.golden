@@ -1003,7 +1003,7 @@ tagent · tagent                                                                
 │ ~~~~~~~~~~~~~~ call me if you need       ││                                                                                   │
 │ ~~~~~~~~~~~~~~ anything                  ││                                                                                   │
 ╰──────────────────────────────────────────╯╰───────────────────────────────────────────────────────────────────────────────────╯
-Tab/S-Tab panel  ↑↓ select  enter open  N new agent  l log  i prompt  f handoff  t definitions  ? help                          …
+Tab/S-Tab panel  ↑↓ select  enter open  N new agent  l log  i prompt  R rename  f handoff  t definitions  ? help                …
 === dash 130x45 focus 3
 tagent · tagent                                                                                               ? help · , settings
 ╭─ [Running]  Definitions ─────────────────╮╭─ ☷ Tasks  todo 2  [doing 2]  blocked 1  done 1  closed 0 ────────────────────────╮

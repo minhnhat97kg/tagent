@@ -413,6 +413,9 @@ func (m model) footer() []string {
 		if a, ok := m.selectedAgent(); ok && m.mode == inputSend {
 			prompt = "send to " + label(a.PaneInfo) + " ❯ "
 		}
+		if m.mode == inputRename {
+			prompt = "rename ❯ "
+		}
 		return []string{fit(" "+key.Render(prompt)+m.input.View(), m.width),
 			fit(" "+key.Render("enter")+dim.Render(" submit  ")+key.Render("esc")+dim.Render(" cancel"), m.width)}
 	}
@@ -423,7 +426,7 @@ func (m model) footer() []string {
 	var hints []string
 	switch m.focus { // only the keys that do something in this panel
 	case focusAgents:
-		hints = []string{"j/k", "select", "enter", "jump", "s", "send prompt"}
+		hints = []string{"j/k", "select", "enter", "jump", "s", "send prompt", "R", "rename"}
 	case focusNotes:
 		hints = []string{"j/k", "select", "a", "add task", "s", "assign", "space", "status", "b", "block", "d", "delete"}
 	case focusRoles:

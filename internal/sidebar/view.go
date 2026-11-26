@@ -518,6 +518,9 @@ func (m Model) View() string {
 	if m.helpOpen {
 		return m.helpView()
 	}
+	if m.taskForm != "" { // also in the narrow sidebar (N, R): an unseen form would swallow keys
+		return m.taskFormView()
+	}
 	if m.dashboard && !m.popup.IsRepoOpen() && !m.removeConfirmOpen && !m.filterEditing {
 		return m.dashboardView()
 	}

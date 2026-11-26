@@ -243,7 +243,7 @@ harnesses:
 | `tagent tokens` | Tokens used per Claude agent + total |
 | `tagent config [list\|get\|set\|reset\|path]` | Central configuration; no arguments = the settings screen (also `,` in the sidebar, or the Settings tab in the dashboard) |
 | `tagent list [--json]` | pane · name · agent · status · window · cwd |
-| `tagent name [<pane>] <name>` | Rename an agent (also in the web agent menu). Every agent pane without a name gets a short unique nickname such as `mochi`; a name works instead of a pane id, and `""` goes back to a nickname |
+| `tagent name [<pane>] <name>` | Rename an agent (also `R` in the sidebar and in `tagent watch`, and the web agent menu). Every agent pane without a name gets a short unique nickname such as `mochi`; a name works instead of a pane id, and `""` goes back to a nickname |
 | `tagent send <pane> [--now] [--wait] [--timeout D] [--report FILE] <prompt>` | Type a prompt + Enter. A busy agent (working, or waiting on you) gets it **queued** and delivered when idle; `--now` types right away |
 | `tagent report wait <file> [--timeout D]` · `report show <file>` | Wait (file events, no polling) for a worker's JSON report and print a one-line summary; `send --report` asks the worker to write it |
 | `tagent ask [--role r] [--wait] "<task>"` | Give a task to an idle agent of this repo (with that role), or start a new one if nobody is free |

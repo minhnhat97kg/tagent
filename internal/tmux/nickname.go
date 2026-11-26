@@ -1,6 +1,8 @@
 package tmux
 
 import (
+	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 )
@@ -59,6 +61,23 @@ func nameAgentPanes(sessions []SessionInfo) {
 			}
 		}
 	}
+}
+
+// RenamePane gives pane a name no other pane has; "" clears it, and the next
+// query gives an agent pane a new nickname.
+func RenamePane(pane, name string) error {
+	if strings.HasPrefix(name, "%") || strings.ContainsAny(name, " \t|") {
+		return errors.New("a name has no spaces, \"|\" or leading %")
+	}
+	if name == "" {
+		UnsetPaneOption(pane, PaneName)
+		return nil
+	}
+	if owner := ResolvePane(name); owner != name && owner != pane {
+		return fmt.Errorf("%q is already used by another pane (%s)", name, owner)
+	}
+	SetPaneOption(pane, PaneName, name)
+	return nil
 }
 
 // PaneLabel is how a message calls a pane: its name (given now to an agent pane

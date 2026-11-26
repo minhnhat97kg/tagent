@@ -211,6 +211,12 @@ func (m Model) handleTaskForm(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 			return m, gitDo(root, "Committed", "commit", "-m", input)
 		}
+		if mode == "rename" {
+			pane := m.promptPane
+			return m, func() tea.Msg {
+				return actionResult("Renamed", tmux.RenamePane(pane, input))
+			}
+		}
 		if mode == "i" {
 			pane := m.promptPane
 			if input == "" {
@@ -361,7 +367,9 @@ func (m Model) taskFormView() string {
 	case "c":
 		title, sub, hint = "Commit staged changes", "message", m.keyHints("enter commit", "esc cancel")
 	case "i":
-		title, hint = "Send prompt to "+m.promptPane, m.keyHints("enter send", "esc cancel")
+		title, hint = "Send prompt to "+m.paneName(m.promptPane), m.keyHints("enter send", "esc cancel")
+	case "rename":
+		title, sub, hint = "Rename "+m.paneName(m.promptPane), "empty gives a new nickname", m.keyHints("enter save", "esc cancel")
 	case "chat":
 		title, hint = "Message the chat", m.keyHints("enter send", "ctrl+s save to ticket", "esc cancel")
 

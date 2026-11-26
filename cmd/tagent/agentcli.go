@@ -420,21 +420,21 @@ func cmdName(args []string, stderr io.Writer) int {
 	case 1:
 		pane, name = selfPane(), args[0]
 	case 2:
-		pane, name = tmux.ResolvePane(args[0]), args[1]
+		id, err := tmux.ResolvePaneChecked(args[0])
+		if err != nil {
+			fmt.Fprintln(stderr, "name:", err)
+			return exitFailure
+		}
+		pane, name = id, args[1]
 	}
-	if pane == "" || strings.HasPrefix(name, "%") || strings.ContainsAny(name, " \t|") {
-		fmt.Fprintln(stderr, "usage: tagent name [<pane>] <name>   (no spaces or leading %; \"\" resets to a nickname)")
+	if pane == "" {
+		fmt.Fprintln(stderr, "usage: tagent name [<pane>] <name>   (\"\" resets to a nickname)")
 		return exitUsage
 	}
-	if name == "" {
-		tmux.UnsetPaneOption(pane, tmux.PaneName)
-		return exitOK
-	}
-	if owner := tmux.ResolvePane(name); owner != name && owner != pane {
-		fmt.Fprintf(stderr, "name: %q is already used by another pane (%s)\n", name, owner)
+	if err := tmux.RenamePane(pane, name); err != nil {
+		fmt.Fprintln(stderr, "name:", err)
 		return exitFailure
 	}
-	tmux.SetPaneOption(pane, tmux.PaneName, name)
 	return exitOK
 }
 

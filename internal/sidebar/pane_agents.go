@@ -39,6 +39,11 @@ func (m Model) agentsKey(key string) (Model, tea.Cmd, bool) {
 	}
 
 	switch key {
+	case "R": // rename the agent under the cursor
+		if row, ok := paneRowAt(m.rows, m.cursor); ok {
+			m.taskForm, m.taskInput, m.taskNotice, m.promptPane = "rename", m.paneName(row.PaneID), "", row.PaneID
+		}
+		return m, nil, true
 	case "t": // the agent definitions: the Definitions tab of this card (dashboard only)
 		if !m.dashboard {
 			return m, nil, false
@@ -255,6 +260,7 @@ func (m Model) agentsHints() []hint {
 		{"N", "new agent", "N", "new agent"},
 		{"l", "log", "l", "agent log"},
 		{"i", "prompt", "i", "send prompt"},
+		{"R", "rename", "R", "rename agent"},
 		{"", "", "n", "next agent needing you"}, {"", "", "1-4", "answer open approval"}, {"", "", "space", "quick action on first alert"},
 		{"", "", "1-9", "jump to window"}, {"", "", "/", "filter"}, {"", "", "r", "switch repo"}, {"", "", "p", "pin"},
 		{"f", "handoff", "f", "handoff sizing to this terminal (web-owned rows only)"}, {"", "", "v x", "select / delete worktrees"}, {"", "", "S", "clear subagents"}, {"", "", "u", "undo"},
@@ -263,4 +269,18 @@ func (m Model) agentsHints() []hint {
 		hs = append(hs, hint{"t", "definitions", "t", "agent definitions (Running / Definitions tabs)"})
 	}
 	return hs
+}
+
+// paneName is the name of a listed agent pane, else its id.
+func (m Model) paneName(id string) string {
+	for _, s := range m.sessions {
+		for _, w := range s.Windows {
+			for _, p := range w.Panes {
+				if p.PaneID == id && p.Name != "" {
+					return p.Name
+				}
+			}
+		}
+	}
+	return id
 }
