@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 
+	"tagent/internal/library"
 	"tagent/internal/roles"
 	"tagent/internal/tasks"
 )
@@ -96,6 +97,10 @@ const browserServer = "playwright"
 // generated; any other name is copied from the project or the Claude config.
 // A non-empty profile (browser ticket) is passed to browserServer as --user-data-dir.
 func mcpConfig(dir string, names []string, profile string) ([]byte, error) {
+	lib, err := library.Load(tasks.MainRoot(dir))
+	if err != nil {
+		return nil, err
+	}
 	servers := map[string]any{}
 	for _, name := range names {
 		if name == "tagent" {
@@ -106,9 +111,37 @@ func mcpConfig(dir string, names []string, profile string) ([]byte, error) {
 			servers[name] = map[string]any{"command": exe, "args": []string{"mcp"}}
 			continue
 		}
-		s, ok := findMCPServer(tasks.MainRoot(dir), name)
-		if !ok {
-			return nil, fmt.Errorf("unknown MCP server %q (not in .mcp.json or ~/.claude.json)", name)
+		var s any
+		if entry, found := lib.Servers[name]; found {
+			state, err := os.UserConfigDir()
+			if err != nil {
+				return nil, err
+			}
+			approved, err := library.Approved(filepath.Join(state, "tagent"), entry)
+			if err != nil {
+				return nil, err
+			}
+			if !approved {
+				return nil, fmt.Errorf("MCP server %q requires user approval before launch (command: %s)", name, entry.Command)
+			}
+			for key, ref := range entry.Env {
+				variable := strings.TrimSuffix(strings.TrimPrefix(ref, "${"), "}")
+				if _, ok := os.LookupEnv(variable); !ok {
+					return nil, fmt.Errorf("MCP server %q requires environment variable %s", name, variable)
+				}
+				_ = key
+			}
+			s = map[string]any{
+				"command": entry.Command,
+				"args":    entry.Args,
+				"env":     entry.Env,
+			}
+		} else {
+			var ok bool
+			s, ok = findMCPServer(tasks.MainRoot(dir), name)
+			if !ok {
+				return nil, fmt.Errorf("unknown MCP server %q (not in library, .mcp.json or ~/.claude.json)", name)
+			}
 		}
 		if name == browserServer && profile != "" {
 			s = withUserDataDir(s, profile)
