@@ -4,6 +4,11 @@ A board role can name a **tier** instead of a harness and model. When the
 dispatcher starts that role, it picks the harness and model from the account's
 routing config, using the quota left for each provider.
 
+The web routing page presents tiers as a left-to-right node canvas. Selectable routing state
+shows the running candidate, spill thresholds and roles on tier nodes; zoom, fit and pan
+controls help navigate. Candidate ordering and all settings remain editable in the tier controls
+below the canvas, with changes saved immediately.
+
 Three layers:
 
 - **Workflow**: a step names a role. Unchanged.

@@ -7,6 +7,8 @@ import { usePoll } from "@/hooks/usePoll"
 import { enc } from "@/hooks/useRoute"
 import { useAppState } from "@/state"
 import { candidateName, flow, parseRef, reorder, spillReset, withEffort, withUntil } from "@/lib/routing"
+import { FlowCanvas } from "@/components/FlowCanvas"
+import { layoutGraph, type GNode, type GEdge } from "@/lib/graphLayout"
 import type { RoutingTier, RoutingView } from "@/types"
 
 type RoleRow = RoutingView["roles"][number]
@@ -22,6 +24,26 @@ const configOf = (v: RoutingView): Config => ({
 })
 const resetText = (at: string | null) => at ? `resets ${new Date(at).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}` : "no reset time"
 
+function routingGraph(view: RoutingView): [GNode[], GEdge[]] {
+  const nodes: GNode[] = []
+  const edges: GEdge[] = []
+  for (const tier of view.tiers) {
+    const tid = `tier:${tier.name}`
+    nodes.push({ id: tid, kind: "agent", title: tier.name, chip: tier.usedBy.length ? `roles: ${tier.usedBy.join(", ")}` : "no roles" })
+    let previous = tid
+    tier.candidates.forEach((candidate, index) => {
+      const id = `${tid}:${index}`
+      nodes.push({ id, kind: "run", title: candidateName(candidate.ref), chip: candidate.ref.split(":")[0], note: `tier:${tier.name}`, status: candidate.selected ? "Running" : undefined })
+      edges.push({ from: previous, to: id, label: candidate.threshold === null ? undefined : `spill ${candidate.threshold}%` })
+      previous = id
+    })
+    const end = `${tid}:outcome`
+    nodes.push({ id: end, kind: view.when_exhausted === "first" ? "done" : "status", title: view.when_exhausted === "first" ? "run first" : "block" })
+    edges.push({ from: previous, to: end })
+  }
+  return [nodes, edges]
+}
+
 // RoutingPage edits the account's routing.yaml. Every action saves at once; there is no draft,
 // so the selected candidate follows the quota poll. The server computes state and selection.
 export function RoutingPage({ dir }: { dir: string }) {
@@ -30,6 +52,7 @@ export function RoutingPage({ dir }: { dir: string }) {
   const { state } = useAppState()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
+  const [selectedTier, setSelectedTier] = useState("")
   const view = poll.data
 
   async function save(change: (c: Config) => Config): Promise<boolean> {
@@ -69,10 +92,12 @@ export function RoutingPage({ dir }: { dir: string }) {
         : <>
           <p className="text-[11.5px] text-muted-foreground">Tiers are account-wide: every project uses this file. Roles name a tier on the Agents page.</p>
           {!view.tiers.length && <p className="text-sm text-muted-foreground">No tiers yet. Create one below.</p>}
+          {!!view.tiers.length && <FlowCanvas graph={layoutGraph(...routingGraph(view))} active={selectedTier ? `tier:${selectedTier}` : undefined} onSelect={id => setSelectedTier(id.split(":")[1] ?? "")} />}
           <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
-            {view.tiers.map(t => <TierCard key={t.name} tier={t} view={view} busy={busy} models={state?.models ?? null}
-              setRefs={refs => setTier(t.name, refs)} onDelete={() => deleteTier(t.name, t.usedBy)} />)}
+            {view.tiers.filter(t => !selectedTier || t.name === selectedTier).map(t => <TierCard key={t.name} tier={t} view={view} busy={busy} models={state?.models ?? null}
+              setRefs={refs => setTier(t.name, refs)} onDelete={() => { setSelectedTier(""); deleteTier(t.name, t.usedBy) }} />)}
           </div>
+          {selectedTier && <Button variant="outline" size="sm" onClick={() => setSelectedTier("")}>Show all tiers</Button>}
           <section aria-label="New tier" className="rounded-lg border border-dashed p-3">
             <h3 className="mb-2 text-[13px] font-semibold">New tier</h3>
             <CandidateForm label="Create tier" withName disabled={busy} harnesses={view.harnesses} efforts={view.efforts} models={state?.models ?? null} onSubmit={createTier} />
