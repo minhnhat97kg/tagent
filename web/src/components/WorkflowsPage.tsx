@@ -1,5 +1,5 @@
-import { Suspense, lazy, useEffect, useRef, useState } from 'react'
-import { ArrowDown, ArrowLeft, Bot, CheckCircle2, CircleDot, Play, Plus, Save, Terminal, Trash2, Workflow as WorkflowIcon } from 'lucide-react'
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
+import { ArrowLeft, Play, Plus, Save, Trash2, Workflow as WorkflowIcon } from 'lucide-react'
 import { api, send } from '@/api'
 import { usePoll } from '@/hooks/usePoll'
 import { enc } from '@/hooks/useRoute'
@@ -7,10 +7,12 @@ import { Button } from '@/components/ui/button'
 import { statusColor } from '@/components/BoardDrawer'
 import { jobRanges } from '@/components/workflowYaml'
 import { PaneHeader } from '@/components/PaneChrome'
+import { FlowCanvas } from '@/components/FlowCanvas'
+import { type Job, jobsToGraph, layoutGraph } from '@/lib/graphLayout'
 
 const WorkflowYamlEditor = lazy(() => import('@/components/WorkflowYamlEditor'))
 
-type Job = { ID: string; Status: string; Agent: string; Model: string; Prompt: string; Run: string; Outputs: string[]; OnFailure: string; MaxLoops: number }
+const NO_JOBS: Job[] = []
 type Input = { Description: string; Default: string; Required: boolean }
 export type Flow = { key: string; name: string; global: boolean; yaml: string; description: string; error: string; errorLine: number; jobs: Job[]; inputs: Record<string, Input>; total: number; running: number; lastUsed: string; workplace: string; cleanup: string }
 type Preview = { Name: string; Description: string; Jobs: Job[] }
@@ -20,64 +22,14 @@ export function WorkflowsPage({ dir, initial = '', onDirty }: { dir: string; ini
   return <WorkflowEditor key={dir} dir={dir} initial={initial} onDirty={onDirty} />
 }
 
-type Box = { top: number; bottom: number }
-// FlowChart draws the recipe: start → each step → done. Failure routes back to an
-// earlier step are drawn as edges on the right. A ticket's run has its own page (#/runs/<id>).
-function FlowChart({ jobs, active, onSelect }: { jobs: Job[]; active: string; onSelect: (id: string) => void }) {
-  const wrap = useRef<HTMLDivElement>(null)
-  const cards = useRef<Record<string, HTMLElement | null>>({})
-  const [boxes, setBoxes] = useState<Record<string, Box>>({})
-  const [width, setWidth] = useState(0)
-  useEffect(() => {
-    const el = wrap.current
-    if (!el) return
-    const measure = () => {
-      const base = el.getBoundingClientRect().top
-      setWidth(el.clientWidth)
-      setBoxes(Object.fromEntries(Object.entries(cards.current).filter(([, c]) => c).map(([id, c]) => { const r = c!.getBoundingClientRect(); return [id, { top: r.top - base, bottom: r.bottom - base }] })))
-    }
-    const ro = new ResizeObserver(measure)
-    ro.observe(el); Object.values(cards.current).forEach(c => c && ro.observe(c))
-    return () => ro.disconnect()
-  }, [jobs])
-  const index = Object.fromEntries(jobs.map((j, i) => [j.ID, i]))
-  const edges = jobs.flatMap((j, i) => j.OnFailure in index && index[j.OnFailure] !== i ? [{ from: j, to: jobs[index[j.OnFailure]] }] : [])
-  const gutter = edges.length ? 28 + 14 * edges.length : 0
-  const arrow = (label = '') => <div className="relative my-1 flex justify-center"><ArrowDown className="size-4 text-muted-foreground" />{label && <span className="absolute left-1/2 top-0 ml-3 text-[10.5px] text-emerald-600">{label}</span>}</div>
-  return <div ref={wrap} className="relative flex flex-col items-stretch" style={{ paddingRight: gutter }}>
-    <div className="mx-auto flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs text-muted-foreground"><CircleDot className="size-3.5" />Start</div>
-    {jobs.map((j, i) => {
-      return <div key={j.ID}>
-        {arrow(i > 0 && jobs[i - 1].Run ? 'pass' : '')}
-        <details ref={el => { cards.current[j.ID] = el }} className={`group rounded-lg border bg-card shadow-sm ${active === j.ID ? 'ring-2 ring-sky-500' : ''}`} style={{ borderLeft: `3px solid ${statusColor(j.Status)}` }}>
-          <summary onClick={() => onSelect(j.ID)} className="flex cursor-pointer list-none items-center gap-2 px-3 py-2">
-            {j.Run ? <Terminal className="size-4 shrink-0 text-sky-600" /> : <Bot className="size-4 shrink-0 text-indigo-600" />}
-            <span className="font-medium">{j.ID}</span>
-            <span className="rounded px-1.5 text-[11px]" style={{ color: statusColor(j.Status), background: 'var(--muted)' }}>{j.Status}</span>
-            <span className="ml-auto truncate text-xs text-muted-foreground">{j.Run ? 'command' : j.Agent}{j.Model ? ` · ${j.Model}` : ''}{j.MaxLoops > 0 ? ` · max ${j.MaxLoops}` : ''}</span>
-          </summary>
-          <div className="space-y-1 border-t px-3 py-2 text-xs">
-            <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-words font-mono">{j.Run || j.Prompt || 'Uses the role prompt'}</pre>
-            {!!j.Outputs?.length && <p className="text-muted-foreground">Outputs: {j.Outputs.join(', ')}</p>}
-          </div>
-        </details>
-        {!(j.OnFailure in index) && (j.OnFailure || j.Run) && <p className="mt-1 text-right text-[11px] text-muted-foreground">fail → {j.OnFailure || 'blocked'}</p>}
-      </div>
-    })}
-    {arrow(jobs.length && jobs[jobs.length - 1].Run ? 'pass' : '')}
-    <div className="mx-auto flex items-center gap-1.5 rounded-full border border-emerald-500/40 px-3 py-1 text-xs text-emerald-600"><CheckCircle2 className="size-3.5" />done</div>
-    {width > 0 && <svg className="pointer-events-none absolute inset-0 overflow-visible" width={width} height="100%" aria-hidden>
-      <defs><marker id="flow-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#f59e0b" /></marker></defs>
-      {edges.map((e, k) => {
-        const s = boxes[e.from.ID], t = boxes[e.to.ID]
-        if (!s || !t) return null
-        const x0 = width - gutter, x = x0 + 16 + 14 * k, y0 = s.top + 18, y1 = t.top + 18
-        return <g key={e.from.ID}>
-          <path d={`M${x0},${y0} H${x - 6} Q${x},${y0} ${x},${y0 + (y1 < y0 ? -6 : 6)} V${y1 + (y1 < y0 ? 6 : -6)} Q${x},${y1} ${x - 6},${y1} H${x0 + 2}`} fill="none" stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="4 3" markerEnd="url(#flow-arrow)" />
-          <text x={x + 7} y={(y0 + y1) / 2} fontSize="10.5" fill="#d97706" transform={`rotate(90 ${x + 7} ${(y0 + y1) / 2})`} textAnchor="middle">{e.from.Run ? 'fail' : 'changes'}{e.from.MaxLoops ? ` · max ${e.from.MaxLoops}` : ''}</text>
-        </g>
-      })}
-    </svg>}
+// FlowDetails shows the selected step's prompt or command, outputs and limits. The canvas shows the shape.
+function FlowDetails({ job }: { job?: Job }) {
+  if (!job) return <p className="shrink-0 border-t pt-2 text-xs text-muted-foreground">Select a step to see its prompt or command.</p>
+  return <div className="max-h-44 shrink-0 space-y-1 overflow-auto border-t pt-2 text-xs">
+    <p className="font-medium">{job.ID}<span className="font-normal text-muted-foreground"> · {job.Status}{job.Run ? ' · command' : job.Agent ? ` · ${job.Agent}` : ''}{job.Model ? ` · ${job.Model}` : ''}{job.MaxLoops > 0 ? ` · max ${job.MaxLoops}` : ''}</span></p>
+    {!!job.Needs?.length && <p className="text-muted-foreground">Needs: {job.Needs.join(', ')}</p>}
+    <pre className="max-h-32 overflow-auto whitespace-pre-wrap break-words font-mono">{job.Run || job.Prompt || 'Uses the role prompt'}</pre>
+    {!!job.Outputs?.length && <p className="text-muted-foreground">Outputs: {job.Outputs.join(', ')}</p>}
   </div>
 }
 
@@ -106,6 +58,8 @@ function WorkflowEditor({ dir, initial, onDirty }: { dir: string; initial: strin
   const [run, setRun] = useState<Flow>()
   const [values, setValues] = useState<Record<string, string>>({})
   const revision = useRef(0)
+  const jobs = preview?.Jobs ?? selected?.jobs ?? NO_JOBS
+  const graph = useMemo(() => { const g = jobsToGraph(jobs); return layoutGraph(g.nodes, g.edges) }, [jobs])
   // Re-parse the YAML as it is typed so the chart follows the text.
   useEffect(() => {
     if (!selected) return
@@ -186,9 +140,12 @@ function WorkflowEditor({ dir, initial, onDirty }: { dir: string; initial: strin
                 </Suspense>
               </div>
             </div>
-            <div className="min-h-0 overflow-auto p-3">
-              <div className="mb-2 text-[11px] font-medium text-muted-foreground">Flow{validation && ' · last valid version'}</div>
-              <FlowChart jobs={preview?.Jobs ?? selected.jobs ?? []} active={activeJob} onSelect={selectJob} />
+            <div className="flex min-h-0 flex-col p-3">
+              <div className="mb-2 shrink-0 text-[11px] font-medium text-muted-foreground">Flow{validation && ' · last valid version'}</div>
+              <div className="flex min-h-0 flex-1 flex-col">
+                <FlowCanvas key={selected.key + selected.global} graph={graph} active={activeJob} onSelect={selectJob} />
+                <FlowDetails job={jobs.find(j => j.ID === activeJob)} />
+              </div>
             </div>
           </div>
         </div>}
