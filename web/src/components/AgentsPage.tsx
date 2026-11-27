@@ -16,6 +16,7 @@ export function AgentsPage({ dir, onDirty }: { dir: string; onDirty?: (dirty: bo
   const path = "/api/roles?dir=" + enc(dir)
   const poll = usePoll(() => api<Role[]>(path), 2000, dir)
   const routing = usePoll(() => api<RoutingView>("/api/routing?dir=" + enc(dir)), 10000, dir)
+  const library = usePoll<{skills: {name: string}[]; servers: {name: string}[]}>(() => api("/api/library"), 10000)
   const { state } = useAppState()
   const roles = poll.data ?? []
   const [draft, setDraft] = useState<Role>()
@@ -41,6 +42,10 @@ export function AgentsPage({ dir, onDirty }: { dir: string; onDirty?: (dirty: bo
     finally { setBusy(false) }
   }
   async function save(body: Role) {
+    const warnings: string[] = []
+    if (body.skills?.length && body.harness === "claude") warnings.push("Claude skills are additive; other native skills may remain available.")
+    if (body.mcp?.length && body.harness === "pi") warnings.push("Pi cannot apply a selected MCP server list.")
+    if (warnings.length && !confirm(warnings.join("\\n") + "\\nSave anyway?")) return
     if (await mutate("POST", withContext(body))) setDraft({ ...body })
   }
   function chooseTier(tier: string) {
@@ -122,7 +127,7 @@ export function AgentsPage({ dir, onDirty }: { dir: string; onDirty?: (dirty: bo
             {([["Skills", "skills", true], ["MCP servers", "mcp", true], ["Allowed tools", "tools", false], ["Always allowed", "allow", false], ["Denied tools", "deny", false]] as const).map(([label, key, nullable]) =>
               <label key={key} className="text-[12px] font-medium">{label}
                 <input aria-label={label} key={key + draft.source + draft.name + (draft.tier ?? "")} className={fieldClass} disabled={readOnly || !!draft.tier} placeholder={nullable ? "default, none or a list" : "comma-separated"}
-                  defaultValue={contextText(draft[key], nullable)} onChange={e => setDraft({ ...draft, [key]: contextList(e.target.value, nullable) })} /></label>)}
+                  defaultValue={contextText(draft[key], nullable)} list={key === "skills" ? "library-skills" : key === "mcp" ? "library-mcp" : undefined} onChange={e => setDraft({ ...draft, [key]: contextList(e.target.value, nullable) })} />{key === "skills" && <datalist id="library-skills">{(library.data?.skills ?? []).map(x => <option key={x.name} value={x.name} />)}</datalist>}{key === "mcp" && <datalist id="library-mcp">{(library.data?.servers ?? []).map(x => <option key={x.name} value={x.name} />)}</datalist>}</label>)}
             <p className="text-[11.5px] text-muted-foreground sm:col-span-3">Context applies to new panes only. Combinations a harness cannot express (a skill list, an MCP list on pi, allow on pi) are rejected on save.</p>
           </div>
           <div className="px-3 pt-2 text-[12px]">

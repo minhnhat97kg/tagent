@@ -26,10 +26,11 @@ type Skill struct {
 
 // Server is an MCP server definition. Env values are references, never secret values.
 type Server struct {
-	Name    string            `yaml:"name" json:"name"`
-	Command string            `yaml:"command" json:"command"`
-	Args    []string          `yaml:"args" json:"args"`
-	Env     map[string]string `yaml:"env" json:"env"`
+	Name     string            `yaml:"name" json:"name"`
+	Command  string            `yaml:"command" json:"command"`
+	Args     []string          `yaml:"args" json:"args"`
+	Env      map[string]string `yaml:"env" json:"env"`
+	Approved bool              `yaml:"-" json:"approved,omitempty"`
 }
 
 // Library contains valid entries and per-entry errors so one malformed item does not hide others.

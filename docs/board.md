@@ -651,6 +651,12 @@ A role may limit what its agent loads, in `board.yaml` or on the Agents page
   lists and `allow` are rejected there; Claude has no per-skill flag, so a skill
   list is rejected too.
 - Plugin-provided MCP servers cannot be selected. Context applies to new panes only.
+
+The web Settings page has Skills and MCP tabs for the repository library. Library
+entries live under `.tasks/library`; native harness skills are shown read-only.
+Select skill and MCP names on the Agents tab for each role. MCP servers require
+user approval before launch. Claude skill selections are additive, and pi cannot
+apply a per-server MCP selection; the web warns about these limits before saving.
 - Browser tickets: the `playwright` server gets `--user-data-dir` for the ticket's profile (see the browser workplace above).
 An unsupported entry is a board config error for the whole `board.yaml`, as an
 invalid role effort already is: every role's spawn fails until it is fixed.

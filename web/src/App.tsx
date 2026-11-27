@@ -2,7 +2,7 @@ import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type
 import { bindVisualViewport } from '@/lib/touchViewport'
 import { ArrowLeft, Maximize2, Menu, Minimize2, Monitor, Moon, Plus, Settings, SquareTerminal, Sun } from "lucide-react"
 import { nextTheme, useWebTheme } from "@/lib/theme"
-import { DeviceSettings, GeneralSettings, SettingsTabs, WorkspaceSettings } from "@/components/SettingsPage"
+import { DeviceSettings, GeneralSettings, LibrarySettings, SettingsTabs, WorkspaceSettings } from "@/components/SettingsPage"
 import { api } from "@/api"
 import { AgentView } from "@/components/AgentView"
 import { Notifications } from '@/components/Notifications'
@@ -210,6 +210,7 @@ export default function App() {
   else if (route.page === "custom") main = <CustomPage exts={exts ?? []} name={route.name} reload={() => void extPoll.reload()} />
   else if (route.page === "settings") main = route.tab === "workspaces" ? <WorkspaceSettings onAddWorkspace={() => setAddWorkspace(true)} />
     : route.tab === "device" ? <DeviceSettings theme={webTheme} onTheme={setWebTheme} onResetLayout={resetPanes} />
+    : route.tab === "skills" || route.tab === "mcp" ? <LibrarySettings kind={route.tab} />
     : <GeneralSettings />
   else main = null
   // Every configuration page is a tab of Settings.

@@ -12,13 +12,14 @@ import { useAppState } from "@/state"
 
 interface Setting { key: string; group: string; label: string; help: string; kind: "bool" | "choice" | "preset" | "int" | "text"; value: string; default: string; choices: string[] | null; min: number; max: number; readOnly: boolean; secret: boolean; reload: boolean }
 
-export type SettingsTab = "general" | "agents" | "routing" | "workflows" | "board" | "workspaces" | "device"
+export type SettingsTab = "general" | "agents" | "routing" | "workflows" | "board" | "workspaces" | "device" | "skills" | "mcp"
 
 // The tabs keep each page's own hash, so older links to a page land on its tab.
 const TABS: [SettingsTab, string, string][] = [
   ["general", "General", "/settings"], ["agents", "Agents", "/agents"], ["routing", "Routing", "/routing"],
   ["workflows", "Workflows", "/workflows"], ["board", "Board", "/board/config"],
   ["workspaces", "Workspaces", "/settings/workspaces"], ["device", "This device", "/settings/device"],
+  ["skills", "Skills", "/settings/skills"], ["mcp", "MCP", "/settings/mcp"],
 ]
 
 // SettingsTabs is the one place for configuration: a tab bar over the open settings page.
@@ -103,6 +104,27 @@ export function WorkspaceSettings({ onAddWorkspace }: { onAddWorkspace: () => vo
         </div>)}
         <div className="px-4 py-3"><Button variant="outline" size="sm" onClick={onAddWorkspace}><Plus /> Add workspace…</Button></div>
       </div>
+  </Card>
+}
+
+// LibrarySettings lists native and repository entries and provides library mutations.
+export function LibrarySettings({ kind }: { kind: "skills" | "mcp" }) {
+  const poll = usePoll<{skills: {name: string; source: string}[]; servers: {name: string; command: string; approved?: boolean}[]}> (
+    () => api("/api/library"), 5000)
+  const items = kind === "skills" ? poll.data?.skills ?? [] : poll.data?.servers ?? []
+  const mutate = async (path: string, method: string, body?: object) => {
+    try { await api(path, { method, body: body ? JSON.stringify(body) : undefined }); poll.reload(); toast.success("Library updated") }
+    catch (e) { toast.error((e as Error).message) }
+  }
+  return <Card label={kind === "skills" ? "Skills library" : "MCP library"}>
+    <p className="board-muted">Library entries are available for per-agent selection. Native entries are read-only.</p>
+    {poll.error && <p role="alert">{poll.error.message}</p>}
+    {items.map((item: any) => <div key={item.name} className="flex items-center gap-2 border-b py-2">
+      <span className="flex-1">{item.name} <small className="text-muted-foreground">{item.source ?? "library"}</small></span>
+      {kind === "mcp" && !item.approved && <Button size="xs" onClick={() => void mutate(`/api/library/approve/${encodeURIComponent(item.name)}`, "POST")}>Approve</Button>}
+      {item.source === "library" && <Button size="xs" variant="ghost" onClick={() => void mutate(`/api/library/${kind}/${encodeURIComponent(item.name)}`, "DELETE")}>Delete</Button>}
+    </div>)}
+    <Button size="sm" variant="outline" onClick={() => { const name = prompt(kind === "skills" ? "Skill name" : "MCP server name"); if (name) void mutate("/api/library", "POST", kind === "skills" ? {type:"skill", skill:name} : {type:"mcp", server:{name, command:prompt("Command") ?? ""}}) }}><Plus/> Add {kind === "skills" ? "skill" : "MCP server"}</Button>
   </Card>
 }
 

@@ -40,6 +40,8 @@ var dist embed.FS
 func (s *server) handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/state", s.state)
+	mux.HandleFunc("/api/library", s.libraryAPI)
+	mux.HandleFunc("/api/library/{kind}/{name}", s.libraryAPI)
 	mux.HandleFunc("GET /api/project", s.project)
 	mux.HandleFunc("GET /api/overview", s.overview)
 	mux.HandleFunc("GET /api/pane/ws", s.paneWS)
