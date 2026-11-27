@@ -42,6 +42,56 @@ func roleArgs(o spawnOpts, boardRole string) ([]string, error) {
 			return nil, err
 		}
 	}
+	var skillArgs []string
+	if rc.Skills != nil && len(*rc.Skills) > 0 {
+		lib, err := library.Load(tasks.MainRoot(o.ConfigDir))
+		if err != nil {
+			return nil, err
+		}
+		selected := make([]library.Skill, 0, len(*rc.Skills))
+		for _, skill := range *rc.Skills {
+			entry, ok := lib.Skills[skill]
+			if !ok {
+				return nil, fmt.Errorf("skill %q is not in the library", skill)
+			}
+			selected = append(selected, entry)
+		}
+		if harness == "pi" {
+			skillArgs = append(skillArgs, "--no-skills")
+			for _, entry := range selected {
+				skillArgs = append(skillArgs, "--skill", entry.Path)
+			}
+		} else if harness == "claude" {
+			dir := filepath.Join(tasks.BoardDir(tasks.Scope(o.ConfigDir)), "lib-"+name)
+			if err := os.MkdirAll(dir, 0700); err != nil {
+				return nil, err
+			}
+			plugin, err := os.MkdirTemp(dir, "launch-")
+			if err != nil {
+				return nil, err
+			}
+			plugin = filepath.Join(plugin, "tlib")
+			if err := os.MkdirAll(filepath.Join(plugin, "skills"), 0700); err != nil {
+				return nil, err
+			}
+			for _, entry := range selected {
+				if err := os.Symlink(entry.Path, filepath.Join(plugin, "skills", entry.Name)); err != nil && !os.IsExist(err) {
+					return nil, err
+				}
+			}
+			manifest := []byte("{\"name\":\"tlib\",\"description\":\"tagent library skills\",\"version\":\"1.0.0\"}\n")
+			if err := os.MkdirAll(filepath.Join(plugin, ".claude-plugin"), 0700); err != nil {
+				return nil, err
+			}
+			if err := os.WriteFile(filepath.Join(plugin, ".claude-plugin", "plugin.json"), manifest, 0600); err != nil {
+				return nil, err
+			}
+			skillArgs = append(skillArgs, "--plugin-dir", plugin)
+		} else {
+			return nil, fmt.Errorf("skill list is not supported for %s", harness)
+		}
+		rc.Skills = nil
+	}
 	mcpFile := ""
 	if rc.MCP != nil && len(*rc.MCP) > 0 {
 		b, err := mcpConfig(o.ConfigDir, *rc.MCP, o.BrowserProfile)
@@ -63,7 +113,44 @@ func roleArgs(o spawnOpts, boardRole string) ([]string, error) {
 			return nil, err
 		}
 	}
-	return rc.Args(harness, mcpFile)
+	args, err := rc.Args(harness, mcpFile)
+	return append(args, skillArgs...), err
+}
+
+// noteUnappliedLibrary tells the user, on stderr and on the ticket, that a remote
+// or docker agent starts without the skills and MCP servers its role selects. A
+// comment that cannot be written fails the launch, so the notice is never lost.
+func noteUnappliedLibrary(o spawnOpts, role string) error {
+	place := ""
+	switch {
+	case o.Container != "":
+		place = "docker"
+	case o.Remote.Host != "":
+		place = "remote"
+	default:
+		return nil
+	}
+	cfg, err := tasks.LoadBoardConfig(o.ConfigDir)
+	if err != nil {
+		return err
+	}
+	var names []string
+	for _, list := range []*[]string{cfg.Roles[role].Skills, cfg.Roles[role].MCP} {
+		if list != nil {
+			names = append(names, *list...)
+		}
+	}
+	if len(names) == 0 {
+		return nil
+	}
+	notice := "library: skills/mcp not applied on " + place + ": " + strings.Join(names, ", ")
+	fmt.Fprintln(os.Stderr, "warning: "+notice)
+	if o.Ticket != "" {
+		if err := tasks.Comment(tasks.Scope(o.ConfigDir), o.Ticket, "tagent", notice, nil); err != nil {
+			return fmt.Errorf("comment %s library notice on ticket %s: %w", place, o.Ticket, err)
+		}
+	}
+	return nil
 }
 
 // remoteRoleContext drops what names the local MCP servers, which a remote host
@@ -85,6 +172,9 @@ func remoteRoleContext(rc tasks.RoleContext) (tasks.RoleContext, error) {
 	rc.Tools, rc.Allow = keep(rc.Tools), keep(rc.Allow)
 	if rc.MCP != nil {
 		rc.MCP = new([]string)
+	}
+	if rc.Skills != nil && len(*rc.Skills) > 0 {
+		rc.Skills = new([]string)
 	}
 	return rc, nil
 }

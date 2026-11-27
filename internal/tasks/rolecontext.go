@@ -34,10 +34,7 @@ func (c RoleContext) Args(harness, mcpFile string) ([]string, error) {
 	}
 	switch harness {
 	case "claude":
-		if c.Skills != nil {
-			if len(*c.Skills) > 0 {
-				return nil, unsupported("skill list (use none)")
-			}
+		if c.Skills != nil && len(*c.Skills) == 0 {
 			out = append(out, "--disable-slash-commands")
 		}
 		if c.MCP != nil {
@@ -56,10 +53,7 @@ func (c RoleContext) Args(harness, mcpFile string) ([]string, error) {
 			out = append(out, "--disallowedTools="+strings.Join(c.Deny, ","))
 		}
 	case "pi":
-		if c.Skills != nil {
-			if len(*c.Skills) > 0 {
-				return nil, unsupported("skill list (use none)")
-			}
+		if c.Skills != nil && len(*c.Skills) == 0 {
 			out = append(out, "--no-skills")
 		}
 		if c.MCP != nil {

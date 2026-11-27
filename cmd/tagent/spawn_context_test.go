@@ -11,6 +11,22 @@ import (
 	"tagent/internal/tmux"
 )
 
+func TestRoleArgsLibrarySkillsForClaudeAndPi(t *testing.T) {
+	cwd := t.TempDir()
+	os.MkdirAll(filepath.Join(cwd, ".tasks", "library", "skills", "demo"), 0700)
+	os.WriteFile(filepath.Join(cwd, ".tasks", "library", "skills", "demo", "SKILL.md"), []byte("---\nname: demo\n---\nDemo\n"), 0600)
+	os.MkdirAll(filepath.Join(cwd, ".tasks"), 0700)
+	os.WriteFile(filepath.Join(cwd, ".tasks", "board.yaml"), []byte("roles:\n  reviewer: {agent: claude, skills: [demo]}\n  piworker: {agent: pi, skills: [demo]}\n"), 0600)
+	claude, err := roleArgs(spawnOpts{Agent: "claude", ConfigDir: cwd}, "reviewer")
+	if err != nil || len(claude) == 0 || claude[0] != "--plugin-dir" {
+		t.Fatalf("claude args=%q err=%v", claude, err)
+	}
+	pi, err := roleArgs(spawnOpts{Agent: "pi", ConfigDir: cwd}, "piworker")
+	if err != nil || !slices.Contains(pi, "--no-skills") || !slices.Contains(pi, filepath.Join(cwd, ".tasks", "library", "skills", "demo")) {
+		t.Fatalf("pi args=%q err=%v", pi, err)
+	}
+}
+
 func TestSpawnAppliesBoardRoleContext(t *testing.T) {
 	t.Setenv("TMUX_PANE", "%1")
 	cwd := t.TempDir()

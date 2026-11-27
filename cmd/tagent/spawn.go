@@ -162,6 +162,9 @@ func spawnAgent(o spawnOpts) (pane, warn string, err error) {
 	if err != nil {
 		return "", "", err
 	}
+	if err := noteUnappliedLibrary(o, contextRole); err != nil {
+		return "", "", err
+	}
 	args := append(append(append(append([]string(nil), spec.Args...), o.Args...), effortArgs...), contextArgs...)
 	if isClaude(o.Agent) {
 		flags, _ := tmux.GetOption("@agent_claude_flags")
