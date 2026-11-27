@@ -242,7 +242,7 @@ harnesses:
 | `tagent stats [ls\|clear]` | Show or delete local Claude, Codex, OpenCode and Pi usage history |
 | `tagent save` · `restore [--dry-run]` | Save / bring back your agents after a restart (Claude resumes its session); auto-saved every 30s |
 | `tagent tokens` | Tokens used per Claude agent + total |
-| `tagent config [list\|get\|set\|reset\|path\|board]` | Central configuration; no arguments = the settings screen, `board` = its Board tab (board.yaml) (also `,` in the sidebar, or the Settings tab in the dashboard) |
+| `tagent config [list\|get\|set\|reset\|path\|board]` | Central configuration; no arguments = settings screen (General, Board, Skills and MCP tabs); `board` = Board tab (board.yaml). Skills/MCP tabs list library entries; `e` edits and `a` approves an MCP server. Use Board to select names per role in board.yaml. |
 | `tagent list [--json]` | pane · name · agent · status · window · cwd |
 | `tagent name [<pane>] <name>` | Rename an agent (also `R` in the sidebar and in `tagent watch`, and the web agent menu). Every agent pane without a name gets a short unique nickname such as `mochi`; a name works instead of a pane id, and `""` goes back to a nickname |
 | `tagent send <pane> [--now] [--wait] [--timeout D] [--report FILE] <prompt>` | Type a prompt + Enter. A busy agent (working, or waiting on you) gets it **queued** and delivered when idle; `--now` types right away |

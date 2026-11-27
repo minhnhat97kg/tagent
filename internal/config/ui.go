@@ -19,10 +19,12 @@ import (
 const (
 	tabGeneral = iota
 	tabBoard
+	tabSkills
+	tabMCP
 	tabCount
 )
 
-var tabNames = [tabCount]string{"General", "Board"}
+var tabNames = [tabCount]string{"General", "Board", "Skills", "MCP"}
 
 // RunUI is the settings screen (`tagent config` with no arguments, or
 // `tagent config board` for the Board tab; `,` in the sidebar opens it in a
@@ -42,6 +44,7 @@ type uiModel struct {
 	ed            *Editor
 	tab           int
 	board         boardDraft
+	libraryIndex  int
 }
 
 func (m uiModel) Init() tea.Cmd { return nil }
@@ -54,6 +57,28 @@ func (m uiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		if !m.ed.Editing() && msg.String() == "tab" {
 			m.tab = (m.tab + 1) % tabCount
+			return m, nil
+		}
+		if m.tab == tabSkills || m.tab == tabMCP {
+			if msg.String() == "q" || msg.String() == "esc" || msg.String() == "ctrl+c" {
+				return m, tea.Quit
+			}
+			if msg.String() == "j" {
+				m.libraryIndex++
+				return m, nil
+			}
+			if msg.String() == "k" {
+				if m.libraryIndex > 0 {
+					m.libraryIndex--
+				}
+				return m, nil
+			}
+			if msg.String() == "e" {
+				return m.editLibrary()
+			}
+			if msg.String() == "a" && m.tab == tabMCP {
+				return m.approveLibraryServer()
+			}
 			return m, nil
 		}
 		if m.tab == tabBoard {
@@ -72,6 +97,11 @@ func (m uiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	case boardEditedMsg:
 		return m.finishBoard(msg), nil
+	case libraryEditedMsg:
+		if msg.err != nil {
+			m.ed.SetFlash("editor: "+msg.err.Error(), true)
+		}
+		return m, nil
 	}
 	return m, nil
 }
@@ -96,6 +126,8 @@ func (m uiModel) View() string {
 	body, selLine := m.boardBody(dim, accent), 0
 	if m.tab == tabGeneral {
 		body, selLine = m.ed.Body(m.theme, 32, true)
+	} else if m.tab == tabSkills || m.tab == tabMCP {
+		body = m.libraryBody(dim, accent)
 	}
 	footerH := 4
 	room := m.height - len(lines) - footerH
@@ -144,6 +176,10 @@ func (m uiModel) View() string {
 		keys = "enter save · esc cancel"
 	case m.tab == tabBoard:
 		keys = "tab switch tab · e edit board.yaml in $EDITOR · q close"
+	case m.tab == tabSkills:
+		keys = "tab switch · j/k select · e edit selected library skill · q close"
+	case m.tab == tabMCP:
+		keys = "tab switch · j/k select · e edit mcp.yml · a approve selected server · q close"
 	}
 	lines = append(lines, "", dim.Render(ansi.Truncate(help, m.width, "…")), flashLine, accent.Render(ansi.Truncate(keys, m.width, "…")))
 	return strings.Join(lines, "\n")
