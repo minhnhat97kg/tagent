@@ -18,6 +18,7 @@ import { WorkflowsPage } from "@/components/WorkflowsPage"
 import { RunPage } from "@/components/RunPage"
 import { AgentsPage } from "@/components/AgentsPage"
 import { RoutingPage } from "@/components/RoutingPage"
+import { MemoryPage } from "@/components/MemoryPage"
 import { CustomPage } from "@/components/CustomPage"
 import { OverviewPanel } from "@/components/panels/OverviewPanel"
 import { Panel } from "@/components/Panel"
@@ -207,6 +208,7 @@ export default function App() {
   else if (route.page === "run") main = maxed("workflows", <RunPage key={(runDir ?? dir) + route.ticket} dir={runDir ?? dir} id={route.ticket} />)
   else if (route.page === "boardConfig") main = maxed("workflows", <BoardConfigPage key={dir} dir={dir} onDirty={setUnsaved} />)
   else if (route.page === "routing") main = <RoutingPage key={dir} dir={dir} />
+  else if ((route as {page:string}).page === "memory") main = <MemoryPage dir={dir ?? ""} />
   else if (route.page === "custom") main = <CustomPage exts={exts ?? []} name={route.name} reload={() => void extPoll.reload()} />
   else if (route.page === "settings") main = route.tab === "workspaces" ? <WorkspaceSettings onAddWorkspace={() => setAddWorkspace(true)} />
     : route.tab === "device" ? <DeviceSettings theme={webTheme} onTheme={setWebTheme} onResetLayout={resetPanes} />

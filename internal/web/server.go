@@ -39,6 +39,7 @@ var dist embed.FS
 
 func (s *server) handler() http.Handler {
 	mux := http.NewServeMux()
+	mux.HandleFunc("/api/memory", s.memory)
 	mux.HandleFunc("GET /api/state", s.state)
 	mux.HandleFunc("/api/library", s.libraryAPI)
 	mux.HandleFunc("/api/library/{kind}/{name}", s.libraryAPI)
