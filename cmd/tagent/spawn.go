@@ -174,6 +174,15 @@ func spawnAgent(o spawnOpts) (pane, warn string, err error) {
 	// that harness natively. App-owned instructions arrive in the dispatch prompt.
 	native := o.Remote.Host == "" && o.Container == "" && o.Role != "" && role.Native && role.Harness == roles.Harness(o.Agent) // the host has no local role file
 	roleEnv := ""
+	if roles.Harness(o.Agent) == "codex" && o.Remote.Host == "" && o.Container == "" {
+		home, err := codexRoleHome(o, contextRole, codexBase(spec.EnvAssignments()))
+		if err != nil {
+			return "", "", err
+		}
+		if home != "" {
+			roleEnv = "env CODEX_HOME=" + setup.ShellQuote(home) + " "
+		}
+	}
 	if native && o.ConfigDir != o.Cwd && (role.Harness == "claude" || role.Harness == "opencode") {
 		config, e := nativeRoleConfig(role)
 		if e != nil {

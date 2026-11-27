@@ -14,24 +14,35 @@ import (
 	"tagent/internal/tasks"
 )
 
-// roleArgs turns the role's context from board.yaml (or the scout preset) into
-// harness flags. It runs before the pane exists, so a bad config never starts an
-// agent with less restriction than it asked for.
-func roleArgs(o spawnOpts, boardRole string) ([]string, error) {
-	harness := roles.Harness(o.Agent)
-	var rc tasks.RoleContext
-	name := ""
+// roleContext is the context that applies to o: its board role's, when the role
+// is configured for the same harness, or the scout preset. name is the role.
+func roleContext(o spawnOpts, boardRole string) (rc tasks.RoleContext, name string, err error) {
 	if boardRole != "" {
 		cfg, err := tasks.LoadBoardConfig(o.ConfigDir)
 		if err != nil {
-			return nil, err
+			return rc, "", err
 		}
-		if br, ok := cfg.Roles[boardRole]; ok && roles.Harness(br.Agent) == harness {
+		if br, ok := cfg.Roles[boardRole]; ok && roles.Harness(br.Agent) == roles.Harness(o.Agent) {
 			rc, name = br.RoleContext, boardRole
 		}
 	}
 	if o.Preset == "scout" && isClaude(o.Agent) {
 		rc, name = tasks.ScoutContext(), "scout"
+	}
+	return rc, name, nil
+}
+
+// roleArgs turns the role's context from board.yaml (or the scout preset) into
+// harness flags. It runs before the pane exists, so a bad config never starts an
+// agent with less restriction than it asked for.
+func roleArgs(o spawnOpts, boardRole string) ([]string, error) {
+	harness := roles.Harness(o.Agent)
+	rc, name, err := roleContext(o, boardRole)
+	if err != nil {
+		return nil, err
+	}
+	if harness == "codex" { // codex takes no flags: codexRoleHome applies the selection
+		rc.Skills, rc.MCP = nil, nil
 	}
 	if !rc.Set() {
 		return nil, nil

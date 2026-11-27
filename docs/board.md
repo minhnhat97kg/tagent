@@ -646,10 +646,17 @@ A role may limit what its agent loads, in `board.yaml` or on the Agents page
   `--tools=`, `--allowedTools=`, `--disallowedTools=`. MCP names come from the
   project's `.mcp.json`, then `~/.claude.json`; `tagent` is generated.
 - Pi: `--no-skills`, `--no-mcp`, `--tools=`, `--exclude-tools=`.
-- Codex, OpenCode, Gemini, Copilot and Amp have no mapping: setting any field is a
-  config error. Pi has no per-server or per-skill allowlist, so skill and MCP
-  lists and `allow` are rejected there; Claude has no per-skill flag, so a skill
-  list is rejected too.
+- Skill lists name skills of the repository library. Claude gets them as an extra
+  plugin (`--plugin-dir`, added to the skills it already has); pi gets
+  `--no-skills --skill`. Pi has no per-server MCP list and no `allow`.
+- Codex: `skills` and `mcp` only. Each launch gets its own `CODEX_HOME` under the
+  board directory: your `config.toml` (its MCP servers replaced when `mcp` is
+  set), links to the selected library skills (your own skills when `skills` is
+  unset), and a link to your `auth.json`. Nothing under `~/.codex` is written. An
+  MCP `env` reference is passed by name (`env_vars`), so it must keep the
+  variable's own name. Codex may start logged out when there is no `auth.json`.
+- OpenCode, Gemini, Copilot and Amp have no mapping: setting any field is a
+  config error.
 - Plugin-provided MCP servers cannot be selected. Context applies to new panes only.
 
 The web Settings page has Skills and MCP tabs for the repository library. Library

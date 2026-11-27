@@ -71,6 +71,16 @@ func (c RoleContext) Args(harness, mcpFile string) ([]string, error) {
 		if len(c.Deny) > 0 {
 			out = append(out, "--exclude-tools="+strings.Join(c.Deny, ","))
 		}
+	case "codex": // skills and mcp are not flags: the launch builds a CODEX_HOME for them
+		if len(c.Tools) > 0 {
+			return nil, unsupported("tools")
+		}
+		if len(c.Allow) > 0 {
+			return nil, unsupported("allow")
+		}
+		if len(c.Deny) > 0 {
+			return nil, unsupported("deny")
+		}
 	default:
 		if c.Skills != nil || c.MCP != nil || len(c.Tools) > 0 || len(c.Allow) > 0 || len(c.Deny) > 0 {
 			return nil, fmt.Errorf("role context is not supported for %s", harness)

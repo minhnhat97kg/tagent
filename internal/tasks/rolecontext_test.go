@@ -22,6 +22,7 @@ func TestRoleContextArgs(t *testing.T) {
 		{"pi mcp list", "pi", RoleContext{MCP: &one}, "ERR"},
 		{"pi allow", "pi", RoleContext{Allow: []string{"x"}}, "ERR"},
 		{"codex tools", "codex", RoleContext{Tools: []string{"read"}}, "ERR"},
+		{"codex skills and mcp", "codex", RoleContext{Skills: &one, MCP: &one}, ""},
 		{"codex empty", "codex", RoleContext{}, ""},
 	}
 	for _, c := range cases {

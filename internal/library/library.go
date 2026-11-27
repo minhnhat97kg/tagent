@@ -15,6 +15,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+var skillName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
+
 var envRef = regexp.MustCompile(`^\$\{[A-Za-z_][A-Za-z0-9_]*\}$`)
 
 // Skill is a skill directory and its declared name.
@@ -65,8 +67,8 @@ func Load(root string) (*Library, error) {
 					break
 				}
 			}
-			if name == "" {
-				l.Invalid["skill:"+e.Name()] = errors.New("missing skill name")
+			if !skillName.MatchString(name) { // the name becomes a file name in generated homes
+				l.Invalid["skill:"+e.Name()] = fmt.Errorf("skill name %q: use letters, digits, ., - and _", name)
 				continue
 			}
 			l.Skills[name] = Skill{Name: name, Path: p, Source: "library"}
