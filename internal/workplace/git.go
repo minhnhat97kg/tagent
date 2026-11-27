@@ -158,11 +158,16 @@ func rebaseOnto(wt, head string) error {
 				return err
 			}
 		}
-		if _, cerr := Run(wt, append([]string{"checkout", "--ours", "--"}, list...)...); cerr != nil {
-			return err
-		}
-		if _, aerr := Run(wt, append([]string{"add", "--"}, list...)...); aerr != nil {
-			return err
+		for _, p := range list {
+			// Hashed bundle names conflict as rename/rename, leaving paths with no file
+			// on this side: drop those. The rebuild that follows restores the real dist.
+			if _, cerr := Run(wt, "checkout", "--ours", "--", p); cerr != nil {
+				if _, rerr := Run(wt, "rm", "-qf", "--ignore-unmatch", "--", p); rerr != nil {
+					return err
+				}
+			} else if _, aerr := Run(wt, "add", "--", p); aerr != nil {
+				return err
+			}
 		}
 		_, err = Run(wt, "-c", "core.editor=true", "rebase", "--continue")
 		if err != nil {

@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -331,6 +332,37 @@ func TestGateResolvesDistConflictByRebuild(t *testing.T) {
 	}
 	if want := "a2\nb2\n"; string(got) != want {
 		t.Errorf("dist = %q, want fresh build %q", got, want)
+	}
+	if out, _ := Run(repo, "status", "--porcelain"); out != "" {
+		t.Errorf("main checkout dirty after merge: %q", out)
+	}
+}
+
+// Bundlers name the output after its content, so two rebuilds rename the same file
+// two ways. That conflict is resolved too, leaving only the fresh build.
+func TestGateResolvesDistRenameConflict(t *testing.T) {
+	repo := webRepo(t)
+	write(t, repo, "Makefile", ".PHONY: web\nweb:\n\trm -rf internal/web/dist && mkdir -p internal/web/dist && cat web/src/* > internal/web/dist/app-$$(cat web/src/* | cksum | cut -d' ' -f1).js\n")
+	common := strings.Repeat("a line both sides keep, so git sees a rename\n", 30)
+	write(t, repo, "web/src/c.txt", common)
+	commitBuild(t, repo, "hashed names")
+	wt, err := Git{}.Create(repo, "23")
+	if err != nil {
+		t.Fatal(err)
+	}
+	write(t, wt, "web/src/b.txt", "b2\n")
+	commitBuild(t, wt, "ticket")
+	write(t, repo, "web/src/a.txt", "a2\n")
+	commitBuild(t, repo, "main")
+	if _, err := (Git{}).Gate(repo, "23", "title", nil); err != nil {
+		t.Fatalf("Gate: %v", err)
+	}
+	files, err := filepath.Glob(filepath.Join(repo, webDist, "*"))
+	if err != nil || len(files) != 1 {
+		t.Fatalf("dist = %v %v, want one bundle", files, err)
+	}
+	if got, _ := os.ReadFile(files[0]); string(got) != "a2\nb2\n"+common {
+		t.Errorf("bundle = %q, want fresh build", got)
 	}
 	if out, _ := Run(repo, "status", "--porcelain"); out != "" {
 		t.Errorf("main checkout dirty after merge: %q", out)
